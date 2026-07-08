@@ -2455,31 +2455,34 @@ class _SectionCard extends StatelessWidget {
     final dividerColor = accent.withValues(alpha: dark ? 0.18 : 0.12);
     final headerColor = dark ? Color.lerp(accent, Colors.white, 0.35)! : _darken(accent);
 
-    // Classic column table. Each column has a FIXED width and the whole table
-    // scrolls horizontally, so words never break mid-word on a narrow phone.
-    // Fixed widths (not IntrinsicColumnWidth) avoid the old layout-loop bug.
-    const colW = 146.0;
+    // Fit the table to the screen. The canvas uses a manual pan gesture that
+    // swallows any nested horizontal scroll, so a scrollable table can't slide —
+    // instead columns share the width via Expanded and text wraps at word
+    // boundaries. A smaller cell font (smaller still for 4+ columns) keeps words
+    // from breaking mid-word.
+    final wide = headers.length >= 4;
+    final cellSize = wide ? 10.5 : 12.5;
 
     Widget buildRow(List<String> cells, {bool isHeader = false}) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: List.generate(headers.length, (ci) {
           final text = ci < cells.length ? cells[ci] : '';
-          return SizedBox(
-            width: colW,
+          return Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+              padding: const EdgeInsets.fromLTRB(5, 6, 5, 6),
               child: isHeader
                   ? Text(text.toUpperCase(),
                       style: TextStyle(
                           fontFamily: 'ShantellSans',
-                          fontSize: 10.5,
+                          fontSize: wide ? 9.0 : 10.0,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 0.7,
+                          letterSpacing: 0.2,
+                          height: 1.3,
                           color: headerColor))
                   : _inlineText(
                       text,
-                      TextStyle(fontSize: 13, height: 1.45, color: ink),
+                      TextStyle(fontSize: cellSize, height: 1.4, color: ink),
                       accent: accent,
                       dark: dark,
                     ),
@@ -2494,24 +2497,18 @@ class _SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: accent.withValues(alpha: 0.25), width: 1.5)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: colW * headers.length,
-          child: Column(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildRow(headers, isHeader: true),
+          ...rows.asMap().entries.map((e) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              buildRow(headers, isHeader: true),
-              ...rows.asMap().entries.map((e) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Divider(height: 1, thickness: 0.8, color: dividerColor),
-                  buildRow(e.value),
-                ],
-              )),
+              Divider(height: 1, thickness: 0.8, color: dividerColor),
+              buildRow(e.value),
             ],
-          ),
-        ),
+          )),
+        ],
       ),
     );
   }

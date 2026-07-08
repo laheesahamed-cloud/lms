@@ -679,33 +679,9 @@ class _ReminderSettingsSheetState extends State<_ReminderSettingsSheet> {
                 ),
               ),
             ),
-          const SizedBox(height: 22),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _sendTest,
-              icon: const Icon(Icons.notifications_active_outlined, size: 18),
-              label: const Text('Send a test notification'),
-            ),
-          ),
         ],
       ),
     );
-  }
-
-  Future<void> _sendTest() async {
-    final granted = await Notifications.requestPermission();
-    if (!mounted) return;
-    if (!granted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Notifications are off — enable them for this app in iOS Settings.')));
-      return;
-    }
-    await Notifications.testNow();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Test notification sent')));
   }
 
   Future<void> _pickCustomTime() async {
