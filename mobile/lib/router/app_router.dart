@@ -329,37 +329,37 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/app/flashcards',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const FlashcardsPage()),
+                studyToolPage(c, key: s.pageKey, child: const FlashcardsPage()),
           ),
           GoRoute(
             path: '/app/drugs',
-            pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const DrugRandomizerPage()),
+            pageBuilder: (c, s) => studyToolPage(c,
+                key: s.pageKey, child: const DrugRandomizerPage()),
           ),
           GoRoute(
             path: '/app/ecg',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const EcgPage()),
+                studyToolPage(c, key: s.pageKey, child: const EcgPage()),
           ),
           GoRoute(
             path: '/app/auscultation',
-            pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const AuscultationPage()),
+            pageBuilder: (c, s) => studyToolPage(c,
+                key: s.pageKey, child: const AuscultationPage()),
           ),
           GoRoute(
             path: '/app/lessons',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const LessonsListPage()),
+                studyToolPage(c, key: s.pageKey, child: const LessonsListPage()),
           ),
           GoRoute(
             path: '/app/planner',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const PlannerPage()),
+                studyToolPage(c, key: s.pageKey, child: const PlannerPage()),
           ),
           GoRoute(
             path: '/app/bookmarks',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const BookmarksPage()),
+                studyToolPage(c, key: s.pageKey, child: const BookmarksPage()),
           ),
           GoRoute(
             path: '/app/notifications',
@@ -388,8 +388,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/app/my-notes',
-            pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const PersonalNotesPage()),
+            pageBuilder: (c, s) => studyToolPage(c,
+                key: s.pageKey,
+                child: const PersonalNotesPage(),
+                chrome: false),
           ),
           GoRoute(
             path: '/app/my-flashcards',

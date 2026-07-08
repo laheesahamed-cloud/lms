@@ -589,7 +589,8 @@ function ImageLightbox({ image, onClose }) {
 /* ══════════════════════════════════════════════════════════════
    RICH TEXT — ==highlight== and **bold**
 ══════════════════════════════════════════════════════════════ */
-const HIGHLIGHT_COLOR = '#E6C25A'; // HIG: one calm highlight colour (no rainbow), used sparingly
+// Pastel rainbow highlighter — soft multi-colour cycling (calm, not neon).
+const HIGHLIGHT_RAINBOW = ['#F6D98A', '#A9CBEE', '#B3DDB0', '#EFB6CD', '#CDBCE8', '#A9DCE0', '#F2B39E', '#F3CDA0'];
 function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
   const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   if (!text) return null;
@@ -615,7 +616,7 @@ function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
     if (next > 0) { parts.push(...renderPlain(s.slice(0, next))); s = s.slice(next); k++; }
     if (s.startsWith('==')) {
       const e = s.indexOf('==', 2); if (e === -1) { parts.push(s); break; }
-      const color = HIGHLIGHT_COLOR;
+      const color = HIGHLIGHT_RAINBOW[(highlightIndex + markIndex) % HIGHLIGHT_RAINBOW.length];
       markIndex += 1;
       parts.push(<mark key={k++} className={noteCanvasUi.highlight} style={highlightMarkStyle(color, theme)}>{s.slice(2, e)}</mark>); s = s.slice(e + 2);
     } else {

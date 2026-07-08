@@ -2149,6 +2149,12 @@ const _kPalette = <Color>[
   Color(0xFFE3B79A), Color(0xFFB9CBE3), Color(0xFFC9DCA9), Color(0xFFD9BBCE),
 ];
 
+// Pastel rainbow highlighter — soft, distinct highlight tints cycled per mark.
+const _kHighlightRainbow = <Color>[
+  Color(0xFFF6D98A), Color(0xFFA9CBEE), Color(0xFFB3DDB0), Color(0xFFEFB6CD),
+  Color(0xFFCDBCE8), Color(0xFFA9DCE0), Color(0xFFF2B39E), Color(0xFFF3CDA0),
+];
+
 // A pastel accent is too light to read as text; darken it in light mode and
 // lighten it in dark mode so parent lines / labels stay legible.
 Color _readableAccent(Color c, bool dark) {
@@ -2280,20 +2286,22 @@ Widget _inlineText(String raw, TextStyle base,
     bool dark = false}) {
   base = base.copyWith(fontFamily: 'ShantellSans', fontSize: (base.fontSize ?? 14) * 1.12); // Shantell + bigger for readability
   final runs = parseInline(raw);
-  // HIG: one calm highlight colour (no rainbow) — a single soft amber, used sparingly.
-  final hlBg = dark ? const Color(0xFFD9B24A) : const Color(0xFFE6C25A);
+  // Pastel rainbow highlighter — soft multi-colour cycling (calm, not neon).
   final boldColor = dark ? const Color(0xFFB8CBFF) : const Color(0xFF1D4ED8);
   final hlText = dark ? const Color(0xFFFDF6E3) : const Color(0xFF3A342A);
   final muted = (base.color ?? const Color(0xFF6A6A70)).withValues(alpha: 0.6);
   final children = <TextSpan>[];
+  var markIndex = 0;
   for (final r in runs) {
     if (r.highlight) {
+      final hlBg = _kHighlightRainbow[(highlightIndex + markIndex) % _kHighlightRainbow.length];
+      markIndex++;
       children.add(TextSpan(
         text: r.text,
         style: base.copyWith(
           color: hlText,
           fontWeight: FontWeight.w600,
-          background: Paint()..color = hlBg.withValues(alpha: dark ? 0.22 : 0.30),
+          background: Paint()..color = hlBg.withValues(alpha: dark ? 0.26 : 0.34),
         ),
       ));
     } else if (r.bold) {

@@ -63,8 +63,12 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
     setState(() => _notes.removeWhere((n) => n.id == note.id));
   }
 
-  void _openNote(PersonalNote note) {
-    context.push('/app/my-notes/${note.id}?title=${Uri.encodeComponent(note.title)}&pages=${note.pageCount}');
+  Future<void> _openNote(PersonalNote note) async {
+    await context.push(
+        '/app/my-notes/${note.id}?title=${Uri.encodeComponent(note.title)}&pages=${note.pageCount}');
+    // Refresh on return so a page added inside the note (or a rename) shows
+    // immediately instead of staying stale until the app restarts.
+    if (mounted) _load();
   }
 
   @override

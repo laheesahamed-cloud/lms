@@ -75,12 +75,14 @@ class _PersonalDeckPageState extends State<PersonalDeckPage> {
     _load();
   }
 
-  void _startReview() {
+  Future<void> _startReview() async {
     final due = _cards.where((c) => c.isDue).toList();
     if (due.isEmpty) return;
-    context.push(
+    await context.push(
       '/app/my-flashcards/${widget.deckId}/review?title=${Uri.encodeComponent(widget.title)}',
     );
+    // Refresh due counts / card states after the review session ends.
+    if (mounted) _load();
   }
 
   @override

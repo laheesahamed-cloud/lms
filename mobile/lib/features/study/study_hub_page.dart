@@ -94,14 +94,16 @@ class StudyHubPage extends ConsumerWidget {
                   child: FadeInAnimation(child: w),
                 ),
                 children: [
-                  // Drug Randomizer — featured card with live spin stats
+                  // Drug Randomizer — featured card with live spin stats.
+                  // push() (not go) so the tool lands on top of the Study hub,
+                  // enabling the iOS swipe-back gesture + back chevron.
                   _DrugRandomizerTile(state: drugState),
                   const SizedBox(height: AppSpace.x3),
 
                   for (final tool in _tools) ...[
                     _ToolTile(
                       entry: tool,
-                      onTap: () => context.go(tool.route),
+                      onTap: () => context.push(tool.route),
                     ),
                     const SizedBox(height: AppSpace.x3),
                   ],
@@ -130,7 +132,7 @@ class _DrugRandomizerTile extends StatelessWidget {
     final progress   = hasSub ? 1.0 : (spinsUsed / freeLimit).clamp(0.0, 1.0);
 
     return GlassCard(
-      onTap: () => context.go('/app/drugs'),
+      onTap: () => context.push('/app/drugs'),
       padding: const EdgeInsets.all(AppSpace.x4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
