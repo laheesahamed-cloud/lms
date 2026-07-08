@@ -1016,8 +1016,10 @@ ${settings.footer}`;
         };
         await this.db.execute(`
         INSERT INTO user_subscriptions (
-          user_id, plan_id, assigned_by, notes, status, payment_status, start_date, end_date
-        ) VALUES (?, ?, NULL, 'Auto-assigned Free plan on signup', 'active', 'free_plan', ?, ?)
+          user_id, plan_id, assigned_by, notes, status, payment_status, start_date, end_date,
+          access_scope, course_ids_json, lesson_ids_json
+        ) VALUES (?, ?, NULL, 'Auto-assigned Free plan on signup', 'active', 'free_plan', ?, ?,
+          'lessons', '[]', '[]')
       `, [userId, Number(entryPlan.id), toDateOnly(startDate), '9999-12-31']);
     }
 };
