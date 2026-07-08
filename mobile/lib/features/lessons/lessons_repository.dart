@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
@@ -21,9 +22,9 @@ final lessonDocProvider =
     }
   }
 
-  final a = await tryGet('/lessons/$lessonId/note');
-  if (a != null && (a.locked || !a.isEmpty)) return a;
-  return a ?? LessonDoc.empty();
+  final raw = await tryGet('/lessons/$lessonId/note');
+  if (raw != null && (raw.locked || !raw.isEmpty)) return raw;
+  return raw ?? LessonDoc.empty();
 });
 
 /// Marks a lesson as completed via PATCH /courses/student/lessons/:id/progress.
@@ -48,5 +49,8 @@ final lessonsListProvider = FutureProvider.autoDispose<List<LessonListItem>>((re
       : (data is Map
           ? (data['notes'] ?? data['aiNotes'] ?? data['items'] ?? data['data'] ?? const [])
           : const []);
-  return (rows as List).map(LessonListItem.fromJson).toList();
+  return compute(
+    (List<dynamic> r) => r.map(LessonListItem.fromJson).toList(),
+    rows as List<dynamic>,
+  );
 });

@@ -451,11 +451,13 @@ class _PdfLessonPageState extends State<PdfLessonPage>
     try {
       final doc = await PdfDocument.openUri(Uri.parse(fullUrl));
       if (!mounted) return;
-      // Load ALL ink before triggering a rebuild so we only setState once.
+      // Load ALL ink in parallel before triggering a rebuild so we only setState once.
       final allStrokes = <int, List<_PdfStroke>>{};
-      for (var i = 0; i < doc.pages.length; i++) {
-        final s = await _readPageInk(i);
-        if (s != null) allStrokes[i] = s;
+      final results = await Future.wait(
+        List.generate(doc.pages.length, (i) => _readPageInk(i)),
+      );
+      for (var i = 0; i < results.length; i++) {
+        if (results[i] != null) allStrokes[i] = results[i]!;
       }
       if (mounted) {
         setState(() {

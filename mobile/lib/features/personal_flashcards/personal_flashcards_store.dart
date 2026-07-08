@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ─── Models ──────────────────────────────────────────────────────────────────
@@ -159,14 +160,18 @@ class PersonalFlashcardsStore {
 
   // ── Decks ──
 
-  static Future<List<PersonalDeck>> loadDecks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_decksKey);
-    if (raw == null) return [];
+  static List<PersonalDeck> _parseDecks(String raw) {
     final list = jsonDecode(raw) as List<dynamic>;
     return list
         .map((e) => PersonalDeck.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
+  }
+
+  static Future<List<PersonalDeck>> loadDecks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_decksKey);
+    if (raw == null) return [];
+    return compute(_parseDecks, raw);
   }
 
   static Future<void> _saveDecks(List<PersonalDeck> decks) async {
@@ -206,14 +211,18 @@ class PersonalFlashcardsStore {
 
   // ── Cards ──
 
-  static Future<List<PersonalCard>> loadCards(String deckId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_cardsKey(deckId));
-    if (raw == null) return [];
+  static List<PersonalCard> _parseCards(String raw) {
     final list = jsonDecode(raw) as List<dynamic>;
     return list
         .map((e) => PersonalCard.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
+  }
+
+  static Future<List<PersonalCard>> loadCards(String deckId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_cardsKey(deckId));
+    if (raw == null) return [];
+    return compute(_parseCards, raw);
   }
 
   static Future<void> _saveCards(String deckId, List<PersonalCard> cards) async {

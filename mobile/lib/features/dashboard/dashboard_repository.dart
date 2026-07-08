@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
@@ -383,10 +384,12 @@ class StudentDashboard {
   }
 }
 
+StudentDashboard _parseDashboard(dynamic raw) => StudentDashboard.fromJson(raw);
+
 /// Single source of truth for the streak / daily-goal / weak-topic widgets.
 final studentDashboardProvider = FutureProvider.autoDispose<StudentDashboard>((ref) async {
   ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/dashboard');
-  return StudentDashboard.fromJson(res.data);
+  return compute(_parseDashboard, res.data);
 });

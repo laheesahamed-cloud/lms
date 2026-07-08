@@ -49,13 +49,13 @@ const noteCanvasUi = {
     "min-w-0 max-w-full break-words rounded-[10px] border border-black/[0.07] px-3 py-1.5 text-[13px] font-medium leading-[1.5] text-slate-700 dark:border-white/10 dark:text-[rgba(220,230,255,0.92)]",
   wrapOuter: 'relative',
   canvas:
-    "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] text-[#3b465f] shadow-[0_1px_3px_rgba(91,64,35,0.05)] dark:border-white/10 dark:bg-[#111827] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.082)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
+    "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#e3e3e7] bg-[#f2f2f4] bg-[radial-gradient(circle,rgba(60,60,67,0.05)_1.2px,transparent_1.2px)] bg-[length:22px_22px] text-[#3b465f] shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:border-white/10 dark:bg-[#111827] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.082)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
   editable: '!overflow-visible',
   overviewWrap: 'relative z-[4] flex justify-center',
   overviewBadge:
     "rounded-b-xl bg-[#d9c7ee] px-7 py-1 font-[var(--type-font-body)] text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#4b2d71] shadow-[0_2px_8px_rgba(76,45,113,0.10)] dark:bg-violet-400/25 dark:text-violet-100",
   header:
-    'relative z-[3] mx-5 mb-2 mt-4 min-w-0 overflow-hidden rounded-[20px] border border-[#eadfce] bg-[radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.10),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(16,185,129,0.10),transparent_38%),radial-gradient(circle,rgba(87,69,39,0.045)_1px,transparent_1px),rgba(255,255,255,0.82)] bg-[length:auto,auto,18px_18px,auto] px-5 py-4 backdrop-blur-sm dark:border-white/10 dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,165,250,0.16),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(52,211,153,0.12),transparent_38%),radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px),rgba(255,255,255,0.072)] max-[520px]:mx-2 max-[520px]:px-2.5 max-[520px]:py-3',
+    'relative z-[3] mx-5 mb-2 mt-4 min-w-0 overflow-hidden rounded-[20px] border border-[#e3e3e7] bg-[radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.10),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(16,185,129,0.10),transparent_38%),radial-gradient(circle,rgba(60,60,67,0.045)_1px,transparent_1px),rgba(255,255,255,0.82)] bg-[length:auto,auto,18px_18px,auto] px-5 py-4 backdrop-blur-sm dark:border-white/10 dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,165,250,0.16),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(52,211,153,0.12),transparent_38%),radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px),rgba(255,255,255,0.072)] max-[520px]:mx-2 max-[520px]:px-2.5 max-[520px]:py-3',
   headerInner: 'relative flex items-center justify-between gap-4 max-[720px]:items-start max-[720px]:flex-col',
   titleCluster: 'min-w-0 flex-1',
   titleRow: 'flex min-w-0 flex-wrap items-center gap-2.5',
@@ -79,7 +79,7 @@ const noteCanvasUi = {
   sectionGrid: 'grid min-w-0 grid-cols-2 gap-0.5 px-5 py-2 max-[640px]:grid-cols-1 max-[520px]:px-2',
   sectionGridOne: '!grid-cols-1 [&>*]:col-span-1',
   section:
-    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#eadfce]/65 bg-[#fffdf8]/45 transition-colors duration-200 hover:border-[#e2d4bd]/80 hover:bg-[#fffdf8]/70 dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.065]',
+    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#e3e3e7]/65 bg-[#fffdf8]/45 transition-colors duration-200 hover:border-[#e2d4bd]/80 hover:bg-[#fffdf8]/70 dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.065]',
   cardMedicalIcon:
     'pointer-events-none absolute right-2.5 top-2.5 z-[4] flex size-7 items-center justify-center rounded-full border bg-white/42 opacity-65 shadow-[0_4px_12px_rgba(15,23,42,0.08)] dark:bg-slate-950/20 max-[520px]:right-2 max-[520px]:top-2 max-[520px]:size-6 [&_svg]:size-[16px] max-[520px]:[&_svg]:size-[14px]',
   imageSection: '',
@@ -959,7 +959,7 @@ function canvasCardBackground(accentColor, theme) {
 function dottedCardBackground(accentColor, theme, surface) {
   const topFade = theme === 'dark' ? '24' : '10';
   const cornerFade = theme === 'dark' ? '30' : '14';
-  const dotColor = theme === 'dark' ? 'rgba(190,210,255,0.09)' : 'rgba(87,69,39,0.045)';
+  const dotColor = theme === 'dark' ? 'rgba(190,210,255,0.09)' : 'rgba(60,60,67,0.045)';
   return [
     `radial-gradient(circle at 100% 100%, ${accentColor}${cornerFade} 0%, transparent 42%)`,
     `linear-gradient(135deg, ${accentColor}${topFade} 0%, transparent 58%)`,
@@ -994,8 +994,8 @@ function SummaryFragments({ text, highlightColors, accentColor, colors, theme })
 /* ══════════════════════════════════════════════════════════════
    COLORS
 ══════════════════════════════════════════════════════════════ */
-const DARK_COLORS  = ['#7EB8FF','#FFE082','#FF8A80','#80CBC4','#CE93D8','#FFCC80'];
-const LIGHT_COLORS = ['#2563EB','#D97706','#DC2626','#0EA5E9','#7C3AED','#60A5FA'];
+const DARK_COLORS  = ['#93A9C9','#CFC59A','#C99089','#8CADA8','#AF97B8','#CBB088'];
+const LIGHT_COLORS = ['#5E7CA6','#A8895A','#B0685F','#5B93A5','#8878A8','#7E9BC2'];
 
 function normalizeVisualStyleColors(raw) {
   return Array.isArray(raw)

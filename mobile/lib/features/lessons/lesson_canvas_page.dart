@@ -873,8 +873,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     // scale limits and centering completely wrong when zoomed below 100%.
     final startScale = _startMatrix.storage[0];
     double factor = (twoFinger && _startDist > 0) ? curDist / _startDist : 1.0;
-    // Personal notes allow zooming out below 1× to see the desk margins.
-    final minScale = widget.isPersonal ? 0.3 : 1.0;
+    // Personal notes: cap zoom-out at 90% in both portrait and landscape.
+    final minScale = widget.isPersonal ? 0.9 : 1.0;
     final target = (startScale * factor).clamp(minScale, 5.0);
     factor = startScale == 0 ? 1.0 : target / startScale;
 
@@ -1932,10 +1932,10 @@ class _NoteContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paper = dark ? const Color(0xFF17150F) : const Color(0xFFFAF3E6);
-    final dot = dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE7DABF);
-    final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF322F29);
-    final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6B6155);
+    final paper = dark ? const Color(0xFF161619) : const Color(0xFFF2F2F4);
+    final dot = dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE3E3E7);
+    final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF2E2E33);
+    final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6A6A70);
 
     return CustomPaint(
       painter: _DotGridPainter(dot),
@@ -2113,11 +2113,11 @@ const _kPageGap = 28.0;
 /// Section accent palette (web NoteCanvas `PALETTE`) — cycled by section index
 /// so each card gets a distinct colour, exactly like the web note.
 const _kPalette = <Color>[
-  Color(0xFF2563EB), Color(0xFFDC2626), Color(0xFF0EA5E9), Color(0xFFD97706),
-  Color(0xFF7C3AED), Color(0xFF60A5FA), Color(0xFFDB2777), Color(0xFFEA580C),
-  Color(0xFF16A34A), Color(0xFFCA8A04), Color(0xFFA7D8FF), Color(0xFFFFE082),
-  Color(0xFFFF8A80), Color(0xFF80CBC4), Color(0xFFCE93D8), Color(0xFFFFCC80),
-  Color(0xFFF48FB1), Color(0xFF80DEEA), Color(0xFFA5D6A7), Color(0xFFFFE0B2),
+  Color(0xFF5E7CA6), Color(0xFFB0685F), Color(0xFF5B93A5), Color(0xFFA8895A),
+  Color(0xFF8878A8), Color(0xFF7E9BC2), Color(0xFFB0728F), Color(0xFFBE7E5A),
+  Color(0xFF6C9B77), Color(0xFF9E9057), Color(0xFFA9BFD6), Color(0xFFCFC59A),
+  Color(0xFFC99089), Color(0xFF8CADA8), Color(0xFFAF97B8), Color(0xFFCBB088),
+  Color(0xFFC295A5), Color(0xFF92B7BD), Color(0xFF9AB89B), Color(0xFFCFC0A0),
 ];
 
 /// Highlight cycle (web `DEFAULT_HIGHLIGHT_COLORS`), prefixed by the section accent.
