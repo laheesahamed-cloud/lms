@@ -2294,8 +2294,10 @@ class _SectionCard extends StatelessWidget {
     final accent =
         _parseHex(section.accentColor) ?? _kPalette[index % _kPalette.length];
     final surface = dark ? const Color(0xFF1B1B1E) : Colors.white;
-    final cornerTint =
-        Color.alphaBlend(accent.withValues(alpha: dark ? 0.10 : 0.09), surface);
+    // Accent fade in the top-left and bottom-right corners (like the web card),
+    // a touch stronger in dark mode; the middle stays the flat surface.
+    final glowTL = Color.alphaBlend(accent.withValues(alpha: dark ? 0.14 : 0.075), surface);
+    final glowBR = Color.alphaBlend(accent.withValues(alpha: dark ? 0.18 : 0.10), surface);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
@@ -2320,8 +2322,8 @@ class _SectionCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [cornerTint, surface],
-          stops: const [0.0, 0.62],
+          colors: [glowTL, surface, glowBR],
+          stops: const [0.0, 0.5, 1.0],
         ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accent.withValues(alpha: 0.18)),
@@ -2412,65 +2414,18 @@ class _SectionCard extends StatelessWidget {
     final dividerColor = accent.withValues(alpha: dark ? 0.18 : 0.12);
     final headerColor = dark ? Color.lerp(accent, Colors.white, 0.35)! : _darken(accent);
 
-    // Phones can't fit a 3+ column table — words snap mid-word. Stack each row
-    // into its own block: first cell = title, remaining cells = "HEADER: value".
-    if (headers.length > 2) {
-      return Container(
-        margin: const EdgeInsets.only(top: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: rows.map((cells) {
-            final title = cells.isNotEmpty ? cells[0] : '';
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: dark ? 0.06 : 0.05),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: accent.withValues(alpha: dark ? 0.22 : 0.18)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (title.isNotEmpty)
-                    _inlineText(
-                      title,
-                      TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w700, color: headerColor),
-                      accent: accent, dark: dark,
-                    ),
-                  for (var ci = 1; ci < headers.length; ci++)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 92,
-                            child: Text(headers[ci].toUpperCase(),
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.3, height: 1.6, color: headerColor.withValues(alpha: 0.75))),
-                          ),
-                          Expanded(
-                            child: _inlineText(ci < cells.length ? cells[ci] : '', TextStyle(fontSize: 13, height: 1.45, color: ink), accent: accent, dark: dark),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      );
-    }
+    // Classic column table. Each column has a FIXED width and the whole table
+    // scrolls horizontally, so words never break mid-word on a narrow phone.
+    // Fixed widths (not IntrinsicColumnWidth) avoid the old layout-loop bug.
+    const colW = 146.0;
 
-    // Use Column+Row with Expanded columns — avoids IntrinsicColumnWidth
-    // inside SingleChildScrollView which causes infinite layout loops.
     Widget buildRow(List<String> cells, {bool isHeader = false}) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: List.generate(headers.length, (ci) {
           final text = ci < cells.length ? cells[ci] : '';
-          return Expanded(
+          return SizedBox(
+            width: colW,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
               child: isHeader
@@ -2497,17 +2452,24 @@ class _SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: accent.withValues(alpha: 0.25), width: 1.5)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          buildRow(headers, isHeader: true),
-          ...rows.asMap().entries.map((e) => Column(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: colW * headers.length,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Divider(height: 1, thickness: 0.8, color: dividerColor),
-              buildRow(e.value),
+              buildRow(headers, isHeader: true),
+              ...rows.asMap().entries.map((e) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(height: 1, thickness: 0.8, color: dividerColor),
+                  buildRow(e.value),
+                ],
+              )),
             ],
-          )),
-        ],
+          ),
+        ),
       ),
     );
   }
