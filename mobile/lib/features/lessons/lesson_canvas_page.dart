@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -206,7 +207,7 @@ class _OneEuro {
 }
 
 class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final List<_Stroke> _strokes = [];
   _Stroke? _active;
   _OneEuro? _euro; // per-stroke input filter (recreated on each pen-down)
@@ -260,6 +261,16 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Offset _flingVel = Offset.zero; // screen px/s
   Duration? _flingPrev;
   static const double _flingDecel = 2.6; // higher = stops sooner (iOS ≈ 2.0)
+
+  // ── Animated zoom-to-fit (double-tap → smooth 250ms ease-out) ───────────────
+  Ticker? _zoomAnim;
+  Matrix4 _zoomFrom = Matrix4.identity();
+  Matrix4 _zoomTo   = Matrix4.identity();
+  Duration? _zoomStart;
+  static const Duration _zoomDuration = Duration(milliseconds: 250);
+  // Zoom-level overlay (briefly visible while zooming, like GoodNotes' % pill)
+  final ValueNotifier<double?> _zoomIndicator = ValueNotifier(null);
+  static const Duration _zoomIndicatorDuration = Duration(milliseconds: 1200);
 
   // ── Committed-ink picture cache (MECHANISM: replay, not re-run) ──────────────
   // All committed pen / highlighter strokes are recorded once into a vector
@@ -824,16 +835,24 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   }
 
   // ── Transform math (finger pan + pinch zoom, clamp scale to [minScale,5]) ────
-  void _setMatrix(Matrix4 m) {
+  void _setMatrix(Matrix4 m, {bool showIndicator = false}) {
     _matrix = _clamp(m);
     _invMatrix = Matrix4.inverted(_matrix);
     _xform.value++; // rebuild only the Transform subtree
+    if (showIndicator) {
+      final pct = _matrix.getMaxScaleOnAxis();
+      _zoomIndicator.value = pct;
+      Future.delayed(_zoomIndicatorDuration, () {
+        if (_zoomIndicator.value == pct) _zoomIndicator.value = null;
+      });
+    }
   }
 
   Offset _centroid(List<Offset> p) =>
       p.fold(Offset.zero, (a, b) => a + b) / p.length.toDouble();
 
   void _snapshotGesture() {
+    if (_zoomAnim?.isActive ?? false) _zoomAnim!.stop(); // cancel animated fit
     _startMatrix = _matrix.clone();
     _panAxis = null; // reset axis lock for new gesture
     final pts = _touches.values.toList();
@@ -880,7 +899,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       ..multiply(Matrix4.translationValues(-focal.dx, -focal.dy, 0))
       ..multiply(Matrix4.translationValues(dFocal.dx, dFocal.dy, 0))
       ..multiply(_startMatrix);
-    _setMatrix(m);
+    _setMatrix(m, showIndicator: twoFinger);
   }
 
   // Clamp translation so content can't be dragged into empty space. Horizontal:
@@ -901,10 +920,13 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       x = t.x.clamp(viewW - contentW, 0.0);
     }
 
-    double y = t.y;
-    if (_contentH > 0) {
-      final minY = (contentH <= viewH) ? 0.0 : (viewH - contentH);
-      y = t.y.clamp(minY - vMargin, vMargin);
+    double y;
+    if (_contentH <= 0) {
+      y = t.y;
+    } else if (contentH <= viewH) {
+      y = (viewH - contentH) / 2; // centre vertically when smaller than viewport
+    } else {
+      y = t.y.clamp(viewH - contentH - vMargin, vMargin);
     }
     return m.clone()..setTranslationRaw(x, y, 0);
   }
@@ -947,9 +969,34 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _scheduleSaveInk();
   }
 
-  // Double-tap: zoom to fit width (scale=1 — standard GoodNotes writing view).
+  // Double-tap: animated zoom to fit-width (GoodNotes-style 250ms ease-out).
   void _fitToPage() {
-    _setMatrix(Matrix4.diagonal3Values(1, 1, 1));
+    _zoomFrom = _matrix.clone();
+    _zoomTo   = _clamp(Matrix4.diagonal3Values(1, 1, 1));
+    _zoomStart = null;
+    _zoomAnim ??= createTicker(_onZoomTick);
+    if (_zoomAnim!.isActive) _zoomAnim!.stop();
+    _zoomAnim!.start();
+  }
+
+  void _onZoomTick(Duration elapsed) {
+    _zoomStart ??= elapsed;
+    final t = ((elapsed - _zoomStart!).inMicroseconds /
+            _zoomDuration.inMicroseconds)
+        .clamp(0.0, 1.0);
+    // Ease-out cubic: feels snappy like GoodNotes
+    final ease = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
+    // Lerp each matrix entry
+    final from = _zoomFrom.storage;
+    final to   = _zoomTo.storage;
+    final lerped = Float64List(16);
+    for (var i = 0; i < 16; i++) {
+      lerped[i] = from[i] + (to[i] - from[i]) * ease;
+    }
+    _matrix = Matrix4.fromFloat64List(lerped);
+    _invMatrix = Matrix4.inverted(_matrix);
+    _xform.value++;
+    if (t >= 1.0) _zoomAnim!.stop();
   }
 
   @override
@@ -1459,25 +1506,60 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         ),
       );
 
-      return Listener(
-        // translucent (not opaque) so taps can still reach note content later.
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: _onPointerDown,
-        onPointerMove: _onPointerMove,
-        onPointerUp: _onPointerUp,
-        onPointerCancel: _onPointerCancel,
-        child: ClipRect(
-          child: ValueListenableBuilder<int>(
-            valueListenable: _xform,
-            child: content,
-            builder: (_, _, child) => Transform(
-              transform: _matrix,
-              alignment: Alignment.topLeft,
-              child: child,
+      return Stack(children: [
+        Listener(
+          // translucent (not opaque) so taps can still reach note content later.
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: ClipRect(
+            child: ValueListenableBuilder<int>(
+              valueListenable: _xform,
+              child: content,
+              builder: (_, _, child) => Transform(
+                transform: _matrix,
+                alignment: Alignment.topLeft,
+                child: child,
+              ),
             ),
           ),
         ),
-      );
+        // Zoom % indicator — brief pill at top-centre, like GoodNotes
+        Positioned(
+          top: 12,
+          left: 0,
+          right: 0,
+          child: ValueListenableBuilder<double?>(
+            valueListenable: _zoomIndicator,
+            builder: (_, pct, __) => AnimatedOpacity(
+              opacity: pct != null ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 180),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? const Color(0xFF2A2A2E).withValues(alpha: 0.92)
+                        : Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 8)],
+                  ),
+                  child: Text(
+                    pct != null ? '${(pct * 100).round()}%' : '',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: dark ? Colors.white : const Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]);
     });
   }
 }
@@ -2072,7 +2154,7 @@ Widget _bullet(String raw, Color ink, Color accent,
             margin: const EdgeInsets.only(top: 7, right: 9),
             width: 7,
             height: 7,
-            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: accent.withValues(alpha: dark ? 0.65 : 1.0), shape: BoxShape.circle),
           ),
         Expanded(
           child: _inlineText(
@@ -2155,7 +2237,7 @@ Widget _inlineText(String raw, TextStyle base,
     bool dark = false}) {
   final runs = parseInline(raw);
   final palette = <Color>[accent, ..._kHighlightColors];
-  final boldColor = dark ? const Color(0xFFFF8A80) : const Color(0xFF1D4ED8);
+  final boldColor = dark ? const Color(0xFFB8CBFF) : const Color(0xFF1D4ED8);
   final hlText = dark ? const Color(0xFFF8FBFF) : const Color(0xFF334155);
   final children = <TextSpan>[];
   var markIndex = 0;
@@ -2168,7 +2250,7 @@ Widget _inlineText(String raw, TextStyle base,
         style: base.copyWith(
           color: hlText,
           fontWeight: FontWeight.w600,
-          background: Paint()..color = col.withValues(alpha: dark ? 0.34 : 0.23),
+          background: Paint()..color = col.withValues(alpha: dark ? 0.20 : 0.23),
         ),
       ));
     } else if (r.bold) {
@@ -2202,7 +2284,7 @@ class _SectionCard extends StatelessWidget {
         _parseHex(section.accentColor) ?? _kPalette[index % _kPalette.length];
     final surface = dark ? const Color(0xFF1C1B16) : Colors.white;
     final cornerTint =
-        Color.alphaBlend(accent.withValues(alpha: dark ? 0.22 : 0.13), surface);
+        Color.alphaBlend(accent.withValues(alpha: dark ? 0.08 : 0.06), surface);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
@@ -2231,7 +2313,7 @@ class _SectionCard extends StatelessWidget {
           stops: const [0.0, 0.62],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withValues(alpha: 0.30)),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2272,9 +2354,117 @@ class _SectionCard extends StatelessWidget {
               child: _bullet(section.bullets[i], ink, accent,
                   index: i, dark: dark),
             ),
+          if (section.isTable) _tableBlock(accent),
           if (section.callout.isNotEmpty) _callout(accent),
+          if (section.mnemonic.isNotEmpty) _mnemonic(accent),
+          if (section.stickyNote.isNotEmpty) _stickyNote(accent),
           if (siWidget != null && si!.position != 'top') siWidget,
         ],
+      ),
+    );
+  }
+
+  Widget _tableBlock(Color accent) {
+    final headers = section.tableHeaders;
+    final rows = section.tableRows;
+    if (headers.isEmpty) return const SizedBox.shrink();
+    final dividerColor = accent.withValues(alpha: dark ? 0.18 : 0.12);
+    final headerColor = dark ? accent.withValues(alpha: 0.85) : _darken(accent);
+
+    // Use Column+Row with Expanded columns — avoids IntrinsicColumnWidth
+    // inside SingleChildScrollView which causes infinite layout loops.
+    Widget buildRow(List<String> cells, {bool isHeader = false}) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(headers.length, (ci) {
+          final text = ci < cells.length ? cells[ci] : '';
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+              child: isHeader
+                  ? Text(text.toUpperCase(),
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.7,
+                          color: headerColor))
+                  : _inlineText(
+                      text,
+                      TextStyle(fontSize: 13, height: 1.45, color: ink),
+                      accent: accent,
+                      dark: dark,
+                    ),
+            ),
+          );
+        }),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: accent.withValues(alpha: 0.25), width: 1.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildRow(headers, isHeader: true),
+          ...rows.asMap().entries.map((e) => Column(
+            children: [
+              Divider(height: 1, thickness: 0.8, color: dividerColor),
+              buildRow(e.value),
+            ],
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _mnemonic(Color accent) {
+    final amber = const Color(0xFFD97706);
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF1C1A10) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: amber.withValues(alpha: dark ? 0.30 : 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('MNEMONIC',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                  color: dark ? const Color(0xFFFFE57A) : amber)),
+          const SizedBox(height: 5),
+          _inlineText(
+            section.mnemonic,
+            TextStyle(fontSize: 13, height: 1.5, color: ink),
+            accent: amber,
+            dark: dark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stickyNote(Color accent) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: dark ? Colors.white.withValues(alpha: 0.04) : accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: dark ? 0.35 : 0.50)),
+      ),
+      child: _inlineText(
+        section.stickyNote,
+        TextStyle(fontSize: 13, height: 1.5, color: ink),
+        accent: accent,
+        dark: dark,
       ),
     );
   }

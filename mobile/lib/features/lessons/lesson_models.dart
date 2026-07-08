@@ -287,8 +287,10 @@ class LessonSection {
   final List<String> bullets;
   final String? accentColor; // hex like '#2563eb'
   final String span; // 'half' | 'wide' | 'full'
-  final String type; // 'text' | 'image' | 'image-explained'
+  final String type; // 'text' | 'image' | 'image-explained' | 'table'
   final String callout;
+  final String mnemonic;
+  final String stickyNote;
   final String? imageSrc; // direct src for type 'image'/'image-explained'
   final String caption; // image / image-explained title
   final String explanation; // image-explained body (\n-separated paragraphs)
@@ -296,6 +298,8 @@ class LessonSection {
   final double? imageHeight;
   final String imageFit; // 'contain'|'cover'
   final SectionImage? sectionImage; // image embedded inside a text section
+  final List<String> tableHeaders; // for type == 'table'
+  final List<List<String>> tableRows; // for type == 'table'
 
   LessonSection({
     required this.heading,
@@ -304,6 +308,8 @@ class LessonSection {
     required this.span,
     required this.type,
     required this.callout,
+    required this.mnemonic,
+    required this.stickyNote,
     required this.imageSrc,
     required this.caption,
     required this.explanation,
@@ -311,6 +317,8 @@ class LessonSection {
     required this.imageHeight,
     required this.imageFit,
     required this.sectionImage,
+    required this.tableHeaders,
+    required this.tableRows,
   });
 
   factory LessonSection.fromJson(dynamic raw) {
@@ -319,6 +327,8 @@ class LessonSection {
     final directSrc = _str(s['src']);
     var fit = _str(s['imageFit']);
     if (fit.isEmpty) fit = 'contain';
+    final rawHeaders = s['headers'];
+    final rawRows = s['rows'];
     return LessonSection(
       heading: _str(s['heading'] ?? s['title']),
       bullets: _strList(s['bullets']),
@@ -326,6 +336,8 @@ class LessonSection {
       span: _str(s['span'].toString().isEmpty ? 'half' : s['span']),
       type: _str((s['type'] ?? 'text').toString().isEmpty ? 'text' : s['type']),
       callout: _str(s['callout']),
+      mnemonic: _str(s['mnemonic']),
+      stickyNote: _str(s['sticky_note']),
       imageSrc: directSrc.isNotEmpty ? directSrc : null,
       caption: _str(s['caption']),
       explanation: _str(s['explanation']),
@@ -333,10 +345,15 @@ class LessonSection {
       imageHeight: _numOrNull(s['imageHeight']),
       imageFit: fit,
       sectionImage: SectionImage.fromJson(s['sectionImage']),
+      tableHeaders: rawHeaders is List ? rawHeaders.map((e) => e.toString()).toList() : [],
+      tableRows: rawRows is List
+          ? rawRows.map<List<String>>((r) => r is List ? r.map((c) => c.toString()).toList() : []).toList()
+          : [],
     );
   }
 
   bool get isImage => type == 'image' || type == 'image-explained';
+  bool get isTable => type == 'table';
 }
 
 /// One run of inline text — `==highlight==` or `**bold**` or plain.
