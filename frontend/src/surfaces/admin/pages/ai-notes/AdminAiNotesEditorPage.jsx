@@ -63,6 +63,25 @@ function getNoteDataSize(data) {
   return JSON.stringify(data).length;
 }
 
+// Total length of the actual lesson TEXT (headings, bullets, sub-points, tables,
+// flow steps, callouts, key points) — used to warn if generation looks too short
+// vs the pasted source (i.e. content may have been dropped).
+function noteDataTextLength(data) {
+  let len = 0;
+  for (const p of data?.pages || []) {
+    len += String(p.title || '').length + String(p.subtitle || '').length + String(p.summary_box || '').length;
+    for (const kp of p.key_points || []) len += String(kp).length;
+    for (const s of p.sections || []) {
+      len += String(s.heading || '').length + String(s.callout || '').length + String(s.sticky_note || '').length + String(s.mnemonic || '').length;
+      for (const b of s.bullets || []) len += String(b).length;
+      for (const st of s.steps || []) len += String(st).length;
+      for (const h of s.headers || []) len += String(h).length;
+      for (const r of s.rows || []) for (const c of r || []) len += String(c).length;
+    }
+  }
+  return len;
+}
+
 const FLASHCARD_IMAGE_MAX_BYTES = IMAGE_OPTIMIZER_MAX_BYTES; // hard ceiling (backend enforces this too)
 const FLASHCARD_IMAGE_LIMIT = 3;
 
@@ -460,8 +479,15 @@ export function AdminAiNotesEditorPage({
       }
       await adminUpdateAiNote(Number(id), { title: firstTitle, rawText, noteData: cleanData, lessonId: lessonId ?? null, videoUrl: cleanVideoUrl(videoUrl) }, { timeout: 60000 }, { engine: engineKey });
       setSavedData(cleanData);
-      setSaveStatus('generated and saved');
-      clearSaveStatusLater(3500);
+      const genLen = noteDataTextLength(cleanData);
+      const srcLen = rawText.trim().length;
+      if (srcLen > 400 && genLen < srcLen * 0.5) {
+        setSaveStatus('generated & saved — ⚠ looks shorter than your notes; check nothing was skipped or Generate again');
+        clearSaveStatusLater(10000);
+      } else {
+        setSaveStatus('generated and saved');
+        clearSaveStatusLater(3500);
+      }
     } catch (err) {
       const msg = err?.response?.data?.message
         || (err?.code === 'ECONNABORTED' ? 'Request timed out — try again.' : null)
