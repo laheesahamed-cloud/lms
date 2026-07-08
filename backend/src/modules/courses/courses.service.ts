@@ -721,10 +721,16 @@ export class CoursesService {
        ORDER BY s.subtopic_name ASC`,
       courseIds
     );
+    // Same "actually ready to study" filter as the Study/Lessons canvas list
+    // (LessonsService.canvasStudentList) — otherwise a lesson that's still an
+    // empty draft (no note/PDF content yet) or was "deleted" (soft-delete only
+    // clears content + is_public, see canvasAdminRemove) keeps inflating this
+    // course's lesson count/list forever even though students can't open it.
     const [lessonRows] = await this.db.execute<LessonHierarchyRow[]>(
       `SELECT id, course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status
        FROM lessons
-       WHERE status = 'active' AND course_id IN (${placeholders})
+       WHERE status = 'active' AND is_public = 1 AND (note_data IS NOT NULL OR pdf_url IS NOT NULL)
+         AND course_id IN (${placeholders})
        ORDER BY lesson_title ASC, id ASC`,
       courseIds
     );
