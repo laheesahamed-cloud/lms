@@ -2308,8 +2308,8 @@ class _SectionCard extends StatelessWidget {
     final surface = dark ? const Color(0xFF1B1B1E) : Colors.white;
     // Accent fade in the top-left and bottom-right corners (like the web card),
     // a touch stronger in dark mode; the middle stays the flat surface.
-    final glowTL = Color.alphaBlend(accent.withValues(alpha: dark ? 0.11 : 0.06), surface);
-    final glowBR = Color.alphaBlend(accent.withValues(alpha: dark ? 0.15 : 0.085), surface);
+    final glowTL = Color.alphaBlend(accent.withValues(alpha: dark ? 0.09 : 0.05), surface);
+    final glowBR = Color.alphaBlend(accent.withValues(alpha: dark ? 0.12 : 0.07), surface);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
