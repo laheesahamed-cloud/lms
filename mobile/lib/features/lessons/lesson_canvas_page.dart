@@ -840,7 +840,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _invMatrix = Matrix4.inverted(_matrix);
     _xform.value++; // rebuild only the Transform subtree
     if (showIndicator) {
-      final pct = _matrix.getMaxScaleOnAxis();
+      final pct = _matrix.storage[0];
       _zoomIndicator.value = pct;
       Future.delayed(_zoomIndicatorDuration, () {
         if (_zoomIndicator.value == pct) _zoomIndicator.value = null;
@@ -868,7 +868,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final focal = twoFinger ? _centroid(pts) : pts.first;
     final curDist = twoFinger ? (pts[0] - pts[1]).distance : _startDist;
 
-    final startScale = _startMatrix.getMaxScaleOnAxis();
+    // Use storage[0] (x-axis scale) not getMaxScaleOnAxis(): the latter returns
+    // max(sx, sy, sz) which equals 1 (the z-scale) whenever sx=sy < 1, making
+    // scale limits and centering completely wrong when zoomed below 100%.
+    final startScale = _startMatrix.storage[0];
     double factor = (twoFinger && _startDist > 0) ? curDist / _startDist : 1.0;
     // Personal notes allow zooming out below 1× to see the desk margins.
     final minScale = widget.isPersonal ? 0.3 : 1.0;
@@ -906,7 +909,9 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // centred at 1× (no slack), pannable once wider than the viewport. Vertical:
   // free scroll over the note height with a small overscroll margin.
   Matrix4 _clamp(Matrix4 m) {
-    final s = m.getMaxScaleOnAxis();
+    // storage[0] is the x-axis scale. getMaxScaleOnAxis() returns max(sx,sy,sz)
+    // which returns 1 (z-scale) when sx=sy<1, breaking centering when zoomed out.
+    final s = m.storage[0];
     final t = m.getTranslation();
     final viewW = _viewport.width, viewH = _viewport.height;
     final contentW = viewW * s; // content width == viewport width, scaled
