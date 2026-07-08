@@ -712,6 +712,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     } else {
       _vt = null;
       _snapshotGesture(); // re-baseline so a lifted finger doesn't jump the canvas
+      _springBackIfNeeded();
     }
   }
 
@@ -723,6 +724,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _touches.remove(e.pointer);
     _vt = null;
     _snapshotGesture();
+    _springBackIfNeeded();
   }
 
   // ── Inertial fling ──────────────────────────────────────────────────────────
@@ -873,9 +875,17 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     // scale limits and centering completely wrong when zoomed below 100%.
     final startScale = _startMatrix.storage[0];
     double factor = (twoFinger && _startDist > 0) ? curDist / _startDist : 1.0;
-    // Personal notes: cap zoom-out at 90% in both portrait and landscape.
+    // Personal notes: min zoom 90%, rubber-band down to 85% then spring back.
     final minScale = widget.isPersonal ? 0.9 : 1.0;
-    final target = (startScale * factor).clamp(minScale, 5.0);
+    final rawTarget = startScale * factor;
+    double target;
+    if (widget.isPersonal && rawTarget < minScale) {
+      // Rubber-band: apply 35% resistance below the minimum so it feels springy.
+      final over = minScale - rawTarget;
+      target = (minScale - over * 0.35).clamp(0.85, minScale);
+    } else {
+      target = rawTarget.clamp(minScale, 5.0);
+    }
     factor = startScale == 0 ? 1.0 : target / startScale;
 
     var dFocal = focal - _startFocal;
@@ -978,6 +988,18 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _fitToPage() {
     _zoomFrom = _matrix.clone();
     _zoomTo   = _clamp(Matrix4.diagonal3Values(1, 1, 1));
+    _zoomStart = null;
+    _zoomAnim ??= createTicker(_onZoomTick);
+    if (_zoomAnim!.isActive) _zoomAnim!.stop();
+    _zoomAnim!.start();
+  }
+
+  // Spring back to 90% if the user rubber-banded below the minimum.
+  void _springBackIfNeeded() {
+    if (!widget.isPersonal) return;
+    if (_matrix.storage[0] >= 0.9) return;
+    _zoomFrom = _matrix.clone();
+    _zoomTo   = _clamp(Matrix4.diagonal3Values(0.9, 0.9, 1));
     _zoomStart = null;
     _zoomAnim ??= createTicker(_onZoomTick);
     if (_zoomAnim!.isActive) _zoomAnim!.stop();
@@ -1937,8 +1959,10 @@ class _NoteContent extends StatelessWidget {
     final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF2E2E33);
     final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6A6A70);
 
-    return DefaultTextStyle.merge(
-      style: const TextStyle(fontFamily: 'PatrickHand'),
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.12)),
+      child: DefaultTextStyle.merge(
+      style: const TextStyle(fontFamily: 'ShantellSans'),
       child: CustomPaint(
       painter: _DotGridPainter(dot),
       child: Container(
@@ -1990,7 +2014,7 @@ class _NoteContent extends StatelessWidget {
           ],
         ),
       ),
-    ));
+    )));
   }
 
   Widget _keyPoints(Color ink) => Container(
@@ -2254,7 +2278,7 @@ Widget _inlineText(String raw, TextStyle base,
     {Color accent = const Color(0xFF2563EB),
     int highlightIndex = 0,
     bool dark = false}) {
-  base = base.copyWith(fontFamily: 'PatrickHand'); // handwriting body font
+  base = base.copyWith(fontFamily: 'ShantellSans', fontSize: (base.fontSize ?? 14) * 1.12); // Shantell + bigger for readability
   final runs = parseInline(raw);
   // HIG: one calm highlight colour (no rainbow) — a single soft amber, used sparingly.
   final hlBg = dark ? const Color(0xFFD9B24A) : const Color(0xFFE6C25A);

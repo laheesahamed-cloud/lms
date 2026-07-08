@@ -40,8 +40,8 @@ const noteCanvasUi = {
     "mb-1 pl-0.5 font-[var(--type-font-body)] text-[11px] tracking-[0.2px] opacity-45",
   bullets: 'm-0 mb-2 flex list-none flex-col gap-[5px] p-0',
   bullet:
-    "min-w-0 flex items-start gap-2 break-words text-[14.5px] leading-[1.58] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[15px]",
-  subBullet: 'pl-[18px] text-[13.5px] opacity-90 dark:opacity-100 dark:text-[#b8caf0] max-[520px]:text-[14px]',
+    "min-w-0 flex items-start gap-2 break-words text-[16.5px] leading-[1.58] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[17px]",
+  subBullet: 'pl-[18px] text-[15.5px] opacity-90 dark:opacity-100 dark:text-[#b8caf0] max-[520px]:text-[16px]',
   subArrow: 'mt-0.5 shrink-0 text-xs opacity-75 dark:opacity-100',
   bulletDot: 'mt-[5px] size-[7px] shrink-0 rounded-full dark:shadow-[0_0_6px_currentColor]',
   summaryFrags: 'flex flex-wrap items-center gap-2',
@@ -156,7 +156,7 @@ const noteCanvasUi = {
     "m-0 inline-flex w-fit max-w-full break-words rounded-md px-2.5 py-0.5 font-['Shantell_Sans'] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-700 dark:text-[#f0f4ff]",
   sectionExtras: 'mt-1 flex flex-col gap-1.5',
   callout:
-    "flex min-w-0 items-start gap-2 break-words rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 text-[14.5px] leading-[1.52] text-slate-700 dark:!border-[rgba(180,200,255,0.22)] dark:bg-white/[0.075] dark:text-[#c8d8ff] max-[520px]:text-[15px]",
+    "flex min-w-0 items-start gap-2 break-words rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 text-[16px] leading-[1.52] text-slate-700 dark:!border-[rgba(180,200,255,0.22)] dark:bg-white/[0.075] dark:text-[#c8d8ff] max-[520px]:text-[16.5px]",
   calloutArrow: 'shrink-0 text-sm',
   examTrapPill:
     "inline-flex shrink-0 items-center rounded-full border border-red-400/25 bg-red-400/14 px-2 py-0.5 font-[var(--type-font-body)] text-[11px] font-extrabold uppercase tracking-[0.08em] text-red-600 dark:border-red-300/22 dark:bg-red-300/12 dark:text-red-200",
@@ -223,7 +223,7 @@ const noteCanvasUi = {
   tbody: '',
   tr: 'border-b border-black/[0.04] last:border-0 transition-colors dark:border-white/[0.06]',
   trHover: 'hover:bg-black/[0.025] dark:hover:bg-white/[0.03]',
-  td: 'px-2.5 py-1.5 font-[var(--type-font-body)] text-[13.5px] leading-[1.5] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[14px]',
+  td: 'px-2.5 py-1.5 font-[var(--type-font-body)] text-[15px] leading-[1.5] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[15.5px]',
   tableEditRow: 'flex items-center gap-1.5 mt-1',
   tableEditCell: 'min-w-0 flex-1',
   tableAddRowBtn: 'mx-3.5 mb-2.5 mt-1 flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-black/15 bg-transparent px-2.5 py-1 font-sans text-[11.5px] font-semibold text-ink-muted transition-[background] duration-100 hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/[0.04]',
@@ -2656,9 +2656,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
 
   /* ── canvas background ─────────────────────────────────── */
   const canvasStyle = {
-    // Handwriting look: Patrick Hand for the body (headings use Shantell Sans).
-    fontFamily: "'Patrick Hand', cursive",
-    '--type-font-body': "'Patrick Hand', cursive",
+    // Handwriting look: Shantell Sans throughout (headings + body).
+    fontFamily: "'Shantell Sans', cursive",
+    '--type-font-body': "'Shantell Sans', cursive",
     ...(data.canvasBg ? {
       backgroundColor: data.canvasBg,
       backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.045) 1.5px, transparent 1.5px)',
