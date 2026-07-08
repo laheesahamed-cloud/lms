@@ -916,7 +916,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final viewW = _viewport.width, viewH = _viewport.height;
     final contentW = viewW * s; // content width == viewport width, scaled
     final contentH = _contentH * s;
-    const vMargin = 48.0;
+    const vMargin = 0.0;
 
     double x;
     if (contentW <= viewW) {
@@ -929,7 +929,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     if (_contentH <= 0) {
       y = t.y;
     } else if (contentH <= viewH) {
-      y = vMargin; // pin to top with a small breathing gap (GoodNotes style)
+      y = vMargin; // pin flush to top
     } else {
       y = t.y.clamp(viewH - contentH - vMargin, vMargin);
     }
@@ -2120,12 +2120,6 @@ const _kPalette = <Color>[
   Color(0xFFC295A5), Color(0xFF92B7BD), Color(0xFF9AB89B), Color(0xFFCFC0A0),
 ];
 
-/// Highlight cycle (web `DEFAULT_HIGHLIGHT_COLORS`), prefixed by the section accent.
-const _kHighlightColors = <Color>[
-  Color(0xFFFBBF24), Color(0xFF60A5FA), Color(0xFF34D399), Color(0xFFF472B6),
-  Color(0xFFA78BFA), Color(0xFF22D3EE), Color(0xFFFB7185), Color(0xFFFDBA74),
-];
-
 Color? _parseHex(String? hex) {
   if (hex == null || hex.trim().isEmpty) return null;
   var h = hex.replaceAll('#', '').trim();
@@ -2139,9 +2133,11 @@ Color? _parseHex(String? hex) {
 Widget _bullet(String raw, Color ink, Color accent,
     {int index = 0, bool dark = false}) {
   final isSub = raw.startsWith('→');
+  // A "parent" bullet introduces a list (ends with ':') — it becomes a scan anchor.
+  final isParent = !isSub && raw.trimRight().endsWith(':');
   final text = isSub ? raw.replaceFirst(RegExp(r'^→\s*'), '') : raw;
   return Padding(
-    padding: EdgeInsets.only(left: isSub ? 18 : 0),
+    padding: EdgeInsets.only(left: isSub ? 18 : 0, top: isParent ? 8 : 0),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2159,7 +2155,7 @@ Widget _bullet(String raw, Color ink, Color accent,
             margin: const EdgeInsets.only(top: 7, right: 9),
             width: 7,
             height: 7,
-            decoration: BoxDecoration(color: accent.withValues(alpha: dark ? 0.65 : 1.0), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: accent.withValues(alpha: (isParent || !dark) ? 1.0 : 0.65), shape: BoxShape.circle),
           ),
         Expanded(
           child: _inlineText(
@@ -2167,7 +2163,10 @@ Widget _bullet(String raw, Color ink, Color accent,
             TextStyle(
                 fontSize: isSub ? 13.5 : 14,
                 height: isSub ? 1.5 : 1.45,
-                color: isSub ? ink.withValues(alpha: 0.90) : ink),
+                fontWeight: isParent ? FontWeight.w600 : FontWeight.w400,
+                color: isParent
+                    ? accent
+                    : (isSub ? ink.withValues(alpha: 0.90) : ink)),
             accent: accent,
             highlightIndex: index,
             dark: dark,
@@ -2241,21 +2240,19 @@ Widget _inlineText(String raw, TextStyle base,
     int highlightIndex = 0,
     bool dark = false}) {
   final runs = parseInline(raw);
-  final palette = <Color>[accent, ..._kHighlightColors];
+  // HIG: one calm highlight colour (no rainbow) — a single soft amber, used sparingly.
+  final hlBg = dark ? const Color(0xFFD9B24A) : const Color(0xFFE6C25A);
   final boldColor = dark ? const Color(0xFFB8CBFF) : const Color(0xFF1D4ED8);
-  final hlText = dark ? const Color(0xFFF8FBFF) : const Color(0xFF334155);
+  final hlText = dark ? const Color(0xFFFDF6E3) : const Color(0xFF3A342A);
   final children = <TextSpan>[];
-  var markIndex = 0;
   for (final r in runs) {
     if (r.highlight) {
-      final col = palette[(highlightIndex + markIndex) % palette.length];
-      markIndex++;
       children.add(TextSpan(
         text: r.text,
         style: base.copyWith(
           color: hlText,
           fontWeight: FontWeight.w600,
-          background: Paint()..color = col.withValues(alpha: dark ? 0.20 : 0.23),
+          background: Paint()..color = hlBg.withValues(alpha: dark ? 0.22 : 0.30),
         ),
       ));
     } else if (r.bold) {
@@ -2287,9 +2284,9 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent =
         _parseHex(section.accentColor) ?? _kPalette[index % _kPalette.length];
-    final surface = dark ? const Color(0xFF1C1B16) : Colors.white;
+    final surface = dark ? const Color(0xFF1B1B1E) : Colors.white;
     final cornerTint =
-        Color.alphaBlend(accent.withValues(alpha: dark ? 0.08 : 0.06), surface);
+        Color.alphaBlend(accent.withValues(alpha: dark ? 0.10 : 0.09), surface);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which

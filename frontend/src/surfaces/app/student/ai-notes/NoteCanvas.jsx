@@ -589,6 +589,7 @@ function ImageLightbox({ image, onClose }) {
 /* ══════════════════════════════════════════════════════════════
    RICH TEXT — ==highlight== and **bold**
 ══════════════════════════════════════════════════════════════ */
+const HIGHLIGHT_COLOR = '#E6C25A'; // HIG: one calm highlight colour (no rainbow), used sparingly
 function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
   const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   if (!text) return null;
@@ -602,7 +603,7 @@ function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
     if (next > 0) { parts.push(s.slice(0, next)); s = s.slice(next); k++; }
     if (s.startsWith('==')) {
       const e = s.indexOf('==', 2); if (e === -1) { parts.push(s); break; }
-      const color = markColors[(highlightIndex + markIndex) % markColors.length];
+      const color = HIGHLIGHT_COLOR;
       markIndex += 1;
       parts.push(<mark key={k++} className={noteCanvasUi.highlight} style={highlightMarkStyle(color, theme)}>{s.slice(2, e)}</mark>); s = s.slice(e + 2);
     } else {
@@ -800,11 +801,11 @@ function EArea({ value, onChange, placeholder, className, style, minRows = 2, on
 }
 
 /* ── Checkable bullets: click to mark as studied (read mode) ── */
-function CheckableBullet({ bulletKey, text, isSub, accentColor, highlightColors, highlightIndex = 0, done, onToggle }) {
+function CheckableBullet({ bulletKey, text, isSub, isParent, accentColor, highlightColors, highlightIndex = 0, done, onToggle }) {
   return (
     <li
       className={cx(noteCanvasUi.bullet, isSub && noteCanvasUi.subBullet)}
-      style={{ cursor: 'pointer', userSelect: 'none' }}
+      style={{ cursor: 'pointer', userSelect: 'none', marginTop: isParent ? 8 : undefined }}
       onClick={() => onToggle(bulletKey)}
       title={done ? 'Click to unmark' : 'Click to mark as studied'}
     >
@@ -818,7 +819,7 @@ function CheckableBullet({ bulletKey, text, isSub, accentColor, highlightColors,
               transition: 'background 0.2s, box-shadow 0.2s',
             }}
           />}
-      <span style={{ minWidth: 0, overflowWrap: 'anywhere', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.42 : 1, transition: 'opacity 0.2s, text-decoration 0.1s' }}>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.42 : 1, color: isParent ? accentColor : undefined, fontWeight: isParent ? 600 : undefined, transition: 'opacity 0.2s, text-decoration 0.1s' }}>
         <RichText text={text} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={highlightIndex}/>
       </span>
       {done && <span style={{ marginLeft: 5, fontSize: 11, color: '#10b981', flexShrink: 0, lineHeight: 1 }}>✓</span>}
@@ -853,6 +854,7 @@ function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey
       <ul className={noteCanvasUi.bullets}>
         {bullets.map((b, i) => {
           const isSub = b.startsWith('→ ') || b.startsWith('→');
+          const isParent = !isSub && b.trimEnd().endsWith(':');
           const text  = isSub ? b.replace(/^→\s*/, '') : b;
           const key   = `${sectionKey}-${i}`;
           return (
@@ -861,6 +863,7 @@ function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey
               bulletKey={key}
               text={text}
               isSub={isSub}
+              isParent={isParent}
               accentColor={accentColor}
               highlightColors={highlightColors}
               highlightIndex={i}
