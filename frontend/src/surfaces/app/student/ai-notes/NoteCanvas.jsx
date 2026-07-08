@@ -1045,6 +1045,7 @@ function estimateSectionWeight(section) {
   if (section.type === 'image-explained') return 9;
   if (section.type === 'image') return section.src ? 7 : 4;
   if (section.type === 'table') return 8;
+  if (section.type === 'flow') return 8;
 
   const heading = String(section.heading || '').toLowerCase();
   const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
@@ -1067,6 +1068,11 @@ function estimateSectionHeight(section) {
   if (section.type === 'table') {
     const rows = Array.isArray(section.rows) ? section.rows.length : 0;
     return 58 + rows * 30;
+  }
+  if (section.type === 'flow') {
+    const steps = Array.isArray(section.steps) ? section.steps.filter(Boolean) : [];
+    const stepLines = steps.reduce((sum, s) => sum + Math.max(1, Math.ceil(String(s).length / 46)), 0);
+    return 58 + stepLines * 26 + steps.length * 30;
   }
 
   const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
@@ -2140,6 +2146,78 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
 }
 
 /* ══════════════════════════════════════════════════════════════
+   FLOW SECTION CARD — cause → effect reasoning chain (vertical arrows)
+══════════════════════════════════════════════════════════════ */
+function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme }) {
+  const baseColor   = colors[colorIndex % colors.length] || '#A7D8FF';
+  const accentColor = section.accentColor || baseColor;
+  const steps       = Array.isArray(section.steps) ? section.steps : [];
+  const span        = section.span === 'single' ? 'half' : section.span || 'full';
+  const arrowColor  = theme === 'dark' ? 'rgba(255,255,255,0.5)' : accentColor + 'cc';
+
+  const updateStep = (idx, val) => onSectionChange('steps', steps.map((s, i) => i === idx ? val : s));
+  const addStep    = () => onSectionChange('steps', [...steps, 'New step']);
+  const deleteStep = (idx) => onSectionChange('steps', steps.filter((_, i) => i !== idx));
+
+  return (
+    <div data-canvas-card className={noteCanvasUi.section} style={{ background: canvasCardBackground(accentColor, theme) }}>
+      {!editable && <MedicalMiniIcon index={colorIndex + 1} color={accentColor} theme={theme} />}
+      {editable && (
+        <div className={noteCanvasUi.sectionActions}>
+          <div style={{ display:'flex', gap:3 }}>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveUp}>↑</button>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveDown}>↓</button>
+          </div>
+          <div style={{ display:'flex', gap:3 }}>
+            <button className={noteCanvasUi.sectionButton} onClick={addStep} title="Add step" style={{ fontSize:11 }}>+Step</button>
+            <button className={cx(noteCanvasUi.sectionButton, span === 'full' && noteCanvasUi.sectionButtonOn)}
+              style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'full')} title="Full width">⬛</button>
+            <button className={cx(noteCanvasUi.sectionButton, span === 'wide' && noteCanvasUi.sectionButtonOn)}
+              style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'wide')} title="Wide card">⅔</button>
+            <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
+          </div>
+        </div>
+      )}
+
+      <div className={noteCanvasUi.sectionHeading}>
+        {editable
+          ? <EField value={section.heading} onChange={v => onSectionChange('heading', v)}
+              placeholder="Flow heading" className={noteCanvasUi.headingText}
+              style={{ color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}38` }}/>
+          : <h3 className={noteCanvasUi.headingText}
+              style={{ color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}38` }}>
+              {section.heading}
+            </h3>}
+      </div>
+
+      <div style={{ padding: '6px 4px 2px' }}>
+        {steps.map((step, i) => (
+          <div key={i}>
+            {i > 0 && (
+              <div style={{ display:'flex', justifyContent:'center', padding:'6px 0' }} aria-hidden="true">
+                <svg width="18" height="20" viewBox="0 0 18 20" fill="none">
+                  <path d="M9 1 L9 16 M3 10 L9 18 L15 10" stroke={arrowColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            )}
+            {editable ? (
+              <div style={{ display:'flex', alignItems:'flex-start', gap:6 }}>
+                <EField value={step} onChange={v => updateStep(i, v)} placeholder="Step…" style={{ flex:1 }}/>
+                <button className={noteCanvasUi.sectionButton} onClick={() => deleteStep(i)} title="Delete step">✕</button>
+              </div>
+            ) : (
+              <div style={{ lineHeight:1.55 }}>
+                <RichText text={step} accentColor={accentColor} highlightColors={colors} highlightIndex={colorIndex}/>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    STICKER PICKER POPUP
 ══════════════════════════════════════════════════════════════ */
 function StickerPicker({ onAdd, onClose }) {
@@ -2757,6 +2835,35 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     onDragEnd={() => setDraggingIndex(null)}
                   >
                     <TableSectionCard
+                      section={section}
+                      colorIndex={i}
+                      colors={colors}
+                      editable={editable}
+                      onSectionChange={(field, val) => patchSection(i, field, val)}
+                      onMoveUp={() => moveSection(i, -1)}
+                      onMoveDown={() => moveSection(i, 1)}
+                      onDelete={() => deleteSection(i)}
+                      theme={theme}
+                    />
+                  </MasonryItem>
+                );
+              }
+              if (section.type === 'flow') {
+                return (
+                  <MasonryItem
+                    key={i}
+                    span={section.span || 'full'}
+                    columns={columnCount}
+                    editable={editable}
+                    dragEnabled={editable && !isMobileCanvas}
+                    index={i}
+                    draggingIndex={draggingIndex}
+                    onDragStart={handleCardDragStart}
+                    onDragOver={handleCardDragOver}
+                    onDrop={handleCardDrop}
+                    onDragEnd={() => setDraggingIndex(null)}
+                  >
+                    <FlowSectionCard
                       section={section}
                       colorIndex={i}
                       colors={colors}

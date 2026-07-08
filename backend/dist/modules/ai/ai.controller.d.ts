@@ -9,11 +9,11 @@ export declare class AiController {
     generateQuiz(dto: GenerateAiQuizDto, engine: string, includeExplanations?: string, includeWhyIncorrect?: string): Promise<{
         ok: boolean;
         experimental: boolean;
-        source: "openai" | "gemini" | "claude" | "openrouter";
+        source: "gemini" | "openai" | "claude" | "openrouter";
         generatedAt: string;
         provider: {
             id: number | null;
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
             source: "settings" | "env";
@@ -25,7 +25,7 @@ export declare class AiController {
             lesson: string;
             category: "ai" | "past_paper" | "mock";
             questionType: "sba" | "true_false";
-            difficulty: "easy" | "medium" | "hard";
+            difficulty: "medium" | "easy" | "hard";
             numberOfQuestions: number;
             instruction: string;
         };
@@ -38,7 +38,7 @@ export declare class AiController {
             topic: string;
             lesson: string;
             category: "ai" | "past_paper" | "mock";
-            difficulty: "easy" | "medium" | "hard";
+            difficulty: "medium" | "easy" | "hard";
             explanation: string;
             question_text: string;
         } | {
@@ -52,7 +52,7 @@ export declare class AiController {
             topic: string;
             lesson: string;
             category: "ai" | "past_paper" | "mock";
-            difficulty: "easy" | "medium" | "hard";
+            difficulty: "medium" | "easy" | "hard";
             explanation: string;
             question_text: string;
         })[];
@@ -60,11 +60,11 @@ export declare class AiController {
     beautifyLesson(dto: BeautifyLessonDto): Promise<{
         ok: boolean;
         experimental: boolean;
-        source: "openai" | "gemini" | "claude" | "openrouter";
+        source: "gemini" | "openai" | "claude" | "openrouter";
         generatedAt: string;
         provider: {
             id: number | null;
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
             source: "settings" | "env";
@@ -75,13 +75,13 @@ export declare class AiController {
     }>;
     generateWhyIncorrect(dto: GenerateWhyIncorrectDto, questionType?: 'sba' | 'true_false'): Promise<{
         ok: boolean;
-        source: "openai" | "gemini" | "claude" | "openrouter";
+        source: "gemini" | "openai" | "claude" | "openrouter";
         generatedAt: string;
         items: any;
     }>;
     generateExplanation(dto: GenerateExplanationDto): Promise<{
         ok: boolean;
-        source: "openai" | "gemini" | "claude" | "openrouter";
+        source: "gemini" | "openai" | "claude" | "openrouter";
         generatedAt: string;
         explanation: string;
     }>;

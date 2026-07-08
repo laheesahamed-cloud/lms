@@ -1093,10 +1093,104 @@ let LessonsService = class LessonsService {
     }
     async canvasGenerate(text, token) {
         await this.requireAdminToken(token);
-        if (!text || text.trim().length < 10)
+        const trimmed = String(text || '').trim();
+        if (trimmed.length < 10)
             throw new common_1.BadRequestException('Text must be at least 10 characters');
         const provider = await this.resolveActiveCanvasProvider();
-        return this.generateWithProvider(this.buildPrompt(text), provider);
+        const CHUNK_LIMIT = 9000;
+        let canvas;
+        if (trimmed.length <= CHUNK_LIMIT) {
+            canvas = await this.generateWithProvider(this.buildPrompt(trimmed), provider);
+        }
+        else {
+            const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
+            const canvases = [];
+            for (const chunk of chunks)
+                canvases.push(await this.generateWithProvider(this.buildPrompt(chunk), provider));
+            canvas = this.mergeCanvases(canvases);
+        }
+        return this.ensureCompleteness(trimmed, canvas, provider);
+    }
+    splitSourceIntoChunks(text, limit) {
+        const paras = text.split(/\n\s*\n/);
+        const chunks = [];
+        let cur = '';
+        for (const p of paras) {
+            if (cur && cur.length + p.length + 2 > limit) {
+                chunks.push(cur);
+                cur = '';
+            }
+            cur = cur ? `${cur}\n\n${p}` : p;
+            while (cur.length > limit * 1.5) {
+                chunks.push(cur.slice(0, limit));
+                cur = cur.slice(limit);
+            }
+        }
+        if (cur.trim())
+            chunks.push(cur);
+        return chunks.length ? chunks : [text];
+    }
+    mergeCanvases(canvases) {
+        const allSections = [];
+        const allKeyPoints = [];
+        let title = '';
+        let subtitle = '';
+        let summary = '';
+        let visual;
+        for (const c of canvases) {
+            for (const page of c.pages) {
+                if (!title && page.title)
+                    title = page.title;
+                if (!subtitle && page.subtitle)
+                    subtitle = page.subtitle;
+                if (page.summary_box)
+                    summary = page.summary_box;
+                if (page.visual_style && !visual)
+                    visual = page.visual_style;
+                allSections.push(...page.sections);
+                allKeyPoints.push(...page.key_points);
+            }
+        }
+        const merged = {
+            title: title || 'Lesson', subtitle, sections: allSections,
+            summary_box: summary, key_points: Array.from(new Set(allKeyPoints)), visual_style: visual,
+        };
+        return this.splitIntoPages(merged);
+    }
+    async ensureCompleteness(sourceText, canvas, provider) {
+        try {
+            const covered = canvas.pages.flatMap((p) => p.sections).map((s) => {
+                if (s.type === 'table')
+                    return `${s.heading}: ${(s.headers || []).join(' | ')} ${(s.rows || []).map((r) => r.join(' | ')).join(' ; ')}`;
+                if (s.type === 'flow')
+                    return `${s.heading}: ${(s.steps || []).join(' → ')}`;
+                return `${s.heading}: ${(s.bullets || []).join(' ')} ${s.callout} ${s.sticky_note} ${s.mnemonic}`;
+            }).join('\n').slice(0, 14000);
+            const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider);
+            const missingSections = missing.pages.flatMap((p) => p.sections);
+            if (!missingSections.length)
+                return canvas;
+            return this.mergeCanvases([canvas, missing]);
+        }
+        catch {
+            return canvas;
+        }
+    }
+    buildCompletenessPrompt(sourceText, coveredText) {
+        return [
+            'You are auditing a study lesson for completeness against its SOURCE notes.',
+            'Compare the SOURCE to what is ALREADY COVERED, and return ONLY the facts, details, examples or points from the SOURCE that are MISSING — formatted as new sections in the SAME JSON shape.',
+            'Do NOT repeat anything already covered. Use the same rules: bullets / tables / flow, professional but clear wording, keep every detail.',
+            'If nothing is missing, return exactly: {"title":"","subtitle":"","sections":[],"summary_box":"","key_points":[]}',
+            '',
+            'ALREADY COVERED:',
+            coveredText,
+            '',
+            'SOURCE (find anything here that is not covered above):',
+            sourceText.slice(0, 40000),
+            '',
+            'Return ONLY this JSON: {"title":"","subtitle":"","sections":[{"heading":"...","bullets":["..."]}],"summary_box":"","key_points":[]}',
+        ].join('\n');
     }
     async canvasStudentList(token, engineKey = 'gemini') {
         const student = await this.requireStudentToken(token);
@@ -1340,13 +1434,13 @@ let LessonsService = class LessonsService {
         return this.generateWithChatProvider(prompt, provider);
     }
     async generateWithGeminiProvider(prompt, provider) {
-        const modelCandidates = Array.from(new Set([String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim(), ...GEMINI_MODELS].filter(Boolean)));
+        const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim()].filter(Boolean)));
         const errors = [];
         for (const model of modelCandidates) {
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
             try {
-                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json' }, contents: [{ parts: [{ text: prompt }] }] }) });
+                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }, contents: [{ parts: [{ text: prompt }] }] }) });
                 if (!res.ok) {
                     let d = '';
                     try {
@@ -1408,14 +1502,14 @@ let LessonsService = class LessonsService {
     }
     async sendChatCanvasPrompt(provider, prompt, signal, useJsonMode) {
         if (provider.providerKey === 'claude') {
-            const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)('claude', provider.baseUrl), { method: 'POST', headers: { 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 4096, temperature: 0.7, system: 'Return ONLY raw valid JSON.', messages: [{ role: 'user', content: prompt }] }) });
+            const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)('claude', provider.baseUrl), { method: 'POST', headers: { 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 8192, temperature: 0.7, system: 'Return ONLY raw valid JSON.', messages: [{ role: 'user', content: prompt }] }) });
             const p = await res.json().catch(() => null);
             if (!res.ok)
                 throw new common_1.ServiceUnavailableException(`${provider.providerLabel}: ${p?.error?.message || 'error'}`);
             const content = p?.content;
             return Array.isArray(content) ? content.map(c => c?.type === 'text' ? c.text || '' : '').join('').trim() : '';
         }
-        const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)(provider.providerKey === 'openrouter' ? 'openrouter' : 'openai', provider.baseUrl), { method: 'POST', headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, temperature: 0.7, top_p: 0.9, ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}), messages: [{ role: 'system', content: 'Return valid JSON only.' }, { role: 'user', content: prompt }] }) });
+        const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)(provider.providerKey === 'openrouter' ? 'openrouter' : 'openai', provider.baseUrl), { method: 'POST', headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 8192, temperature: 0.7, top_p: 0.9, ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}), messages: [{ role: 'system', content: 'Return valid JSON only.' }, { role: 'user', content: prompt }] }) });
         const p = await res.json().catch(() => null);
         if (!res.ok)
             throw new common_1.ServiceUnavailableException(`${provider.providerLabel}: ${p?.error?.message || 'error'}`);
@@ -1430,13 +1524,13 @@ let LessonsService = class LessonsService {
         if (!provider.apiKey)
             throw new common_1.ServiceUnavailableException(`No API key for ${provider.providerLabel}.`);
         if (provider.providerKey === 'gemini') {
-            const modelCandidates = Array.from(new Set([String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim(), ...GEMINI_MODELS].filter(Boolean)));
+            const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim()].filter(Boolean)));
             const errors = [];
             for (const model of modelCandidates) {
                 const ctrl = new AbortController();
                 const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
                 try {
-                    const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json' }, contents: [{ parts: [{ text: prompt }] }] }) });
+                    const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }, contents: [{ parts: [{ text: prompt }] }] }) });
                     if (!res.ok) {
                         let d = '';
                         try {
@@ -1521,6 +1615,8 @@ let LessonsService = class LessonsService {
                         parts.push(`## ${h}`);
                     if (Array.isArray(s.bullets))
                         s.bullets.map(b => this.cleanFlashcardText(b, 600)).filter(Boolean).forEach(b => parts.push(`- ${b}`));
+                    if (Array.isArray(s.steps))
+                        s.steps.map(b => this.cleanFlashcardText(b, 600)).filter(Boolean).forEach(b => parts.push(`- ${b}`));
                     [s.callout, s.sticky_note, s.mnemonic].map(v => this.cleanFlashcardText(v, 600)).filter(Boolean).forEach(t => parts.push(`- ${t}`));
                 }
             const sum = this.cleanFlashcardText(p.summary_box, 1000);
@@ -1652,17 +1748,21 @@ let LessonsService = class LessonsService {
         return {
             title: String(data?.title || 'Lesson').trim().slice(0, 120),
             subtitle: String(data?.subtitle || '').trim().slice(0, 200),
-            sections: (Array.isArray(data?.sections) ? data.sections : []).slice(0, 12).map((s) => {
+            sections: (Array.isArray(data?.sections) ? data.sections : []).slice(0, 40).map((s) => {
                 const sec = (s ?? {});
                 if (String(sec?.type || '') === 'table') {
-                    const headers = (Array.isArray(sec?.headers) ? sec.headers : []).map(String).slice(0, 10);
-                    const rows = (Array.isArray(sec?.rows) ? sec.rows : []).slice(0, 20).map((r) => (Array.isArray(r) ? r : []).map(String).slice(0, 10));
-                    return { type: 'table', heading: String(sec?.heading || '').trim().slice(0, 120), headers, rows, span: String(sec?.span || 'full'), bullets: [], callout: '', sticky_note: '', mnemonic: '' };
+                    const headers = (Array.isArray(sec?.headers) ? sec.headers : []).map(String).slice(0, 12);
+                    const rows = (Array.isArray(sec?.rows) ? sec.rows : []).slice(0, 60).map((r) => (Array.isArray(r) ? r : []).map(String).slice(0, 12));
+                    return { type: 'table', heading: String(sec?.heading || '').trim().slice(0, 160), headers, rows, span: String(sec?.span || 'full'), bullets: [], callout: '', sticky_note: '', mnemonic: '' };
                 }
-                return { heading: String(sec?.heading || '').trim(), bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 16), callout: String(sec?.callout || '').trim().slice(0, 300), sticky_note: String(sec?.sticky_note || '').trim().slice(0, 200), mnemonic: String(sec?.mnemonic || '').trim().slice(0, 300) };
-            }).filter(s => s.heading || s.bullets.length > 0 || (s.type === 'table' && (s.headers?.length ?? 0) > 0)),
-            summary_box: String(data?.summary_box || '').trim().slice(0, 600),
-            key_points: (Array.isArray(data?.key_points) ? data.key_points : []).map(String).slice(0, 10),
+                if (String(sec?.type || '') === 'flow') {
+                    const steps = (Array.isArray(sec?.steps) ? sec.steps : []).map(String).map((t) => t.trim()).filter(Boolean).slice(0, 12).map((t) => t.slice(0, 500));
+                    return { type: 'flow', heading: String(sec?.heading || '').trim().slice(0, 160), steps, span: String(sec?.span || 'full'), bullets: [], callout: '', sticky_note: '', mnemonic: '' };
+                }
+                return { heading: String(sec?.heading || '').trim(), bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 60), callout: String(sec?.callout || '').trim().slice(0, 500), sticky_note: String(sec?.sticky_note || '').trim().slice(0, 300), mnemonic: String(sec?.mnemonic || '').trim().slice(0, 500) };
+            }).filter(s => s.heading || s.bullets.length > 0 || (s.type === 'table' && (s.headers?.length ?? 0) > 0) || (s.type === 'flow' && (s.steps?.length ?? 0) > 0)),
+            summary_box: String(data?.summary_box || '').trim().slice(0, 1000),
+            key_points: (Array.isArray(data?.key_points) ? data.key_points : []).map(String).slice(0, 30),
             visual_style: { theme: 'notebook', look: 'hand-drawn academic', colors: this.normalizePalette(data?.visual_style?.colors) },
         };
     }
@@ -1671,7 +1771,7 @@ let LessonsService = class LessonsService {
         return Array.from(new Set([...colors, ...FALLBACK_COLORS])).slice(0, 8);
     }
     buildPrompt(text) {
-        return `You are a senior medical educator writing high-yield lessons for ERPM/SLMC exams.\n\nCOVERAGE RULE: Cover EVERY topic in the source text. Generate MORE sections if needed (up to 12).\n\n\u2501\u2501\u2501 BULLET RULES \u2501\u2501\u2501\n- Every bullet = ONE clinical fact, MAX 13 WORDS\n- ==double equals== \u2192 highlight key terms\n- **double asterisks** \u2192 bold drug+dose, lab cut-offs\n\n\u2501\u2501\u2501 TABLE RULE \u2501\u2501\u2501\n- When content is a comparison (e.g. drug classes, differentials, stages, classification), use a table section instead of bullets\n- Table sections use: {"type":"table","heading":"Heading","headers":["Col1","Col2"],"rows":[["a","b"],["c","d"]],"span":"full"}\n- Keep headers \u2264 5 words, cells \u2264 6 words; 2\u20136 columns, 2\u201310 rows\n\nReturn ONLY this JSON (no markdown, no code fences):\n{"title":"TOPIC IN CAPS","subtitle":"one fragment","sections":[{"heading":"1. Definition","bullets":["fact"],"callout":"[EXAM TRAP] fragment","sticky_note":"key fact","mnemonic":""},{"type":"table","heading":"2. Comparison","headers":["Item","Detail"],"rows":[["a","b"]],"span":"full"}],"summary_box":"fragment \u00b7 fragment","key_points":["==Term==: value"],"visual_style":{"theme":"notebook","look":"hand-drawn academic","colors":["#A7D8FF","#FFE680","#FFB3B3","#C7F0BD","#CE93D8","#80DEEA","#F48FB1","#FFCC80"]}}\n\nMedical text:\n${text.slice(0, 12000)}`;
+        return `You are a senior medical educator writing high-yield lessons for ERPM/SLMC exams.\n\n\u2501\u2501\u2501 CORE RULE: NEVER DROP CONTENT \u2501\u2501\u2501\n- Reproduce EVERY fact, definition, drug, dose, route, number, example and clinical pearl from the source. Leaving content out is the single worst error you can make.\n- Preserve the author's OWN reasoning: if a sentence shows cause\u2192effect (uses \u2192, "because", "but", "leads to"), keep that logic in ONE bullet \u2014 never chop a reasoned sentence into disconnected fragments.\n- Keep every secondary example and parenthetical detail (second-line drugs, alternative doses, qualifiers, routes). These are important \u2014 never trim them.\n- Preserve the author's structure and hierarchy. You MAY add accurate high-yield detail, but you may NEVER remove or shorten away the author's content.\n\n\u2501\u2501\u2501 STYLE (beautify, do NOT compress) \u2501\u2501\u2501\n- Bullets may be full explanatory sentences \u2014 completeness and clarity matter more than brevity\n- Professional but clear register: use correct medical terms, but add a short plain-English gloss in brackets the first time \u2014 e.g. atheromatous plaques (fatty deposits), lumen (the channel blood flows through). Never reduce to 1\u20132 word fragments; never oversimplify like a children's book.\n- ==double equals== \u2192 highlight key terms\n- **double asterisks** \u2192 bold drug+dose, lab cut-offs\n\n\u2501\u2501\u2501 FLOW RULE (cause \u2192 effect) \u2501\u2501\u2501\n- When content is a cause-and-effect chain, mechanism, or pathophysiology sequence, use a "flow" section instead of bullets so the reasoning reads top to bottom.\n- Flow sections use: {"type":"flow","heading":"Heading","steps":["first step as a full sentence","next step","result"],"span":"full"}\n- Each step is ONE complete sentence and keeps the cause\u2192effect logic (\u2192, because, but) inside it. Use 2\u20136 steps. Only use flow for genuine reasoning chains \u2014 lists stay bullets, comparisons stay tables.\n\n\u2501\u2501\u2501 TABLE RULE \u2501\u2501\u2501\n- When content is a comparison (e.g. drug classes, differentials, stages, classification), use a table section instead of bullets\n- Table sections use: {"type":"table","heading":"Heading","headers":["Col1","Col2"],"rows":[["a","b"],["c","d"]],"span":"full"}\n- Keep ALL columns and ALL rows from the source \u2014 never drop a column or row to make it fit\n- If the source already contains a table, keep it AS a table. Cells may hold a full phrase or short sentence \u2014 do NOT shrink them to 1\u20132 keywords\n\nReturn ONLY this JSON (no markdown, no code fences):\n{"title":"TOPIC IN CAPS","subtitle":"one fragment","sections":[{"heading":"1. Definition","bullets":["fact"],"callout":"[EXAM TRAP] fragment","sticky_note":"key fact","mnemonic":""},{"type":"table","heading":"2. Comparison","headers":["Item","Detail"],"rows":[["a","b"]],"span":"full"},{"type":"flow","heading":"3. Pathophysiology","steps":["Full sentence step","Next step with because/but logic","Result"],"span":"full"}],"summary_box":"fragment \u00b7 fragment","key_points":["==Term==: value"],"visual_style":{"theme":"notebook","look":"hand-drawn academic","colors":["#A7D8FF","#FFE680","#FFB3B3","#C7F0BD","#CE93D8","#80DEEA","#F48FB1","#FFCC80"]}}\n\nSource notes (reproduce ALL of this — nothing may be left out):\n${text.slice(0, 60000)}`;
     }
 };
 exports.LessonsService = LessonsService;

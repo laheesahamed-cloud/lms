@@ -25,6 +25,7 @@ export interface NoteSection {
     headers?: string[];
     rows?: string[][];
     span?: string;
+    steps?: string[];
 }
 export interface NoteResult {
     title: string;
@@ -445,6 +446,10 @@ export declare class LessonsService {
         }[];
     }>;
     canvasGenerate(text: string, token: string): Promise<NoteCanvas>;
+    private splitSourceIntoChunks;
+    private mergeCanvases;
+    private ensureCompleteness;
+    private buildCompletenessPrompt;
     canvasStudentList(token: string, engineKey?: CanvasEngineKey): Promise<{
         cardCount: number;
         canAccess: boolean;

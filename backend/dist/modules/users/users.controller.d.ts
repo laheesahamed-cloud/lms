@@ -12,8 +12,8 @@ export declare class UsersController {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
     summary(authorization?: string): Promise<{
@@ -27,8 +27,8 @@ export declare class UsersController {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
         effectivePermissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
@@ -37,8 +37,8 @@ export declare class UsersController {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
         effectivePermissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
@@ -48,8 +48,8 @@ export declare class UsersController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-            status: "inactive" | "active";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            status: "active" | "inactive";
             createdAt: string | null;
         };
         progress: {
@@ -86,19 +86,19 @@ export declare class UsersController {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         status: string;
     }>;
     update(authorization: string | undefined, id: number, updateUserDto: UpdateUserDto): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        status: "active" | "inactive";
         createdAt: string | null;
     } | {
-        status: "inactive" | "active";
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        status: "active" | "inactive";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         email: string;
         fullName: string;
         ok: boolean;

@@ -300,6 +300,7 @@ class LessonSection {
   final SectionImage? sectionImage; // image embedded inside a text section
   final List<String> tableHeaders; // for type == 'table'
   final List<List<String>> tableRows; // for type == 'table'
+  final List<String> steps; // for type == 'flow' (cause → effect chain)
 
   LessonSection({
     required this.heading,
@@ -319,6 +320,7 @@ class LessonSection {
     required this.sectionImage,
     required this.tableHeaders,
     required this.tableRows,
+    required this.steps,
   });
 
   factory LessonSection.fromJson(dynamic raw) {
@@ -349,11 +351,13 @@ class LessonSection {
       tableRows: rawRows is List
           ? rawRows.map<List<String>>((r) => r is List ? r.map((c) => c.toString()).toList() : []).toList()
           : [],
+      steps: _strList(s['steps']),
     );
   }
 
   bool get isImage => type == 'image' || type == 'image-explained';
   bool get isTable => type == 'table';
+  bool get isFlow => type == 'flow';
 }
 
 /// One run of inline text — `==highlight==` or `**bold**` or plain.

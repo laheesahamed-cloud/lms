@@ -929,7 +929,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     if (_contentH <= 0) {
       y = t.y;
     } else if (contentH <= viewH) {
-      y = (viewH - contentH) / 2; // centre vertically when smaller than viewport
+      y = vMargin; // pin to top with a small breathing gap (GoodNotes style)
     } else {
       y = t.y.clamp(viewH - contentH - vMargin, vMargin);
     }
@@ -2360,12 +2360,42 @@ class _SectionCard extends StatelessWidget {
                   index: i, dark: dark),
             ),
           if (section.isTable) _tableBlock(accent),
+          if (section.isFlow) _flowBlock(accent),
           if (section.callout.isNotEmpty) _callout(accent),
           if (section.mnemonic.isNotEmpty) _mnemonic(accent),
           if (section.stickyNote.isNotEmpty) _stickyNote(accent),
           if (siWidget != null && si!.position != 'top') siWidget,
         ],
       ),
+    );
+  }
+
+  // Flow block: cause → effect chain rendered as full-sentence steps stacked
+  // vertically, connected by centered down-arrows. No per-step cards.
+  Widget _flowBlock(Color accent) {
+    final steps = section.steps;
+    if (steps.isEmpty) return const SizedBox.shrink();
+    final arrowColor = accent.withValues(alpha: dark ? 0.55 : 0.6);
+    final children = <Widget>[];
+    for (var i = 0; i < steps.length; i++) {
+      if (i > 0) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Center(
+            child: Icon(Icons.arrow_downward_rounded, size: 20, color: arrowColor),
+          ),
+        ));
+      }
+      children.add(_inlineText(
+        steps[i],
+        TextStyle(fontSize: 14, height: 1.5, color: ink),
+        accent: accent,
+        dark: dark,
+      ));
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
   }
 

@@ -43,9 +43,9 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             avatarKey: string;
             hasActiveSubscription: boolean;
             subscriptionStatus: string;
@@ -103,9 +103,9 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             avatarKey: string;
             hasActiveSubscription: boolean;
             subscriptionStatus: string;
@@ -182,9 +182,9 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             avatarKey: string;
             hasActiveSubscription: boolean;
             subscriptionStatus: string;
