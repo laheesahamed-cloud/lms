@@ -2341,13 +2341,13 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent =
         _parseHex(section.accentColor) ?? _kPalette[index % _kPalette.length];
-    final surface = dark ? const Color(0xFF1B1B1E) : Colors.white;
-    // Only a faint DESATURATED accent fade in the top-left + bottom-right corners
-    // (low saturation + low opacity) — no strong colour/yellow cast on the card.
+    // The card blends into the page background — the card's colour shows ONLY as a
+    // faint desaturated tint in the top-left and bottom-right corners (transparent
+    // middle, so the page background shows through the rest of the card).
     final ghsl = HSLColor.fromColor(accent);
-    final glowAccent = ghsl.withSaturation((ghsl.saturation * 0.3).clamp(0.0, 1.0)).toColor();
-    final glowTL = Color.alphaBlend(glowAccent.withValues(alpha: dark ? 0.07 : 0.04), surface);
-    final glowBR = Color.alphaBlend(glowAccent.withValues(alpha: dark ? 0.10 : 0.055), surface);
+    final glowAccent = ghsl.withSaturation((ghsl.saturation * 0.45).clamp(0.0, 1.0)).toColor();
+    final glowTL = glowAccent.withValues(alpha: dark ? 0.16 : 0.10);
+    final glowBR = glowAccent.withValues(alpha: dark ? 0.20 : 0.13);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
@@ -2372,11 +2372,11 @@ class _SectionCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [glowTL, surface, glowBR],
-          stops: const [0.0, 0.5, 1.0],
+          colors: [glowTL, Colors.transparent, Colors.transparent, glowBR],
+          stops: const [0.0, 0.34, 0.66, 1.0],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glowAccent.withValues(alpha: dark ? 0.16 : 0.12)),
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

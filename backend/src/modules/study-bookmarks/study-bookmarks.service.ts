@@ -33,7 +33,7 @@ export class StudyBookmarksService {
          b.created_at,
          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
          q.exam_mode_only,
-         n.title AS note_title,
+         n.lesson_title AS note_title,
          n.engine_key AS note_engine_key,
          LEFT(qn.question_text, 180) AS question_text,
          (
