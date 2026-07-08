@@ -1010,8 +1010,8 @@ function SummaryFragments({ text, highlightColors, accentColor, colors, theme })
 /* ══════════════════════════════════════════════════════════════
    COLORS
 ══════════════════════════════════════════════════════════════ */
-const DARK_COLORS  = ['#8FB4D6','#DDA894','#A0C8A4','#D2BA88','#BCAAD8','#90CCC6'];
-const LIGHT_COLORS = ['#5E86B4','#B5766E','#6E9B79','#A8935E','#8878A8','#5E9E98'];
+const DARK_COLORS  = ['#93A9C9','#CFC59A','#C99089','#8CADA8','#AF97B8','#CBB088'];
+const LIGHT_COLORS = ['#5E7CA6','#A8895A','#B0685F','#5B93A5','#8878A8','#7E9BC2'];
 
 function normalizeVisualStyleColors(raw) {
   return Array.isArray(raw)
@@ -2657,9 +2657,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
 
   /* ── canvas background ─────────────────────────────────── */
   const canvasStyle = {
-    // Handwriting look: Shantell Sans throughout (headings + body).
-    fontFamily: "'Shantell Sans', cursive",
-    '--type-font-body': "'Shantell Sans', cursive",
+    // Handwriting look: Patrick Hand for the body (headings use Shantell Sans).
+    fontFamily: "'Patrick Hand', cursive",
+    '--type-font-body': "'Patrick Hand', cursive",
     ...(data.canvasBg ? {
       backgroundColor: data.canvasBg,
       backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.045) 1.5px, transparent 1.5px)',

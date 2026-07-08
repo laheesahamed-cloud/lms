@@ -6,6 +6,15 @@ import '../../theme/tokens.dart';
 import '../../widgets/brand_logo.dart';
 import '../../state/auth_controller.dart';
 import '../notifications/notification_priming.dart';
+import '../lessons/lessons_repository.dart';
+import '../courses/courses_repository.dart';
+import '../quizzes/quizzes_repository.dart';
+import '../flashcards/flashcards_repository.dart';
+import '../dashboard/dashboard_repository.dart';
+
+/// Observes the root navigator so the shell can refresh its lists when a
+/// pushed detail screen (lesson, quiz, course, review…) is popped back.
+final appRouteObserver = RouteObserver<PageRoute<dynamic>>();
 
 class NavDest {
   final String label;
@@ -40,18 +49,54 @@ const _kSideStudy = [
   NavDest('Saved', Icons.bookmark_border_rounded, '/app/bookmarks'),
 ];
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerStatefulWidget {
   final Widget child;
   final String location;
   const AppShell({super.key, required this.child, required this.location});
 
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> with RouteAware {
   int get _index {
-    final i = kDests.indexWhere((d) => location.startsWith(d.route));
+    final i = kDests.indexWhere((d) => widget.location.startsWith(d.route));
     return i < 0 ? 2 : i;
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) appRouteObserver.subscribe(this, route);
+  }
+
+  @override
+  void dispose() {
+    appRouteObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  /// A pushed detail screen was just popped back to the shell — refetch the
+  /// content lists so edits made inside (a new note page, a completed lesson,
+  /// a finished quiz, updated progress…) show immediately instead of staying
+  /// stale until the next app launch. Invalidate only refetches the list the
+  /// user is actually looking at; the rest are marked stale cheaply.
+  @override
+  void didPopNext() {
+    ref.invalidate(lessonsListProvider);
+    ref.invalidate(studentCoursesProvider);
+    ref.invalidate(courseDetailProvider);
+    ref.invalidate(quizListProvider);
+    ref.invalidate(resultsListProvider);
+    ref.invalidate(flashDecksProvider);
+    ref.invalidate(studentDashboardProvider);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final child = widget.child;
+    final location = widget.location;
     // Gate the shell so the notification priming sheet appears once after login.
     final gatedChild = NotificationPrimingGate(child: child);
     final width = MediaQuery.sizeOf(context).width;

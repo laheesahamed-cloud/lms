@@ -1962,7 +1962,7 @@ class _NoteContent extends StatelessWidget {
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.12)),
       child: DefaultTextStyle.merge(
-      style: const TextStyle(fontFamily: 'ShantellSans'),
+      style: const TextStyle(fontFamily: 'PatrickHand'),
       child: CustomPaint(
       painter: _DotGridPainter(dot),
       child: Container(
@@ -2139,14 +2139,14 @@ const _kPageGap = 28.0;
 
 /// Section accent palette (web NoteCanvas `PALETTE`) — cycled by section index
 /// so each card gets a distinct colour, exactly like the web note.
-// Pastel palette — low saturation, distinct hues (consecutive cards never look
-// the same). Darkened for text in light mode, lightened in dark, by _readableAccent.
+// Cooler muted palette (reverted from the warmer pastel set). Darkened for text
+// in light mode, lightened in dark, by _readableAccent.
 const _kPalette = <Color>[
-  Color(0xFF7FA8CE), Color(0xFFD9A08C), Color(0xFF97C29B), Color(0xFFC9B07E),
-  Color(0xFFB4A2D4), Color(0xFF84C4BE), Color(0xFFDBA6C0), Color(0xFFE0B394),
-  Color(0xFFA9B0DC), Color(0xFFA9D2B4), Color(0xFF9DBBD9), Color(0xFFCFA9A0),
-  Color(0xFFAECB9E), Color(0xFFD6C495), Color(0xFFC3B4DE), Color(0xFF9AD0CB),
-  Color(0xFFE3B79A), Color(0xFFB9CBE3), Color(0xFFC9DCA9), Color(0xFFD9BBCE),
+  Color(0xFF5E7CA6), Color(0xFFB0685F), Color(0xFF5B93A5), Color(0xFFA8895A),
+  Color(0xFF8878A8), Color(0xFF7E9BC2), Color(0xFFB0728F), Color(0xFFBE7E5A),
+  Color(0xFF6C9B77), Color(0xFF9E9057), Color(0xFFA9BFD6), Color(0xFFCFC59A),
+  Color(0xFFC99089), Color(0xFF8CADA8), Color(0xFFAF97B8), Color(0xFFCBB088),
+  Color(0xFFC295A5), Color(0xFF92B7BD), Color(0xFF9AB89B), Color(0xFFCFC0A0),
 ];
 
 // Pastel rainbow highlighter — soft, distinct highlight tints cycled per mark.
@@ -2284,7 +2284,7 @@ Widget _inlineText(String raw, TextStyle base,
     {Color accent = const Color(0xFF2563EB),
     int highlightIndex = 0,
     bool dark = false}) {
-  base = base.copyWith(fontFamily: 'ShantellSans', fontSize: (base.fontSize ?? 14) * 1.12); // Shantell + bigger for readability
+  base = base.copyWith(fontFamily: 'PatrickHand', fontSize: (base.fontSize ?? 14) * 1.12); // Patrick Hand body + bigger for readability
   final runs = parseInline(raw);
   // Pastel rainbow highlighter — soft multi-colour cycling (calm, not neon).
   final boldColor = dark ? const Color(0xFFB8CBFF) : const Color(0xFF1D4ED8);

@@ -59,6 +59,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
     refreshListenable: refresh,
+    // Lets the shell know when a pushed detail screen is popped, so lists
+    // refresh with any changes made inside (see AppShell.didPopNext).
+    observers: [appRouteObserver],
     redirect: (context, state) {
       // Gated dev preview: build with --dart-define=PREVIEW=true to browse
       // any /app route without auth (for screenshots). Off by default.
