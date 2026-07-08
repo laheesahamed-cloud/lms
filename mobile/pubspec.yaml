@@ -103,6 +103,12 @@ flutter:
     - family: Plus Jakarta Sans
       fonts:
         - asset: assets/fonts/PlusJakartaSans.ttf
+    - family: PatrickHand
+      fonts:
+        - asset: assets/fonts/PatrickHand-Regular.ttf
+    - family: ShantellSans
+      fonts:
+        - asset: assets/fonts/ShantellSans.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

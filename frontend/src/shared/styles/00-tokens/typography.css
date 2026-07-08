@@ -11,6 +11,15 @@
   src: url("../../assets/fonts/patrick-hand-v25-latin-regular.ttf") format("truetype");
 }
 
+/* Shantell Sans (variable) — used for AI-notes canvas headings. */
+@font-face {
+  font-family: "Shantell Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: block;
+  src: url("../../assets/fonts/ShantellSans.ttf") format("truetype");
+}
+
 /* Plus Jakarta Sans, self-hosted (Round-2 Task 17). Mirrors the exact
    @font-face structure Google css2 served — six DISCRETE weight faces all
    backed by the same v12 variable file — so CSS font-matching (and the

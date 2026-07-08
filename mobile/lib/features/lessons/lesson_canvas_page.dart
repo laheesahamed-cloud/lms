@@ -1937,7 +1937,9 @@ class _NoteContent extends StatelessWidget {
     final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF2E2E33);
     final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6A6A70);
 
-    return CustomPaint(
+    return DefaultTextStyle.merge(
+      style: const TextStyle(fontFamily: 'PatrickHand'),
+      child: CustomPaint(
       painter: _DotGridPainter(dot),
       child: Container(
         decoration: BoxDecoration(
@@ -1959,6 +1961,7 @@ class _NoteContent extends StatelessWidget {
               child: Text(note.title.toUpperCase(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
+                      fontFamily: 'ShantellSans',
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       color: ink,
@@ -1987,7 +1990,7 @@ class _NoteContent extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _keyPoints(Color ink) => Container(
@@ -2251,6 +2254,7 @@ Widget _inlineText(String raw, TextStyle base,
     {Color accent = const Color(0xFF2563EB),
     int highlightIndex = 0,
     bool dark = false}) {
+  base = base.copyWith(fontFamily: 'PatrickHand'); // handwriting body font
   final runs = parseInline(raw);
   // HIG: one calm highlight colour (no rainbow) — a single soft amber, used sparingly.
   final hlBg = dark ? const Color(0xFFD9B24A) : const Color(0xFFE6C25A);
@@ -2353,6 +2357,7 @@ class _SectionCard extends StatelessWidget {
               ),
               child: Text(section.heading.toUpperCase(),
                   style: TextStyle(
+                      fontFamily: 'ShantellSans',
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -2443,6 +2448,7 @@ class _SectionCard extends StatelessWidget {
               child: isHeader
                   ? Text(text.toUpperCase(),
                       style: TextStyle(
+                          fontFamily: 'ShantellSans',
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.7,
