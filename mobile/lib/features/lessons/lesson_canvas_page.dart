@@ -2112,13 +2112,25 @@ const _kPageGap = 28.0;
 
 /// Section accent palette (web NoteCanvas `PALETTE`) — cycled by section index
 /// so each card gets a distinct colour, exactly like the web note.
+// Pastel palette — low saturation, distinct hues (consecutive cards never look
+// the same). Darkened for text in light mode, lightened in dark, by _readableAccent.
 const _kPalette = <Color>[
-  Color(0xFF5E7CA6), Color(0xFFB0685F), Color(0xFF5B93A5), Color(0xFFA8895A),
-  Color(0xFF8878A8), Color(0xFF7E9BC2), Color(0xFFB0728F), Color(0xFFBE7E5A),
-  Color(0xFF6C9B77), Color(0xFF9E9057), Color(0xFFA9BFD6), Color(0xFFCFC59A),
-  Color(0xFFC99089), Color(0xFF8CADA8), Color(0xFFAF97B8), Color(0xFFCBB088),
-  Color(0xFFC295A5), Color(0xFF92B7BD), Color(0xFF9AB89B), Color(0xFFCFC0A0),
+  Color(0xFF7FA8CE), Color(0xFFD9A08C), Color(0xFF97C29B), Color(0xFFC9B07E),
+  Color(0xFFB4A2D4), Color(0xFF84C4BE), Color(0xFFDBA6C0), Color(0xFFE0B394),
+  Color(0xFFA9B0DC), Color(0xFFA9D2B4), Color(0xFF9DBBD9), Color(0xFFCFA9A0),
+  Color(0xFFAECB9E), Color(0xFFD6C495), Color(0xFFC3B4DE), Color(0xFF9AD0CB),
+  Color(0xFFE3B79A), Color(0xFFB9CBE3), Color(0xFFC9DCA9), Color(0xFFD9BBCE),
 ];
+
+// A pastel accent is too light to read as text; darken it in light mode and
+// lighten it in dark mode so parent lines / labels stay legible.
+Color _readableAccent(Color c, bool dark) {
+  final hsl = HSLColor.fromColor(c);
+  final l = dark
+      ? (hsl.lightness + 0.14).clamp(0.0, 0.92)
+      : (hsl.lightness * 0.5).clamp(0.0, 0.48);
+  return hsl.withLightness(l).toColor();
+}
 
 Color? _parseHex(String? hex) {
   if (hex == null || hex.trim().isEmpty) return null;
@@ -2165,7 +2177,7 @@ Widget _bullet(String raw, Color ink, Color accent,
                 height: isSub ? 1.5 : 1.45,
                 fontWeight: isParent ? FontWeight.w600 : FontWeight.w400,
                 color: isParent
-                    ? accent
+                    ? _readableAccent(accent, dark)
                     : (isSub ? ink.withValues(alpha: 0.90) : ink)),
             accent: accent,
             highlightIndex: index,
@@ -2296,8 +2308,8 @@ class _SectionCard extends StatelessWidget {
     final surface = dark ? const Color(0xFF1B1B1E) : Colors.white;
     // Accent fade in the top-left and bottom-right corners (like the web card),
     // a touch stronger in dark mode; the middle stays the flat surface.
-    final glowTL = Color.alphaBlend(accent.withValues(alpha: dark ? 0.14 : 0.075), surface);
-    final glowBR = Color.alphaBlend(accent.withValues(alpha: dark ? 0.18 : 0.10), surface);
+    final glowTL = Color.alphaBlend(accent.withValues(alpha: dark ? 0.11 : 0.06), surface);
+    final glowBR = Color.alphaBlend(accent.withValues(alpha: dark ? 0.15 : 0.085), surface);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which

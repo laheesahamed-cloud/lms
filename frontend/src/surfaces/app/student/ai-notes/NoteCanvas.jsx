@@ -1009,8 +1009,8 @@ function SummaryFragments({ text, highlightColors, accentColor, colors, theme })
 /* ══════════════════════════════════════════════════════════════
    COLORS
 ══════════════════════════════════════════════════════════════ */
-const DARK_COLORS  = ['#93A9C9','#CFC59A','#C99089','#8CADA8','#AF97B8','#CBB088'];
-const LIGHT_COLORS = ['#5E7CA6','#A8895A','#B0685F','#5B93A5','#8878A8','#7E9BC2'];
+const DARK_COLORS  = ['#8FB4D6','#DDA894','#A0C8A4','#D2BA88','#BCAAD8','#90CCC6'];
+const LIGHT_COLORS = ['#5E86B4','#B5766E','#6E9B79','#A8935E','#8878A8','#5E9E98'];
 
 function normalizeVisualStyleColors(raw) {
   return Array.isArray(raw)
