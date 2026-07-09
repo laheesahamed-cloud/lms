@@ -2347,13 +2347,14 @@ class _SectionCard extends StatelessWidget {
     // Dark mode: transparent, so the card blends into the dark page (corners only).
     final ghsl = HSLColor.fromColor(accent);
     final glowAccent = ghsl.withSaturation((ghsl.saturation * 0.45).clamp(0.0, 1.0)).toColor();
-    final cardFill = dark ? Colors.transparent : Colors.white;
+    const lightCard = Color(0xFFFFFBEB); // soft cream (like the exam-trap card)
+    final cardFill = dark ? Colors.transparent : lightCard;
     final glowTL = dark
         ? glowAccent.withValues(alpha: 0.16)
-        : Color.alphaBlend(glowAccent.withValues(alpha: 0.11), Colors.white);
+        : Color.alphaBlend(glowAccent.withValues(alpha: 0.11), lightCard);
     final glowBR = dark
         ? glowAccent.withValues(alpha: 0.20)
-        : Color.alphaBlend(glowAccent.withValues(alpha: 0.14), Colors.white);
+        : Color.alphaBlend(glowAccent.withValues(alpha: 0.14), lightCard);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
@@ -2382,7 +2383,7 @@ class _SectionCard extends StatelessWidget {
           stops: const [0.0, 0.34, 0.66, 1.0],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE6E6EA)),
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFEDE4CB)),
         boxShadow: dark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
