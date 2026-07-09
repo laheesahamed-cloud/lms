@@ -1954,8 +1954,8 @@ class _NoteContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paper = dark ? const Color(0xFF161619) : const Color(0xFFF2F2F4);
-    final dot = dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE3E3E7);
+    final paper = dark ? const Color(0xFF161619) : const Color(0xFFFBF4E4); // light = soft cream sheet
+    final dot = dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFEDE2C9);
     final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF2E2E33);
     final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6A6A70);
 
