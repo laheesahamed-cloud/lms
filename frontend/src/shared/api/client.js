@@ -187,6 +187,8 @@ function redirectToLoginIfNeeded() {
     publicPath === '/register' ||
     publicPath === '/terms' ||
     publicPath === '/privacy-policy' ||
+    publicPath === '/delete-account' ||
+    publicPath === '/support' ||
     publicPath.startsWith('/launch-preview/') ||
     publicPath === '/auth/login' ||
     publicPath === '/auth/register' ||
@@ -211,9 +213,9 @@ function getNormalizedPublicPathname(pathname) {
 function isApiFreePreviewRoute() {
   if (typeof window === 'undefined') return false;
   const path = getNormalizedPublicPathname(window.location.pathname || '');
-  return /^\/lms\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
+  return /^\/lms\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|delete-account|support|$)/i.test(path) ||
     /^\/lms\/launch-preview\//i.test(path) ||
-    /^\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
+    /^\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|delete-account|support|$)/i.test(path) ||
     /^\/launch-preview\//i.test(path);
 }
 

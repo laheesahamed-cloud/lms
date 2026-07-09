@@ -11,6 +11,8 @@ const PUBLIC_WEBSITE_PATHS = new Set([
   '/privacy-policy',
   '/refund-policy',
   '/cookie-policy',
+  '/delete-account',
+  '/support',
   '/ai',
   '/ai/gemini',
   '/ai/chatgpt',

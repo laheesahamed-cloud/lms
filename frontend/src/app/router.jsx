@@ -35,6 +35,7 @@ const PrivacyPolicyPage = lazyNamed(() => import('../surfaces/website/pages/Priv
 const RefundPolicyPage = lazyNamed(() => import('../surfaces/website/pages/RefundPolicyPage.jsx'),       'RefundPolicyPage');
 const CookiePolicyPage = lazyNamed(() => import('../surfaces/website/pages/CookiePolicyPage.jsx'),       'CookiePolicyPage');
 const DeleteAccountPage = lazyNamed(() => import('../surfaces/website/pages/DeleteAccountPage.jsx'),      'DeleteAccountPage');
+const SupportPage = lazyNamed(() => import('../surfaces/website/pages/SupportPage.jsx'),                  'SupportPage');
 
 const CoursesPage = lazyNamed(() => import('../surfaces/admin/pages/courses/CoursesPage.jsx'), 'CoursesPage');
 const AdminDashboardPage = lazyNamed(() => import('../surfaces/admin/pages/dashboard/AdminDashboardPage.jsx'), 'AdminDashboardPage');
@@ -825,6 +826,10 @@ const router = createBrowserRouter([
       {
         path: 'delete-account',
         element: withSuspense(<DeleteAccountPage />),
+      },
+      {
+        path: 'support',
+        element: withSuspense(<SupportPage />),
       },
       {
         path: 'launch-preview/:mode',
