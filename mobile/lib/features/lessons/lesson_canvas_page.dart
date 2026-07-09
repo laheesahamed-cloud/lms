@@ -1954,8 +1954,8 @@ class _NoteContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paper = dark ? const Color(0xFF161619) : const Color(0xFFFBF4E4); // light = soft cream sheet
-    final dot = dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFEDE2C9);
+    final paper = dark ? const Color(0xFF161619) : const Color(0xFFFCFAF3); // light = whitish warm sheet
+    final dot = dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFECE8DB);
     final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF2E2E33);
     final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6A6A70);
 
@@ -2347,7 +2347,7 @@ class _SectionCard extends StatelessWidget {
     // Dark mode: transparent, so the card blends into the dark page (corners only).
     final ghsl = HSLColor.fromColor(accent);
     final glowAccent = ghsl.withSaturation((ghsl.saturation * 0.45).clamp(0.0, 1.0)).toColor();
-    const lightCard = Color(0xFFFFFBEB); // soft cream (like the exam-trap card)
+    const lightCard = Color(0xFFFFFEF8); // whitish-warm card (barely yellow)
     final cardFill = dark ? Colors.transparent : lightCard;
     final glowTL = dark
         ? glowAccent.withValues(alpha: 0.16)
@@ -2383,7 +2383,7 @@ class _SectionCard extends StatelessWidget {
           stops: const [0.0, 0.34, 0.66, 1.0],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1ECDC)),
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1EEE4)),
         boxShadow: dark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.022), blurRadius: 6, offset: const Offset(0, 1))],
       ),
       child: Column(
