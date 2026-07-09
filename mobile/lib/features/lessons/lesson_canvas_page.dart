@@ -2351,10 +2351,10 @@ class _SectionCard extends StatelessWidget {
     final cardFill = dark ? Colors.transparent : lightCard;
     final glowTL = dark
         ? glowAccent.withValues(alpha: 0.16)
-        : Color.alphaBlend(glowAccent.withValues(alpha: 0.11), lightCard);
+        : Color.alphaBlend(glowAccent.withValues(alpha: 0.045), lightCard);
     final glowBR = dark
         ? glowAccent.withValues(alpha: 0.20)
-        : Color.alphaBlend(glowAccent.withValues(alpha: 0.14), lightCard);
+        : Color.alphaBlend(glowAccent.withValues(alpha: 0.06), lightCard);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
@@ -2383,8 +2383,8 @@ class _SectionCard extends StatelessWidget {
           stops: const [0.0, 0.34, 0.66, 1.0],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFEDE4CB)),
-        boxShadow: dark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1ECDC)),
+        boxShadow: dark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.022), blurRadius: 6, offset: const Offset(0, 1))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
