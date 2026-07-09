@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import '../../theme/tokens.dart';
@@ -42,7 +43,24 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Colors.black);
       if (_embed.type == VideoEmbedType.iframe) {
-        ctrl.loadRequest(Uri.parse(_embed.src));
+        // Load the provider embed INSIDE an <iframe> on the provider's own
+        // origin (via baseUrl), not as a top-level navigation. YouTube/Vimeo's
+        // embedded player rejects top-level loads on some videos with a
+        // "player configuration error" — running it in an iframe with a valid
+        // origin (like a normal web page) fixes that.
+        String origin = '';
+        try {
+          origin = Uri.parse(_embed.src).origin;
+        } catch (_) {}
+        ctrl.loadHtmlString('''<!DOCTYPE html>
+<html><head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000;height:100%;overflow:hidden}.f{position:fixed;inset:0}iframe{width:100%;height:100%;border:0;display:block}</style>
+</head><body>
+<div class="f">
+<iframe src="${_embed.src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen; gyroscope; accelerometer" allowfullscreen></iframe>
+</div>
+</body></html>''', baseUrl: origin.isNotEmpty ? origin : null);
       } else {
         // Direct video — minimal HTML5 wrapper
         ctrl.loadHtmlString('''<!DOCTYPE html>
@@ -55,6 +73,24 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
 </body></html>''');
       }
       _wvc = ctrl;
+    }
+  }
+
+  bool get _isYouTube => _embed.provider == 'youtube';
+
+  /// Open the video in its native app / browser. This always works, even when
+  /// the in-app WebView embed is refused (iOS gives loadHtmlString content an
+  /// opaque origin, so YouTube sometimes shows "Watch on YouTube").
+  Future<void> _openExternal() async {
+    final url = widget.videoUrl.trim();
+    if (url.isEmpty) return;
+    final uri = Uri.tryParse(url.startsWith('http') ? url : 'https://$url');
+    if (uri == null) return;
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the video.')),
+      );
     }
   }
 
@@ -112,7 +148,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
           Divider(height: 1, color: c.line),
           // 16:9 video area
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: ClipRRect(
@@ -121,6 +157,22 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
               ),
             ),
           ),
+          // Always-available fallback: some videos won't play inline in the
+          // in-app player (iOS embed restrictions), so give a reliable way out.
+          if (widget.videoUrl.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: _openExternal,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: Text(_isYouTube
+                      ? 'Not playing? Open in YouTube'
+                      : 'Not playing? Open in browser'),
+                ),
+              ),
+            ),
           SizedBox(height: bottom + 8),
         ],
       ),

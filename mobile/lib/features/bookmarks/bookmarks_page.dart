@@ -5,6 +5,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
+import '../quizzes/quizzes_repository.dart';
 import 'bookmarks_repository.dart';
 
 class BookmarksPage extends ConsumerStatefulWidget {
@@ -28,6 +29,19 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
       : itemType == 'question'
           ? Icons.help_outline_rounded
           : Icons.fact_check_outlined;
+
+  /// Show a quiz bookmark with the SAME name it has on the hero cards, the
+  /// Q-Bank list and results — QuizListItem.displayName ("Quiz N" in number
+  /// mode, else the title). Falls back to the stored title for notes/questions
+  /// or if the quiz isn't in the loaded list.
+  String _displayName(Bookmark b, List<QuizListItem> quizzes) {
+    if (b.itemType == 'quiz') {
+      for (final q in quizzes) {
+        if (q.id == b.itemId.toString()) return q.displayName;
+      }
+    }
+    return b.title;
+  }
 
   void _open(Bookmark b) {
     switch (b.itemType) {
@@ -62,6 +76,10 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
   Widget build(BuildContext context) {
     final c = context.c;
     final bookmarksAsync = ref.watch(bookmarksProvider);
+    // Same source the Q-Bank list / hero cards use, so quiz names match exactly.
+    final quizzes = ref
+        .watch(quizListProvider)
+        .maybeWhen(data: (x) => x, orElse: () => const <QuizListItem>[]);
 
     return SafeArea(
       child: RefreshIndicator(
@@ -175,7 +193,7 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(b.title,
+                                          Text(_displayName(b, quizzes),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
