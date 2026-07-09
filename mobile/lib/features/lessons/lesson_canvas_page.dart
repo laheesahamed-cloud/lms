@@ -2342,13 +2342,18 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent =
         _parseHex(section.accentColor) ?? _kPalette[index % _kPalette.length];
-    // The card blends into the page background — the card's colour shows ONLY as a
-    // faint desaturated tint in the top-left and bottom-right corners (transparent
-    // middle, so the page background shows through the rest of the card).
+    // Light mode: a soft WHITE card on the grey page (like the exam-trap card),
+    // with faint accent tints in the top-left + bottom-right corners.
+    // Dark mode: transparent, so the card blends into the dark page (corners only).
     final ghsl = HSLColor.fromColor(accent);
     final glowAccent = ghsl.withSaturation((ghsl.saturation * 0.45).clamp(0.0, 1.0)).toColor();
-    final glowTL = glowAccent.withValues(alpha: dark ? 0.16 : 0.10);
-    final glowBR = glowAccent.withValues(alpha: dark ? 0.20 : 0.13);
+    final cardFill = dark ? Colors.transparent : Colors.white;
+    final glowTL = dark
+        ? glowAccent.withValues(alpha: 0.16)
+        : Color.alphaBlend(glowAccent.withValues(alpha: 0.11), Colors.white);
+    final glowBR = dark
+        ? glowAccent.withValues(alpha: 0.20)
+        : Color.alphaBlend(glowAccent.withValues(alpha: 0.14), Colors.white);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
@@ -2373,11 +2378,12 @@ class _SectionCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [glowTL, Colors.transparent, Colors.transparent, glowBR],
+          colors: [glowTL, cardFill, cardFill, glowBR],
           stops: const [0.0, 0.34, 0.66, 1.0],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05)),
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE6E6EA)),
+        boxShadow: dark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
