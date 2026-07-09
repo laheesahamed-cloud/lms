@@ -478,8 +478,11 @@ class _ContinueCard extends ConsumerWidget {
     String label;
     IconData icon;
     if (recQuiz != null) {
-      target = '/app/quizzes/${recQuiz.id}';
-      label = 'Start practice';
+      // Exam mode: a graded attempt is saved to the DB (practice only logs a
+      // streak event), so completing it updates scores/results and this card
+      // advances to the next quiz instead of re-suggesting the same one.
+      target = '/app/quizzes/${recQuiz.id}?exam=1';
+      label = 'Start quiz';
       icon = Icons.play_arrow_rounded;
     } else if (recNote != null) {
       target = '/app/study/lesson/${recNote.lessonId}';
@@ -1041,7 +1044,9 @@ class _StudyPlanCard extends ConsumerWidget {
                     .join(' · ')
                 : 'Use any short set you can finish today'),
         done: practiceToday || doneTypes.contains('quiz'),
-        route: recQuiz != null ? '/app/quizzes/${recQuiz.id}' : '/app/quizzes',
+        // Exam mode so the attempt is graded + saved to the DB — that's what
+        // flips this step to "done" and feeds results/weak-topics.
+        route: recQuiz != null ? '/app/quizzes/${recQuiz.id}?exam=1' : '/app/quizzes',
       ),
       _PlanItem(
         label: 'Review',

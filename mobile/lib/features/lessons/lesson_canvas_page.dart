@@ -1962,7 +1962,7 @@ class _NoteContent extends StatelessWidget {
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.12)),
       child: DefaultTextStyle.merge(
-      style: const TextStyle(fontFamily: 'PatrickHand'),
+      style: const TextStyle(fontFamily: 'Plus Jakarta Sans'),
       child: CustomPaint(
       painter: _DotGridPainter(dot),
       child: Container(
@@ -1985,7 +1985,7 @@ class _NoteContent extends StatelessWidget {
               child: Text(note.title.toUpperCase(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontFamily: 'ShantellSans',
+                      fontFamily: 'Plus Jakarta Sans',
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       color: ink,
@@ -2208,6 +2208,7 @@ Widget _bullet(String raw, Color ink, Color accent,
             TextStyle(
                 fontSize: isSub ? 13.5 : 14,
                 height: isSub ? 1.5 : 1.45,
+                fontFamily: isParent ? 'PatrickHand' : null,
                 fontWeight: isParent ? FontWeight.w600 : FontWeight.w400,
                 color: isParent
                     ? _readableAccent(accent, dark)
@@ -2284,7 +2285,7 @@ Widget _inlineText(String raw, TextStyle base,
     {Color accent = const Color(0xFF2563EB),
     int highlightIndex = 0,
     bool dark = false}) {
-  base = base.copyWith(fontFamily: 'PatrickHand', fontSize: (base.fontSize ?? 14) * 1.12); // Patrick Hand body + bigger for readability
+  base = base.copyWith(fontFamily: base.fontFamily ?? 'Plus Jakarta Sans', fontSize: (base.fontSize ?? 14) * 1.12); // caller font (Patrick Hand for parent lines) else clean Plus Jakarta; bigger for readability
   final runs = parseInline(raw);
   // Pastel rainbow highlighter — soft multi-colour cycling (calm, not neon).
   final boldColor = dark ? const Color(0xFFB8CBFF) : const Color(0xFF1D4ED8);
@@ -2391,7 +2392,7 @@ class _SectionCard extends StatelessWidget {
               ),
               child: Text(section.heading.toUpperCase(),
                   style: TextStyle(
-                      fontFamily: 'ShantellSans',
+                      fontFamily: 'Plus Jakarta Sans',
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -2484,7 +2485,7 @@ class _SectionCard extends StatelessWidget {
               child: isHeader
                   ? Text(text.toUpperCase(),
                       style: TextStyle(
-                          fontFamily: 'ShantellSans',
+                          fontFamily: 'Plus Jakarta Sans',
                           fontSize: wide ? 9.0 : 10.0,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.2,

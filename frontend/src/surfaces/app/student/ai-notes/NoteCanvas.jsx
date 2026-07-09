@@ -62,9 +62,9 @@ const noteCanvasUi = {
   leafMark:
     'inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-100/75 text-[25px] shadow-[0_8px_18px_rgba(16,185,129,0.12)] dark:border-emerald-300/20 dark:bg-emerald-300/10',
   title:
-    "m-0 min-w-0 flex-1 break-words font-['Shantell_Sans'] text-[38px] font-bold leading-[1.05] text-slate-700 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:w-full max-[520px]:text-[30px]",
+    "m-0 min-w-0 flex-1 break-words text-[38px] font-bold leading-[1.05] text-slate-700 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:w-full max-[520px]:text-[30px]",
   titleReadOnly:
-    "flex w-full items-center justify-center bg-transparent px-0 py-0 text-center font-['Shantell_Sans'] text-[42px] font-bold leading-[1.02] text-slate-700 shadow-none dark:text-[#f5f8ff] max-[520px]:text-[34px]",
+    "flex w-full items-center justify-center bg-transparent px-0 py-0 text-center text-[42px] font-bold leading-[1.02] text-slate-700 shadow-none dark:text-[#f5f8ff] max-[520px]:text-[34px]",
   titleMedicalIcon:
     'flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/22 bg-sky-300/10 text-sky-200 shadow-[0_0_18px_rgba(96,165,250,0.18)] max-[520px]:size-9 max-[520px]:rounded-xl [&_svg]:size-7 max-[520px]:[&_svg]:size-5',
   subtitle:
@@ -153,7 +153,7 @@ const noteCanvasUi = {
   sectionHeading: 'flex items-center gap-2.5 px-3.5 pb-0 pt-3 max-[520px]:px-2.5',
   diagramIcon: 'size-[46px] shrink-0 drop-shadow-[0_0_6px_rgba(160,200,255,0.25)] [&_svg]:size-full',
   headingText:
-    "m-0 inline-flex w-fit max-w-full break-words rounded-md px-2.5 py-0.5 font-['Shantell_Sans'] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-700 dark:text-[#f0f4ff]",
+    "m-0 inline-flex w-fit max-w-full break-words rounded-md px-2.5 py-0.5 font-[var(--type-font-body)] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-700 dark:text-[#f0f4ff]",
   sectionExtras: 'mt-1 flex flex-col gap-1.5',
   callout:
     "flex min-w-0 items-start gap-2 break-words rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 text-[16px] leading-[1.52] text-slate-700 dark:!border-[rgba(180,200,255,0.22)] dark:bg-white/[0.075] dark:text-[#c8d8ff] max-[520px]:text-[16.5px]",
@@ -832,7 +832,7 @@ function CheckableBullet({ bulletKey, text, isSub, isParent, accentColor, highli
               transition: 'background 0.2s, box-shadow 0.2s',
             }}
           />}
-      <span style={{ minWidth: 0, overflowWrap: 'anywhere', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.42 : 1, color: isParent ? accentColor : undefined, fontWeight: isParent ? 600 : undefined, transition: 'opacity 0.2s, text-decoration 0.1s' }}>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.42 : 1, color: isParent ? accentColor : undefined, fontWeight: isParent ? 600 : undefined, fontFamily: isParent ? "'Patrick Hand', cursive" : undefined, transition: 'opacity 0.2s, text-decoration 0.1s' }}>
         <RichText text={text} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={highlightIndex}/>
       </span>
       {done && <span style={{ marginLeft: 5, fontSize: 11, color: '#10b981', flexShrink: 0, lineHeight: 1 }}>✓</span>}
@@ -2656,16 +2656,11 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   }
 
   /* ── canvas background ─────────────────────────────────── */
-  const canvasStyle = {
-    // Handwriting look: Patrick Hand for the body (headings use Shantell Sans).
-    fontFamily: "'Patrick Hand', cursive",
-    '--type-font-body': "'Patrick Hand', cursive",
-    ...(data.canvasBg ? {
-      backgroundColor: data.canvasBg,
-      backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.045) 1.5px, transparent 1.5px)',
-      backgroundSize: '22px 22px',
-    } : {}),
-  };
+  const canvasStyle = data.canvasBg ? {
+    backgroundColor: data.canvasBg,
+    backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.045) 1.5px, transparent 1.5px)',
+    backgroundSize: '22px 22px',
+  } : {};
 
   return (
     <div className={cx(noteCanvasUi.wrapOuter, 'lms-ai-canvas-editor', editable && 'is-editable')}>
