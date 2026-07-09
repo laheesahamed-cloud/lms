@@ -171,7 +171,9 @@ export class FlashcardsService {
       };
       if (isNew) buckets.fresh.push(item);
       else if ((state.state === 1 || state.state === 3) && dueTime <= now.getTime()) buckets.learning.push(item);
-      else if (dueTime <= endOfDay(now).getTime()) buckets.due.push(item);
+      // Due = Review-state cards only (state 2), matching reviewCountsByNote so
+      // the deck-list "Due" count and the actual session queue never disagree.
+      else if (state.state === 2 && dueTime <= endOfDay(now).getTime()) buckets.due.push(item);
     }
 
     buckets.learning.sort((a, b) => Date.parse(a.due) - Date.parse(b.due));

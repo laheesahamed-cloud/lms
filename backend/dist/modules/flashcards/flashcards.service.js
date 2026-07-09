@@ -111,7 +111,7 @@ let FlashcardsService = class FlashcardsService {
                 buckets.fresh.push(item);
             else if ((state.state === 1 || state.state === 3) && dueTime <= now.getTime())
                 buckets.learning.push(item);
-            else if (dueTime <= endOfDay(now).getTime())
+            else if (state.state === 2 && dueTime <= endOfDay(now).getTime())
                 buckets.due.push(item);
         }
         buckets.learning.sort((a, b) => Date.parse(a.due) - Date.parse(b.due));

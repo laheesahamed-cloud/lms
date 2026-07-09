@@ -165,10 +165,14 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       _submitPhase = SubmitPhase.submitting;
     });
     // Only a fully-answered practice counts toward the daily streak (isolated
-    // event, does not affect scores). Fire-and-forget so finishing never blocks.
+    // event, does not affect scores). Await it (within the submit animation
+    // window) so the event is persisted before we pop — the quiz-list/dashboard
+    // refetch on return then sees this quiz as done and stops recommending it.
     final id = int.tryParse(widget.quizId);
     if (id != null && questions.isNotEmpty && answered >= questions.length) {
-      recordPracticeCompletion(ref, id).catchError((_) {});
+      try {
+        await recordPracticeCompletion(ref, id);
+      } catch (_) {}
     }
     // Practice records study activity but does NOT create a graded attempt, so
     // the backend never flips isCompleted. Mark it done in the already-cached
@@ -265,7 +269,20 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
 
   @override
   Widget build(BuildContext context) {
-    return _exam ? _buildExam(context) : _buildPractice(context);
+    final child = _exam ? _buildExam(context) : _buildPractice(context);
+    // While an attempt is actually in progress, intercept back (button + swipe)
+    // and confirm before leaving so a stray gesture can't discard the attempt.
+    // Once submitting/leaving (or before the start prompt) let it pop freely.
+    final blockBack = _started && !_submitting;
+    return PopScope(
+      canPop: !blockBack,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final leave = await showQuizLeaveDialog(context, exam: _exam) ?? false;
+        if (leave && context.mounted) Navigator.of(context).pop();
+      },
+      child: child,
+    );
   }
 
   // --- Practice mode ------------------------------------------------------
@@ -481,7 +498,8 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
           Row(
             children: [
               IconButton(
-                onPressed: () => context.pop(),
+                // Route through maybePop so the PopScope leave-confirm runs.
+                onPressed: () => Navigator.of(context).maybePop(),
                 icon: Icon(Icons.arrow_back_ios_new_rounded,
                     size: 18, color: c.inkMedium),
               ),

@@ -61,6 +61,39 @@ Future<bool?> showQuizStartDialog(
   );
 }
 
+/// Confirm popup shown when the student tries to leave mid-quiz (back button
+/// or swipe). Guards against losing an in-progress attempt by accident.
+Future<bool?> showQuizLeaveDialog(BuildContext context, {required bool exam}) {
+  final c = context.c;
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: c.cardElevated,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(exam ? 'Leave exam?' : 'Leave quiz?',
+          style: TextStyle(
+              fontWeight: FontWeight.w800, color: c.inkStrong, fontSize: 18)),
+      content: Text(
+        exam
+            ? 'Your answers won\'t be submitted or graded if you leave now. This attempt will be lost.'
+            : 'You\'ll lose your progress on this practice set if you leave now.',
+        style: TextStyle(fontSize: 14, color: c.inkSoft, height: 1.45),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Stay'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: c.error),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Leave'),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Confirm popup shown before finishing a practice quiz / submitting an exam.
 Future<bool?> showQuizFinishDialog(
   BuildContext context, {

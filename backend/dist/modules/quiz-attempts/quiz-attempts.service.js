@@ -80,6 +80,11 @@ let QuizAttemptsService = class QuizAttemptsService {
             WHERE qa.quiz_id = q.id AND qa.user_id = ?
           ) AS exam_attempt_count,
           (
+            SELECT COUNT(*)
+            FROM study_activity_events e
+            WHERE e.user_id = ? AND e.activity_type = 'practice_completed' AND e.item_id = q.id
+          ) AS practice_completed_count,
+          (
             SELECT qa.id
             FROM quiz_attempts qa
             WHERE qa.quiz_id = q.id AND qa.user_id = ?
@@ -93,7 +98,7 @@ let QuizAttemptsService = class QuizAttemptsService {
         LEFT JOIN lessons l ON q.lesson_id = l.id
         WHERE q.status = 'active'
         ORDER BY q.id DESC
-      `, [user.id, user.id]);
+      `, [user.id, user.id, user.id]);
         return rows.map((row) => {
             const canAccessQuiz = this.canAccessQuiz(row, accessProfile);
             const isFree = Number(row.is_free) === 1;
@@ -133,7 +138,8 @@ let QuizAttemptsService = class QuizAttemptsService {
                 lessonTitle: row.lesson_title || '',
                 examAttemptCount: Number(row.exam_attempt_count || 0),
                 latestAttemptId: row.latest_attempt_id ? Number(row.latest_attempt_id) : null,
-                isCompleted: Number(row.exam_attempt_count || 0) > 0,
+                isCompleted: Number(row.exam_attempt_count || 0) > 0 ||
+                    Number(row.practice_completed_count || 0) > 0,
                 isFree,
                 randomizationMode: this.resolveRandomizationMode(row.randomization_mode),
                 canAccess: canAccessQuiz && canUseDynamic,

@@ -49,6 +49,7 @@ type QuizRow = RowDataPacket & {
   subject_name?: string | null;
   lesson_title?: string | null;
   exam_attempt_count?: number;
+  practice_completed_count?: number;
   latest_attempt_id?: number | null;
 };
 
@@ -236,6 +237,11 @@ export class QuizAttemptsService {
             WHERE qa.quiz_id = q.id AND qa.user_id = ?
           ) AS exam_attempt_count,
           (
+            SELECT COUNT(*)
+            FROM study_activity_events e
+            WHERE e.user_id = ? AND e.activity_type = 'practice_completed' AND e.item_id = q.id
+          ) AS practice_completed_count,
+          (
             SELECT qa.id
             FROM quiz_attempts qa
             WHERE qa.quiz_id = q.id AND qa.user_id = ?
@@ -250,7 +256,7 @@ export class QuizAttemptsService {
         WHERE q.status = 'active'
         ORDER BY q.id DESC
       `,
-      [user.id, user.id]
+      [user.id, user.id, user.id]
     );
 
     return rows.map((row) => {
@@ -292,7 +298,13 @@ export class QuizAttemptsService {
         lessonTitle: row.lesson_title || '',
         examAttemptCount: Number(row.exam_attempt_count || 0),
         latestAttemptId: row.latest_attempt_id ? Number(row.latest_attempt_id) : null,
-        isCompleted: Number(row.exam_attempt_count || 0) > 0,
+        // Completed = graded exam attempt OR a finished practice run. Practice
+        // logs a study-activity event (not a quiz_attempt), so it must be
+        // counted here too — otherwise the dashboard keeps recommending a quiz
+        // the student already practiced.
+        isCompleted:
+          Number(row.exam_attempt_count || 0) > 0 ||
+          Number(row.practice_completed_count || 0) > 0,
         isFree,
         randomizationMode: this.resolveRandomizationMode(row.randomization_mode),
         canAccess: canAccessQuiz && canUseDynamic,
