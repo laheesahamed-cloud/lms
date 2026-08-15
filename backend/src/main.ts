@@ -394,19 +394,45 @@ export async function configureApp(app: INestApplication) {
     res.status(404).json({ message: 'File not found' });
   });
 
+  // Only file types that have to render in place (lesson PDFs, images, audio/video)
+  // may be served inline. Anything else — notably HTML and SVG, which execute
+  // script in our own origin — is forced to download instead.
+  const INLINE_SAFE_UPLOAD_EXTENSIONS = new Set([
+    'pdf',
+    'png', 'jpg', 'jpeg', 'webp', 'gif',
+    'mp4', 'webm', 'mov',
+    'mp3', 'wav', 'm4a', 'ogg',
+  ]);
+
   const uploadsStaticOpts = {
     index: false,
     dotfiles: 'deny' as const,
-    setHeaders: (res: any) => {
+    setHeaders: (res: any, filePath: string) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('Content-Disposition', 'inline');
+      const extension = path.extname(String(filePath || '')).slice(1).toLowerCase();
+      res.setHeader(
+        'Content-Disposition',
+        INLINE_SAFE_UPLOAD_EXTENSIONS.has(extension) ? 'inline' : 'attachment'
+      );
     },
   };
-  app.use('/uploads', express.static(uploadsRoot, uploadsStaticOpts));
+  // Payment proofs are financial documents and must only ever be reachable through
+  // the permission-checked uploads controller. The static mount would serve them to
+  // anyone who knows a filename, so skip them here and let the request fall through
+  // to Nest — /uploads/payment-proofs is already 404'd outright above.
+  const serveUploads = express.static(uploadsRoot, uploadsStaticOpts);
+  const serveNonSensitiveUploads = (req: any, res: any, next: any) => {
+    if (/^\/payment-proofs(?:\/|$)/i.test(req.path)) {
+      return next();
+    }
+    return serveUploads(req, res, next);
+  };
+
+  app.use('/uploads', serveNonSensitiveUploads);
   // Also serve under /api/uploads so mobile apps can reach files through
   // the API proxy path (which is always forwarded to this backend process).
-  app.use('/api/uploads', express.static(uploadsRoot, uploadsStaticOpts));
+  app.use('/api/uploads', serveNonSensitiveUploads);
 
   app.use(restoreApiPrefixForMountedApp);
 

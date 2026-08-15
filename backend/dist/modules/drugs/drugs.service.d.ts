@@ -1,4 +1,4 @@
-import { OnModuleInit } from '@nestjs/common';
+import { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 export interface DrugsSettings {
     enabled: boolean;
@@ -18,13 +18,14 @@ type DrugRow = RowDataPacket & {
     sl_brand_names: string | null;
     is_active: number;
 };
-export declare class DrugsService implements OnModuleInit {
+export declare class DrugsService implements OnModuleInit, OnModuleDestroy {
     private readonly db;
     private readonly logger;
     private settingsCache;
     private refreshTimer;
     constructor(db: Pool);
     onModuleInit(): void;
+    onModuleDestroy(): void;
     private refreshSettings;
     getSettings(): DrugsSettings;
     getBatch(userId: number, count: number): Promise<{

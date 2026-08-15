@@ -22,7 +22,7 @@ export declare class UsersService {
         fullName: string;
         email: string;
         role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
     summary(actor: UserManagementActor): Promise<{
@@ -37,7 +37,7 @@ export declare class UsersService {
         fullName: string;
         email: string;
         role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
         effectivePermissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
@@ -47,7 +47,7 @@ export declare class UsersService {
         fullName: string;
         email: string;
         role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
         effectivePermissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
@@ -58,7 +58,7 @@ export declare class UsersService {
             fullName: string;
             email: string;
             role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             createdAt: string | null;
         };
         progress: {
@@ -103,10 +103,10 @@ export declare class UsersService {
         fullName: string;
         email: string;
         role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         createdAt: string | null;
     } | {
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         email: string;
         fullName: string;

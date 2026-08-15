@@ -210,7 +210,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -242,7 +242,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -296,7 +296,7 @@ export declare class LessonsController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -365,7 +365,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -399,7 +399,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

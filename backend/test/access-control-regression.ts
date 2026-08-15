@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { PermissionGuard } from '../src/modules/auth/permission.guard';
 import { QuizzesService } from '../src/modules/quizzes/quizzes.service';
+import { QuizAttemptsService } from '../src/modules/quiz-attempts/quiz-attempts.service';
 import { SubscriptionsController } from '../src/modules/subscriptions/subscriptions.controller';
 import { QuestionsService } from '../src/modules/questions/questions.service';
 import { UsersService } from '../src/modules/users/users.service';
@@ -13,6 +14,9 @@ import { SubtopicsService } from '../src/modules/subtopics/subtopics.service';
 import { PapersService } from '../src/modules/papers/papers.service';
 import { WorkspaceService } from '../src/modules/workspace/workspace.service';
 
+// The student-facing "open this quiz" path used to be QuizzesService.getCards;
+// it now lives in QuizAttemptsService.loadQuiz, which resolves the student
+// itself instead of taking an injected AuthService.
 class QuizAccessMockPool {
   accessRows: any[];
   quizRows: any[];
@@ -20,25 +24,52 @@ class QuizAccessMockPool {
 
   constructor(input: { accessRows?: any[]; quizRows?: any[] }) {
     this.accessRows = input.accessRows || [];
-    this.quizRows = input.quizRows || [{ id: 99, course_id: 55, is_free: 0, quiz_title: 'Locked Quiz' }];
+    this.quizRows = input.quizRows || [{
+      id: 99,
+      course_id: 55,
+      topic_id: null,
+      subtopic_id: null,
+      lesson_id: null,
+      paper_id: null,
+      subtopic: null,
+      category: null,
+      is_general: 0,
+      is_free: 0,
+      exam_mode_only: 0,
+      blueprint_json: null,
+      randomization_mode: 'static',
+      quiz_title: 'Locked Quiz',
+      quiz_description: null,
+      total_questions: 1,
+      total_marks: 1,
+      time_limit: 0,
+      hide_time_limit: 0,
+      passing_marks: 0,
+      hide_passing_marks: 0,
+      status: 'active',
+    }];
   }
 
   async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
 
-    if (normalizedSql.startsWith("SELECT id, course_id, is_free, COALESCE(NULLIF(student_title, ''), quiz_title) AS quiz_title FROM quizzes")) {
+    if (normalizedSql.includes('FROM users WHERE session_token = ? AND session_expires_at > NOW()')) {
+      return [[{ id: 10, full_name: 'Student', email: 's@example.com', role: 'student', status: 'active', session_token: 'x' }] as T, []];
+    }
+
+    if (normalizedSql.includes('FROM quizzes q INNER JOIN courses c ON q.course_id = c.id')) {
       assert.equal(params[0], 99);
       return [this.quizRows as T, []];
     }
 
-    if (normalizedSql.startsWith('SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json')) {
+    if (normalizedSql.includes('FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id')) {
       assert.equal(params[0], 10);
       return [this.accessRows as T, []];
     }
 
-    if (normalizedSql.startsWith('SELECT q.id, q.question_text')) {
+    if (normalizedSql.includes('FROM questions q INNER JOIN question_quizzes qq ON qq.question_id = q.id')) {
       this.questionQueryCount += 1;
-      return [[{ id: 1, question_text: 'Q', explanation: 'E', question_type: 'sba' }] as T, []];
+      return [[{ id: 1, course_id: 55, topic_id: null, subtopic: null, category: null, question_type: 'sba', question_text: 'Q', explanation: 'E', explanation_image_url: null, status: 'active' }] as T, []];
     }
 
     if (normalizedSql.startsWith('SELECT id, question_id, option_label')) {
@@ -46,6 +77,10 @@ class QuizAccessMockPool {
     }
 
     if (normalizedSql.startsWith('SELECT question_id, concept_name')) {
+      return [[] as T, []];
+    }
+
+    if (normalizedSql.includes("FROM content_versions WHERE entity_type = 'question'")) {
       return [[] as T, []];
     }
 
@@ -259,30 +294,53 @@ class QuestionGovernanceMockPool {
   }
 }
 
-const authService = {
-  requireStudent: async () => ({ id: 10, role: 'student', status: 'active' }),
+// Every feature gate is open (see the "feature gating removed" change); course
+// scope is the only thing still limiting access, which is what these cover.
+const plansService = {
+  hasFeatureAccess: async () => true,
 };
 
-async function testQuizCardsDenyWithoutCourseAccess() {
+async function testQuizContentDeniedWithoutCourseAccess() {
   const db = new QuizAccessMockPool({});
-  const service = new QuizzesService(db as any, authService as any);
-  await assert.rejects(() => service.getCards('Bearer student-token', 99), BadRequestException);
-  assert.equal(db.questionQueryCount, 0);
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  await assert.rejects(
+    () => service.loadQuiz('Bearer student-token', 99, 'practice'),
+    BadRequestException
+  );
+  assert.equal(db.questionQueryCount, 0, 'question content must not be read for an out-of-scope quiz');
 }
 
-async function testQuizCardsAllowOwnedCourseAccess() {
+async function testQuizContentAllowedForOwnedCourse() {
   const db = new QuizAccessMockPool({
     accessRows: [{
-      feature_key: 'question_bank_limited',
       plan_slug: 'custom-multi-question-bank-30',
       access_scope: 'courses',
       course_ids_json: '[55]',
+      lesson_ids_json: null,
     }],
   });
-  const service = new QuizzesService(db as any, authService as any);
-  const result = await service.getCards('Bearer student-token', 99);
-  assert.equal(result.cards.length, 1);
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  const result = await service.loadQuiz('Bearer student-token', 99, 'practice');
+  assert.equal(result.questions.length, 1);
   assert.equal(db.questionQueryCount, 1);
+}
+
+async function testQuizContentDeniedForCourseOutsideSubscriptionScope() {
+  // Active paid subscription, but scoped to a different course than the quiz's.
+  const db = new QuizAccessMockPool({
+    accessRows: [{
+      plan_slug: 'custom-multi-question-bank-30',
+      access_scope: 'courses',
+      course_ids_json: '[56]',
+      lesson_ids_json: null,
+    }],
+  });
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  await assert.rejects(
+    () => service.loadQuiz('Bearer student-token', 99, 'practice'),
+    BadRequestException
+  );
+  assert.equal(db.questionQueryCount, 0);
 }
 
 async function testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission() {
@@ -453,11 +511,33 @@ async function testContentEditorCannotCreatePublishedCourse() {
 }
 
 async function testContentEditorCannotCreatePublishedLesson() {
-  const service = new LessonsService({} as any);
+  // (db, ConfigService) — the create() guard rejects before either is touched.
+  const service = new LessonsService({} as any, {} as any);
   await assert.rejects(
     () => service.create(publishReadyLessonPayload, { id: 305, role: 'content_editor', permissions: ['content.manage'] }),
     ForbiddenException
   );
+}
+
+// Lessons split publishing from authoring: content.manage may edit a live lesson's
+// body (editors maintain AI notes on published lessons) but may not change whether
+// it is live. Only content.review/admin can flip that. These pin both halves —
+// the publish side previously regressed open and went unnoticed for months.
+async function testContentEditorCanEditLivePublishedLessonBody() {
+  const service = new LessonsService({} as any, {} as any) as any;
+  const editor = { id: 305, role: 'content_editor', permissions: ['content.manage'] };
+  assert.doesNotThrow(() => service.assertCanModifyExistingStatus(editor, 'active'));
+  assert.doesNotThrow(() => service.assertCanSaveStatus(editor, 'active', 'active'));
+}
+
+async function testContentEditorCannotFlipLessonLiveState() {
+  const service = new LessonsService({} as any, {} as any) as any;
+  const editor = { id: 305, role: 'content_editor', permissions: ['content.manage'] };
+  assert.throws(() => service.assertCanSaveStatus(editor, 'active', 'inactive'), ForbiddenException, 'editors must not publish');
+  assert.throws(() => service.assertCanSaveStatus(editor, 'inactive', 'active'), ForbiddenException, 'editors must not unpublish');
+
+  const reviewer = { id: 306, role: 'reviewer', permissions: ['content.review'] };
+  assert.doesNotThrow(() => service.assertCanSaveStatus(reviewer, 'active', 'inactive'));
 }
 
 async function testContentEditorCannotCreatePublishedTopic() {
@@ -547,8 +627,9 @@ async function testReportsOnlyStaffCannotFilterSpecificLearner() {
 }
 
 async function main() {
-  await testQuizCardsDenyWithoutCourseAccess();
-  await testQuizCardsAllowOwnedCourseAccess();
+  await testQuizContentDeniedWithoutCourseAccess();
+  await testQuizContentAllowedForOwnedCourse();
+  await testQuizContentDeniedForCourseOutsideSubscriptionScope();
   await testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission();
   await testSubscriptionDefaultRouteAllowsFinanceAdminList();
   await testSubscriptionDefaultRouteDeniesInactiveStaffSession();
@@ -564,6 +645,8 @@ async function main() {
   await testContentEditorCannotCreatePublishedQuiz();
   await testContentEditorCannotCreatePublishedCourse();
   await testContentEditorCannotCreatePublishedLesson();
+  await testContentEditorCanEditLivePublishedLessonBody();
+  await testContentEditorCannotFlipLessonLiveState();
   await testContentEditorCannotCreatePublishedTopic();
   await testContentEditorCannotCreatePublishedSubtopic();
   await testContentEditorCannotCreatePublishedPaper();

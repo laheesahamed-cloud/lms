@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 
@@ -23,7 +23,7 @@ type DrugRow = RowDataPacket & {
 };
 
 @Injectable()
-export class DrugsService implements OnModuleInit {
+export class DrugsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DrugsService.name);
   private settingsCache: DrugsSettings = { enabled: true, freeLimit: 5 };
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -33,6 +33,15 @@ export class DrugsService implements OnModuleInit {
   onModuleInit() {
     void this.refreshSettings();
     this.refreshTimer = setInterval(() => void this.refreshSettings(), 5 * 60 * 1000);
+    // A settings refresh is never a reason to keep the process alive on its own.
+    this.refreshTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
   }
 
   private async refreshSettings() {

@@ -245,6 +245,7 @@ export declare class LessonsService {
     private recordContentAudit;
     private getActorId;
     private canReviewContent;
+    private canEditPublishedContent;
     private assertCanSaveStatus;
     private assertCanModifyExistingStatus;
     private validateLessonPayload;
@@ -292,7 +293,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -321,7 +322,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -423,7 +424,7 @@ export declare class LessonsService {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -476,7 +477,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -510,7 +511,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

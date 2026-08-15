@@ -65,8 +65,14 @@ function checkLearnerTrustLanguage() {
     /\byou should have known\b/i,
   ];
 
+  // The scan targets learner-facing copy, but it reads raw source, so standard
+  // HTML attribute values can collide with the banned words — loading="lazy" on an
+  // explanation figure is markup, not a judgement about the student. Strip those
+  // technical attributes first; prose containing the same word still trips.
+  const stripTechnicalAttributes = (source) => source.replace(/\sloading=(["'])\w+\1/g, '');
+
   for (const file of files) {
-    const source = readFileSync(file, 'utf8');
+    const source = stripTechnicalAttributes(readFileSync(file, 'utf8'));
     for (const pattern of bannedPatterns) {
       assert(!pattern.test(source), `Learner feedback language failed trust scan in ${file}: ${pattern}`);
     }

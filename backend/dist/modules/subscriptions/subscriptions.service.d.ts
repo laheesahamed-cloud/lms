@@ -200,7 +200,7 @@ export declare class SubscriptionsService {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "approved" | "rejected" | "cancelled";
+        status: "approved" | "rejected" | "pending" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -388,7 +388,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "approved" | "rejected" | "cancelled";
+            status: "approved" | "rejected" | "pending" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;

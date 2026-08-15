@@ -386,17 +386,31 @@ async function configureApp(app) {
     app.use('/uploads/payment-proofs', (_req, res) => {
         res.status(404).json({ message: 'File not found' });
     });
+    const INLINE_SAFE_UPLOAD_EXTENSIONS = new Set([
+        'pdf',
+        'png', 'jpg', 'jpeg', 'webp', 'gif',
+        'mp4', 'webm', 'mov',
+        'mp3', 'wav', 'm4a', 'ogg',
+    ]);
     const uploadsStaticOpts = {
         index: false,
         dotfiles: 'deny',
-        setHeaders: (res) => {
+        setHeaders: (res, filePath) => {
             res.setHeader('X-Content-Type-Options', 'nosniff');
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-            res.setHeader('Content-Disposition', 'inline');
+            const extension = path.extname(String(filePath || '')).slice(1).toLowerCase();
+            res.setHeader('Content-Disposition', INLINE_SAFE_UPLOAD_EXTENSIONS.has(extension) ? 'inline' : 'attachment');
         },
     };
-    app.use('/uploads', express.static(uploadsRoot, uploadsStaticOpts));
-    app.use('/api/uploads', express.static(uploadsRoot, uploadsStaticOpts));
+    const serveUploads = express.static(uploadsRoot, uploadsStaticOpts);
+    const serveNonSensitiveUploads = (req, res, next) => {
+        if (/^\/payment-proofs(?:\/|$)/i.test(req.path)) {
+            return next();
+        }
+        return serveUploads(req, res, next);
+    };
+    app.use('/uploads', serveNonSensitiveUploads);
+    app.use('/api/uploads', serveNonSensitiveUploads);
     app.use(restoreApiPrefixForMountedApp);
     app.use((req, res, next) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');

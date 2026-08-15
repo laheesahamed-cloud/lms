@@ -21,10 +21,15 @@ class MockPool {
     this.queries.push({ sql, params });
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
 
-    if (normalizedSql.startsWith('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ?')) {
+    // Matchers anchor on the FROM/WHERE clause rather than the exact SELECT column
+    // list: the column list churns whenever a column is added (email_verified,
+    // permissions, …), and matching on it silently turned this suite into a
+    // "Unexpected SQL" crash instead of a regression test.
+    if (normalizedSql.includes('FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1')) {
       const email = String(params[0] || '');
       const userEmail = String(this.user?.email || '');
-      return [(this.user && userEmail === email ? [this.user] : []) as T, []];
+      const isDeleted = Boolean(this.user?.deleted_at);
+      return [(this.user && !isDeleted && userEmail === email ? [this.user] : []) as T, []];
     }
 
     if (normalizedSql.startsWith('SELECT id, email FROM users WHERE email = ? LIMIT 1')) {
@@ -63,17 +68,20 @@ class MockPool {
       return [{ affectedRows: 1 } as T, []];
     }
 
-    if (normalizedSql.startsWith('SELECT id, full_name, email, password, role, status, avatar_key, session_token, session_expires_at FROM users WHERE session_token = ? AND session_expires_at > NOW()')) {
+    if (normalizedSql.includes('FROM users WHERE session_token = ? AND session_expires_at > NOW()')) {
       const matchesToken = this.user?.session_token === params[0];
       const expiresAt = this.user?.session_expires_at ? new Date(this.user.session_expires_at).getTime() : 0;
       return [(matchesToken && expiresAt > Date.now() ? [this.user] : []) as T, []];
     }
 
-    if (normalizedSql.startsWith('SELECT plans.name AS plan_name, us.status AS subscription_status')) {
-      return [[] as T, []];
+    if (normalizedSql.startsWith('UPDATE users SET email_otp_code = ?, email_otp_expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), email_otp_attempts = 0, email_otp_last_sent_at = NOW() WHERE id = ?')) {
+      this.user.email_otp_code = params[0];
+      this.user.email_otp_expires_at = params[1];
+      this.user.email_otp_attempts = 0;
+      return [{ affectedRows: 1 } as T, []];
     }
 
-    if (normalizedSql.startsWith('SELECT sf.feature_key')) {
+    if (normalizedSql.startsWith('SELECT plans.name AS plan_name, us.status AS subscription_status')) {
       return [[] as T, []];
     }
 
@@ -90,7 +98,12 @@ function createConfig() {
   };
 }
 
-async function createService(role: string, status = 'active', email = 'test@example.com') {
+async function createService(
+  role: string,
+  status = 'active',
+  email = 'test@example.com',
+  emailVerified: number | null = 1
+) {
   const password = 'Keep Spaces 123';
   const user: any = {
     id: 7,
@@ -100,6 +113,7 @@ async function createService(role: string, status = 'active', email = 'test@exam
     role,
     status,
     avatar_key: '',
+    email_verified: emailVerified,
     session_token: null,
     session_expires_at: null,
   };
@@ -108,9 +122,24 @@ async function createService(role: string, status = 'active', email = 'test@exam
   return { service, db, user, password };
 }
 
+type LoginResult = Awaited<ReturnType<AuthService['login']>>;
+type SessionLoginResult = Extract<LoginResult, { sessionToken: string }>;
+
+// Since onboarding email OTP landed, login() returns a union: either a real
+// session, or a "verify your email first" payload that deliberately carries no
+// session. Tests that care about the session branch must prove they got it
+// rather than assume it.
+function expectSessionIssued(result: LoginResult): SessionLoginResult {
+  assert(
+    'sessionToken' in result,
+    `expected login to issue a session, got the email-verification branch instead: ${JSON.stringify(result)}`
+  );
+  return result;
+}
+
 async function testLoginCreatesHashedSession() {
   const { service, user, password } = await createService('student');
-  const result = await service.login({ email: user.email, password });
+  const result = expectSessionIssued(await service.login({ email: user.email, password }));
   assert.equal(result.ok, true);
   assert(isValidSessionTokenFormat(result.sessionToken));
   assert.equal(user.session_token, hashSessionToken(result.sessionToken));
@@ -119,14 +148,31 @@ async function testLoginCreatesHashedSession() {
 
 async function testLoginNormalizesEmailCaseAndWhitespace() {
   const { service, user, password } = await createService('student');
-  const result = await service.login({ email: '  TEST@example.com  ', password });
+  const result = expectSessionIssued(await service.login({ email: '  TEST@example.com  ', password }));
   assert.equal(result.ok, true);
+  assert.equal(user.session_token, hashSessionToken(result.sessionToken));
+}
+
+async function testUnverifiedStudentGetsNoSession() {
+  const { service, user, password } = await createService('student', 'active', 'test@example.com', 0);
+  const result = await service.login({ email: user.email, password });
+  assert(!('sessionToken' in result), 'unverified student must not receive a session token');
+  assert.equal((result as any).emailVerificationRequired, true);
+  assert.equal(user.session_token, null, 'no session may be written for an unverified student');
+  assert(user.email_otp_code, 'an email OTP should be issued');
+  assert.notEqual(user.email_otp_code, (result as any).devCode, 'the OTP must be stored hashed, not in plaintext');
+}
+
+async function testLegacyUserWithoutVerificationFlagStillLogsIn() {
+  // Grandfathered rows predate the email_verified column; a NULL must not lock them out.
+  const { service, user, password } = await createService('student', 'active', 'test@example.com', null);
+  const result = expectSessionIssued(await service.login({ email: user.email, password }));
   assert.equal(user.session_token, hashSessionToken(result.sessionToken));
 }
 
 async function testLogoutInvalidatesEvenExpiredSession() {
   const { service, user, password } = await createService('student');
-  const result = await service.login({ email: user.email, password });
+  const result = expectSessionIssued(await service.login({ email: user.email, password }));
   user.session_expires_at = new Date(Date.now() - 60_000);
   await service.logout(`Bearer ${result.sessionToken}`);
   assert.equal(user.session_token, null);
@@ -150,7 +196,7 @@ async function testPasswordResetFallsBackToLegacyEmailNormalization() {
 
 async function testExpiredSessionIsUnauthorized() {
   const { service, user, password } = await createService('student');
-  const result = await service.login({ email: user.email, password });
+  const result = expectSessionIssued(await service.login({ email: user.email, password }));
   user.session_expires_at = new Date(Date.now() - 60_000);
   await assert.rejects(() => service.me(`Bearer ${result.sessionToken}`), UnauthorizedException);
 }
@@ -169,6 +215,8 @@ async function testInactiveStaffCannotCreateSession() {
 async function main() {
   await testLoginCreatesHashedSession();
   await testLoginNormalizesEmailCaseAndWhitespace();
+  await testUnverifiedStudentGetsNoSession();
+  await testLegacyUserWithoutVerificationFlagStillLogsIn();
   await testLogoutInvalidatesEvenExpiredSession();
   await testLogoutWithoutTokenIsIdempotent();
   await testPasswordResetFallsBackToLegacyEmailNormalization();

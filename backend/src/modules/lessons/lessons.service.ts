@@ -449,7 +449,7 @@ export class LessonsService {
 
     this.validateLessonPayload(snapshot);
     this.assertCanModifyExistingStatus(actor, existing.status);
-    this.assertCanSaveStatus(actor, snapshot.status);
+    this.assertCanSaveStatus(actor, snapshot.status, existing.status);
     if (snapshot.status === 'active') {
       this.validateLessonPublishReady(snapshot);
     }
@@ -718,7 +718,7 @@ export class LessonsService {
   ) {
     const existing = await this.findById(id);
     this.assertCanModifyExistingStatus(input.actor, existing.status);
-    this.assertCanSaveStatus(input.actor, input.status);
+    this.assertCanSaveStatus(input.actor, input.status, existing.status);
     const snapshot = this.buildLessonSnapshotFromEntity(existing, input.status);
     this.validateLessonPayload(snapshot);
     if (input.requirePublishReady) {
@@ -929,19 +929,38 @@ export class LessonsService {
     return actor?.id;
   }
 
+  // Publishing is reviewer work: content.manage lets staff author, content.review
+  // lets them make it live. Same rule as courses/topics/subtopics/papers/quizzes/questions.
   private canReviewContent(actor?: ContentActorInput) {
     if (!actor || typeof actor === 'number') return true;
-    return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review')) || Boolean(actor.permissions?.includes('content.manage'));
+    return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review'));
   }
 
-  private assertCanSaveStatus(actor: ContentActorInput, status: 'active' | 'inactive') {
+  // Editing the body of an already-published lesson is authoring, not publishing —
+  // it does not change the lesson's live/draft status. Editors need this to save
+  // AI notes onto live lessons, so content.manage is enough here.
+  private canEditPublishedContent(actor?: ContentActorInput) {
+    if (!actor || typeof actor === 'number') return true;
+    return this.canReviewContent(actor) || Boolean(actor.permissions?.includes('content.manage'));
+  }
+
+  // Changing whether a lesson is live — in either direction — is reviewer work.
+  // Leaving its live/draft state untouched is a content edit, which authors may do.
+  // previousStatus is omitted on create, where going straight to active is a publish.
+  private assertCanSaveStatus(actor: ContentActorInput, status: 'active' | 'inactive', previousStatus?: string) {
+    if (previousStatus !== undefined && previousStatus === status) {
+      return;
+    }
     if (status === 'active' && !this.canReviewContent(actor)) {
       throw new ForbiddenException('Review permission is required to publish lesson content');
+    }
+    if (previousStatus === 'active' && status !== 'active' && !this.canReviewContent(actor)) {
+      throw new ForbiddenException('Review permission is required to unpublish lesson content');
     }
   }
 
   private assertCanModifyExistingStatus(actor: ContentActorInput, currentStatus: string) {
-    if (currentStatus === 'active' && !this.canReviewContent(actor)) {
+    if (currentStatus === 'active' && !this.canEditPublishedContent(actor)) {
       throw new ForbiddenException('Published lessons require review permission before modification');
     }
   }

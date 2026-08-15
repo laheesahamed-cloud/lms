@@ -146,14 +146,21 @@ class SecurityE2eDb {
       }] as T, []];
     }
 
-    if (normalized.includes('FROM user_subscriptions us') && normalized.includes('subscription_features')) {
+    // The access-scope lookup no longer joins subscription_features — per-feature
+    // gating was removed, so scope now comes from the subscription row alone.
+    if (normalized.includes('FROM user_subscriptions us') && normalized.includes('INNER JOIN plans ON plans.id = us.plan_id')) {
       return [[{
-        feature_key: 'lessons_access_full',
         plan_slug: 'test-full-access',
         access_scope: 'all',
         course_ids_json: null,
         lesson_ids_json: null,
       }] as T, []];
+    }
+
+    // "Does this user hold any active subscription?" — one active row now unlocks
+    // the whole feature catalogue, so the probe just checks for existence.
+    if (normalized.includes('SELECT us.id FROM user_subscriptions us') && normalized.includes("us.status = 'active'")) {
+      return [[{ id: 1 }] as T, []];
     }
 
     if (normalized.includes('SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses WHERE status =')) {
@@ -833,7 +840,11 @@ async function testCsrfAndCorsControls() {
 
   assert.equal(allowedResponse.status, 200);
   assert.equal(allowedResponse.headers['access-control-allow-origin'], TEST_ALLOWED_ORIGIN);
-  assert.equal(allowedResponse.headers.vary, 'Origin');
+  // Vary must list Origin so a shared cache can never serve one origin's CORS
+  // response to another. Other middleware legitimately appends its own keys
+  // (compression adds Accept-Encoding), so assert membership, not the exact value.
+  const varyKeys = String(allowedResponse.headers.vary || '').split(',').map((key) => key.trim());
+  assert(varyKeys.includes('Origin'), `Vary must include Origin, got "${allowedResponse.headers.vary}"`);
   assertNoSensitiveValueLeaked(allowedResponse.body);
 }
 
@@ -992,6 +1003,25 @@ async function testPaymentProofUploadAndDownloadProtections() {
     assert.equal(downloadResponse.status, 200);
     assert.match(String(downloadResponse.headers['content-disposition'] || ''), /^attachment;/);
     assert.equal(downloadResponse.headers['x-content-type-options'], 'nosniff');
+
+    // A file that exists on disk must still not be reachable without permission.
+    // The static uploads mount used to win this race and hand out payment proofs
+    // to anyone who knew a filename, bypassing the controller's permission check.
+    for (const staticPath of ['/api/uploads/payment-proofs/security-e2e-proof.txt', '/uploads/payment-proofs/security-e2e-proof.txt']) {
+      db.reset();
+      const anonymousResponse = await request(app.getHttpServer()).get(staticPath);
+      assert(
+        [401, 403, 404].includes(anonymousResponse.status),
+        `${staticPath} must not serve an existing payment proof anonymously, got ${anonymousResponse.status}`
+      );
+      assert.notEqual(anonymousResponse.text, 'proof', `${staticPath} leaked payment proof contents`);
+    }
+
+    db.reset();
+    const wrongPermissionResponse = await request(app.getHttpServer())
+      .get('/api/uploads/payment-proofs/security-e2e-proof.txt')
+      .set('Authorization', auth(TOKENS.contentEditor));
+    assert.equal(wrongPermissionResponse.status, 403, 'existing payment proof must still enforce subscriptions.manage');
   } finally {
     rmSync(proofPath, { force: true });
   }
@@ -1264,7 +1294,18 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   assert.equal(quizListResponse.status, 200);
   const quizListCall = db.findCall(/FROM quizzes q/i);
   assert(quizListCall, 'quiz list query must run');
-  assert(quizListCall.params.filter((param) => param === 100).length >= 4, 'quiz list subqueries must use authenticated student id');
+  // Derive the expected count from the query itself rather than hardcoding it —
+  // the number of user-scoped subqueries changes as the list evolves, and a fixed
+  // count silently goes stale. What must hold is that EVERY user_id placeholder is
+  // bound to the authenticated student, and no other student's id appears at all.
+  const userScopedPlaceholders = (quizListCall.sql.match(/\buser_id\s*=\s*\?/g) || []).length;
+  assert(userScopedPlaceholders > 0, 'quiz list must scope its subqueries by user id');
+  assert.equal(
+    quizListCall.params.filter((param) => param === 100).length,
+    userScopedPlaceholders,
+    'every user-scoped quiz list subquery must bind the authenticated student id'
+  );
+  assert(!quizListCall.params.includes(200), 'quiz list must not reference another student id');
 
   db.reset();
   const resultListResponse = await request(app.getHttpServer())
@@ -1288,93 +1329,30 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
     .query({ mode: 'practice' })
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(practiceLoadResponse.status, 200);
-  const practiceSessionInsertCall = db.findCall(/INSERT INTO practice_sessions/i);
-  assert(practiceSessionInsertCall, 'practice quiz load must create a session when none exists');
-  assert.deepEqual(practiceSessionInsertCall.params, [100, 501]);
+  // Practice is no longer a server-side session. Commit 6441421c moved it fully
+  // client-side: there is no practice_sessions table, no reveal/prewarm/draft/
+  // finish/save endpoints, and the load deliberately ships the full answer and
+  // explanation payload so "Show Answer" works offline and after a cold start.
+  // The old per-endpoint assertions here tested that removed architecture and are
+  // gone with it; what remains enforceable is that the practice payload is only
+  // ever handed to an authenticated, entitled student.
   const practiceQuestion = practiceLoadResponse.body?.questions?.[0];
   assert(practiceQuestion, 'practice load must return a question');
-  assert.equal(practiceQuestion.answerKey, undefined, 'practice load must not include answerKey before reveal');
-  assert.equal(practiceQuestion.explanation, undefined, 'practice load must not include explanation before reveal');
-  assert.equal(practiceQuestion.theoryRecap, undefined, 'practice load must not include theory recap before reveal');
-  assert.equal(practiceQuestion.options?.[0]?.isCorrect, undefined, 'practice load must not include option correctness before reveal');
-  assert.equal(practiceQuestion.options?.[0]?.whyIncorrect, undefined, 'practice load must not include whyIncorrect before reveal');
+  assert.equal(practiceLoadResponse.body?.mode, 'practice');
+  assert(practiceQuestion.answerKey, 'practice load ships the answer key by design (offline reveal)');
   assert.equal(practiceQuestion.canRevealAnswer, true);
+  assert(db.findCall(/FROM questions q/i), 'practice load must read questions server-side for an entitled student');
 
   db.reset();
-  const anonymousRevealResponse = await request(app.getHttpServer())
-    .get('/api/quiz-attempts/practice/501/answer/701/reveal');
-  assert.equal(anonymousRevealResponse.status, 401);
-  assert(!JSON.stringify(anonymousRevealResponse.body).includes('Correct'), 'anonymous reveal must not leak answer content');
-  assert(!db.findCall(/FROM questions q/i), 'anonymous reveal must not load question content');
-
-  db.reset();
-  const anonymousDraftResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/practice/501/draft')
-    .send({ answers: { 701: 801 }, currentQuestionIndex: 0, revealedQuestionIds: [701] });
-  assert.equal(anonymousDraftResponse.status, 401);
-  assert(!db.findCall(/practice_sessions/i), 'anonymous practice draft must not touch practice sessions');
-
-  db.reset();
-  const practicePrewarmResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/practice/501/answer/701/prewarm')
-    .set('Authorization', auth(TOKENS.studentA));
-  assert.equal(practicePrewarmResponse.status, 201);
-  assert.equal(practicePrewarmResponse.body?.success, true);
-  assert(db.findCall(/FROM questions q/i), 'prewarm must load the authorized question server-side');
-
-  db.reset();
-  const practiceRevealResponse = await request(app.getHttpServer())
-    .get('/api/quiz-attempts/practice/501/answer/701/reveal')
-    .set('Authorization', auth(TOKENS.studentA));
-  assert.equal(practiceRevealResponse.status, 200);
-  assert(practiceRevealResponse.body?.question?.answerKey, 'authorized reveal must return answerKey for one question');
-  assert.equal(practiceRevealResponse.body?.question?.options?.[0]?.isCorrect, 1);
-  assert(!db.findCall(/FROM questions q/i), 'reveal should use the prewarmed server-side cache when available');
-
-  db.reset();
-  const spoofedPracticeDraftResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/practice/501/draft')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ answers: { 701: 801 }, currentQuestionIndex: 9, revealedQuestionIds: [701, 999], userId: 200 });
-  assert.equal(spoofedPracticeDraftResponse.status, 400);
-  assert(!db.findCall(/UPDATE practice_sessions SET status = \?/i), 'practice draft with spoofed userId must be rejected before saving');
-
-  db.reset();
-  const practiceDraftResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/practice/501/draft')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ answers: { 701: 801 }, currentQuestionIndex: 9, revealedQuestionIds: [701, 999] });
-  assert.equal(practiceDraftResponse.status, 201);
-  assert.equal(practiceDraftResponse.body?.status, 'in_progress');
-  assert.deepEqual(practiceDraftResponse.body?.revealedQuestionIds, [701]);
-  const practiceDraftUpdateCall = db.findCall(/UPDATE practice_sessions SET status = \?/i);
-  assert(practiceDraftUpdateCall, 'practice draft must update the authenticated practice session');
-  assert.equal(practiceDraftUpdateCall.params[0], 'in_progress');
-  assert.equal(practiceDraftUpdateCall.params[1], 0);
-  assert.equal(practiceDraftUpdateCall.params[2], '[701]');
-  assert.equal(practiceDraftUpdateCall.params[4], 100);
-  assert.equal(practiceDraftUpdateCall.params[5], 501);
-
-  db.reset();
-  const practiceFinishResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/practice/501/finish')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ answers: { 701: 801 }, currentQuestionIndex: 0, revealedQuestionIds: [701] });
-  assert.equal(practiceFinishResponse.status, 201);
-  assert.equal(practiceFinishResponse.body?.status, 'completed');
-  const practiceFinishUpdateCall = db.findCall(/UPDATE practice_sessions SET status = \?/i);
-  assert(practiceFinishUpdateCall, 'practice finish must update the authenticated practice session');
-  assert.equal(practiceFinishUpdateCall.params[0], 'completed');
-
-  db.reset();
-  const practiceSaveResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/practice/501/save')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ questionId: 701, questionType: 'sba', selected: [801], questionIndex: 0, userId: 200 });
-  assert.equal(practiceSaveResponse.status, 404);
-  const practiceSessionLookupCall = db.findCall(/FROM practice_sessions/i);
-  assert(practiceSessionLookupCall, 'practice save must look up the latest session by authenticated student and quiz');
-  assert.deepEqual(practiceSessionLookupCall.params, [100, 501]);
+  const anonymousPracticeLoadResponse = await request(app.getHttpServer())
+    .get('/api/quiz-attempts/quiz/501')
+    .query({ mode: 'practice' });
+  assert.equal(anonymousPracticeLoadResponse.status, 401);
+  assert(
+    !JSON.stringify(anonymousPracticeLoadResponse.body || {}).toLowerCase().includes('answerkey'),
+    'anonymous practice load must not leak answer content'
+  );
+  assert(!db.findCall(/FROM questions q/i), 'anonymous practice load must not read question content');
 
   db.reset();
   const examSubmitResponse = await request(app.getHttpServer())
@@ -1389,12 +1367,13 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   assert(!examAttemptInsertCall.params.includes(200), 'exam submit must not accept another student id from the request body');
 
   db.reset();
-  const staffPracticeSaveResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/practice/501/save')
-    .set('Authorization', auth(TOKENS.contentEditor))
-    .send({ questionId: 701, questionType: 'sba', selected: [1], questionIndex: 0 });
-  assert.equal(staffPracticeSaveResponse.status, 401);
-  assert(!db.findCall(/practice_sessions/i), 'non-student practice save must not touch practice session tables');
+  // Student-only surface: staff tokens must not be able to pull practice content.
+  const staffPracticeLoadResponse = await request(app.getHttpServer())
+    .get('/api/quiz-attempts/quiz/501')
+    .query({ mode: 'practice' })
+    .set('Authorization', auth(TOKENS.contentEditor));
+  assert.equal(staffPracticeLoadResponse.status, 401);
+  assert(!db.findCall(/FROM questions q/i), 'non-student practice load must not read question content');
 
   db.reset();
   const staffExamSubmitResponse = await request(app.getHttpServer())
@@ -1449,13 +1428,17 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   assert.equal(bookmarkInsertCall.params[0], 100);
 
   db.reset();
+  // AI notes moved off the standalone ai_illustrated_notes table (and its
+  // /api/ai-notes route) onto lessons.note_data, served by GET /lessons/:id/note.
   const aiNoteResponse = await request(app.getHttpServer())
-    .get('/api/ai-notes/99')
+    .get('/api/lessons/99/note')
     .query({ engine: 'gemini' })
     .set('Authorization', auth(TOKENS.studentA));
-  assert.equal(aiNoteResponse.status, 404);
-  const aiNoteCall = db.findCall(/FROM ai_illustrated_notes n/i);
-  assert(aiNoteCall, 'AI note detail query must run through student route');
+  assert.equal(aiNoteResponse.status, 200);
+  const aiNoteCall = db.findCall(/FROM lessons l/i);
+  assert(aiNoteCall, 'AI note detail query must run through the student lessons route');
+  assert.equal(aiNoteCall.params[0], 100, 'student note lookup must scope progress to the authenticated student');
+  assert(!aiNoteCall.params.includes(200), 'student note lookup must not reference another student id');
   assert(aiNoteCall.params.includes(100), 'AI note progress join must use authenticated student id');
   assert(!aiNoteCall.params.includes(200), 'AI note route must not accept another student id');
 
@@ -1493,16 +1476,21 @@ async function testRemainingAdminPermissionBoundaries() {
     ['patch', '/api/papers/1', { paperTitle: 'Blocked' }],
     ['delete', '/api/papers/1'],
     ['post', '/api/ai/generate-quiz', { topic: 'Blocked' }],
-    ['post', '/api/ai-notes/generate', { text: 'This request should be blocked before AI execution.' }],
-    ['get', '/api/ai-notes/admin'],
-    ['post', '/api/ai-notes/admin', { title: 'Blocked' }],
-    ['patch', '/api/ai-notes/admin/1', { title: 'Blocked' }],
-    ['delete', '/api/ai-notes/admin/1'],
-    ['get', '/api/ai-notes/admin/1/flashcards'],
-    ['post', '/api/ai-notes/admin/1/flashcards', { question: 'Blocked question?', answer: 'Blocked answer text' }],
-    ['post', '/api/ai-notes/admin/1/flashcards/generate', { count: 12 }],
-    ['patch', '/api/ai-notes/admin/1/flashcards/2', { status: 'approved' }],
-    ['delete', '/api/ai-notes/admin/1/flashcards/2'],
+    // The AI-notes admin surface moved from /api/ai-notes/* onto the lessons
+    // controller at /api/lessons/canvas/*. Creation is covered by POST /api/lessons above.
+    ['post', '/api/lessons/canvas/generate', { text: 'This request should be blocked before AI execution.' }],
+    ['get', '/api/lessons/canvas/admin'],
+    ['get', '/api/lessons/canvas/admin/1'],
+    ['patch', '/api/lessons/canvas/admin/1', { title: 'Blocked' }],
+    ['delete', '/api/lessons/canvas/admin/1'],
+    ['get', '/api/lessons/canvas/hierarchy/courses'],
+    ['get', '/api/lessons/canvas/hierarchy/topics'],
+    ['get', '/api/lessons/canvas/hierarchy/subtopics'],
+    ['get', '/api/lessons/canvas/admin/1/flashcards'],
+    ['post', '/api/lessons/canvas/admin/1/flashcards', { question: 'Blocked question?', answer: 'Blocked answer text' }],
+    ['post', '/api/lessons/canvas/admin/1/flashcards/generate', { count: 12 }],
+    ['patch', '/api/lessons/canvas/admin/1/flashcards/2', { status: 'approved' }],
+    ['delete', '/api/lessons/canvas/admin/1/flashcards/2'],
     ['put', '/api/theory-recap/question/55', { conceptName: 'Blocked' }],
     ['post', '/api/theory-recap/question/55/generate'],
     ['post', '/api/theory-recap/question/55/regenerate'],

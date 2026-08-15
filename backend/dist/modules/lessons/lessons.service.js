@@ -267,7 +267,7 @@ let LessonsService = class LessonsService {
         });
         this.validateLessonPayload(snapshot);
         this.assertCanModifyExistingStatus(actor, existing.status);
-        this.assertCanSaveStatus(actor, snapshot.status);
+        this.assertCanSaveStatus(actor, snapshot.status, existing.status);
         if (snapshot.status === 'active') {
             this.validateLessonPublishReady(snapshot);
         }
@@ -480,7 +480,7 @@ let LessonsService = class LessonsService {
     async transitionWorkflow(id, input) {
         const existing = await this.findById(id);
         this.assertCanModifyExistingStatus(input.actor, existing.status);
-        this.assertCanSaveStatus(input.actor, input.status);
+        this.assertCanSaveStatus(input.actor, input.status, existing.status);
         const snapshot = this.buildLessonSnapshotFromEntity(existing, input.status);
         this.validateLessonPayload(snapshot);
         if (input.requirePublishReady) {
@@ -638,15 +638,26 @@ let LessonsService = class LessonsService {
     canReviewContent(actor) {
         if (!actor || typeof actor === 'number')
             return true;
-        return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review')) || Boolean(actor.permissions?.includes('content.manage'));
+        return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review'));
     }
-    assertCanSaveStatus(actor, status) {
+    canEditPublishedContent(actor) {
+        if (!actor || typeof actor === 'number')
+            return true;
+        return this.canReviewContent(actor) || Boolean(actor.permissions?.includes('content.manage'));
+    }
+    assertCanSaveStatus(actor, status, previousStatus) {
+        if (previousStatus !== undefined && previousStatus === status) {
+            return;
+        }
         if (status === 'active' && !this.canReviewContent(actor)) {
             throw new common_1.ForbiddenException('Review permission is required to publish lesson content');
         }
+        if (previousStatus === 'active' && status !== 'active' && !this.canReviewContent(actor)) {
+            throw new common_1.ForbiddenException('Review permission is required to unpublish lesson content');
+        }
     }
     assertCanModifyExistingStatus(actor, currentStatus) {
-        if (currentStatus === 'active' && !this.canReviewContent(actor)) {
+        if (currentStatus === 'active' && !this.canEditPublishedContent(actor)) {
             throw new common_1.ForbiddenException('Published lessons require review permission before modification');
         }
     }

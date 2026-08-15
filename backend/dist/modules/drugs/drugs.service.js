@@ -26,6 +26,13 @@ let DrugsService = DrugsService_1 = class DrugsService {
     onModuleInit() {
         void this.refreshSettings();
         this.refreshTimer = setInterval(() => void this.refreshSettings(), 5 * 60 * 1000);
+        this.refreshTimer.unref?.();
+    }
+    onModuleDestroy() {
+        if (this.refreshTimer) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = null;
+        }
     }
     async refreshSettings() {
         try {
