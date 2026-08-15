@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/apple_iap.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/glass_card.dart';
+import 'paywall_sheet.dart';
 import 'subscriptions_repository.dart';
 
-/// Subscription screen — shows the user's current plan/status and what each
-/// plan includes.
+/// Subscription screen — the user's current plan/status, what each plan
+/// includes, and (on iOS) the way to subscribe.
 ///
-/// ACCESS-ONLY by design: there is intentionally NO in-app purchase, price,
-/// checkout, or link to pay. Subscriptions are bought on the website, entirely
-/// outside the app; access is granted server-side and simply reflected here via
-/// `/subscriptions/me`. This keeps the app compliant with Apple Guideline 3.1.1
-/// and Google Play's billing policy (no in-app sale of digital goods and no
-/// steering to an external payment method).
+/// Purchasing on iOS goes through Apple's in-app purchase only ([PaywallSheet]).
+/// The app still shows no price of its own and never links to the website to
+/// pay: web purchases remain valid under Guideline 3.1.3(b) *because* the same
+/// subscriptions are now buyable in-app, but steering users to them from inside
+/// the app is what 3.1.1 forbids.
+///
+/// Android has no Play Billing wired, so it stays access-only there.
 class SubscriptionsPage extends ConsumerStatefulWidget {
   const SubscriptionsPage({super.key});
 
@@ -80,6 +84,19 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                       letterSpacing: -0.5)),
               const SizedBox(height: 12),
               _statusCard(c, billing.current),
+              // Only offer a purchase when there is nothing active to buy over —
+              // an existing subscriber seeing "Subscribe" would risk paying twice.
+              if (iapSupported && !_hasAccess(billing.current)) ...[
+                const SizedBox(height: 14),
+                AppButton(
+                  'View plans',
+                  expand: true,
+                  onPressed: () async {
+                    final granted = await PaywallSheet.show(context);
+                    if (granted) ref.invalidate(billingProvider);
+                  },
+                ),
+              ],
               const SizedBox(height: 18),
               if (billing.plans.isNotEmpty)
                 Text("What's included",
@@ -104,6 +121,11 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
       ),
     );
   }
+
+  /// True when the user already has something that unlocks content, so the
+  /// paywall should stay hidden.
+  bool _hasAccess(CurrentSub? cur) =>
+      cur != null && (cur.isActive || cur.isFreePlan || cur.isUnlimitedAccess);
 
   Widget _statusCard(AppColors c, CurrentSub? cur) {
     if (cur == null) {

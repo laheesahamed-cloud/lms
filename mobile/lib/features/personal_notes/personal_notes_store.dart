@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../state/local_scope.dart';
 
 class PersonalNote {
   final String id;
@@ -38,7 +39,8 @@ class PersonalNote {
 }
 
 class PersonalNotesStore {
-  static const _key = 'xyndrome.personal_notes';
+  // Per-user key so a different account on the same device gets its own notes.
+  static String get _key => 'xyndrome.personal_notes.${LocalScope.uid}';
 
   static Future<List<PersonalNote>> load() async {
     final prefs = await SharedPreferences.getInstance();

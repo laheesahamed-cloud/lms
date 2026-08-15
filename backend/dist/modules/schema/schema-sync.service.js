@@ -43,6 +43,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             connection = await this.db.getConnection();
             await this.ensurePlansTable(connection);
             await this.ensureUserSubscriptionsTable(connection);
+            await this.ensureIapTables(connection);
             await this.ensureSubscriptionCouponsTable(connection);
             await this.ensurePaymentTransactionsTable(connection);
             await this.ensureStudyBookmarksTable(connection);
@@ -317,6 +318,81 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_user_subscriptions_dates (start_date, end_date)
       )
     `);
+    }
+    async ensureIapTables(connection) {
+        try {
+            await this.ensureColumn(connection, 'plans', 'apple_product_id', 'VARCHAR(191) NULL AFTER billing_period');
+            await this.ensureUniqueIndex(connection, 'plans', 'uniq_plans_apple_product', 'apple_product_id');
+        }
+        catch (error) {
+            this.logger.warn(`Deferred plans.apple_product_id until the plans table exists: ${error.message}`);
+        }
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS iap_transactions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        subscription_id INT NULL,
+        platform VARCHAR(20) NOT NULL DEFAULT 'apple',
+        product_id VARCHAR(191) NOT NULL,
+        transaction_id VARCHAR(191) NOT NULL,
+        original_transaction_id VARCHAR(191) NOT NULL,
+        environment VARCHAR(20) NOT NULL,
+        purchase_date DATETIME NULL,
+        expires_date DATETIME NULL,
+        revocation_date DATETIME NULL,
+        raw_payload MEDIUMTEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_iap_transaction (transaction_id),
+        INDEX idx_iap_original (original_transaction_id),
+        INDEX idx_iap_user (user_id)
+      )
+    `);
+        await this.ensureApplePlanMappings(connection);
+    }
+    async ensureApplePlanMappings(connection) {
+        for (const product of subscription_catalog_1.APPLE_IAP_PRODUCTS) {
+            try {
+                const [rows] = await connection.execute('SELECT id, apple_product_id FROM plans WHERE slug = ? LIMIT 1', [product.slug]);
+                let planId = rows[0] ? Number(rows[0].id) : 0;
+                if (!planId) {
+                    const seed = 'createIfMissing' in product ? product.createIfMissing : null;
+                    if (!seed) {
+                        this.logger.warn(`No plan with slug "${product.slug}" for Apple product ${product.productId} — IAP for it will fail until one exists.`);
+                        continue;
+                    }
+                    const [result] = await connection.execute(`INSERT INTO plans (
+               name, slug, description, price, regular_price, offer_price, offer_enabled,
+               currency, billing_period, duration_days, features_json, status, sort_order, recommended
+             ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 0)`, [
+                        seed.name,
+                        product.slug,
+                        seed.description,
+                        seed.offerPrice,
+                        seed.regularPrice,
+                        seed.offerPrice,
+                        seed.currency,
+                        seed.billingPeriod,
+                        product.durationDays,
+                        JSON.stringify([]),
+                        seed.status,
+                        seed.sortOrder,
+                    ]);
+                    planId = result.insertId;
+                    this.logger.log(`Created plan "${product.slug}" (${seed.status}) for Apple product ${product.productId}`);
+                }
+                else if (String(rows[0].apple_product_id || '') === product.productId) {
+                    continue;
+                }
+                await connection.execute('UPDATE plans SET apple_product_id = ? WHERE id = ? AND apple_product_id IS NULL', [
+                    product.productId,
+                    planId,
+                ]);
+            }
+            catch (error) {
+                this.logger.error(`Could not map Apple product ${product.productId} to plan ${product.slug}`, error);
+            }
+        }
     }
     async ensureSubscriptionCouponsTable(connection) {
         await connection.execute(`
@@ -599,6 +675,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureContentGovernanceTables(connection);
             await this.ensureAdminAuditEventsTable(connection);
             await this.ensureAiProviderConfigsTable(connection);
+            await this.ensureIapTables(connection);
         }
         catch (error) {
             this.logger.error('Failed to ensure critical governance tables on boot', error);
@@ -1245,6 +1322,30 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         }
         await connection.execute(`ALTER TABLE ${table} ADD INDEX ${index} (${columns})`);
         this.logger.log(`Added index ${indexName} on ${tableName}.${columnNames}`);
+    }
+    async ensureUniqueIndex(connection, tableName, indexName, columnNames) {
+        const table = (0, sql_safety_1.sqlIdentifier)(tableName, undefined, 'schema table');
+        const index = (0, sql_safety_1.sqlIdentifier)(indexName, undefined, 'schema index');
+        const columns = columnNames
+            .split(',')
+            .map((columnName) => (0, sql_safety_1.sqlIdentifier)(columnName.trim(), undefined, 'schema column'))
+            .join(', ');
+        const [rows] = await connection.execute(`
+        SELECT INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
+        LIMIT 1
+      `, [tableName, indexName]);
+        if (rows.length > 0) {
+            return;
+        }
+        try {
+            await connection.execute(`ALTER TABLE ${table} ADD UNIQUE INDEX ${index} (${columns})`);
+            this.logger.log(`Added unique index ${indexName} on ${tableName}.${columnNames}`);
+        }
+        catch (error) {
+            this.logger.error(`Could not add unique index ${indexName} on ${tableName}.${columnNames} — resolve duplicates first`, error);
+        }
     }
 };
 exports.SchemaSyncService = SchemaSyncService;

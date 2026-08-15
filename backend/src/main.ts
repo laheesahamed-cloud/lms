@@ -608,6 +608,10 @@ export async function configureApp(app: INestApplication) {
       isAdminPath ||
       path.startsWith('/api/auth/') ||
       path.startsWith('/api/ai') ||
+      // Purchase redemption is an abuse target (receipt replay probing). Apple's
+      // own notification webhook is deliberately NOT included: it is
+      // signature-gated, and throttling it would delay renewals.
+      path.startsWith('/api/subscriptions/apple/verify') ||
       path.includes('/import') ||
       path.includes('/generate');
 

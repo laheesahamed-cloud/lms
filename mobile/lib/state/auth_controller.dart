@@ -10,6 +10,7 @@ import '../data/models.dart';
 import '../data/secure_store.dart';
 import '../services/push.dart';
 import '../services/study_reminders.dart';
+import 'local_scope.dart';
 import 'user_data_reset.dart';
 
 /// Mirrors the web authStore keys (§8): token, user, isAuthenticated,
@@ -77,6 +78,7 @@ class AuthController extends Notifier<AuthState> {
     try {
       final user = await _repo.me();
       StudyReminders.userId = user.id;
+      LocalScope.uid = user.id;
       state = AuthState(
           isHydrating: false,
           isAuthenticated: true,
@@ -95,6 +97,7 @@ class AuthController extends Notifier<AuthState> {
     _api.setToken(null);
     StudyReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
+    LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false, error: 'Your session expired.');
   }
@@ -228,6 +231,7 @@ class AuthController extends Notifier<AuthState> {
     // user's screens read these providers.
     resetUserScopedData(ref);
     StudyReminders.userId = res.user.id;
+    LocalScope.uid = res.user.id;
     state = AuthState(
         isHydrating: false,
         isAuthenticated: true,
@@ -277,6 +281,7 @@ class AuthController extends Notifier<AuthState> {
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
+    LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);
   }
@@ -293,6 +298,7 @@ class AuthController extends Notifier<AuthState> {
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
+    LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);
     return null;

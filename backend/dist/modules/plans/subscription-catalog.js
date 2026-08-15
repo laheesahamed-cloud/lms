@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEFAULT_PLAN_BLUEPRINTS = exports.DEFAULT_SUBSCRIPTION_FEATURES = exports.SUBSCRIPTION_FEATURE_CATEGORIES = void 0;
+exports.APPLE_IAP_PRODUCTS = exports.DEFAULT_PLAN_BLUEPRINTS = exports.DEFAULT_SUBSCRIPTION_FEATURES = exports.SUBSCRIPTION_FEATURE_CATEGORIES = void 0;
 exports.SUBSCRIPTION_FEATURE_CATEGORIES = [
     'Learning Access',
     'Question Bank',
@@ -149,6 +149,33 @@ exports.DEFAULT_PLAN_BLUEPRINTS = [
         recommended: 0,
         status: 'active',
         featureKeys: fullPrepFeatureKeys,
+    },
+];
+exports.APPLE_IAP_PRODUCTS = [
+    {
+        productId: 'app.xyndrome.lk.weekly',
+        slug: 'quick-revision-7d',
+        durationDays: 7,
+    },
+    {
+        productId: 'app.xyndrome.lk.monthly',
+        slug: 'monthly-prep-1m',
+        durationDays: 30,
+    },
+    {
+        productId: 'app.xyndrome.lk.yearly',
+        slug: 'annual-prep-1y',
+        durationDays: 365,
+        createIfMissing: {
+            name: 'Annual Prep',
+            description: '12 months of complete preparation. Lessons, AI notes, full MCQ bank, practice and exam mode.',
+            regularPrice: 34990,
+            offerPrice: 23990,
+            currency: 'LKR',
+            billingPeriod: 'year',
+            status: 'inactive',
+            sortOrder: 6,
+        },
     },
 ];
 //# sourceMappingURL=subscription-catalog.js.map

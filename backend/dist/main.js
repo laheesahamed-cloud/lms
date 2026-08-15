@@ -550,6 +550,7 @@ async function configureApp(app) {
         const isSensitivePath = isAdminPath ||
             path.startsWith('/api/auth/') ||
             path.startsWith('/api/ai') ||
+            path.startsWith('/api/subscriptions/apple/verify') ||
             path.includes('/import') ||
             path.includes('/generate');
         if (!isSensitivePath) {

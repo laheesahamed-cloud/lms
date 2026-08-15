@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { mkdir, readFile, writeFile } from 'fs/promises';
@@ -12,6 +12,7 @@ import { AssignSubscriptionDto } from './dto/assign-subscription.dto';
 import { ManualPaymentRequestDto } from './dto/manual-payment-request.dto';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
 import { SubscriptionCouponDto } from './dto/subscription-coupon.dto';
+import { AppleIapService, AppleTransaction } from './apple-iap.service';
 
 type SubscriptionRow = RowDataPacket & {
   id: number;
@@ -164,11 +165,14 @@ const SUBSCRIPTION_LIST_COLUMNS = `
 export class SubscriptionsService {
   private readonly unlimitedFreePlanEndDate = '9999-12-31';
 
+  private readonly logger = new Logger(SubscriptionsService.name);
+
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly plansService: PlansService,
     private readonly settingsService: SettingsService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly appleIapService: AppleIapService
   ) {}
 
   async getAdminMeta() {
@@ -1652,6 +1656,257 @@ export class SubscriptionsService {
     } finally {
       connection.release();
     }
+  }
+
+  // ─── Apple in-app purchase ─────────────────────────────────────────────────
+
+  /**
+   * Redeem a StoreKit 2 signed transaction and grant the matching subscription.
+   *
+   * Everything that decides access is derived server-side from the *verified*
+   * payload — the client supplies only the signed JWS, never a plan or a price.
+   */
+  async redeemAppleTransaction(userId: number, signedTransaction: string) {
+    const transaction = this.appleIapService.verifyTransaction(signedTransaction);
+
+    const [planRows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT id, duration_days FROM plans WHERE apple_product_id = ? LIMIT 1',
+      [transaction.productId]
+    );
+    const plan = planRows[0];
+    if (!plan) {
+      throw new BadRequestException('This purchase does not match a known plan.');
+    }
+
+    // Replay / account-sharing guard. `original_transaction_id` is stable across
+    // renewals, so it identifies the subscription itself: whoever redeemed it
+    // first owns it, and a second account replaying the same receipt is refused.
+    const [ownerRows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1',
+      [transaction.originalTransactionId]
+    );
+    if (ownerRows[0] && Number(ownerRows[0].user_id) !== userId) {
+      this.logger.warn(
+        `Apple transaction ${transaction.originalTransactionId} replayed by user ${userId}; owned by ${ownerRows[0].user_id}.`
+      );
+      throw new ConflictException('This purchase is already linked to another account.');
+    }
+
+    const entitled = this.appleIapService.isEntitled(transaction);
+
+    // Claim the transaction id first. UNIQUE(transaction_id) makes this the
+    // atomic gate, so two concurrent redemptions cannot both proceed to insert
+    // a subscription.
+    await this.db.execute(
+      `INSERT INTO iap_transactions (
+         user_id, platform, product_id, transaction_id, original_transaction_id,
+         environment, purchase_date, expires_date, revocation_date, raw_payload
+       ) VALUES (?, 'apple', ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         expires_date = VALUES(expires_date),
+         revocation_date = VALUES(revocation_date),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        userId,
+        transaction.productId,
+        transaction.transactionId,
+        transaction.originalTransactionId,
+        transaction.environment,
+        this.epochToSqlTimestamp(transaction.purchaseDate),
+        this.epochToSqlTimestamp(transaction.expiresDate),
+        this.epochToSqlTimestamp(transaction.revocationDate),
+        JSON.stringify({
+          productId: transaction.productId,
+          type: transaction.type,
+          environment: transaction.environment,
+          expiresDate: transaction.expiresDate,
+          revocationReason: transaction.revocationReason,
+        }),
+      ]
+    );
+
+    if (!entitled) {
+      // Refunded or already lapsed — make sure nothing stays unlocked.
+      await this.expireAppleSubscription(transaction.originalTransactionId, transaction.revocationDate !== null);
+      return this.getStudentBilling(userId);
+    }
+
+    // Apple's expiry is authoritative; the plan's duration is only a fallback.
+    const startDate = this.toDateOnly(new Date());
+    const endDate = transaction.expiresDate
+      ? this.toDateOnly(new Date(transaction.expiresDate))
+      : this.addDays(startDate, Number(plan.duration_days) || 30);
+
+    // Already granted for this exact renewal → idempotent, do nothing.
+    const [activeRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id FROM user_subscriptions
+       WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+         AND status = 'active' AND end_date >= ?
+       LIMIT 1`,
+      [userId, transaction.originalTransactionId, endDate]
+    );
+
+    if (!activeRows[0]) {
+      const subscriptionId = await this.createSubscription({
+        userId,
+        planId: Number(plan.id),
+        assignedBy: null,
+        notes: `Apple in-app purchase (${transaction.productId})`,
+        status: 'active',
+        paymentStatus: 'paid',
+        startDate,
+        endDate,
+        paymentMethod: 'apple_iap',
+        paymentReference: transaction.originalTransactionId,
+        paymentDate: startDate,
+        accessScope: 'all',
+        cancelExisting: true,
+      });
+
+      await this.db.execute('UPDATE iap_transactions SET subscription_id = ? WHERE transaction_id = ?', [
+        subscriptionId,
+        transaction.transactionId,
+      ]);
+    }
+
+    return this.getStudentBilling(userId);
+  }
+
+  /**
+   * Apply an App Store Server Notification V2. Called by Apple, not by a user,
+   * so the signature is the only authentication.
+   */
+  async handleAppleNotification(signedPayload: string) {
+    const notification = this.appleIapService.verifyNotification(signedPayload);
+
+    if (!notification.signedTransactionInfo) {
+      // Nothing subscription-shaped to apply (e.g. TEST notifications).
+      return { handled: false, notificationType: notification.notificationType };
+    }
+
+    const transaction = this.appleIapService.verifyTransaction(notification.signedTransactionInfo);
+
+    const [ownerRows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1',
+      [transaction.originalTransactionId]
+    );
+    const userId = ownerRows[0] ? Number(ownerRows[0].user_id) : 0;
+    if (!userId) {
+      // A purchase we've never seen redeemed. The device reconciles on next
+      // launch, so acknowledge rather than error.
+      this.logger.warn(`Apple notification for unknown transaction ${transaction.originalTransactionId}.`);
+      return { handled: false, notificationType: notification.notificationType };
+    }
+
+    await this.db.execute(
+      `INSERT INTO iap_transactions (
+         user_id, platform, product_id, transaction_id, original_transaction_id,
+         environment, purchase_date, expires_date, revocation_date, raw_payload
+       ) VALUES (?, 'apple', ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         expires_date = VALUES(expires_date),
+         revocation_date = VALUES(revocation_date),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        userId,
+        transaction.productId,
+        transaction.transactionId,
+        transaction.originalTransactionId,
+        transaction.environment,
+        this.epochToSqlTimestamp(transaction.purchaseDate),
+        this.epochToSqlTimestamp(transaction.expiresDate),
+        this.epochToSqlTimestamp(transaction.revocationDate),
+        JSON.stringify({ notificationType: notification.notificationType, subtype: notification.subtype }),
+      ]
+    );
+
+    switch (notification.notificationType) {
+      case 'SUBSCRIBED':
+      case 'DID_RENEW':
+      case 'OFFER_REDEEMED':
+      case 'DID_CHANGE_RENEWAL_PREF':
+        if (this.appleIapService.isEntitled(transaction)) {
+          await this.applyAppleRenewal(userId, transaction);
+        }
+        break;
+
+      case 'EXPIRED':
+        await this.expireAppleSubscription(transaction.originalTransactionId, false);
+        break;
+
+      case 'REFUND':
+      case 'REVOKE':
+        await this.expireAppleSubscription(transaction.originalTransactionId, true);
+        break;
+
+      // DID_CHANGE_RENEWAL_STATUS (auto-renew turned off) and
+      // DID_FAIL_TO_RENEW (billing retry / grace period) intentionally leave
+      // access intact — Apple sends EXPIRED when it actually ends.
+      default:
+        break;
+    }
+
+    return { handled: true, notificationType: notification.notificationType };
+  }
+
+  /** Extend (or re-create) the subscription behind a renewed Apple purchase. */
+  private async applyAppleRenewal(userId: number, transaction: AppleTransaction) {
+    const endDate = transaction.expiresDate ? this.toDateOnly(new Date(transaction.expiresDate)) : '';
+    if (!endDate) return;
+
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id FROM user_subscriptions
+       WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+       ORDER BY id DESC LIMIT 1`,
+      [userId, transaction.originalTransactionId]
+    );
+
+    if (rows[0]) {
+      await this.db.execute("UPDATE user_subscriptions SET status = 'active', end_date = ? WHERE id = ?", [
+        endDate,
+        Number(rows[0].id),
+      ]);
+      return;
+    }
+
+    const [planRows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT id FROM plans WHERE apple_product_id = ? LIMIT 1',
+      [transaction.productId]
+    );
+    if (!planRows[0]) return;
+
+    await this.createSubscription({
+      userId,
+      planId: Number(planRows[0].id),
+      assignedBy: null,
+      notes: `Apple in-app purchase renewal (${transaction.productId})`,
+      status: 'active',
+      paymentStatus: 'paid',
+      startDate: this.toDateOnly(new Date()),
+      endDate,
+      paymentMethod: 'apple_iap',
+      paymentReference: transaction.originalTransactionId,
+      paymentDate: this.toDateOnly(new Date()),
+      accessScope: 'all',
+      cancelExisting: true,
+    });
+  }
+
+  /** Close out an Apple subscription: expired naturally, or refunded/revoked. */
+  private async expireAppleSubscription(originalTransactionId: string, revoked: boolean) {
+    await this.db.execute(
+      `UPDATE user_subscriptions
+       SET status = ?, end_date = LEAST(end_date, CURDATE())
+       WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`,
+      [revoked ? 'cancelled' : 'expired', originalTransactionId]
+    );
+  }
+
+  private epochToSqlTimestamp(value: number | null) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 19).replace('T', ' ');
   }
 
   private async findStudentRequests(userId: number) {

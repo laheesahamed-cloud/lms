@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const auth_service_1 = require("../auth/auth.service");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
 const role_permissions_1 = require("../auth/role-permissions");
+const apple_iap_dto_1 = require("./dto/apple-iap.dto");
 const assign_subscription_dto_1 = require("./dto/assign-subscription.dto");
 const manual_payment_request_dto_1 = require("./dto/manual-payment-request.dto");
 const request_subscription_dto_1 = require("./dto/request-subscription.dto");
@@ -125,6 +126,17 @@ let SubscriptionsController = class SubscriptionsController {
     }
     async handlePayHereNotify(body) {
         return this.subscriptionsService.handlePayHereNotification(body);
+    }
+    async redeemAppleTransaction(authorization, dto) {
+        const student = await this.authService.requireStudent(authorization);
+        return this.subscriptionsService.redeemAppleTransaction(student.id, dto.signedTransaction);
+    }
+    async handleAppleNotification(body) {
+        const signedPayload = typeof body?.signedPayload === 'string' ? body.signedPayload : '';
+        if (!signedPayload) {
+            throw new common_1.BadRequestException('Missing signedPayload.');
+        }
+        return this.subscriptionsService.handleAppleNotification(signedPayload);
     }
     async resolveRequest(authorization, id, dto) {
         const admin = await this.authService.requireAdmin(authorization);
@@ -330,6 +342,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "handlePayHereNotify", null);
+__decorate([
+    (0, common_1.Post)('apple/verify'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, apple_iap_dto_1.RedeemAppleTransactionDto]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "redeemAppleTransaction", null);
+__decorate([
+    (0, common_1.Post)('apple/notifications'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "handleAppleNotification", null);
 __decorate([
     (0, common_1.Patch)('requests/:id/resolve'),
     (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),

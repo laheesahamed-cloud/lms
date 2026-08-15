@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'features/subscriptions/iap_reconciler.dart';
+import 'services/screen_protection.dart';
 import 'theme/app_theme.dart';
 import 'router/app_router.dart';
 import 'state/auth_controller.dart';
@@ -59,12 +61,42 @@ class XyndromeApp extends ConsumerStatefulWidget {
   ConsumerState<XyndromeApp> createState() => _XyndromeAppState();
 }
 
+/// Lets the screenshot notice show a SnackBar from outside the widget tree.
+final GlobalKey<ScaffoldMessengerState> _messengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 class _XyndromeAppState extends ConsumerState<XyndromeApp>
     with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Pick up purchases StoreKit knows about but the server may not (reinstall,
+    // new device, or a purchase that never got redeemed).
+    final reconciler = ref.read(iapReconcilerProvider);
+    reconciler.start();
+    WidgetsBinding.instance.addPostFrameCallback((_) => reconciler.sync());
+
+    // Protect course content from capture. On Android this blocks screenshots
+    // and recording outright; on iOS screenshots cannot be blocked, so we cover
+    // the screen during recording and tell the user when one is taken.
+    ScreenProtection.onScreenshotTaken = _onScreenshotTaken;
+    ScreenProtection.enable();
+  }
+
+  /// iOS only, and only ever *after* the fact — the screenshot is already
+  /// saved. Worded as a notice, not as "blocked", because nothing was blocked.
+  void _onScreenshotTaken() {
+    final messenger = _messengerKey.currentState;
+    if (messenger == null) return;
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Course content is protected. Please don’t share screenshots.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
   }
 
   @override
@@ -79,6 +111,8 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
     // token sends us to login automatically (no close-and-reopen needed).
     if (state == AppLifecycleState.resumed) {
       ref.read(authControllerProvider.notifier).revalidateSession();
+      // Also catches a renewal that happened while we were backgrounded.
+      ref.read(iapReconcilerProvider).sync();
     }
   }
 
@@ -87,6 +121,7 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
     final router = ref.watch(goRouterProvider);
     return MaterialApp.router(
       title: 'xyndrome',
+      scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

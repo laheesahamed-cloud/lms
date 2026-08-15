@@ -3,7 +3,7 @@ import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/pro
 import * as bcrypt from 'bcryptjs';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
-import { DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
+import { APPLE_IAP_PRODUCTS, DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
 
 @Injectable()
 export class SchemaSyncService implements OnModuleInit {
@@ -43,6 +43,7 @@ export class SchemaSyncService implements OnModuleInit {
       connection = await this.db.getConnection();
       await this.ensurePlansTable(connection);
       await this.ensureUserSubscriptionsTable(connection);
+      await this.ensureIapTables(connection);
       await this.ensureSubscriptionCouponsTable(connection);
       await this.ensurePaymentTransactionsTable(connection);
       await this.ensureStudyBookmarksTable(connection);
@@ -329,6 +330,106 @@ export class SchemaSyncService implements OnModuleInit {
         INDEX idx_user_subscriptions_dates (start_date, end_date)
       )
     `);
+  }
+
+  // Apple in-app purchase. `plans.apple_product_id` maps a StoreKit product to a
+  // plan, and `iap_transactions` is the replay guard: UNIQUE(transaction_id)
+  // makes redemption idempotent, and original_transaction_id is the stable
+  // identity of one subscription across renewals, bound to the first user who
+  // redeems it so one purchase cannot unlock several accounts.
+  private async ensureIapTables(connection: PoolConnection) {
+    // `plans` is created later in the full sync, so on a first-ever boot it may
+    // not exist yet. Don't let that abort the rest of the critical-table pass —
+    // the next boot picks it up.
+    try {
+      await this.ensureColumn(connection, 'plans', 'apple_product_id', 'VARCHAR(191) NULL AFTER billing_period');
+      // NULL repeats are allowed in a MySQL UNIQUE index, so plans without an
+      // Apple product are unaffected.
+      await this.ensureUniqueIndex(connection, 'plans', 'uniq_plans_apple_product', 'apple_product_id');
+    } catch (error) {
+      this.logger.warn(`Deferred plans.apple_product_id until the plans table exists: ${(error as Error).message}`);
+    }
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS iap_transactions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        subscription_id INT NULL,
+        platform VARCHAR(20) NOT NULL DEFAULT 'apple',
+        product_id VARCHAR(191) NOT NULL,
+        transaction_id VARCHAR(191) NOT NULL,
+        original_transaction_id VARCHAR(191) NOT NULL,
+        environment VARCHAR(20) NOT NULL,
+        purchase_date DATETIME NULL,
+        expires_date DATETIME NULL,
+        revocation_date DATETIME NULL,
+        raw_payload MEDIUMTEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_iap_transaction (transaction_id),
+        INDEX idx_iap_original (original_transaction_id),
+        INDEX idx_iap_user (user_id)
+      )
+    `);
+
+    await this.ensureApplePlanMappings(connection);
+  }
+
+  // Points each StoreKit product at the plan that supplies its duration. Runs on
+  // every boot (prod skips the full sync), and is idempotent: an existing
+  // apple_product_id is never overwritten, so an admin's manual remap survives.
+  private async ensureApplePlanMappings(connection: PoolConnection) {
+    for (const product of APPLE_IAP_PRODUCTS) {
+      try {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          'SELECT id, apple_product_id FROM plans WHERE slug = ? LIMIT 1',
+          [product.slug]
+        );
+
+        let planId = rows[0] ? Number(rows[0].id) : 0;
+
+        if (!planId) {
+          const seed = 'createIfMissing' in product ? product.createIfMissing : null;
+          if (!seed) {
+            this.logger.warn(
+              `No plan with slug "${product.slug}" for Apple product ${product.productId} — IAP for it will fail until one exists.`
+            );
+            continue;
+          }
+          const [result] = await connection.execute<ResultSetHeader>(
+            `INSERT INTO plans (
+               name, slug, description, price, regular_price, offer_price, offer_enabled,
+               currency, billing_period, duration_days, features_json, status, sort_order, recommended
+             ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 0)`,
+            [
+              seed.name,
+              product.slug,
+              seed.description,
+              seed.offerPrice,
+              seed.regularPrice,
+              seed.offerPrice,
+              seed.currency,
+              seed.billingPeriod,
+              product.durationDays,
+              JSON.stringify([]),
+              seed.status,
+              seed.sortOrder,
+            ]
+          );
+          planId = result.insertId;
+          this.logger.log(`Created plan "${product.slug}" (${seed.status}) for Apple product ${product.productId}`);
+        } else if (String(rows[0].apple_product_id || '') === product.productId) {
+          continue;
+        }
+
+        await connection.execute('UPDATE plans SET apple_product_id = ? WHERE id = ? AND apple_product_id IS NULL', [
+          product.productId,
+          planId,
+        ]);
+      } catch (error) {
+        this.logger.error(`Could not map Apple product ${product.productId} to plan ${product.slug}`, error as Error);
+      }
+    }
   }
 
   private async ensureSubscriptionCouponsTable(connection: PoolConnection) {
@@ -634,6 +735,9 @@ export class SchemaSyncService implements OnModuleInit {
       // Read directly (no try/catch) by resolveActiveCanvasProvider() on every
       // "Generate Lesson" call — missing on prod would throw a raw, unhandled 500.
       await this.ensureAiProviderConfigsTable(connection);
+      // IAP redemption is a write path that runs on prod, where the full sync is
+      // skipped (SCHEMA_SYNC=0) — so these must not depend on it.
+      await this.ensureIapTables(connection);
     } catch (error) {
       this.logger.error('Failed to ensure critical governance tables on boot', error as Error);
     } finally {
@@ -1425,5 +1529,39 @@ export class SchemaSyncService implements OnModuleInit {
 
     await connection.execute(`ALTER TABLE ${table} ADD INDEX ${index} (${columns})`);
     this.logger.log(`Added index ${indexName} on ${tableName}.${columnNames}`);
+  }
+
+  private async ensureUniqueIndex(connection: PoolConnection, tableName: string, indexName: string, columnNames: string) {
+    const table = sqlIdentifier(tableName, undefined, 'schema table');
+    const index = sqlIdentifier(indexName, undefined, 'schema index');
+    const columns = columnNames
+      .split(',')
+      .map((columnName) => sqlIdentifier(columnName.trim(), undefined, 'schema column'))
+      .join(', ');
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `
+        SELECT INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
+        LIMIT 1
+      `,
+      [tableName, indexName]
+    );
+
+    if (rows.length > 0) {
+      return;
+    }
+
+    // Duplicate existing values would make this fail; log and continue rather
+    // than aborting the whole boot-time sync.
+    try {
+      await connection.execute(`ALTER TABLE ${table} ADD UNIQUE INDEX ${index} (${columns})`);
+      this.logger.log(`Added unique index ${indexName} on ${tableName}.${columnNames}`);
+    } catch (error) {
+      this.logger.error(
+        `Could not add unique index ${indexName} on ${tableName}.${columnNames} — resolve duplicates first`,
+        error as Error
+      );
+    }
   }
 }

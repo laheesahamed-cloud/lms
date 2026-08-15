@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../state/local_scope.dart';
 
 // ─── Models ──────────────────────────────────────────────────────────────────
 
@@ -154,7 +155,8 @@ class PersonalCard {
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 class PersonalFlashcardsStore {
-  static const _decksKey = 'xyndrome.personal_fc_decks';
+  // Per-user key so a different account on the same device gets its own decks.
+  static String get _decksKey => 'xyndrome.personal_fc_decks.${LocalScope.uid}';
 
   static String _cardsKey(String deckId) => 'xyndrome.personal_fc_cards_$deckId';
 

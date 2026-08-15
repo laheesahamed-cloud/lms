@@ -11,6 +11,8 @@ export declare class SchemaSyncService implements OnModuleInit {
     private ensurePapersTable;
     private ensurePlansTable;
     private ensureUserSubscriptionsTable;
+    private ensureIapTables;
+    private ensureApplePlanMappings;
     private ensureSubscriptionCouponsTable;
     private ensurePaymentTransactionsTable;
     private ensureStudyBookmarksTable;
@@ -54,4 +56,5 @@ export declare class SchemaSyncService implements OnModuleInit {
     private ensureFreePlanPaymentStatus;
     private ensureUnlimitedFreePlanDates;
     private ensureIndex;
+    private ensureUniqueIndex;
 }

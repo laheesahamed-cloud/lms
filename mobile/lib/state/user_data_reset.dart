@@ -4,10 +4,12 @@ import '../features/lessons/lessons_repository.dart';
 import '../features/bookmarks/bookmarks_repository.dart';
 import '../features/courses/courses_repository.dart';
 import '../features/dashboard/dashboard_repository.dart';
+import '../features/drugs/drug_queue_service.dart';
 import '../features/flashcards/flashcards_repository.dart';
 import '../features/notifications/notifications_repository.dart';
 import '../features/planner/planner_repository.dart';
 import '../features/quizzes/quizzes_repository.dart';
+import '../features/subscriptions/iap_reconciler.dart';
 import '../features/subscriptions/subscriptions_repository.dart';
 
 /// Drop every cached, user-scoped provider so one account never sees another's
@@ -39,4 +41,12 @@ void resetUserScopedData(Ref ref) {
   ref.invalidate(plannerTasksProvider);
   ref.invalidate(billingProvider);
   ref.invalidate(notificationsProvider);
+  // Drug randomizer — app-lifetime provider, so its cached spin count/hasSub
+  // would otherwise bleed from one account to the next. Reset it so the new
+  // user re-fetches their own count from the server.
+  ref.invalidate(drugQueueProvider);
+  // Apple IAP: forget which transactions were already redeemed, so the incoming
+  // account re-checks StoreKit against its own server-side entitlement instead
+  // of assuming the previous user's redemptions apply to it.
+  ref.read(iapReconcilerProvider).reset();
 }

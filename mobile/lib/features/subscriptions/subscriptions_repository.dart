@@ -132,3 +132,19 @@ final billingProvider = FutureProvider.autoDispose<Billing>((ref) async {
   final res = await api.dio.get('/subscriptions/me');
   return Billing.fromJson(res.data);
 });
+
+/// Redeem an Apple in-app purchase. Only the signed transaction is sent — the
+/// backend verifies Apple's signature and decides the plan, so the app can't
+/// grant itself access. Returns the refreshed billing state.
+final redeemAppleTransactionProvider =
+    Provider<Future<Billing> Function(String)>((ref) {
+  return (String signedTransaction) async {
+    final api = ref.read(apiClientProvider);
+    final res = await api.dio.post(
+      '/subscriptions/apple/verify',
+      data: {'signedTransaction': signedTransaction},
+    );
+    ref.invalidate(billingProvider);
+    return Billing.fromJson(res.data);
+  };
+});

@@ -10,6 +10,8 @@ import UserNotifications
   private var appleAuthHandler: AppleSignInHandler?
   private var pencilChannel: FlutterMethodChannel?
   private var pencilInteraction: UIPencilInteraction?
+  private var storeKitBridge: AnyObject?
+  private var screenProtection: ScreenProtection?
 
   override func application(
     _ application: UIApplication,
@@ -84,6 +86,41 @@ import UserNotifications
         default:
           result(FlutterMethodNotImplemented)
         }
+      }
+    }
+
+    // In-app subscriptions via StoreKit 2. The bridge returns Apple-signed
+    // transactions (JWS); the backend (/subscriptions/apple/verify) verifies the
+    // signature before granting anything, so nothing here is trusted on its own.
+    if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromeStoreKit")?.messenger() {
+      let storeChannel = FlutterMethodChannel(name: "app.xyndrome.lk/storekit", binaryMessenger: messenger)
+      if #available(iOS 15.0, *) {
+        let bridge = StoreKitBridge(channel: storeChannel)
+        storeKitBridge = bridge
+        storeChannel.setMethodCallHandler { call, result in
+          bridge.handle(call, result: result)
+        }
+      } else {
+        // Below iOS 15 there is no StoreKit 2; report unavailable rather than
+        // crashing, and the paywall stays hidden.
+        storeChannel.setMethodCallHandler { _, result in
+          result(FlutterError(code: "unsupported_os",
+                              message: "In-app purchases require iOS 15 or later.",
+                              details: nil))
+        }
+      }
+    }
+
+    // Screen protection. iOS cannot block the screenshot gesture (no public
+    // API exists), so this covers the screen during recording/AirPlay and in
+    // the app switcher, and reports screenshots after the fact.
+    if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromeScreenProtection")?.messenger() {
+      let protectionChannel = FlutterMethodChannel(name: "app.xyndrome.lk/screen_protection",
+                                                   binaryMessenger: messenger)
+      let protection = ScreenProtection(channel: protectionChannel)
+      screenProtection = protection
+      protectionChannel.setMethodCallHandler { call, result in
+        protection.handle(call, result: result)
       }
     }
   }

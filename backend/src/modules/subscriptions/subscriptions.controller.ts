@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, Query, Res, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, Query, Res, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { isStaffRole, roleHasPermission } from '../auth/role-permissions';
+import { RedeemAppleTransactionDto } from './dto/apple-iap.dto';
 import { AssignSubscriptionDto } from './dto/assign-subscription.dto';
 import { ManualPaymentRequestDto } from './dto/manual-payment-request.dto';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
@@ -188,6 +189,36 @@ export class SubscriptionsController {
   @Post('payhere/notify')
   async handlePayHereNotify(@Body() body: Record<string, string | undefined>) {
     return this.subscriptionsService.handlePayHereNotification(body);
+  }
+
+  /**
+   * Redeem an Apple in-app purchase for the signed-in student. The body carries
+   * only Apple's signed transaction; plan, price, and expiry are all derived
+   * server-side from the verified payload.
+   */
+  @Post('apple/verify')
+  async redeemAppleTransaction(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: RedeemAppleTransactionDto
+  ) {
+    const student = await this.authService.requireStudent(authorization);
+    return this.subscriptionsService.redeemAppleTransaction(student.id, dto.signedTransaction);
+  }
+
+  /**
+   * App Store Server Notifications V2. Called by Apple, so there is no bearer
+   * token — the JWS signature is the authentication. Deliberately takes a raw
+   * body rather than a DTO: the global ValidationPipe runs with
+   * `forbidNonWhitelisted`, so a future extra field from Apple would otherwise
+   * 400 and make Apple retry forever.
+   */
+  @Post('apple/notifications')
+  async handleAppleNotification(@Body() body: Record<string, unknown>) {
+    const signedPayload = typeof body?.signedPayload === 'string' ? body.signedPayload : '';
+    if (!signedPayload) {
+      throw new BadRequestException('Missing signedPayload.');
+    }
+    return this.subscriptionsService.handleAppleNotification(signedPayload);
   }
 
   @Patch('requests/:id/resolve')

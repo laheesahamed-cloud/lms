@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var SubscriptionsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubscriptionsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -22,6 +23,7 @@ const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const plans_service_1 = require("../plans/plans.service");
 const settings_service_1 = require("../settings/settings.service");
+const apple_iap_service_1 = require("./apple-iap.service");
 const SUBSCRIPTION_LIST_COLUMNS = `
   us.id,
   us.user_id,
@@ -43,13 +45,15 @@ const SUBSCRIPTION_LIST_COLUMNS = `
   us.created_at,
   us.updated_at
 `;
-let SubscriptionsService = class SubscriptionsService {
-    constructor(db, plansService, settingsService, configService) {
+let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
+    constructor(db, plansService, settingsService, configService, appleIapService) {
         this.db = db;
         this.plansService = plansService;
         this.settingsService = settingsService;
         this.configService = configService;
+        this.appleIapService = appleIapService;
         this.unlimitedFreePlanEndDate = '9999-12-31';
+        this.logger = new common_1.Logger(SubscriptionsService_1.name);
     }
     async getAdminMeta() {
         const [studentRows] = await this.db.execute(`SELECT id, full_name, email, status
@@ -1282,6 +1286,175 @@ let SubscriptionsService = class SubscriptionsService {
             connection.release();
         }
     }
+    async redeemAppleTransaction(userId, signedTransaction) {
+        const transaction = this.appleIapService.verifyTransaction(signedTransaction);
+        const [planRows] = await this.db.execute('SELECT id, duration_days FROM plans WHERE apple_product_id = ? LIMIT 1', [transaction.productId]);
+        const plan = planRows[0];
+        if (!plan) {
+            throw new common_1.BadRequestException('This purchase does not match a known plan.');
+        }
+        const [ownerRows] = await this.db.execute('SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1', [transaction.originalTransactionId]);
+        if (ownerRows[0] && Number(ownerRows[0].user_id) !== userId) {
+            this.logger.warn(`Apple transaction ${transaction.originalTransactionId} replayed by user ${userId}; owned by ${ownerRows[0].user_id}.`);
+            throw new common_1.ConflictException('This purchase is already linked to another account.');
+        }
+        const entitled = this.appleIapService.isEntitled(transaction);
+        await this.db.execute(`INSERT INTO iap_transactions (
+         user_id, platform, product_id, transaction_id, original_transaction_id,
+         environment, purchase_date, expires_date, revocation_date, raw_payload
+       ) VALUES (?, 'apple', ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         expires_date = VALUES(expires_date),
+         revocation_date = VALUES(revocation_date),
+         updated_at = CURRENT_TIMESTAMP`, [
+            userId,
+            transaction.productId,
+            transaction.transactionId,
+            transaction.originalTransactionId,
+            transaction.environment,
+            this.epochToSqlTimestamp(transaction.purchaseDate),
+            this.epochToSqlTimestamp(transaction.expiresDate),
+            this.epochToSqlTimestamp(transaction.revocationDate),
+            JSON.stringify({
+                productId: transaction.productId,
+                type: transaction.type,
+                environment: transaction.environment,
+                expiresDate: transaction.expiresDate,
+                revocationReason: transaction.revocationReason,
+            }),
+        ]);
+        if (!entitled) {
+            await this.expireAppleSubscription(transaction.originalTransactionId, transaction.revocationDate !== null);
+            return this.getStudentBilling(userId);
+        }
+        const startDate = this.toDateOnly(new Date());
+        const endDate = transaction.expiresDate
+            ? this.toDateOnly(new Date(transaction.expiresDate))
+            : this.addDays(startDate, Number(plan.duration_days) || 30);
+        const [activeRows] = await this.db.execute(`SELECT id FROM user_subscriptions
+       WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+         AND status = 'active' AND end_date >= ?
+       LIMIT 1`, [userId, transaction.originalTransactionId, endDate]);
+        if (!activeRows[0]) {
+            const subscriptionId = await this.createSubscription({
+                userId,
+                planId: Number(plan.id),
+                assignedBy: null,
+                notes: `Apple in-app purchase (${transaction.productId})`,
+                status: 'active',
+                paymentStatus: 'paid',
+                startDate,
+                endDate,
+                paymentMethod: 'apple_iap',
+                paymentReference: transaction.originalTransactionId,
+                paymentDate: startDate,
+                accessScope: 'all',
+                cancelExisting: true,
+            });
+            await this.db.execute('UPDATE iap_transactions SET subscription_id = ? WHERE transaction_id = ?', [
+                subscriptionId,
+                transaction.transactionId,
+            ]);
+        }
+        return this.getStudentBilling(userId);
+    }
+    async handleAppleNotification(signedPayload) {
+        const notification = this.appleIapService.verifyNotification(signedPayload);
+        if (!notification.signedTransactionInfo) {
+            return { handled: false, notificationType: notification.notificationType };
+        }
+        const transaction = this.appleIapService.verifyTransaction(notification.signedTransactionInfo);
+        const [ownerRows] = await this.db.execute('SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1', [transaction.originalTransactionId]);
+        const userId = ownerRows[0] ? Number(ownerRows[0].user_id) : 0;
+        if (!userId) {
+            this.logger.warn(`Apple notification for unknown transaction ${transaction.originalTransactionId}.`);
+            return { handled: false, notificationType: notification.notificationType };
+        }
+        await this.db.execute(`INSERT INTO iap_transactions (
+         user_id, platform, product_id, transaction_id, original_transaction_id,
+         environment, purchase_date, expires_date, revocation_date, raw_payload
+       ) VALUES (?, 'apple', ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         expires_date = VALUES(expires_date),
+         revocation_date = VALUES(revocation_date),
+         updated_at = CURRENT_TIMESTAMP`, [
+            userId,
+            transaction.productId,
+            transaction.transactionId,
+            transaction.originalTransactionId,
+            transaction.environment,
+            this.epochToSqlTimestamp(transaction.purchaseDate),
+            this.epochToSqlTimestamp(transaction.expiresDate),
+            this.epochToSqlTimestamp(transaction.revocationDate),
+            JSON.stringify({ notificationType: notification.notificationType, subtype: notification.subtype }),
+        ]);
+        switch (notification.notificationType) {
+            case 'SUBSCRIBED':
+            case 'DID_RENEW':
+            case 'OFFER_REDEEMED':
+            case 'DID_CHANGE_RENEWAL_PREF':
+                if (this.appleIapService.isEntitled(transaction)) {
+                    await this.applyAppleRenewal(userId, transaction);
+                }
+                break;
+            case 'EXPIRED':
+                await this.expireAppleSubscription(transaction.originalTransactionId, false);
+                break;
+            case 'REFUND':
+            case 'REVOKE':
+                await this.expireAppleSubscription(transaction.originalTransactionId, true);
+                break;
+            default:
+                break;
+        }
+        return { handled: true, notificationType: notification.notificationType };
+    }
+    async applyAppleRenewal(userId, transaction) {
+        const endDate = transaction.expiresDate ? this.toDateOnly(new Date(transaction.expiresDate)) : '';
+        if (!endDate)
+            return;
+        const [rows] = await this.db.execute(`SELECT id FROM user_subscriptions
+       WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+       ORDER BY id DESC LIMIT 1`, [userId, transaction.originalTransactionId]);
+        if (rows[0]) {
+            await this.db.execute("UPDATE user_subscriptions SET status = 'active', end_date = ? WHERE id = ?", [
+                endDate,
+                Number(rows[0].id),
+            ]);
+            return;
+        }
+        const [planRows] = await this.db.execute('SELECT id FROM plans WHERE apple_product_id = ? LIMIT 1', [transaction.productId]);
+        if (!planRows[0])
+            return;
+        await this.createSubscription({
+            userId,
+            planId: Number(planRows[0].id),
+            assignedBy: null,
+            notes: `Apple in-app purchase renewal (${transaction.productId})`,
+            status: 'active',
+            paymentStatus: 'paid',
+            startDate: this.toDateOnly(new Date()),
+            endDate,
+            paymentMethod: 'apple_iap',
+            paymentReference: transaction.originalTransactionId,
+            paymentDate: this.toDateOnly(new Date()),
+            accessScope: 'all',
+            cancelExisting: true,
+        });
+    }
+    async expireAppleSubscription(originalTransactionId, revoked) {
+        await this.db.execute(`UPDATE user_subscriptions
+       SET status = ?, end_date = LEAST(end_date, CURDATE())
+       WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`, [revoked ? 'cancelled' : 'expired', originalTransactionId]);
+    }
+    epochToSqlTimestamp(value) {
+        if (!value)
+            return null;
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime()))
+            return null;
+        return date.toISOString().slice(0, 19).replace('T', ' ');
+    }
     async findStudentRequests(userId) {
         const [rows] = await this.db.execute(`SELECT
          sr.id,
@@ -1944,11 +2117,12 @@ let SubscriptionsService = class SubscriptionsService {
     }
 };
 exports.SubscriptionsService = SubscriptionsService;
-exports.SubscriptionsService = SubscriptionsService = __decorate([
+exports.SubscriptionsService = SubscriptionsService = SubscriptionsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, plans_service_1.PlansService,
         settings_service_1.SettingsService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        apple_iap_service_1.AppleIapService])
 ], SubscriptionsService);
 //# sourceMappingURL=subscriptions.service.js.map

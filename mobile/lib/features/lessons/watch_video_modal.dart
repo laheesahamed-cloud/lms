@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../theme/tokens.dart';
 import 'video_embed.dart';
 
@@ -24,13 +24,38 @@ class WatchVideoModal extends StatefulWidget {
 class _WatchVideoModalState extends State<WatchVideoModal> {
   late final VideoEmbed _embed;
   WebViewController? _wvc;
+  YoutubePlayerController? _ytc;
 
   @override
   void initState() {
     super.initState();
     _embed = getVideoEmbed(widget.videoUrl);
-    if (_embed.type == VideoEmbedType.iframe || _embed.type == VideoEmbedType.video) {
-      // Use iOS-specific params so YouTube plays inline without requiring a tap.
+
+    // YouTube → the dedicated IFrame player. It loads the official YouTube
+    // IFrame API with a valid origin, which plays inline reliably on iOS where
+    // a raw WebView embed fails ("player configuration error" / "Watch on
+    // YouTube").
+    if (_embed.provider == 'youtube') {
+      final id = _youtubeId(_embed.src);
+      if (id != null && id.isNotEmpty) {
+        _ytc = YoutubePlayerController.fromVideoId(
+          videoId: id,
+          autoPlay: false,
+          params: const YoutubePlayerParams(
+            showControls: true,
+            showFullscreenButton: true,
+            playsInline: true,
+            enableCaption: false,
+            strictRelatedVideos: true,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Vimeo / Google Drive (iframe) and direct video files → plain WebView.
+    if (_embed.type == VideoEmbedType.iframe ||
+        _embed.type == VideoEmbedType.video) {
       PlatformWebViewControllerCreationParams params =
           const PlatformWebViewControllerCreationParams();
       if (WebViewPlatform.instance is WebKitWebViewPlatform) {
@@ -43,24 +68,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Colors.black);
       if (_embed.type == VideoEmbedType.iframe) {
-        // Load the provider embed INSIDE an <iframe> on the provider's own
-        // origin (via baseUrl), not as a top-level navigation. YouTube/Vimeo's
-        // embedded player rejects top-level loads on some videos with a
-        // "player configuration error" — running it in an iframe with a valid
-        // origin (like a normal web page) fixes that.
-        String origin = '';
-        try {
-          origin = Uri.parse(_embed.src).origin;
-        } catch (_) {}
-        ctrl.loadHtmlString('''<!DOCTYPE html>
-<html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000;height:100%;overflow:hidden}.f{position:fixed;inset:0}iframe{width:100%;height:100%;border:0;display:block}</style>
-</head><body>
-<div class="f">
-<iframe src="${_embed.src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen; gyroscope; accelerometer" allowfullscreen></iframe>
-</div>
-</body></html>''', baseUrl: origin.isNotEmpty ? origin : null);
+        ctrl.loadRequest(Uri.parse(_embed.src));
       } else {
         // Direct video — minimal HTML5 wrapper
         ctrl.loadHtmlString('''<!DOCTYPE html>
@@ -76,22 +84,20 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
     }
   }
 
-  bool get _isYouTube => _embed.provider == 'youtube';
+  /// Pull the 11-char video id out of a `youtube.com/embed/{id}` URL.
+  String? _youtubeId(String embedSrc) {
+    try {
+      final segs = Uri.parse(embedSrc).pathSegments;
+      final i = segs.indexOf('embed');
+      if (i >= 0 && i + 1 < segs.length) return segs[i + 1];
+    } catch (_) {}
+    return null;
+  }
 
-  /// Open the video in its native app / browser. This always works, even when
-  /// the in-app WebView embed is refused (iOS gives loadHtmlString content an
-  /// opaque origin, so YouTube sometimes shows "Watch on YouTube").
-  Future<void> _openExternal() async {
-    final url = widget.videoUrl.trim();
-    if (url.isEmpty) return;
-    final uri = Uri.tryParse(url.startsWith('http') ? url : 'https://$url');
-    if (uri == null) return;
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the video.')),
-      );
-    }
+  @override
+  void dispose() {
+    _ytc?.close();
+    super.dispose();
   }
 
   @override
@@ -148,7 +154,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
           Divider(height: 1, color: c.line),
           // 16:9 video area
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.all(16),
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: ClipRRect(
@@ -157,22 +163,6 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
               ),
             ),
           ),
-          // Always-available fallback: some videos won't play inline in the
-          // in-app player (iOS embed restrictions), so give a reliable way out.
-          if (widget.videoUrl.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: SizedBox(
-                width: double.infinity,
-                child: TextButton.icon(
-                  onPressed: _openExternal,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: Text(_isYouTube
-                      ? 'Not playing? Open in YouTube'
-                      : 'Not playing? Open in browser'),
-                ),
-              ),
-            ),
           SizedBox(height: bottom + 8),
         ],
       ),
@@ -180,6 +170,13 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
   }
 
   Widget _buildPlayer(AppColors c, bool dark) {
+    final ytc = _ytc;
+    if (ytc != null) {
+      return ColoredBox(
+        color: Colors.black,
+        child: YoutubePlayer(controller: ytc, aspectRatio: 16 / 9),
+      );
+    }
     final wvc = _wvc;
     if (wvc != null) {
       return ColoredBox(

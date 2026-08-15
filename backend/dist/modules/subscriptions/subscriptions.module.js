@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
 const plans_module_1 = require("../plans/plans.module");
 const settings_module_1 = require("../settings/settings.module");
+const apple_iap_service_1 = require("./apple-iap.service");
 const subscriptions_controller_1 = require("./subscriptions.controller");
 const subscriptions_service_1 = require("./subscriptions.service");
 let SubscriptionsModule = class SubscriptionsModule {
@@ -20,7 +21,7 @@ exports.SubscriptionsModule = SubscriptionsModule = __decorate([
     (0, common_1.Module)({
         imports: [auth_module_1.AuthModule, plans_module_1.PlansModule, settings_module_1.SettingsModule],
         controllers: [subscriptions_controller_1.SubscriptionsController],
-        providers: [subscriptions_service_1.SubscriptionsService],
+        providers: [subscriptions_service_1.SubscriptionsService, apple_iap_service_1.AppleIapService],
     })
 ], SubscriptionsModule);
 //# sourceMappingURL=subscriptions.module.js.map

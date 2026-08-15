@@ -85,3 +85,26 @@ export declare const DEFAULT_PLAN_BLUEPRINTS: readonly [{
     readonly status: "active";
     readonly featureKeys: string[];
 }];
+export declare const APPLE_IAP_PRODUCTS: readonly [{
+    readonly productId: "app.xyndrome.lk.weekly";
+    readonly slug: "quick-revision-7d";
+    readonly durationDays: 7;
+}, {
+    readonly productId: "app.xyndrome.lk.monthly";
+    readonly slug: "monthly-prep-1m";
+    readonly durationDays: 30;
+}, {
+    readonly productId: "app.xyndrome.lk.yearly";
+    readonly slug: "annual-prep-1y";
+    readonly durationDays: 365;
+    readonly createIfMissing: {
+        readonly name: "Annual Prep";
+        readonly description: "12 months of complete preparation. Lessons, AI notes, full MCQ bank, practice and exam mode.";
+        readonly regularPrice: 34990;
+        readonly offerPrice: 23990;
+        readonly currency: "LKR";
+        readonly billingPeriod: "year";
+        readonly status: "inactive";
+        readonly sortOrder: 6;
+    };
+}];

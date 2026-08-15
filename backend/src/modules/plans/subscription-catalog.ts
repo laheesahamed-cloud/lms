@@ -158,3 +158,41 @@ export const DEFAULT_PLAN_BLUEPRINTS = [
     featureKeys: fullPrepFeatureKeys,
   },
 ] as const;
+
+/// Apple StoreKit product id → the plan that backs it.
+///
+/// The plan supplies `duration_days`, which is what turns an Apple purchase into
+/// a `user_subscriptions.end_date`. Weekly and monthly reuse the existing public
+/// plans; there is no 365-day plan in the catalog, so `annual-prep-1y` is created
+/// on demand as **inactive** — an inactive plan still resolves for an active
+/// subscription (the billing query joins `plans` without filtering on status) but
+/// is excluded from `plansService.findActive()`, so adding it does not change the
+/// public website pricing list. Flip it to `active` to also sell annually on the web.
+export const APPLE_IAP_PRODUCTS = [
+  {
+    productId: 'app.xyndrome.lk.weekly',
+    slug: 'quick-revision-7d',
+    durationDays: 7,
+  },
+  {
+    productId: 'app.xyndrome.lk.monthly',
+    slug: 'monthly-prep-1m',
+    durationDays: 30,
+  },
+  {
+    productId: 'app.xyndrome.lk.yearly',
+    slug: 'annual-prep-1y',
+    durationDays: 365,
+    // Only used when the plan has to be created because it isn't in the catalog.
+    createIfMissing: {
+      name: 'Annual Prep',
+      description: '12 months of complete preparation. Lessons, AI notes, full MCQ bank, practice and exam mode.',
+      regularPrice: 34990,
+      offerPrice: 23990,
+      currency: 'LKR',
+      billingPeriod: 'year',
+      status: 'inactive' as const,
+      sortOrder: 6,
+    },
+  },
+] as const;
