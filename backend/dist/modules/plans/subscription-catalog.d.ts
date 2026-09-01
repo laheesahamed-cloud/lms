@@ -94,6 +94,10 @@ export declare const APPLE_IAP_PRODUCTS: readonly [{
     readonly slug: "monthly-prep-1m";
     readonly durationDays: 30;
 }, {
+    readonly productId: "app.xyndrome.lk.quarterly";
+    readonly slug: "complete-prep-3m";
+    readonly durationDays: 90;
+}, {
     readonly productId: "app.xyndrome.lk.yearly";
     readonly slug: "annual-prep-1y";
     readonly durationDays: 365;

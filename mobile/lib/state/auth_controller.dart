@@ -69,7 +69,25 @@ class AuthController extends Notifier<AuthState> {
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
   Future<void> _hydrate() async {
-    final token = await SecureStore.readToken();
+    // The keychain read must never be allowed to throw uncaught. The router
+    // pins to /splash for as long as `isHydrating` is true, so a failure here
+    // leaves the app on a blank splash screen forever with no way out.
+    // Keychain entries survive app deletion, so a reinstall signed with
+    // different entitlements can fail this read on an otherwise healthy app —
+    // treat any failure as simply "not signed in".
+    String? token;
+    try {
+      token = await SecureStore.readToken();
+    } catch (_) {
+      try {
+        await SecureStore.clear();
+      } catch (_) {
+        // Nothing more to do — fall through to the logged-out state.
+      }
+      state = const AuthState(isHydrating: false);
+      return;
+    }
+
     if (token == null || token.isEmpty) {
       state = const AuthState(isHydrating: false);
       return;

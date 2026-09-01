@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/subscriptions/iap_reconciler.dart';
@@ -61,10 +62,6 @@ class XyndromeApp extends ConsumerStatefulWidget {
   ConsumerState<XyndromeApp> createState() => _XyndromeAppState();
 }
 
-/// Lets the screenshot notice show a SnackBar from outside the widget tree.
-final GlobalKey<ScaffoldMessengerState> _messengerKey =
-    GlobalKey<ScaffoldMessengerState>();
-
 class _XyndromeAppState extends ConsumerState<XyndromeApp>
     with WidgetsBindingObserver {
   @override
@@ -77,30 +74,49 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
     reconciler.start();
     WidgetsBinding.instance.addPostFrameCallback((_) => reconciler.sync());
 
-    // Protect course content from capture. On Android this blocks screenshots
-    // and recording outright; on iOS screenshots cannot be blocked, so we cover
-    // the screen during recording and tell the user when one is taken.
-    ScreenProtection.onScreenshotTaken = _onScreenshotTaken;
+    // Screen-capture protection:
+    //  - Android: FLAG_SECURE, a real OS-level block, app-wide.
+    //  - iOS: SecureQuizMode, applied per route — the hub/list pages stay
+    //    open, content screens are protected. See
+    //    ScreenProtection.shouldProtectPath (unit-tested in
+    //    test/screen_protection_paths_test.dart).
+    //
+    // The blank-white-screen episode this went through was NOT caused by this
+    // code: it was a broken build (Xcode.app building the same project
+    // concurrently left the plugins unresolved, so shared_preferences never
+    // returned and the app hung before its first frame).
     ScreenProtection.enable();
   }
 
-  /// iOS only, and only ever *after* the fact — the screenshot is already
-  /// saved. Worded as a notice, not as "blocked", because nothing was blocked.
-  void _onScreenshotTaken() {
-    final messenger = _messengerKey.currentState;
-    if (messenger == null) return;
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Course content is protected. Please don’t share screenshots.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
+  GoRouter? _router;
+
+  /// Attached from [build], never initState: reading `goRouterProvider` during
+  /// initState builds the router before the provider scope has settled.
+  /// Idempotent — build runs often, this wires up once.
+  void _attachRouterListener(GoRouter router) {
+    if (identical(_router, router)) return;
+    _router?.routeInformationProvider.removeListener(_syncScreenProtection);
+    _router?.routerDelegate.removeListener(_syncScreenProtection);
+    _router = router;
+    // Both listenables: routeInformationProvider carries the canonical URI,
+    // routerDelegate fires on imperative push/pop. Either alone misses some
+    // transitions, and syncForRoute no-ops when nothing changed.
+    router.routeInformationProvider.addListener(_syncScreenProtection);
+    router.routerDelegate.addListener(_syncScreenProtection);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncScreenProtection());
+  }
+
+  void _syncScreenProtection() {
+    final path = _router?.routeInformationProvider.value.uri.path ??
+        _router?.routerDelegate.currentConfiguration.uri.path;
+    if (path == null) return;
+    ScreenProtection.syncForRoute(path);
   }
 
   @override
   void dispose() {
+    _router?.routeInformationProvider.removeListener(_syncScreenProtection);
+    _router?.routerDelegate.removeListener(_syncScreenProtection);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -119,9 +135,9 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(goRouterProvider);
+    _attachRouterListener(router);
     return MaterialApp.router(
       title: 'xyndrome',
-      scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

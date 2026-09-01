@@ -10,10 +10,12 @@ import 'package:flutter/services.dart';
 const MethodChannel _channel = MethodChannel('app.xyndrome.lk/storekit');
 
 /// StoreKit product ids, matching App Store Connect and `plans.apple_product_id`.
+/// Order here is the paywall's display order: shortest to longest commitment.
 const List<String> kIapProductIds = <String>[
-  'app.xyndrome.lk.yearly',
-  'app.xyndrome.lk.monthly',
   'app.xyndrome.lk.weekly',
+  'app.xyndrome.lk.monthly',
+  'app.xyndrome.lk.quarterly',
+  'app.xyndrome.lk.yearly',
 ];
 
 /// In-app purchase exists on iOS only. Android would need Play Billing, which
@@ -46,6 +48,11 @@ class IapProduct {
 
   /// Apple requires the renewal terms to be stated on the paywall.
   String get renewalNote => 'Auto-renews every $periodLabel until cancelled.';
+
+  /// The 3-month plan is the best-value option the business wants to steer
+  /// people toward — derived from shape (not a hardcoded product id) so it
+  /// still works if the underlying App Store Connect product id ever changes.
+  bool get isRecommended => unitCount == 3 && unit == 'month';
 
   factory IapProduct.fromMap(Map<dynamic, dynamic> raw) {
     final m = Map<String, dynamic>.from(raw);

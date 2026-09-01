@@ -122,10 +122,15 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     );
   }
 
-  /// True when the user already has something that unlocks content, so the
-  /// paywall should stay hidden.
+  /// True only when the user already has something worth not re-selling over:
+  /// a genuinely active PAID (or manually-granted) subscription.
+  ///
+  /// A "Free" plan is the broad, currently-unrestricted starter tier every
+  /// signup gets by default (see [CurrentSub.isFreePlan]) — it must NOT count
+  /// as access here, or the purchase button would be permanently invisible for
+  /// every user, since everyone starts on it.
   bool _hasAccess(CurrentSub? cur) =>
-      cur != null && (cur.isActive || cur.isFreePlan || cur.isUnlimitedAccess);
+      cur != null && cur.isActive && !cur.isFreePlan && !cur.isUnlimitedAccess;
 
   Widget _statusCard(AppColors c, CurrentSub? cur) {
     if (cur == null) {

@@ -13,6 +13,16 @@ import StoreKit
 /// The bridge never decides entitlement. It hands Dart the signed JWS
 /// (`jwsRepresentation`) and the backend verifies the signature, so a jailbroken
 /// device cannot fake a purchase by patching the app.
+///
+/// Deliberately NOT `@MainActor`-isolated at the class level. AppDelegate
+/// constructs this synchronously from `didInitializeImplicitFlutterEngine`,
+/// which is not an isolated context — marking the class `@MainActor` made that
+/// an isolation violation that hung Flutter engine startup (app launched to a
+/// blank screen and the Dart VM service never came up).
+///
+/// Main-thread correctness is instead handled explicitly where it actually
+/// matters: every `FlutterResult` reply goes through `reply(_:_:)`, and the
+/// `pendingTransactions` dictionary is only touched on the main thread.
 @available(iOS 15.0, *)
 final class StoreKitBridge {
   private var updatesTask: Task<Void, Never>?
@@ -34,6 +44,28 @@ final class StoreKitBridge {
   }
 
   // MARK: - Channel
+
+  /// Replies to Flutter on the main thread. `FlutterResult` must not be
+  /// invoked off-main; StoreKit's `await` points can resume anywhere, so every
+  /// reply funnels through here rather than relying on actor isolation.
+  private func reply(_ result: @escaping FlutterResult, _ value: Any?) {
+    if Thread.isMainThread {
+      result(value)
+    } else {
+      DispatchQueue.main.async { result(value) }
+    }
+  }
+
+  /// Records a transaction awaiting server-side redemption. Main-thread only,
+  /// so the dictionary needs no additional locking.
+  private func retain(_ transaction: Transaction) {
+    let id = String(transaction.id)
+    if Thread.isMainThread {
+      pendingTransactions[id] = transaction
+    } else {
+      DispatchQueue.main.async { self.pendingTransactions[id] = transaction }
+    }
+  }
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -70,9 +102,9 @@ final class StoreKitBridge {
       let products = try await Product.products(for: ids)
       // Keep App Store order stable and predictable for the paywall.
       let ordered = ids.compactMap { id in products.first { $0.id == id } }
-      result(ordered.map(Self.encode))
+      reply(result, ordered.map(Self.encode))
     } catch {
-      result(FlutterError(code: "products_failed", message: error.localizedDescription, details: nil))
+      reply(result, FlutterError(code: "products_failed", message: error.localizedDescription, details: nil))
     }
   }
 
@@ -107,7 +139,7 @@ final class StoreKitBridge {
   private func purchase(productId: String, result: @escaping FlutterResult) async {
     do {
       guard let product = try await Product.products(for: [productId]).first else {
-        result(FlutterError(code: "product_not_found", message: "That plan is unavailable.", details: nil))
+        reply(result, FlutterError(code: "product_not_found", message: "That plan is unavailable.", details: nil))
         return
       }
 
@@ -116,28 +148,28 @@ final class StoreKitBridge {
         // `.unverified` means StoreKit itself could not validate the signature.
         // Surface it rather than forwarding a bad receipt to the backend.
         guard case .verified(let transaction) = verification else {
-          result(FlutterError(code: "unverified", message: "This purchase could not be verified.", details: nil))
+          reply(result, FlutterError(code: "unverified", message: "This purchase could not be verified.", details: nil))
           return
         }
-        pendingTransactions[String(transaction.id)] = transaction
-        result([
+        retain(transaction)
+        reply(result, [
           "status": "purchased",
           "transactionId": String(transaction.id),
           "jws": verification.jwsRepresentation,
         ])
 
       case .userCancelled:
-        result(["status": "cancelled"])
+        reply(result, ["status": "cancelled"])
 
       case .pending:
         // Ask to Buy / SCA. The result arrives later via Transaction.updates.
-        result(["status": "pending"])
+        reply(result, ["status": "pending"])
 
       @unknown default:
-        result(["status": "unknown"])
+        reply(result, ["status": "unknown"])
       }
     } catch {
-      result(FlutterError(code: "purchase_failed", message: error.localizedDescription, details: nil))
+      reply(result, FlutterError(code: "purchase_failed", message: error.localizedDescription, details: nil))
     }
   }
 
@@ -157,22 +189,24 @@ final class StoreKitBridge {
     var payloads: [[String: Any]] = []
     for await verification in Transaction.currentEntitlements {
       guard case .verified(let transaction) = verification else { continue }
-      pendingTransactions[String(transaction.id)] = transaction
+      retain(transaction)
       payloads.append([
         "transactionId": String(transaction.id),
         "productId": transaction.productID,
         "jws": verification.jwsRepresentation,
       ])
     }
-    result(payloads)
+    reply(result, payloads)
   }
 
   /// Called by Dart once the backend has granted access for this transaction.
   private func finish(transactionId: String, result: @escaping FlutterResult) async {
-    if let transaction = pendingTransactions.removeValue(forKey: transactionId) {
+    // `pendingTransactions` is main-thread-only, so take it there.
+    let transaction = await MainActor.run { pendingTransactions.removeValue(forKey: transactionId) }
+    if let transaction {
       await transaction.finish()
     }
-    result(true)
+    reply(result, true)
   }
 
   // MARK: - Background updates
@@ -184,7 +218,7 @@ final class StoreKitBridge {
       for await verification in Transaction.updates {
         guard let self, case .verified(let transaction) = verification else { continue }
         await MainActor.run {
-          self.pendingTransactions[String(transaction.id)] = transaction
+          self.retain(transaction)
           self.channel.invokeMethod("transactionUpdate", arguments: [
             "transactionId": String(transaction.id),
             "productId": transaction.productID,

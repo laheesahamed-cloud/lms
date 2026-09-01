@@ -163,6 +163,11 @@ exports.APPLE_IAP_PRODUCTS = [
         durationDays: 30,
     },
     {
+        productId: 'app.xyndrome.lk.quarterly',
+        slug: 'complete-prep-3m',
+        durationDays: 90,
+    },
+    {
         productId: 'app.xyndrome.lk.yearly',
         slug: 'annual-prep-1y',
         durationDays: 365,

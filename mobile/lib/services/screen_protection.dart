@@ -3,16 +3,15 @@ import 'package:flutter/services.dart';
 
 /// Screen-capture protection, bridged to the native layer.
 ///
-/// The two platforms are genuinely not equivalent, and this API does not
-/// pretend otherwise:
-///
-/// * **Android** — `FLAG_SECURE` is a hard block. The OS refuses the
-///   screenshot, recordings and casts come out black, and the recents
-///   thumbnail is hidden.
-/// * **iOS** — screenshots **cannot** be blocked; Apple exposes no API for it.
-///   What works is covering the screen while it is being recorded or mirrored,
-///   covering the app-switcher snapshot, and being *told* after a screenshot
-///   was taken.
+/// * **Android** — `FLAG_SECURE` is a hard block, on for the whole app once
+///   [enable] is called. The OS refuses the screenshot, recordings and casts
+///   come out black, and the recents thumbnail is hidden.
+/// * **iOS** — [enable] only turns on *detection* (a brief on-screen notice
+///   after the fact — the real screenshot still saves normally). Real
+///   blocking is a separate, screen-scoped toggle: [enableSecureMode] /
+///   [disableSecureMode], meant to wrap quiz/exam screens specifically,
+///   using the same undocumented technique WhatsApp uses for its own
+///   protected screens. See `SecureQuizMode.swift` for how.
 ///
 /// Use [capabilities] rather than assuming, so nothing in the UI claims a
 /// screenshot was prevented on a platform where it wasn't.
@@ -59,9 +58,6 @@ class ScreenProtection {
   /// it — this exists so the app can tell the user it was noticed.
   static void Function()? onScreenshotTaken;
 
-  /// Fired when screen recording or AirPlay mirroring starts or stops (iOS).
-  static void Function(bool capturing)? onCaptureStateChanged;
-
   static bool get supported => Platform.isAndroid || Platform.isIOS;
   static bool get isEnabled => _enabled;
 
@@ -89,6 +85,108 @@ class ScreenProtection {
     }
   }
 
+  /// Genuinely blanks the app's content in any real screenshot or recording,
+  /// scoped to whatever screen is on top when this is called (iOS only —
+  /// Android is already fully protected app-wide once [enable] runs). Call
+  /// when a quiz/exam screen opens.
+  static Future<void> enableSecureMode() async {
+    if (!supported) return;
+    try {
+      await _channel.invokeMethod('enableSecureMode');
+    } catch (_) {
+      // Android has no handler for this method (it's already protected
+      // app-wide by FLAG_SECURE) — that surfaces as MissingPluginException,
+      // not PlatformException, hence the broad catch here.
+    }
+  }
+
+  /// Pairs with [enableSecureMode]. Call when leaving that screen so the
+  /// rest of the app is unaffected.
+  static Future<void> disableSecureMode() async {
+    if (!supported) return;
+    try {
+      await _channel.invokeMethod('disableSecureMode');
+    } catch (_) {
+      // Same MissingPluginException case on Android — see enableSecureMode.
+    }
+  }
+
+  /// Navigation-level pages that are deliberately NOT capture-protected:
+  /// the hubs and list screens, which hold no purchased content — only
+  /// navigation, progress and account info. Everything else (lessons, quiz
+  /// taking, flashcards, ECG, drugs, saved items, note detail …) stays
+  /// protected.
+  ///
+  /// Matched exactly, so `/app/quizzes` (the Q-Bank list) is open while
+  /// `/app/quizzes/123` (actually sitting the quiz) is protected.
+  static const Set<String> _unprotectedPaths = <String>{
+    '/app/dashboard', // Study Hub
+    '/app/quizzes', // Q-Bank list
+    '/app/courses', // Courses list
+    '/app/study', // Study hub
+    '/app/results', // Results list
+    '/app/profile',
+    '/app/profile/edit',
+    '/app/profile/password',
+  };
+
+  /// Routes that actually show purchased content. Protection is an **allowlist**
+  /// rather than "everything except the hubs" — deliberately.
+  ///
+  /// With a denylist, `/splash` and `/auth/login` counted as protected, so the
+  /// view got re-parented during early startup before the hierarchy had
+  /// settled, and the app came up blank white. An allowlist means anything not
+  /// listed here (splash, login, auth, subscriptions, notifications) is simply
+  /// left alone — which is also correct on the merits: none of those screens
+  /// carry content worth protecting.
+  static const List<String> _protectedPrefixes = <String>[
+    '/app/lessons',
+    '/app/study/lesson',
+    '/app/quizzes/', // a specific quiz — the list itself stays open
+    '/app/courses/', // a specific course
+    '/app/results/', // a specific result
+    '/app/qbank',
+    '/app/exams',
+    '/app/review',
+    '/app/exam-complete',
+    '/app/flashcards',
+    '/app/my-flashcards',
+    '/app/my-notes',
+    '/app/canvas',
+    '/app/ecg',
+    '/app/auscultation',
+    '/app/drugs',
+    '/app/planner',
+    '/app/bookmarks',
+  ];
+
+  /// Mirrors the native state, which starts off.
+  static bool _secureModeOn = false;
+
+  static bool shouldProtectPath(String path) {
+    final normalized = path.split('?').first.replaceAll(RegExp(r'/+$'), '');
+    final route = normalized.isEmpty ? '/' : normalized;
+    if (_unprotectedPaths.contains(route)) return false;
+    return _protectedPrefixes.any(
+      (prefix) => route == prefix || route.startsWith(prefix),
+    );
+  }
+
+  /// Turn capture protection on/off to match [path]. Only acts on an actual
+  /// change: re-parenting the view is visually disruptive, so calling this on
+  /// every navigation must be cheap when the state is already correct.
+  static Future<void> syncForRoute(String path) async {
+    if (!supported || !Platform.isIOS) return;
+    final shouldProtect = shouldProtectPath(path);
+    if (shouldProtect == _secureModeOn) return;
+    _secureModeOn = shouldProtect;
+    if (shouldProtect) {
+      await enableSecureMode();
+    } else {
+      await disableSecureMode();
+    }
+  }
+
   /// What this platform can actually do. Read it instead of guessing.
   static Future<ScreenProtectionCapabilities> capabilities() async {
     if (!supported) return ScreenProtectionCapabilities.none;
@@ -105,15 +203,7 @@ class ScreenProtection {
     if (_handlerAttached) return;
     _handlerAttached = true;
     _channel.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case 'screenshotTaken':
-          onScreenshotTaken?.call();
-          break;
-        case 'captureStateChanged':
-          final m = Map<String, dynamic>.from(call.arguments as Map? ?? {});
-          onCaptureStateChanged?.call(m['captured'] == true);
-          break;
-      }
+      if (call.method == 'screenshotTaken') onScreenshotTaken?.call();
       return null;
     });
   }
