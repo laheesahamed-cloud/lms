@@ -294,9 +294,10 @@ class NativePushSender {
         const sign = (0, crypto_1.createSign)(algorithm);
         sign.update(signingInput);
         sign.end();
+        const keyObject = (0, crypto_1.createPrivateKey)(privateKey);
         const signature = dsaEncoding
-            ? sign.sign({ key: privateKey, dsaEncoding })
-            : sign.sign(privateKey);
+            ? sign.sign({ key: keyObject, dsaEncoding })
+            : sign.sign(keyObject);
         return `${signingInput}.${this.base64Url(signature)}`;
     }
     postJson(url, body, headers) {

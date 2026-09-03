@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createSign } from 'crypto';
+import { createPrivateKey, createSign } from 'crypto';
 import { readFileSync } from 'fs';
 import * as http2 from 'http2';
 import * as https from 'https';
@@ -381,9 +381,17 @@ export class NativePushSender {
     const sign = createSign(algorithm);
     sign.update(signingInput);
     sign.end();
+    // Build a KeyObject rather than handing sign() the raw PEM string. On
+    // OpenSSL 3.x, signing straight from a PEM string routes through an
+    // auto-detecting decoder that can throw "error:1E08010C:DECODER
+    // routines::unsupported" for a perfectly valid EC (P-256 / ES256) key —
+    // this is what broke APNs push specifically, since that's the one caller
+    // using an EC key with ieee-p1363 encoding. createPrivateKey() uses a
+    // different, more specific decoder path that doesn't hit this.
+    const keyObject = createPrivateKey(privateKey);
     const signature = dsaEncoding
-      ? sign.sign({ key: privateKey, dsaEncoding })
-      : sign.sign(privateKey);
+      ? sign.sign({ key: keyObject, dsaEncoding })
+      : sign.sign(keyObject);
     return `${signingInput}.${this.base64Url(signature)}`;
   }
 
