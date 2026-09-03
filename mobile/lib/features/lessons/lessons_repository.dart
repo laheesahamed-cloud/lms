@@ -7,7 +7,7 @@ import 'lesson_models.dart';
 /// Fetches the AI note for a lesson via GET /lessons/:id/note.
 final lessonDocProvider =
     FutureProvider.autoDispose.family<LessonDoc, String>((ref, lessonId) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
 
   Future<LessonDoc?> tryGet(String path) async {
@@ -36,8 +36,14 @@ Future<void> markLessonComplete(ApiClient api, String lessonId) async {
 }
 
 /// The student's lessons notes list — GET /lessons/canvas/student/notes.
-final lessonsListProvider = FutureProvider.autoDispose<List<LessonListItem>>((ref) async {
-  ref.watch(currentUserIdProvider);
+/// Not autoDispose: these list screens are navigated away from and back to
+/// constantly. Disposing on exit meant every return was a cold fetch behind
+/// a spinner. Kept alive, AppShell.didPopNext still invalidates them, so the
+/// data refreshes in the background while the last result stays on screen.
+/// Safe to retain: resetUserScopedData() invalidates all of these on
+/// login/logout/account switch.
+final lessonsListProvider = FutureProvider<List<LessonListItem>>((ref) async {
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/lessons/canvas/student/notes',

@@ -51,7 +51,7 @@ class Bookmark {
 }
 
 final bookmarksProvider = FutureProvider.autoDispose<List<Bookmark>>((ref) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/study-bookmarks');
   final data = res.data;

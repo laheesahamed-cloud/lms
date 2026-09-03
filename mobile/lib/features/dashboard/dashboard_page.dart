@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../state/onboarding.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
+import '../results/reviewed_attempts.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/score_ring.dart';
 import '../../state/auth_controller.dart';
@@ -57,12 +60,37 @@ QuizListItem? _pickQuiz(List<QuizListItem> qs, WeakTopic? weak) {
   }
   final openAll = shuffle(qs.where(open).toList());
   if (openAll.isNotEmpty) return openAll.first;
-  if (weak != null) {
-    final weakAll = shuffle(qs.where(onWeak).toList());
-    if (weakAll.isNotEmpty) return weakAll.first;
-  }
-  return shuffle(qs).first;
+  // Nothing the user can actually sit. Return null rather than falling back to
+  // *any* quiz: the two fallbacks that used to live here dropped the `open`
+  // filter, so once the unlocked quizzes were finished this handed back a
+  // locked one — which the caller then offered as "continue where you left
+  // off", and tapping it stalled against a backend that refuses access.
+  // Returning null also makes the caller's lesson/review branches reachable;
+  // previously this function only ever returned null for an empty list, so
+  // they were dead code.
+  return null;
 }
+
+/// Where the "Continue where you left off" card is in its Exam → Review →
+/// Lesson rotation. Persisted, so closing the app does not send the card back
+/// to the same suggestion it just handed out.
+class ContinueTurn extends Notifier<int> {
+  static const String _key = 'xyndrome.continue_turn';
+
+  @override
+  int build() => ref.read(sharedPrefsProvider).getInt(_key) ?? 0;
+
+  void advance() {
+    // Bounded so the stored value cannot grow without limit; 6 is a multiple
+    // of every possible slot count (1, 2 or 3), so wrapping never skips one.
+    final next = (state + 1) % 6;
+    state = next;
+    ref.read(sharedPrefsProvider).setInt(_key, next);
+  }
+}
+
+final continueTurnProvider =
+    NotifierProvider<ContinueTurn, int>(ContinueTurn.new);
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -463,55 +491,180 @@ class _ContinueCard extends ConsumerWidget {
     final c = context.c;
     final d =
         ref.watch(studentDashboardProvider).maybeWhen(data: (x) => x, orElse: () => null);
-    final quizzes = ref
-        .watch(quizListProvider)
-        .maybeWhen(data: (x) => x, orElse: () => const <QuizListItem>[]);
-    final notes = ref
-        .watch(lessonsListProvider)
-        .maybeWhen(data: (x) => x, orElse: () => const <LessonListItem>[]);
+    final quizzesAsync = ref.watch(quizListProvider);
+    final notesAsync = ref.watch(lessonsListProvider);
+    // The results list is what the Results and Review screens are built from,
+    // and it is the only place an attempt is described properly: it carries
+    // the attemptId (an exact key — no matching on title text), the quiz's own
+    // quizNumber, and the server's reviewedAt flag.
+    final results = ref.watch(resultsListProvider).asData?.value ??
+        const <ResultListItem>[];
+
+    // These two lists arrive independently, and a quiz outranks a lesson in
+    // the priority order below. Reading them with `orElse: []` treated "still
+    // loading" as "there are none", so the moment the lessons list landed this
+    // card committed to "Review lesson" — then the quiz list arrived, recQuiz
+    // became non-null, and it visibly flipped to "Start quiz". Wait for both
+    // to actually settle before recommending anything.
+    final settled = (quizzesAsync.asData != null || quizzesAsync.hasError) &&
+        (notesAsync.asData != null || notesAsync.hasError);
+    final quizzes = quizzesAsync.asData?.value ?? const <QuizListItem>[];
+    final notes = notesAsync.asData?.value ?? const <LessonListItem>[];
 
     final weak = (d != null && d.weakTopics.isNotEmpty) ? d.weakTopics.first : null;
     final recQuiz = _pickQuiz(quizzes, weak);
-    final recNote = notes.isNotEmpty ? notes.first : null;
+    // Rotate the lesson too, seeded by the day, so the card does not keep
+    // handing out whichever note happens to sort first.
+    // Only lessons that can actually be opened. `locked` means the plan does
+    // not include it, and `canvasId` is empty for a note with neither a linked
+    // lesson nor an id — pushing either produced a dead end.
+    final openNotes = notes
+        .where((n) => !n.locked && n.canvasId.trim().isNotEmpty)
+        .toList();
+    final recNote = openNotes.isEmpty
+        ? null
+        : (List.of(openNotes)..shuffle(math.Random(DateTime.now().day))).first;
+    final lastAttempt =
+        (d != null && d.recentAttempts.isNotEmpty) ? d.recentAttempts.first : null;
+    // Finishing a quiz should send you to its answers before anything else,
+    // ahead of the rotation. Once those answers have been opened this clears
+    // and the normal Exam → Review → Lesson rotation resumes.
+    /// "Course / Subject", the same way the Results list builds its subtitle
+    /// (results_page.dart `_subtitle`): drop empties, and drop the subject
+    /// when it merely repeats the course.
+    String crumb(String course, String subject) {
+      final parts = <String>[];
+      if (course.trim().isNotEmpty) parts.add(course.trim());
+      if (subject.trim().isNotEmpty && subject.trim() != course.trim()) {
+        parts.add(subject.trim());
+      }
+      return parts.join(' / ');
+    }
 
-    String target;
-    String label;
-    IconData icon;
+    /// The attempt as the Results/Review screens know it, matched by id.
+    ResultListItem? resultFor(RecentAttempt a) {
+      for (final r in results) {
+        if (r.attemptId == a.id) return r;
+      }
+      return null;
+    }
+
+    final lastResult = lastAttempt == null ? null : resultFor(lastAttempt);
+    // Prefer the server's own reviewedAt; the on-device record still counts,
+    // so the card moves on immediately after opening the answers instead of
+    // waiting for the next refresh.
+    final needsReview = lastAttempt != null &&
+        !(lastResult?.reviewed ?? false) &&
+        !ReviewedAttempts.contains(lastAttempt.id);
+
+    /// Name the attempt exactly as the quiz itself is named.
+    ///
+    /// This used to match the attempt back to a quiz by title text. In number
+    /// mode ("Quiz N") the titles are not distinct, so it matched whichever
+    /// quiz shared the title and showed the wrong number — "Quiz 3" for an
+    /// attempt on Quiz 2. The attempt now carries its own quizNumber from the
+    /// server, so no guessing is involved.
+    String attemptLabel(RecentAttempt a) {
+      // Exactly what the Results and Review screens show for this attempt.
+      final r = resultFor(a);
+      if (r != null && r.displayName.trim().isNotEmpty) return r.displayName;
+      // Then the dashboard's own number (needs the deployed backend), and
+      // only then the raw title.
+      if (a.displayName.isNotEmpty) return a.displayName;
+      final raw = a.quizTitle.trim();
+      return raw.isEmpty ? 'your last quiz' : raw;
+    }
+
+    // Exam → Review → Lesson, advancing each time the card is used, instead of
+    // a fixed priority order. The old chain always picked the first available
+    // option, so once there was no quiz left to sit it parked permanently on
+    // "Review answers" and the lesson was never offered.
+    final slots = <({
+      String target,
+      String label,
+      IconData icon,
+      String breadcrumb,
+      String title
+    })>[];
+
     if (recQuiz != null) {
       // Exam mode: a graded attempt is saved to the DB (practice only logs a
-      // streak event), so completing it updates scores/results and this card
-      // advances to the next quiz instead of re-suggesting the same one.
-      target = '/app/quizzes/${recQuiz.id}?exam=1';
-      label = 'Start quiz';
-      icon = Icons.play_arrow_rounded;
-    } else if (recNote != null) {
-      target = '/app/study/lesson/${recNote.lessonId}';
-      label = 'Review lesson';
-      icon = Icons.menu_book_rounded;
-    } else {
-      target = '/app/quizzes';
-      label = 'Open quizzes';
-      icon = Icons.play_arrow_rounded;
+      // streak event), so completing it updates scores/results and weak topics.
+      slots.add((
+        target: '/app/quizzes/${recQuiz.id}?exam=1',
+        label: 'Start quiz',
+        icon: Icons.play_arrow_rounded,
+        breadcrumb: crumb(recQuiz.courseTitle, recQuiz.subjectName),
+        title: recQuiz.displayName,
+      ));
+    }
+    int reviewSlot = -1;
+    if (lastAttempt != null) {
+      reviewSlot = slots.length;
+      // Straight to the answers, not the score summary.
+      slots.add((
+        target: '/app/review/${lastAttempt.id}',
+        label: 'Review answers',
+        icon: Icons.rate_review_rounded,
+        breadcrumb: crumb(lastResult?.courseTitle ?? lastAttempt.courseTitle,
+            lastResult?.topicDisplay ?? lastAttempt.topicName),
+        title: attemptLabel(lastAttempt),
+      ));
+    }
+    if (recNote != null) {
+      slots.add((
+        // Mirrors how the Lessons list opens a lesson
+        // (lessons_course_detail_page.dart) — by canvasId, not lessonId,
+        // which is empty for topic-level notes and produced a blank route.
+        target: '/app/study/lesson/${recNote.canvasId}',
+        label: 'Review lesson',
+        icon: Icons.menu_book_rounded,
+        // Was showing the last *attempt's* course here, which belongs to a
+        // different item entirely. Use the lesson's own course and subject.
+        breadcrumb: crumb(recNote.courseTitle, recNote.subjectName),
+        title: recNote.title,
+      ));
     }
 
-    // Build breadcrumb: Course · Subject for quiz, or fallback
-    String breadcrumb;
-    String quizTitle;
-    if (recQuiz != null) {
-      final parts = [recQuiz.courseTitle, recQuiz.subjectName]
-          .where((s) => s.isNotEmpty)
-          .toList();
-      breadcrumb = parts.join(' · ');
-      quizTitle = recQuiz.displayName;
-    } else if (recNote != null) {
-      breadcrumb = d != null && d.recentAttempts.isNotEmpty
-          ? d.recentAttempts.first.courseTitle
-          : '';
-      quizTitle = recNote.title;
+    final turn = ref.watch(continueTurnProvider);
+    final ({
+      String target,
+      String label,
+      IconData icon,
+      String breadcrumb,
+      String title
+    }) pick;
+
+    if (!settled) {
+      // Undecided. Keep the card's chrome and offer a neutral action rather
+      // than guessing and then changing it under the user.
+      pick = (
+        target: '/app/quizzes',
+        label: 'Continue',
+        icon: Icons.play_arrow_rounded,
+        breadcrumb: '',
+        title: '',
+      );
+    } else if (slots.isEmpty) {
+      pick = (
+        target: '/app/quizzes',
+        label: 'Open quizzes',
+        icon: Icons.play_arrow_rounded,
+        breadcrumb: '',
+        title: 'Start studying',
+      );
+    } else if (needsReview && reviewSlot >= 0) {
+      // Priority override — answers before anything else.
+      pick = slots[reviewSlot];
     } else {
-      breadcrumb = '';
-      quizTitle = 'Start studying';
+      pick = slots[turn % slots.length];
     }
+
+    final target = pick.target;
+    final label = pick.label;
+    final icon = pick.icon;
+    final breadcrumb = pick.breadcrumb;
+    final quizTitle = pick.title;
 
     return GlassCard(
       padding: const EdgeInsets.all(18),
@@ -566,7 +719,14 @@ class _ContinueCard extends ConsumerWidget {
               kind: AppButtonKind.cta,
               expand: true,
               leading: Icon(icon, color: Colors.white, size: 20),
-              onPressed: () => context.push(target)),
+              onPressed: () {
+                // Move to the next slot so the card walks the rotation rather
+                // than re-offering what was just opened.
+                if (settled && slots.isNotEmpty) {
+                  ref.read(continueTurnProvider.notifier).advance();
+                }
+                context.push(target);
+              }),
         ],
       ),
     );
@@ -700,7 +860,10 @@ class _CourseProgressCard extends ConsumerWidget {
               ScoreRing(
                   percent: clampPct(s.overallProgressPercent).toDouble(),
                   size: 92,
-                  label: 'Lessons'),
+                  label: 'Lessons',
+                  // Sweep once the card has finished arriving, in step with
+                  // the bars beneath it (_FillBar._afterEntrance).
+                  startDelay: const Duration(milliseconds: 750)),
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
@@ -722,7 +885,7 @@ class _CourseProgressCard extends ConsumerWidget {
           ),
           if (top.isNotEmpty) ...[
             const SizedBox(height: 14),
-            for (final course in top)
+            for (final (i, course) in top.indexed)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Row(
@@ -738,14 +901,12 @@ class _CourseProgressCard extends ConsumerWidget {
                               color: c.inkMedium)),
                     ),
                     Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(99),
-                        child: LinearProgressIndicator(
-                          value: (course.progressPercent / 100).clamp(0.0, 1.0),
-                          minHeight: 8,
-                          backgroundColor: c.surface2,
-                          valueColor: AlwaysStoppedAnimation(c.primary),
-                        ),
+                      child: _FillBar(
+                        value:
+                            (course.progressPercent / 100).clamp(0.0, 1.0),
+                        color: c.primary,
+                        // Cascade down the rows.
+                        delay: Duration(milliseconds: 120 * i),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -759,6 +920,86 @@ class _CourseProgressCard extends ConsumerWidget {
               ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// A progress bar that fills from empty *after* it is on screen.
+///
+/// A bare TweenAnimationBuilder begins the moment it is first built. For this
+/// card that is while the dashboard route is still fading in — and, since the
+/// dashboard data is now prefetched during the splash, often before the page
+/// is visible at all. The fill was finishing off-screen and the bars simply
+/// appeared already full. Holding the target at zero until after the first
+/// frame plus the route transition makes it something the user actually sees.
+class _FillBar extends StatefulWidget {
+  final double value; // 0..1
+  final Color color;
+  final Duration delay;
+  const _FillBar({
+    required this.value,
+    required this.color,
+    this.delay = Duration.zero,
+  });
+
+  @override
+  State<_FillBar> createState() => _FillBarState();
+}
+
+class _FillBarState extends State<_FillBar> {
+  double _target = 0;
+  Timer? _start;
+
+  /// Wait for the card to finish arriving before filling.
+  ///
+  /// The dashboard enters as a staggered list (380ms per card, ~63ms apart),
+  /// so this card is still sliding up and fading in until roughly 630ms. The
+  /// fill used to begin at 220ms — underneath that entrance — so by the time
+  /// the card had settled the bars were already full and the animation was
+  /// never actually seen. Starting after the page has finished arriving is
+  /// the whole point of the effect.
+  static const Duration _afterEntrance = Duration(milliseconds: 750);
+
+  @override
+  void initState() {
+    super.initState();
+    _start = Timer(_afterEntrance + widget.delay, () {
+      if (mounted) setState(() => _target = widget.value);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _FillBar old) {
+    super.didUpdateWidget(old);
+    // A refresh that changes the number should track it, but must not restart
+    // the intro from zero.
+    if (old.value != widget.value && _target != 0) {
+      setState(() => _target = widget.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    _start?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(99),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: _target),
+        duration: const Duration(milliseconds: 900),
+        curve: AppCurves.easeOut,
+        builder: (_, v, _) => LinearProgressIndicator(
+          value: v,
+          minHeight: 8,
+          backgroundColor: c.surface2,
+          valueColor: AlwaysStoppedAnimation(widget.color),
+        ),
       ),
     );
   }
@@ -1023,11 +1264,17 @@ class _StudyPlanCard extends ConsumerWidget {
         .map((s) => s.actionType)
         .toSet();
 
-    final practiceToday = latestAttempt != null &&
-        DateTime.now()
-                .difference(DateTime.tryParse(latestAttempt.submittedAt)?.toLocal() ?? DateTime(2000))
-                .inHours <
-            24;
+    // Same calendar day, not "within 24 hours". The card is titled "Today's
+    // route", but a rolling window meant a quiz sat at 11pm yesterday left
+    // today's Practice step already ticked when the app was opened this
+    // morning — before the user had practised at all today.
+    final lastSubmitted =
+        DateTime.tryParse(latestAttempt?.submittedAt ?? '')?.toLocal();
+    final now = DateTime.now();
+    final practiceToday = lastSubmitted != null &&
+        lastSubmitted.year == now.year &&
+        lastSubmitted.month == now.month &&
+        lastSubmitted.day == now.day;
 
     final steps = [
       _PlanItem(
@@ -1058,8 +1305,12 @@ class _StudyPlanCard extends ConsumerWidget {
             ? '${latestAttempt.quizTitle} · ${latestAttempt.percentage.round()}%'
             : 'Complete an exam to see results',
         done: doneTypes.contains('results'),
+        // '/app/results/:id' is the score summary; the answers live at
+        // '/app/review/:id'. This step is labelled "Review your latest
+        // answers", so it should land on the answers rather than making the
+        // user find the "Review answers" button on the summary and tap again.
         route: latestAttempt != null
-            ? '/app/results/${latestAttempt.id}'
+            ? '/app/review/${latestAttempt.id}'
             : '/app/results',
       ),
       _PlanItem(

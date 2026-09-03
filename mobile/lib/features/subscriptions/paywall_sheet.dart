@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/apple_iap.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
+import '../quizzes/quizzes_repository.dart';
 import 'subscriptions_repository.dart';
 
 /// In-app subscription purchase (iOS / StoreKit 2).
@@ -93,6 +94,11 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     await ref.read(redeemAppleTransactionProvider)(jws);
     await finishIapTransaction(transactionId);
     ref.invalidate(billingProvider);
+    // Q-Bank's list is a kept-alive provider (fast repeat visits), so it isn't
+    // re-fetched on its own after a purchase — without this it kept showing
+    // the pre-purchase locked list until the app was restarted, even though
+    // the purchase and the subscription record were both already correct.
+    ref.invalidate(quizListProvider);
     return true;
   }
 
@@ -313,10 +319,20 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                 onPressed: busy ? null : () => _buy(selected),
               ),
               const SizedBox(height: 8),
-              Text(
-                '${selected.displayPrice} / ${selected.periodLabel} · ${selected.renewalNote}',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11.5, height: 1.35, color: c.inkSoft),
+              // Reserve two lines' worth of height. This string wraps to two
+              // lines for "3 months" but fits one for "year", so without a
+              // floor the whole sheet visibly jumps as you switch plans.
+              // minHeight (not a fixed height) so larger accessibility text
+              // can still grow instead of being clipped.
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 32),
+                child: Center(
+                  child: Text(
+                    '${selected.displayPrice} / ${selected.periodLabel} · ${selected.renewalNote}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11.5, height: 1.35, color: c.inkSoft),
+                  ),
+                ),
               ),
             ],
 

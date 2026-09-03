@@ -114,16 +114,7 @@ class ProfilePage extends ConsumerWidget {
           const SizedBox(height: 20),
           const _LogoutButton(),
           const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: () => _confirmDeleteAccount(context, ref),
-              child: Text('Delete account',
-                  style: TextStyle(
-                      color: c.error,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14)),
-            ),
-          ),
+          const Center(child: _DeleteAccountButton()),
         ],
       ),
     );
@@ -163,7 +154,7 @@ Future<void> _openUrl(BuildContext context, String url) async {
 
 /// Permanently delete the account after a confirmation. On success the auth
 /// state clears and the router returns to login automatically.
-Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+Future<bool> _confirmDeleteAccount(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -183,11 +174,59 @@ Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
       ],
     ),
   );
-  if (ok != true) return;
-  final err = await ref.read(authControllerProvider.notifier).deleteAccount();
-  if (err != null && context.mounted) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(err)));
+  return ok == true;
+}
+
+/// Delete-account action.
+///
+/// Was a bare [TextButton] inside a ConsumerWidget, so it had nowhere to keep
+/// a loading flag: it awaited a slow network call showing no progress at all,
+/// and nothing stopped repeated taps firing several DELETE requests. Stateful
+/// for the same reasons [_LogoutButton] is.
+class _DeleteAccountButton extends ConsumerStatefulWidget {
+  const _DeleteAccountButton();
+
+  @override
+  ConsumerState<_DeleteAccountButton> createState() =>
+      _DeleteAccountButtonState();
+}
+
+class _DeleteAccountButtonState extends ConsumerState<_DeleteAccountButton> {
+  bool _loading = false;
+
+  Future<void> _run() async {
+    if (_loading) return;
+    final confirmed = await _confirmDeleteAccount(context);
+    if (!confirmed || !mounted) return;
+    setState(() => _loading = true);
+    final err = await ref.read(authControllerProvider.notifier).deleteAccount();
+    // Success disposes this widget via the router redirect, so both guards
+    // matter here.
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    return TextButton(
+      onPressed: _run,
+      child: Text('Delete account',
+          style: TextStyle(
+              color: c.error, fontWeight: FontWeight.w700, fontSize: 14)),
+    );
   }
 }
 
@@ -315,6 +354,24 @@ class _LogoutButtonState extends ConsumerState<_LogoutButton> {
 
   Future<void> _logout() async {
     if (_loading) return;
+    // Signing out was immediate on a single tap, with nothing to undo it —
+    // the only destructive action in the app without a confirmation.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text("You'll need to sign in again to continue."),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Log out')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
     setState(() => _loading = true);
     try {
       await ref.read(authControllerProvider.notifier).logout();

@@ -7,6 +7,7 @@ import '../../widgets/content_image.dart';
 import '../../widgets/glass_card.dart';
 import '../dashboard/dashboard_repository.dart';
 import '../quizzes/quizzes_repository.dart';
+import 'reviewed_attempts.dart';
 
 /// Per-question review of a submitted attempt — real answers + explanations
 /// (`GET /quiz-attempts/review/:attemptId`).
@@ -27,6 +28,10 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     super.initState();
     // Record that the student viewed a result today so the dashboard
     // study plan can mark the Review step as done.
+    // Remember locally that these answers have been opened, so the dashboard's
+    // Continue card stops offering this same review and moves to the next
+    // thing. The server has no field for this.
+    ReviewedAttempts.mark(int.tryParse(widget.attemptId) ?? 0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(apiClientProvider).dio.post(

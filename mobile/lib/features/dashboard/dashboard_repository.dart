@@ -109,6 +109,19 @@ class RecentAttempt {
   final num percentage; // 0–100
   final String passStatus;
   final String submittedAt;
+  /// Straight from the quiz row, so an attempt names itself the same way the
+  /// quiz does everywhere else. Matching by title text got this wrong: in
+  /// number mode the titles are not unique.
+  final int quizNumber;
+  final String displayTitleMode;
+
+  /// Mirrors QuizListItem.displayName. Empty when the server has not supplied
+  /// the number yet, so callers can fall back to the raw title.
+  String get displayName {
+    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
+    return quizTitle.trim();
+  }
+
   RecentAttempt({
     required this.id,
     required this.quizTitle,
@@ -119,6 +132,8 @@ class RecentAttempt {
     required this.percentage,
     required this.passStatus,
     required this.submittedAt,
+    this.quizNumber = 0,
+    this.displayTitleMode = 'number',
   });
   factory RecentAttempt.fromJson(dynamic raw) {
     final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
@@ -132,6 +147,8 @@ class RecentAttempt {
       percentage: _n(m['percentage']),
       passStatus: _s(m['passStatus']),
       submittedAt: _s(m['submittedAt']),
+      quizNumber: _i(m['quizNumber'] ?? m['quiz_number']),
+      displayTitleMode: m['displayTitleMode'] == 'title' ? 'title' : 'number',
     );
   }
 }
@@ -387,9 +404,80 @@ class StudentDashboard {
 StudentDashboard _parseDashboard(dynamic raw) => StudentDashboard.fromJson(raw);
 
 /// Single source of truth for the streak / daily-goal / weak-topic widgets.
-final studentDashboardProvider = FutureProvider.autoDispose<StudentDashboard>((ref) async {
-  ref.watch(currentUserIdProvider);
-  final api = ref.read(apiClientProvider);
+/// Not autoDispose: these list screens are navigated away from and back to
+/// constantly. Disposing on exit meant every return was a cold fetch behind
+/// a spinner. Kept alive, AppShell.didPopNext still invalidates them, so the
+/// data refreshes in the background while the last result stays on screen.
+/// Safe to retain: resetUserScopedData() invalidates all of these on
+/// login/logout/account switch.
+Future<StudentDashboard> fetchStudentDashboard(ApiClient api) async {
   final res = await api.dio.get('/student/dashboard');
   return compute(_parseDashboard, res.data);
+}
+
+/// Holds the cold-start dashboard request so it survives long enough to be
+/// used.
+///
+/// On a cold launch the app used to make two server round trips back to back:
+/// `/auth/me` (the ECG splash runs for exactly as long as this takes), and
+/// only then `/student/dashboard` (the spinner on an empty Study Hub).
+/// `AuthController._hydrate` now fires the dashboard request *alongside*
+/// `me()`, so the ECG covers both and Study Hub opens already populated.
+///
+/// This holder is what makes that work. [studentDashboardProvider] watches
+/// [userScopeProvider], which is null during hydration and flips to the
+/// real id the moment `me()` resolves — invalidating the provider. Without
+/// parking the in-flight future here it would be discarded and re-requested,
+/// making the prefetch pointless.
+class DashboardPrefetch {
+  DashboardPrefetch._();
+
+  static Future<StudentDashboard>? _inFlight;
+  static DateTime? _startedAt;
+
+  /// Long enough to bridge hydration, short enough that a warm result is never
+  /// mistaken for a cache.
+  static const Duration _ttl = Duration(seconds: 20);
+
+  /// Begin a prefetch. The token is already set on [api] at this point, but has
+  /// not yet been validated by `me()`. That is safe: the server authorises the
+  /// request itself, so a stale token yields a 401 and nothing else.
+  static void start(ApiClient api) {
+    final future = fetchStudentDashboard(api);
+    _inFlight = future;
+    _startedAt = DateTime.now();
+    // Attach a handler now so a failed prefetch can never surface as an
+    // unhandled async error. On failure drop it, and the provider simply does
+    // its own request as before.
+    future.then<void>((_) {}, onError: (Object _) {
+      if (identical(_inFlight, future)) clear();
+    });
+  }
+
+  /// Take the pending result, if there is a usable one. One-shot by design:
+  /// a later refresh (pull-to-refresh, `invalidate`) must hit the network
+  /// rather than replay this.
+  static Future<StudentDashboard>? take() {
+    final future = _inFlight;
+    final startedAt = _startedAt;
+    if (future == null || startedAt == null) return null;
+    clear();
+    if (DateTime.now().difference(startedAt) > _ttl) return null;
+    return future;
+  }
+
+  /// Drop anything pending. Must be called on logout and account switch — this
+  /// future carries one user's dashboard, and the next user must never adopt
+  /// it. [resetUserScopedData] does this.
+  static void clear() {
+    _inFlight = null;
+    _startedAt = null;
+  }
+}
+
+final studentDashboardProvider = FutureProvider<StudentDashboard>((ref) async {
+  ref.watch(userScopeProvider);
+  final warm = DashboardPrefetch.take();
+  if (warm != null) return warm;
+  return fetchStudentDashboard(ref.read(apiClientProvider));
 });

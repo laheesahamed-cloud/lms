@@ -126,8 +126,16 @@ class Billing {
 
 
 /// Current subscription + available plans in one call (`GET /subscriptions/me`).
-final billingProvider = FutureProvider.autoDispose<Billing>((ref) async {
-  ref.watch(currentUserIdProvider);
+/// Deliberately NOT autoDispose: it was, and that threw the result away every
+/// time the user left the page, so re-opening Subscriptions always sat on a
+/// spinner waiting for the network. Keeping it alive lets the page render
+/// instantly from cache and refresh behind the scenes.
+///
+/// Safe to cache because it is explicitly invalidated where it can go stale:
+/// on login/logout/account switch (resetUserScopedData), after redeeming a
+/// purchase, and on app resume.
+final billingProvider = FutureProvider<Billing>((ref) async {
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/subscriptions/me');
   return Billing.fromJson(res.data);

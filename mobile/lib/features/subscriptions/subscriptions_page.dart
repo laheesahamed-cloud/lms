@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/apple_iap.dart';
 import '../../theme/tokens.dart';
@@ -53,6 +54,15 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     final c = context.c;
     final billingAsync = ref.watch(billingProvider);
 
+    // Render whatever we already have, even while a refresh is in flight, so
+    // re-opening this page is instant instead of showing a spinner over
+    // data we already hold. Only a genuinely empty cache falls through to the
+    // loading and error states below.
+    final cached = billingAsync.asData?.value;
+    if (cached != null) {
+      return SafeArea(child: _content(c, cached));
+    }
+
     return SafeArea(
       child: billingAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -64,7 +74,14 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                 style: TextStyle(color: c.inkSoft, fontSize: 14)),
           ),
         ),
-        data: (billing) => RefreshIndicator(
+        data: (billing) => _content(c, billing),
+      ),
+    );
+  }
+
+  Widget _content(AppColors c, Billing billing) {
+    return Builder(
+      builder: (context) => RefreshIndicator(
           onRefresh: () async => ref.refresh(billingProvider.future),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
@@ -89,7 +106,8 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               if (iapSupported && !_hasAccess(billing.current)) ...[
                 const SizedBox(height: 14),
                 AppButton(
-                  'View plans',
+                  'Unlock full access',
+                  kind: AppButtonKind.cta,
                   expand: true,
                   onPressed: () async {
                     final granted = await PaywallSheet.show(context);
@@ -97,29 +115,153 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                   },
                 ),
               ],
-              const SizedBox(height: 18),
-              if (billing.plans.isNotEmpty)
-                Text("What's included",
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: c.inkStrong)),
-              const SizedBox(height: 10),
-              for (final p in billing.plans.take(4)) ...[
-                _PlanCard(
-                  plan: p,
-                  isCurrent: billing.current != null &&
-                      billing.current!.isActive &&
-                      billing.current!.planName.trim().toLowerCase() ==
-                          p.name.trim().toLowerCase(),
-                ),
+
+              // Existing subscribers can still switch plans. All four products
+              // live in one App Store subscription group, so Apple treats a
+              // different pick as an upgrade/downgrade — it prorates and
+              // credits unused time, and never charges twice. Hiding this
+              // (as an earlier version did) removed the feature for no gain.
+              if (iapSupported && _hasAccess(billing.current)) ...[
                 const SizedBox(height: 14),
+                AppButton(
+                  'Change plan',
+                  kind: AppButtonKind.cta,
+                  expand: true,
+                  onPressed: () async {
+                    final granted = await PaywallSheet.show(context);
+                    if (granted) ref.invalidate(billingProvider);
+                  },
+                ),
+                const SizedBox(height: 10),
+                // Apple requires an in-app route to manage/cancel an
+                // auto-renewable subscription (Guideline 3.1.2).
+                AppButton(
+                  'Manage or cancel',
+                  kind: AppButtonKind.soft,
+                  expand: true,
+                  onPressed: () => _openManageSubscriptions(context),
+                ),
               ],
+
+              const SizedBox(height: 22),
+              _comparison(c, billing.plans),
+            ],
+          ),
+      ),
+    );
+  }
+
+  /// Free vs Premium, instead of dumping every plan with its own long feature
+  /// list. Rows are derived from the actual plans so this stays in step with
+  /// the catalog rather than drifting from it.
+  Widget _comparison(AppColors c, List<SubPlan> plans) {
+    if (plans.isEmpty) return const SizedBox.shrink();
+
+    final free = plans.where((p) => p.isFree).toList();
+    final paid = plans.where((p) => !p.isFree).toList();
+    if (paid.isEmpty) return const SizedBox.shrink();
+
+    final freeFeatures = free.isEmpty
+        ? <String>{}
+        : free.first.features.map((f) => f.trim()).toSet();
+
+    // The richest paid plan defines what "Premium" means.
+    paid.sort((a, b) => b.features.length.compareTo(a.features.length));
+    final premiumFeatures = paid.first.features.map((f) => f.trim()).toList();
+
+    // Union, premium order first so the list reads as "what you get".
+    final rows = <String>[
+      ...premiumFeatures,
+      ...freeFeatures.where((f) => !premiumFeatures.contains(f)),
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("What's included",
+            style: TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
+        const SizedBox(height: 12),
+        GlassCard(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Column(
+            children: [
+              // Column headers
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    const Expanded(child: SizedBox.shrink()),
+                    SizedBox(
+                      width: 52,
+                      child: Text('Free',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                              color: c.inkSoft)),
+                    ),
+                    SizedBox(
+                      width: 62,
+                      child: Text('PREMIUM',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                              color: c.primary)),
+                    ),
+                  ],
+                ),
+              ),
+              for (final feature in rows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(feature,
+                            style: TextStyle(
+                                fontSize: 13.5, height: 1.3, color: c.inkMedium)),
+                      ),
+                      SizedBox(
+                        width: 52,
+                        child: Center(
+                          child: freeFeatures.contains(feature)
+                              ? Icon(Icons.check_rounded, size: 17, color: c.success)
+                              : Icon(Icons.close_rounded,
+                                  size: 17, color: c.inkMuted.withValues(alpha: 0.6)),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 62,
+                        child: Center(
+                          child:
+                              Icon(Icons.check_circle_rounded, size: 18, color: c.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
-      ),
+      ],
     );
+  }
+
+  Future<void> _openManageSubscriptions(BuildContext context) async {
+    final uri = Uri.parse('https://apps.apple.com/account/subscriptions');
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Open Settings → Apple ID → Subscriptions to manage your plan.'),
+        ),
+      );
+    }
   }
 
   /// True only when the user already has something worth not re-selling over:
@@ -196,82 +338,6 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Informational plan card — name, description, and feature bullets only.
-/// Deliberately shows NO price and NO purchase button (access-only).
-class _PlanCard extends StatelessWidget {
-  final SubPlan plan;
-  final bool isCurrent;
-  const _PlanCard({required this.plan, required this.isCurrent});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return GlassCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Flexible(
-                child: Text(plan.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: c.inkStrong)),
-              ),
-              const SizedBox(width: 8),
-              if (plan.recommended)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: c.primaryTint,
-                      borderRadius: BorderRadius.circular(99)),
-                  child: Text('RECOMMENDED',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                          color: c.primary)),
-                ),
-              const Spacer(),
-              if (isCurrent)
-                Text('Current',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: c.success)),
-            ],
-          ),
-          if (plan.description.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(plan.description,
-                style: TextStyle(fontSize: 13, color: c.inkSoft)),
-          ],
-          const SizedBox(height: 12),
-          for (final feat in plan.features.take(8))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, size: 17, color: c.success),
-                  const SizedBox(width: 9),
-                  Expanded(
-                      child: Text(feat,
-                          style:
-                              TextStyle(fontSize: 14, color: c.inkMedium))),
-                ],
-              ),
-            ),
         ],
       ),
     );

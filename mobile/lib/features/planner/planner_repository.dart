@@ -51,7 +51,7 @@ class PlannerTask {
 }
 
 final plannerTasksProvider = FutureProvider.autoDispose<List<PlannerTask>>((ref) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/planner');
   final data = res.data;

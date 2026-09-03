@@ -156,8 +156,14 @@ class CourseDetail {
 }
 
 /// Student course library.
-final studentCoursesProvider = FutureProvider.autoDispose<List<CourseCard>>((ref) async {
-  ref.watch(currentUserIdProvider);
+/// Not autoDispose: these list screens are navigated away from and back to
+/// constantly. Disposing on exit meant every return was a cold fetch behind
+/// a spinner. Kept alive, AppShell.didPopNext still invalidates them, so the
+/// data refreshes in the background while the last result stays on screen.
+/// Safe to retain: resetUserScopedData() invalidates all of these on
+/// login/logout/account switch.
+final studentCoursesProvider = FutureProvider<List<CourseCard>>((ref) async {
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/courses/student');
   final data = res.data;
@@ -172,7 +178,7 @@ final studentCoursesProvider = FutureProvider.autoDispose<List<CourseCard>>((ref
 /// One course's subject-wise detail.
 final courseDetailProvider =
     FutureProvider.autoDispose.family<CourseDetail, String>((ref, courseId) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/courses/student/$courseId');
   return CourseDetail.fromJson(res.data);

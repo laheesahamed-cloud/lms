@@ -54,7 +54,7 @@ class AppNotification {
 }
 
 final notificationsProvider = FutureProvider.autoDispose<List<AppNotification>>((ref) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/notifications');
   final data = res.data;

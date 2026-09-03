@@ -174,8 +174,14 @@ class DecksResult {
 }
 
 /// Deck tree with New / Learning / Due counts.
-final flashDecksProvider = FutureProvider.autoDispose<DecksResult>((ref) async {
-  ref.watch(currentUserIdProvider);
+/// Not autoDispose: these list screens are navigated away from and back to
+/// constantly. Disposing on exit meant every return was a cold fetch behind
+/// a spinner. Kept alive, AppShell.didPopNext still invalidates them, so the
+/// data refreshes in the background while the last result stays on screen.
+/// Safe to retain: resetUserScopedData() invalidates all of these on
+/// login/logout/account switch.
+final flashDecksProvider = FutureProvider<DecksResult>((ref) async {
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/flashcards/decks');
   return DecksResult.fromJson(res.data);
@@ -184,7 +190,7 @@ final flashDecksProvider = FutureProvider.autoDispose<DecksResult>((ref) async {
 /// The review queue for a deck scope (comma-separated note ids).
 final flashQueueProvider =
     FutureProvider.autoDispose.family<QueueResult, String>((ref, noteIdsCsv) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/student/flashcards/queue',

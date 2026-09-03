@@ -11,6 +11,8 @@ import '../courses/courses_repository.dart';
 import '../quizzes/quizzes_repository.dart';
 import '../flashcards/flashcards_repository.dart';
 import '../dashboard/dashboard_repository.dart';
+import '../bookmarks/bookmarks_repository.dart';
+import '../planner/planner_repository.dart';
 
 /// Observes the root navigator so the shell can refresh its lists when a
 /// pushed detail screen (lesson, quiz, course, review…) is popped back.
@@ -60,9 +62,51 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> with RouteAware {
+  /// Which bottom-nav tab owns [location].
+  ///
+  /// This used to be `kDests.indexWhere(startsWith)` with `i < 0 ? 2 : i`, and
+  /// kDests only lists five routes. So every screen outside those five —
+  /// Exams, Lessons, My Notes, Flashcards, Planner, ECG, Drugs, Saved,
+  /// Profile, Subscriptions, and every review/result detail — fell through to
+  /// the fallback and lit up **Study Hub**. Walking from Q-Bank into an exam
+  /// made the highlight jump from Q-Bank to Study Hub and back, which is the
+  /// "jumping between lesson and exam" behaviour.
+  ///
+  /// Sub-routes are grouped under the tab they were opened from, longest
+  /// prefix first so `/app/my-flashcards` is not captured by `/app/flashcards`.
+  static const List<(String, int)> _tabForPrefix = [
+    // Q-Bank: the list, exams, and everything a quiz leads to.
+    ('/app/quizzes', 1),
+    ('/app/exams', 1),
+    ('/app/qbank', 1),
+    ('/app/review', 1),
+    ('/app/exam-complete', 1),
+    // Results
+    ('/app/results', 4),
+    // Courses
+    ('/app/courses', 0),
+    // Study: the hub and every tool reached from it.
+    ('/app/study', 3),
+    ('/app/lessons', 3),
+    ('/app/my-notes', 3),
+    ('/app/my-flashcards', 3),
+    ('/app/flashcards', 3),
+    ('/app/drugs', 3),
+    ('/app/ecg', 3),
+    ('/app/auscultation', 3),
+    ('/app/planner', 3),
+    ('/app/bookmarks', 3),
+    ('/app/canvas', 3),
+    // Study Hub itself, plus account screens that have no tab of their own.
+    ('/app/dashboard', 2),
+  ];
+
   int get _index {
-    final i = kDests.indexWhere((d) => widget.location.startsWith(d.route));
-    return i < 0 ? 2 : i;
+    final location = widget.location;
+    for (final (prefix, tab) in _tabForPrefix) {
+      if (location == prefix || location.startsWith('$prefix/')) return tab;
+    }
+    return 2;
   }
 
   @override
@@ -85,13 +129,30 @@ class _AppShellState extends ConsumerState<AppShell> with RouteAware {
   /// user is actually looking at; the rest are marked stale cheaply.
   @override
   void didPopNext() {
-    ref.invalidate(lessonsListProvider);
-    ref.invalidate(studentCoursesProvider);
-    ref.invalidate(courseDetailProvider);
-    ref.invalidate(quizListProvider);
-    ref.invalidate(resultsListProvider);
-    ref.invalidate(flashDecksProvider);
-    ref.invalidate(studentDashboardProvider);
+    // Only refresh the list actually on screen. Invalidating all of them (as
+    // this used to) marked every other page stale too, so each one refetched
+    // on its next visit — which is why every navigation hit a spinner once
+    // these providers stopped being autoDispose. The rest keep their cache
+    // and stay instant.
+    final location = widget.location;
+    if (location.startsWith('/app/dashboard')) {
+      ref.invalidate(studentDashboardProvider);
+    } else if (location.startsWith('/app/lessons')) {
+      ref.invalidate(lessonsListProvider);
+    } else if (location.startsWith('/app/courses')) {
+      ref.invalidate(studentCoursesProvider);
+    } else if (location.startsWith('/app/quizzes') ||
+        location.startsWith('/app/exams')) {
+      ref.invalidate(quizListProvider);
+    } else if (location.startsWith('/app/results')) {
+      ref.invalidate(resultsListProvider);
+    } else if (location.startsWith('/app/flashcards')) {
+      ref.invalidate(flashDecksProvider);
+    } else if (location.startsWith('/app/planner')) {
+      ref.invalidate(plannerTasksProvider);
+    } else if (location.startsWith('/app/bookmarks')) {
+      ref.invalidate(bookmarksProvider);
+    }
   }
 
   @override

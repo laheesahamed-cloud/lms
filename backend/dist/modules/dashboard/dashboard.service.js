@@ -384,6 +384,8 @@ let DashboardService = class DashboardService {
             this.db.execute(`SELECT
           qa.id,
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+          q.quiz_number,
+          q.display_title_mode,
           c.course_title,
           t.topic_name,
           qa.score,
@@ -648,6 +650,8 @@ let DashboardService = class DashboardService {
             recentAttempts: recentAttempts.map((row) => ({
                 id: row.id,
                 quizTitle: row.quiz_title,
+                quizNumber: Number(row.quiz_number || 0),
+                displayTitleMode: row.display_title_mode === 'title' ? 'title' : 'number',
                 courseTitle: row.course_title || '',
                 topicName: row.topic_name || '',
                 score: row.score,

@@ -428,8 +428,14 @@ List<QuizScopeGroup> groupQuizzesByScope(
 }
 
 /// The Q-Bank / exam quiz list.
-final quizListProvider = FutureProvider.autoDispose<List<QuizListItem>>((ref) async {
-  ref.watch(currentUserIdProvider);
+/// Not autoDispose: these list screens are navigated away from and back to
+/// constantly. Disposing on exit meant every return was a cold fetch behind
+/// a spinner. Kept alive, AppShell.didPopNext still invalidates them, so the
+/// data refreshes in the background while the last result stays on screen.
+/// Safe to retain: resetUserScopedData() invalidates all of these on
+/// login/logout/account switch.
+final quizListProvider = FutureProvider<List<QuizListItem>>((ref) async {
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/quizzes');
   final data = res.data;
@@ -442,7 +448,7 @@ final quizListProvider = FutureProvider.autoDispose<List<QuizListItem>>((ref) as
 /// Load a quiz in practice mode (answers + explanations inline for the reveal).
 final practiceQuizProvider =
     FutureProvider.autoDispose.family<PracticeQuiz, String>((ref, quizId) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/quiz-attempts/quiz/$quizId',
@@ -528,7 +534,7 @@ class ExamLoad {
 /// Load a quiz in exam mode — creates/returns the server exam session.
 final examQuizProvider =
     FutureProvider.autoDispose.family<ExamLoad, String>((ref, quizId) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/quiz-attempts/quiz/$quizId',
@@ -635,7 +641,7 @@ class AttemptResult {
 
 final attemptResultProvider =
     FutureProvider.autoDispose.family<AttemptResult, String>((ref, attemptId) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/result/$attemptId');
   return AttemptResult.fromJson(res.data);
@@ -705,8 +711,14 @@ class ResultListItem {
   }
 }
 
-final resultsListProvider = FutureProvider.autoDispose<List<ResultListItem>>((ref) async {
-  ref.watch(currentUserIdProvider);
+/// Not autoDispose: these list screens are navigated away from and back to
+/// constantly. Disposing on exit meant every return was a cold fetch behind
+/// a spinner. Kept alive, AppShell.didPopNext still invalidates them, so the
+/// data refreshes in the background while the last result stays on screen.
+/// Safe to retain: resetUserScopedData() invalidates all of these on
+/// login/logout/account switch.
+final resultsListProvider = FutureProvider<List<ResultListItem>>((ref) async {
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/results');
   final data = res.data;
@@ -794,7 +806,7 @@ class AttemptReview {
 
 final attemptReviewProvider =
     FutureProvider.autoDispose.family<AttemptReview, String>((ref, attemptId) async {
-  ref.watch(currentUserIdProvider);
+  ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/review/$attemptId');
   return AttemptReview.fromJson(res.data);

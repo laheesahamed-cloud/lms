@@ -36,6 +36,9 @@ class AuthField extends StatelessWidget {
           TextFormField(
             controller: controller,
             obscureText: obscure,
+            // Keeps its autofillHints (password managers rely on them); this only
+            // dismisses the keyboard on an outside tap.
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             keyboardType: keyboardType,
             validator: validator,
             autofillHints: autofillHints,

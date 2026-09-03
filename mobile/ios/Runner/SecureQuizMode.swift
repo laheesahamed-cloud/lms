@@ -25,6 +25,26 @@ import UIKit
 /// (`addSubview`), never the **CALayer** (`addSublayer`). Re-parenting layers
 /// pulls the render surface out from under Flutter's engine and the app comes
 /// up blank white. Moving a view keeps the layer and render target intact.
+/// The secure field exists only to donate its capture-proof canvas — it is
+/// never a real text input, has no delegate, and nothing ever reads its value.
+///
+/// As a plain `UITextField` it still sat in the responder chain *above* the
+/// re-parented FlutterView. So when a Flutter text field resigned focus —
+/// closing the "New note", planner-task or flashcard dialog — UIKit walked up
+/// the chain and promoted this field to first responder. Being
+/// `isSecureTextEntry`, iOS then presented the password keyboard offering the
+/// saved xyndrome.lk credential: a second, ghost keyboard that ran Face ID and
+/// filled nothing. It only ever appeared on capture-protected routes
+/// (my-notes, planner, my-flashcards) and never on unprotected ones
+/// (profile/edit), which is what pinned the cause here.
+///
+/// Refusing first-responder status removes it at the source. Interaction stays
+/// enabled, so touches still reach the FlutterView living inside this field.
+private final class SecureCanvasTextField: UITextField {
+  override var canBecomeFirstResponder: Bool { false }
+  override func becomeFirstResponder() -> Bool { false }
+}
+
 enum SecureQuizMode {
   private static var secureField: UITextField?
   private static var blockedView: UIView?
@@ -47,7 +67,7 @@ enum SecureQuizMode {
     originalIndex = superview.subviews.firstIndex(of: flutterView)
     originalAutoresizingMask = flutterView.autoresizingMask
 
-    let field = UITextField(frame: superview.bounds)
+    let field = SecureCanvasTextField(frame: superview.bounds)
     field.isSecureTextEntry = true
     field.autocorrectionType = .no
     field.autocapitalizationType = .none

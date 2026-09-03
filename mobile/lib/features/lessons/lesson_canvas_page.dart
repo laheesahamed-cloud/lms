@@ -4,10 +4,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/api_client.dart';
 import '../../state/auth_controller.dart';
@@ -19,6 +21,7 @@ import 'lesson_models.dart';
 import 'lessons_repository.dart';
 import 'pdf_lesson_page.dart';
 import 'watch_video_modal.dart';
+import '../personal_notes/personal_notes_store.dart';
 
 /// Full AI-notes screen (100% Flutter).
 /// Fixed chrome (header + tool strip) sits OUTSIDE the canvas; the warm "canvas"
@@ -34,6 +37,12 @@ class LessonCanvasPage extends ConsumerStatefulWidget {
   /// Number of pages in the personal note. Each page adds one A4-height section
   /// to the canvas; a page-break line is drawn between sections.
   final int personalPageCount;
+  /// Paper per page (index 0 = first page).
+  final List<PagePaper> paper;
+  /// Fires when the page under the middle of the viewport changes, so the
+  /// owner knows which page a paper change should apply to.
+  final ValueChanged<int>? onVisiblePage;
+  final PersonalPageOps? pageOps;
   const LessonCanvasPage({
     super.key,
     required this.lessonId,
@@ -41,9 +50,38 @@ class LessonCanvasPage extends ConsumerStatefulWidget {
     this.personalTitle,
     this.pageNav,
     this.personalPageCount = 1,
+    this.paper = const <PagePaper>[],
+    this.onVisiblePage,
+    this.pageOps,
   });
   @override
   ConsumerState<LessonCanvasPage> createState() => _NoteCanvasPageState();
+}
+
+/// Lets the owner of a personal note act on a page's ink, which lives inside
+/// this widget's state. Pass one to [LessonCanvasPage] and it wires itself up.
+class PersonalPageOps {
+  /// Erase every stroke on [pageIndex], keeping the page itself.
+  void Function(int pageIndex)? clearPage;
+
+  /// Erase [pageIndex] and pull everything below it up one page.
+  void Function(int pageIndex)? deletePage;
+
+  /// Push every stroke on page [pageIndex] and below down by one page, making
+  /// room for a new page there. The mirror of [deletePage] — call this
+  /// *before* the store adds the page, same as deletePage's caller removes
+  /// the store's page first.
+  void Function(int pageIndex)? insertPage;
+
+  /// Same as [insertPage], but for several pages inserted together at once
+  /// (importing every page of a PDF at a chosen position) — one shift by
+  /// their combined size, not one shift per page.
+  ///
+  /// Takes the pages themselves, not their heights — only the canvas knows
+  /// its own viewport width, which a PDF page's height is derived from
+  /// (`viewport.width / pdfAspectRatio`); the wrapper that owns this callback
+  /// has no viewport of its own to compute that with.
+  void Function(int pageIndex, List<PagePaper> newPages)? insertPages;
 }
 
 enum _Tool { pen, highlighter, eraser }
@@ -229,6 +267,20 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // identity/length can't tell the painter the ink changed.
   final ValueNotifier<int> _inkGen = ValueNotifier<int>(0);
 
+  // Rendered PDF page images, for an imported PDF-backed personal-note page.
+  // Rendering is async and CustomPainter.paint() is not, so this exists to let
+  // the painter draw synchronously from whatever has already finished — a page
+  // not yet in here just paints its plain background until the render lands.
+  // Keyed by 'path#pageIndex'; a page is rendered once per note session, not
+  // once per frame, since the key never changes for a given page.
+  final Map<String, ui.Image> _pdfImageCache = {};
+  final Set<String> _pdfImageLoading = {};
+  // `_pdfImageCache` is mutated in place and handed to every painter instance
+  // by the same reference, so comparing it for equality in shouldRepaint would
+  // always see "unchanged" even right after a new image lands — this is what
+  // actually changes value each time, so the painter can tell.
+  int _pdfImageGen = 0;
+
   // ── Zoom / pan (manual transform — replaces InteractiveViewer) ──────────────
   // One top-level Listener routes pointers: Apple Pencil draws, fingers pan/zoom.
   // Because stylus events never feed the matrix and finger events never start a
@@ -260,7 +312,14 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Ticker? _fling;
   Offset _flingVel = Offset.zero; // screen px/s
   Duration? _flingPrev;
-  static const double _flingDecel = 2.6; // higher = stops sooner (iOS ≈ 2.0)
+  static const double _flingDecel = 2.0; // iOS's rate; 2.6 braked ~30% harder
+
+  /// Below this the glide is finished. The old cut-off was 30px/s — still half
+  /// a pixel per frame — so the canvas visibly halted mid-drift once the finger
+  /// was gone. Ending near zero, with the tail eased out below [_flingTaper],
+  /// lets it come to rest instead of being switched off.
+  static const double _flingStop = 4.0;
+  static const double _flingTaper = 90.0;
 
   // ── Animated zoom-to-fit (double-tap → smooth 250ms ease-out) ───────────────
   Ticker? _zoomAnim;
@@ -268,6 +327,13 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Matrix4 _zoomTo   = Matrix4.identity();
   Duration? _zoomStart;
   static const Duration _zoomDuration = Duration(milliseconds: 250);
+
+  /// Coming back from an overscroll is a settle, not a zoom: slower, and eased
+  /// like a critically damped spring so it decelerates into the stop instead
+  /// of arriving and halting. Reusing the 250ms ease-out cubic above made the
+  /// bounce feel abrupt.
+  static const Duration _settleDuration = Duration(milliseconds: 1000);
+  bool _settling = false;
   // Zoom-level overlay (briefly visible while zooming, like GoodNotes' % pill)
   final ValueNotifier<double?> _zoomIndicator = ValueNotifier(null);
   static const Duration _zoomIndicatorDuration = Duration(milliseconds: 1200);
@@ -410,20 +476,32 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     // Personal notes: continuous tall canvas — one section per page, page-break
     // lines between them, all on one scrollable white paper (GoodNotes style).
     if (widget.isPersonal) {
-      const dot   = Color(0xFFCECED6);
-      final pageH = _viewport.width * 1.41; // A4 ratio per page
-      const gap   = _kPageGap;
-      // Total height = n pages + (n-1) gaps — gaps are real dead space.
-      final h = widget.personalPageCount * (pageH + gap) - gap;
+      // One height per page, not one shared constant — a page later backed by
+      // an imported PDF gets its own aspect ratio here instead of forcing A4.
+      final heights = [
+        for (var i = 0; i < widget.personalPageCount; i++) _personalPageHeight(i)
+      ];
+      // Kick off rendering for every visible PDF-backed page. Cheap after the
+      // first call per page — both the cache and the in-flight set dedupe it,
+      // so this runs on every rebuild without re-fetching anything.
+      for (var i = 0; i < widget.personalPageCount && i < widget.paper.length; i++) {
+        final p = widget.paper[i];
+        if (p.isPdfBacked) _ensurePdfImage(p.pdfPath!, p.pdfPageIndex!, _viewport.width);
+      }
       return SizedBox(
-        height: h,
+        height: _personalContentHeight(widget.personalPageCount),
         child: CustomPaint(
           foregroundPainter: _PersonalPaperPainter(
-            dot: dot,
-            pageH: pageH,
-            pageCount: widget.personalPageCount,
+            pageHeights: heights,
+            paper: widget.paper,
+            pdfImages: _pdfImageCache,
+            pdfImageGen: _pdfImageGen,
+            // The break between pages reads as the desk showing through.
+            gapColor: dark ? const Color(0xFF2B2B2F) : const Color(0xFFE8E8EC),
           ),
-          child: Container(color: Colors.white),
+          // The painter fills every page band with that page's own colour, so
+          // this is only what shows through before it paints.
+          child: const SizedBox.expand(),
         ),
       );
     }
@@ -467,6 +545,11 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     super.initState();
     _uid = ref.read(authControllerProvider).user?.id ?? 'anon';
     _loadInk();
+    widget.pageOps
+      ?..clearPage = _clearPage
+      ..deletePage = _deletePage
+      ..insertPage = _insertPage
+      ..insertPages = _insertPages;
     _loadTools();
     _pencilChannel.setMethodCallHandler(_onPencilEvent);
   }
@@ -508,6 +591,9 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _fling?.dispose();
     _penPic?.dispose();
     _hlPic?.dispose();
+    for (final img in _pdfImageCache.values) {
+      img.dispose();
+    }
     super.dispose();
   }
 
@@ -652,15 +738,111 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Offset _toDoc(Offset viewportPt) =>
       MatrixUtils.transformPoint(_invMatrix, viewportPt);
 
+  /// Height of page [i] in document space.
+  ///
+  /// A4 by default. A PDF-imported page keeps its own aspect ratio instead —
+  /// captured once at import time onto that page's [PagePaper] (see
+  /// PdfImportService), so this stays synchronous: it never needs to open the
+  /// PDF file just to ask how tall page i is.
+  double _personalPageHeight(int i) {
+    final p = i >= 0 && i < widget.paper.length ? widget.paper[i] : null;
+    return _heightForPaper(p);
+  }
+
+  /// The height any page with this [PagePaper] would occupy — shared by
+  /// [_personalPageHeight] (an existing page, looked up by index) and
+  /// [_insertPages] (a page about to exist, which has no index yet).
+  double _heightForPaper(PagePaper? p) {
+    final ratio = p?.pdfAspectRatio;
+    if (ratio != null && ratio > 0) return _viewport.width / ratio;
+    return _viewport.width * 1.41;
+  }
+
+  /// Y where page [i] begins, in document space. Sums every page above it —
+  /// replaces the old `i * (pageH + gap)`, which only worked because every
+  /// page was assumed to be the same height. Once pages can differ (a PDF
+  /// import, or an inserted page pushing what follows by its own size rather
+  /// than a constant), the offset of page i has to be an honest running sum.
+  double _personalPageTop(int i) {
+    var y = 0.0;
+    for (var k = 0; k < i; k++) {
+      y += _personalPageHeight(k) + _kPageGap;
+    }
+    return y;
+  }
+
+  /// Total document height for a note of [pageCount] pages.
+  double _personalContentHeight(int pageCount) {
+    if (pageCount <= 0) return 0;
+    return _personalPageTop(pageCount - 1) + _personalPageHeight(pageCount - 1);
+  }
+
+  static String _pdfImageKey(String path, int pageIndex) => '$path#$pageIndex';
+
+  /// Render page [pageIndex] of the PDF at [path] to a cached bitmap, if it
+  /// isn't already there or already being fetched. Fire-and-forget: called
+  /// once per visible PDF-backed page while building the note (cheap no-op on
+  /// every rebuild after the first, since both the cache and the in-flight set
+  /// dedupe it). Failures are swallowed — the page just keeps showing its
+  /// plain paper background rather than crashing the note.
+  void _ensurePdfImage(String path, int pageIndex, double targetWidth) {
+    final key = _pdfImageKey(path, pageIndex);
+    if (_pdfImageCache.containsKey(key) || _pdfImageLoading.contains(key)) {
+      return;
+    }
+    if (targetWidth <= 0) return;
+    _pdfImageLoading.add(key);
+    () async {
+      PdfDocument? doc;
+      try {
+        doc = await PdfDocument.openFile(path);
+        if (pageIndex < 0 || pageIndex >= doc.pages.length) return;
+        final page = doc.pages[pageIndex];
+        // targetWidth is in LOGICAL pixels — the old flat *1.5 rendered at
+        // roughly half the resolution an actual screen needs (devicePixelRatio
+        // is 3.0 on most current iPhones), which is why the page looked soft
+        // even before any pinch-zoom. Rendering at the real device pixel ratio
+        // (plus a little headroom for zooming in further) is what a crisp 1:1
+        // view actually requires. Capped so a huge logical width (an iPad in
+        // landscape) can't demand an unreasonably large bitmap.
+        final dpr = mounted ? MediaQuery.of(context).devicePixelRatio : 2.0;
+        final w = (targetWidth * dpr * 1.3).round().clamp(1, 3200);
+        final h = (w / (page.width / page.height)).round();
+        final pdfImage =
+            await page.render(fullWidth: w.toDouble(), fullHeight: h.toDouble());
+        if (pdfImage == null) return;
+        final image = await pdfImage.createImage();
+        pdfImage.dispose();
+        if (!mounted) {
+          image.dispose();
+          return;
+        }
+        _pdfImageCache[key] = image;
+        _pdfImageGen++;
+        setState(() {}); // now that it's ready, let the painter pick it up
+      } catch (_) {
+        // Leave uncached — the page keeps its plain background.
+      } finally {
+        _pdfImageLoading.remove(key);
+        await doc?.dispose();
+      }
+    }();
+  }
+
   // Returns true if the pointer is inside a personal-note page-break gap.
   bool _inPersonalGap(Offset localPos) {
     if (!widget.isPersonal || _viewport.width <= 0) return false;
     final docY = _toDoc(localPos).dy;
     if (docY < 0) return false;
-    final pageH = _viewport.width * 1.41;
-    const gap   = _kPageGap;
-    final rem = docY % (pageH + gap);
-    return rem >= pageH; // true → in the gap band
+    // Walk pages until docY falls at or before this page's bottom: either
+    // inside it, or in the gap immediately below it.
+    for (var i = 0; i < widget.personalPageCount; i++) {
+      final top = _personalPageTop(i);
+      final bottom = top + _personalPageHeight(i);
+      if (docY < bottom) return false; // inside page i
+      if (docY < bottom + _kPageGap) return true; // in the gap after page i
+    }
+    return false; // past the last page — treated as gap-free open space
   }
 
   // ── Pointer routing — ONE listener, pencil vs finger by kind ────────────────
@@ -729,6 +911,22 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   // ── Inertial fling ──────────────────────────────────────────────────────────
   void _startFling(Offset velocity) {
+    // Released while rubber-banded past a bound → spring back, never glide.
+    //
+    // This is the hole that left the canvas parked where the finger let go.
+    // A one-finger release always comes here, and the only settle call lived
+    // on the *other* branch of _onPointerUp; a gentle release then hit the
+    // "too slow → just stop" return below and nothing brought it back. A fast
+    // release was no better: the fling ticker hard-clamps every frame, so it
+    // snapped home with no animation at all. Handling it here means all three
+    // release paths end in the same spring.
+    final settled = _clamp(_matrix);
+    final now = _matrix.getTranslation(), rest = settled.getTranslation();
+    if ((now.y - rest.y).abs() > 0.5 || (now.x - rest.x).abs() > 0.5) {
+      _snapshotGesture();
+      _settleOverscroll();
+      return;
+    }
     // Match the single-finger pan's dominant-axis lock so a vertical flick glides
     // straight (no diagonal drift from a small cross-axis component).
     var v = velocity.dx.abs() > velocity.dy.abs()
@@ -753,17 +951,43 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
     final before = _matrix.getTranslation();
     final delta = _flingVel * dt; // screen-space pan, like a finger drag
-    _setMatrix(
-        Matrix4.translationValues(delta.dx, delta.dy, 0)..multiply(_matrix));
+    // Let the glide run past the bound, so reaching the end of a note bounces
+    // instead of stopping dead. Previously this clamped hard and then deleted
+    // the velocity on the blocked axis, leaving nothing to bounce with.
+    _setMatrix(Matrix4.translationValues(delta.dx, delta.dy, 0)..multiply(_matrix),
+        rubber: true);
     final after = _matrix.getTranslation();
 
-    // Kill the velocity component on any axis that hit a clamp bound.
+    // Horizontal has no overscroll, so it still stops at its bound.
     if ((after.x - before.x).abs() < 0.01) _flingVel = Offset(0, _flingVel.dy);
-    if ((after.y - before.y).abs() < 0.01) _flingVel = Offset(_flingVel.dx, 0);
 
-    // iOS-style exponential deceleration.
+    // Past the end, bleed speed off fast: a hard flick should peek over the
+    // edge, not launch half a screen into empty space.
+    final rest = _clamp(_matrix).getTranslation();
+    final over = (after.y - rest.y).abs();
+    if (over > 0.5) {
+      _flingVel = _flingVel * math.exp(-_flingDecel * 6.0 * dt);
+      if (_flingVel.dy.abs() < 260) {
+        // Spent — hand the rest over to the spring.
+        _stopFling();
+        _settleOverscroll();
+        return;
+      }
+    }
+
+    // iOS-style exponential deceleration…
     _flingVel = _flingVel * math.exp(-_flingDecel * dt);
-    if (_flingVel.distance < 30) _stopFling();
+    // …with the last stretch pulled down harder, so the glide arrives at rest
+    // rather than being cut off while still moving.
+    final speed = _flingVel.distance;
+    if (speed < _flingTaper && speed > 0) {
+      final taper = math.exp(-_flingDecel * 2.2 * dt);
+      _flingVel = _flingVel * taper;
+    }
+    if (_flingVel.distance < _flingStop) {
+      _stopFling();
+      _settleOverscroll(); // no-op unless it came to rest out of bounds
+    }
   }
 
   void _stopFling() {
@@ -837,8 +1061,34 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   }
 
   // ── Transform math (finger pan + pinch zoom, clamp scale to [minScale,5]) ────
-  void _setMatrix(Matrix4 m, {bool showIndicator = false}) {
-    _matrix = _clamp(m);
+  int _lastReportedPage = -1;
+
+  /// Which page sits under the middle of the viewport, in document space.
+  void _reportVisiblePage() {
+    final cb = widget.onVisiblePage;
+    if (cb == null || !widget.isPersonal || _viewport.width <= 0) return;
+    final s = _matrix.storage[0];
+    if (s <= 0) return;
+    final docY = (_viewport.height / 2 - _matrix.getTranslation().y) / s;
+    // Walk pages until docY is above the bottom of one — matches how
+    // _inPersonalGap and _pageBand read the same offsets, so all three agree
+    // on where one page ends and the next begins.
+    var page = widget.personalPageCount - 1;
+    for (var i = 0; i < widget.personalPageCount; i++) {
+      if (docY < _personalPageTop(i) + _personalPageHeight(i) + _kPageGap) {
+        page = i;
+        break;
+      }
+    }
+    page = page.clamp(0, widget.personalPageCount - 1);
+    if (page == _lastReportedPage) return;
+    _lastReportedPage = page;
+    cb(page);
+  }
+
+  void _setMatrix(Matrix4 m, {bool showIndicator = false, bool rubber = false}) {
+    _matrix = _clamp(m, rubber: rubber);
+    _reportVisiblePage();
     _invMatrix = Matrix4.inverted(_matrix);
     _xform.value++; // rebuild only the Transform subtree
     if (showIndicator) {
@@ -912,13 +1162,34 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       ..multiply(Matrix4.translationValues(-focal.dx, -focal.dy, 0))
       ..multiply(Matrix4.translationValues(dFocal.dx, dFocal.dy, 0))
       ..multiply(_startMatrix);
-    _setMatrix(m, showIndicator: twoFinger);
+    _setMatrix(m, showIndicator: twoFinger, rubber: true);
   }
 
   // Clamp translation so content can't be dragged into empty space. Horizontal:
   // centred at 1× (no slack), pannable once wider than the viewport. Vertical:
   // free scroll over the note height with a small overscroll margin.
-  Matrix4 _clamp(Matrix4 m) {
+  /// UIScrollView's rubber-band curve, which is what GoodNotes inherits:
+  ///
+  ///     f(d) = d / (1 + d·c/dim)      c = 0.55
+  ///
+  /// 1:1 for the first few points, then progressively stiffer, with a ceiling
+  /// of `dim/c` — roughly 1500pt on a phone. The first version of this used a
+  /// flat 140pt ceiling, about a tenth of that, so the pull ran out almost
+  /// immediately and felt stiff rather than elastic. Scaling by the viewport
+  /// is what makes it feel the same on a phone and an iPad.
+  /// Ceiling of the pull is `dim/_rubberC`. iOS uses 0.55 — about 1.8 screens
+  /// of possible travel — which is more slack than this canvas wants; 2.0 caps
+  /// it at half the viewport. The curve is still 1:1 for the first few points,
+  /// so the start of the pull feels identical; it just saturates sooner.
+  static const double _rubberC = 2.0;
+  static double _resist(double over, double dim) =>
+      (over <= 0 || dim <= 0) ? 0 : over / (1 + over * _rubberC / dim);
+
+  /// [rubber] is on while a finger is down: the canvas may travel past its
+  /// bounds with resistance instead of stopping dead, and [_settleOverscroll]
+  /// springs it back on release. Everything else (flings, zoom, programmatic
+  /// moves) clamps hard, so nothing can come to rest out of bounds.
+  Matrix4 _clamp(Matrix4 m, {bool rubber = false}) {
     // storage[0] is the x-axis scale. getMaxScaleOnAxis() returns max(sx,sy,sz)
     // which returns 1 (z-scale) when sx=sy<1, breaking centering when zoomed out.
     final s = m.storage[0];
@@ -939,9 +1210,20 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     if (_contentH <= 0) {
       y = t.y;
     } else if (contentH <= viewH) {
-      y = vMargin; // pin flush to top
+      y = rubber && t.y > vMargin
+          ? vMargin + _resist(t.y - vMargin, viewH)
+          : vMargin;
     } else {
-      y = t.y.clamp(viewH - contentH - vMargin, vMargin);
+      final lo = viewH - contentH - vMargin, hi = vMargin;
+      if (!rubber) {
+        y = t.y.clamp(lo, hi);
+      } else if (t.y > hi) {
+        y = hi + _resist(t.y - hi, viewH);
+      } else if (t.y < lo) {
+        y = lo - _resist(lo - t.y, viewH);
+      } else {
+        y = t.y;
+      }
     }
     return m.clone()..setTranslationRaw(x, y, 0);
   }
@@ -976,6 +1258,105 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _scheduleSaveInk();
   }
 
+  /// Vertical band page [i] occupies in document space.
+  (double, double) _pageBand(int i) {
+    final top = _personalPageTop(i);
+    return (top, top + _personalPageHeight(i));
+  }
+
+  /// A stroke can never span a page break — the canvas commits and ends it the
+  /// moment the pen crosses into the gap — so its first point decides which
+  /// page it belongs to.
+  bool _strokeOnPage(_Stroke s, int i) {
+    if (s.points.isEmpty) return false;
+    final (top, bottom) = _pageBand(i);
+    final y = s.points.first.dy;
+    return y >= top && y < bottom;
+  }
+
+  void _clearPage(int i) {
+    final before = _strokes.length;
+    _strokes.removeWhere((s) => _strokeOnPage(s, i));
+    if (_strokes.length == before) return;
+    _inkGen.value++;
+    setState(() {});
+    _scheduleSaveInk();
+  }
+
+  void _deletePage(int i) {
+    // The slot being removed: page i's own height plus the gap after it —
+    // not a shared constant, since a later page can have a different height
+    // (an imported PDF page's own aspect ratio) than the one being deleted.
+    final shift = _personalPageHeight(i) + _kPageGap;
+    final cut = _personalPageTop(i + 1);
+    _strokes.removeWhere((s) => _strokeOnPage(s, i));
+    // Everything below the deleted page moves up by exactly that slot's size.
+    for (var k = 0; k < _strokes.length; k++) {
+      final st = _strokes[k];
+      if (st.points.isEmpty || st.points.first.dy < cut) continue;
+      for (var j = 0; j < st.points.length; j++) {
+        st.points[j] = st.points[j].translate(0, -shift);
+      }
+    }
+    _inkGen.value++;
+    setState(() {});
+    _scheduleSaveInk();
+  }
+
+  /// Make room for a new page at index [i] (0-based; [i] equal to the current
+  /// page count means "at the very end", which needs no shift since nothing
+  /// exists past the last stroke). The mirror of [_deletePage]: that shifts
+  /// everything below a removed page up by its height; this shifts everything
+  /// from [i] down by the height the new page will occupy.
+  ///
+  /// Called before the store actually adds the page, same ordering
+  /// [_deletePage]'s caller uses (ink surgery, then the store update) — the
+  /// alternative order would mean this widget's `personalPageCount` briefly
+  /// disagrees with what has already been drawn.
+  void _insertPage(int i) {
+    final shift = _personalPageHeight(i) + _kPageGap;
+    final cut = _personalPageTop(i);
+    var changed = false;
+    for (var k = 0; k < _strokes.length; k++) {
+      final st = _strokes[k];
+      if (st.points.isEmpty || st.points.first.dy < cut) continue;
+      changed = true;
+      for (var j = 0; j < st.points.length; j++) {
+        st.points[j] = st.points[j].translate(0, shift);
+      }
+    }
+    if (!changed) return;
+    _inkGen.value++;
+    setState(() {});
+    _scheduleSaveInk();
+  }
+
+  /// Same as [_insertPage], but for several pages inserted together —
+  /// importing every page of a PDF at once. Takes [newPages] rather than
+  /// reading `widget.paper[i]`, deliberately: this runs *before* the caller
+  /// updates the paper list (same ordering as [_insertPage]), so at the
+  /// moment this executes, `widget.paper[i]` still describes whatever page is
+  /// about to be pushed down, not the new ones being inserted.
+  void _insertPages(int i, List<PagePaper> newPages) {
+    if (newPages.isEmpty) return;
+    final shift = newPages.fold<double>(
+        0, (sum, p) => sum + _heightForPaper(p) + _kPageGap);
+    final cut = _personalPageTop(i);
+    var changed = false;
+    for (var k = 0; k < _strokes.length; k++) {
+      final st = _strokes[k];
+      if (st.points.isEmpty || st.points.first.dy < cut) continue;
+      changed = true;
+      for (var j = 0; j < st.points.length; j++) {
+        st.points[j] = st.points[j].translate(0, shift);
+      }
+    }
+    if (!changed) return;
+    _inkGen.value++;
+    setState(() {});
+    _scheduleSaveInk();
+  }
+
   void _clear() {
     if (_strokes.isEmpty) return;
     _strokes.clear();
@@ -984,10 +1365,44 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _scheduleSaveInk();
   }
 
+  /// A matrix at [scale] that keeps whatever is currently in the middle of the
+  /// viewport in the middle afterwards.
+  ///
+  /// The zoom targets used to be `Matrix4.diagonal3Values(s, s, 1)`, which is
+  /// scale-only — its translation is (0,0), so `_clamp` pinned it to the top of
+  /// the document. Springing back from a pinch, or double-tapping to fit, threw
+  /// the reader back to page one from wherever they were.
+  Matrix4 _scaleAboutCentre(double scale) {
+    final cur = _matrix.storage[0];
+    final t = _matrix.getTranslation();
+    // Document point under the centre of the viewport right now.
+    final cx = _viewport.width / 2, cy = _viewport.height / 2;
+    final docX = (cx - t.x) / cur, docY = (cy - t.y) / cur;
+    // Put that same point back under the centre at the new scale.
+    return Matrix4.identity()
+      ..setTranslationRaw(cx - docX * scale, cy - docY * scale, 0)
+      ..multiply(Matrix4.diagonal3Values(scale, scale, 1));
+  }
+
   // Double-tap: animated zoom to fit-width (GoodNotes-style 250ms ease-out).
   void _fitToPage() {
+    _settling = false;
     _zoomFrom = _matrix.clone();
-    _zoomTo   = _clamp(Matrix4.diagonal3Values(1, 1, 1));
+    _zoomTo   = _clamp(_scaleAboutCentre(1.0));
+    _zoomStart = null;
+    _zoomAnim ??= createTicker(_onZoomTick);
+    if (_zoomAnim!.isActive) _zoomAnim!.stop();
+    _zoomAnim!.start();
+  }
+
+  /// Ease the canvas back inside its bounds after an overscroll.
+  void _settleOverscroll() {
+    final settled = _clamp(_matrix);
+    final a = _matrix.getTranslation(), b = settled.getTranslation();
+    if ((a.x - b.x).abs() < 0.5 && (a.y - b.y).abs() < 0.5) return;
+    _settling = true;
+    _zoomFrom = _matrix.clone();
+    _zoomTo = settled;
     _zoomStart = null;
     _zoomAnim ??= createTicker(_onZoomTick);
     if (_zoomAnim!.isActive) _zoomAnim!.stop();
@@ -996,10 +1411,12 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   // Spring back to 90% if the user rubber-banded below the minimum.
   void _springBackIfNeeded() {
+    _settleOverscroll();
     if (!widget.isPersonal) return;
     if (_matrix.storage[0] >= 0.9) return;
+    _settling = false;
     _zoomFrom = _matrix.clone();
-    _zoomTo   = _clamp(Matrix4.diagonal3Values(0.9, 0.9, 1));
+    _zoomTo   = _clamp(_scaleAboutCentre(0.9));
     _zoomStart = null;
     _zoomAnim ??= createTicker(_onZoomTick);
     if (_zoomAnim!.isActive) _zoomAnim!.stop();
@@ -1008,11 +1425,24 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _onZoomTick(Duration elapsed) {
     _zoomStart ??= elapsed;
-    final t = ((elapsed - _zoomStart!).inMicroseconds /
-            _zoomDuration.inMicroseconds)
+    final duration = _settling ? _settleDuration : _zoomDuration;
+    final t = ((elapsed - _zoomStart!).inMicroseconds / duration.inMicroseconds)
         .clamp(0.0, 1.0);
-    // Ease-out cubic: feels snappy like GoodNotes
-    final ease = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
+    // Zoom: ease-out cubic, snappy like GoodNotes. Settle: critically damped
+    // spring, 1 - (1 + kt)e^(-kt) — no overshoot, and it eases out far more
+    // gently at the end than a cubic does.
+    // Spring rate. This governs the *feel* far more than the duration does:
+    // most of a damped spring's travel happens in its first third, so at 8.5
+    // the canvas was 60% home within ~100ms and read as a snap however long
+    // the tail ran. At 6 it leaves more of the motion visible.
+    const double k = 6.5;
+    // Normalised so the curve reaches exactly 1 at t=1. Without this the
+    // spring is still ~2% short when the timer expires and the last step is a
+    // visible jump — the opposite of the smooth finish we're after.
+    const double kEnd = 1.0 - (1.0 + k) * 0.00150343919; // e^-6.5
+    final ease = _settling
+        ? (1.0 - (1.0 + k * t) * math.exp(-k * t)) / kEnd
+        : 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
     // Lerp each matrix entry
     final from = _zoomFrom.storage;
     final to   = _zoomTo.storage;
@@ -1032,7 +1462,12 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final dark = Theme.of(context).brightness == Brightness.dark;
     // Personal notes skip the API entirely — blank canvas only.
     if (widget.isPersonal) {
-      const desk = Color(0xFF2B2B2F); // dark desk behind the paper
+      // The desk behind the paper. This was a hardcoded dark grey, so My
+      // Notes stayed dark in light mode while every other surface followed
+      // the theme (the AI-notes branch below never uses this constant, which
+      // is why only this screen looked wrong). Light keeps a soft grey rather
+      // than white so the paper's edge stays visible against it.
+      final desk = dark ? const Color(0xFF2B2B2F) : const Color(0xFFE8E8EC);
       return Scaffold(
         backgroundColor: c.page,
         body: SafeArea(
@@ -1443,8 +1878,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       // For personal notes the height is deterministic — set it directly so
       // pan bounds are correct the instant a page is added (no frame delay).
       if (widget.isPersonal && _viewport.width > 0) {
-        final ph = _viewport.width * 1.41;
-        _contentH = widget.personalPageCount * (ph + _kPageGap) - _kPageGap;
+        _contentH = _personalContentHeight(widget.personalPageCount);
         _measuredAt = _viewport; // suppress the key-based measure
         // Apply initial zoom-out once so the desk margin is visible around the page.
         if (!_personalZoomInit) {
@@ -2135,7 +2569,10 @@ class _NoteContent extends StatelessWidget {
 }
 
 /// Height of the dark desk band between personal-note pages (coordinate space).
-const _kPageGap = 28.0;
+// Halved from 28. Note this also sets the width of the band where stylus
+// input is rejected so a Pencil stroke can't run across a page break (see
+// the `rem >= pageH` test) — that target is now narrower too.
+const _kPageGap = 14.0;
 
 /// Section accent palette (web NoteCanvas `PALETTE`) — cycled by section index
 /// so each card gets a distinct colour, exactly like the web note.
@@ -2731,41 +3168,143 @@ class _DotGridPainter extends CustomPainter {
 /// Layout: page 0 → gap → page 1 → gap → page 2 …
 /// Gap bands are REAL dead space in the coordinate system (no writable area).
 class _PersonalPaperPainter extends CustomPainter {
-  final Color dot;
-  final double pageH;
-  final int pageCount;
+  /// One entry per page — was a single shared `pageH` + `pageCount`, which
+  /// assumed every page the same height. A page backed by an imported PDF
+  /// keeps its own aspect ratio instead of being forced to A4.
+  final List<double> pageHeights;
+  final List<PagePaper> paper;
+  /// Rendered PDF page bitmaps, keyed 'path#pageIndex' — see
+  /// _NoteCanvasPageState._ensurePdfImage. A PDF-backed page with no entry
+  /// here yet just shows its plain paper fill until the render lands; there
+  /// is no loading spinner, since it is expected to pop in within a frame or
+  /// two of the page scrolling into view.
+  final Map<String, ui.Image> pdfImages;
+  /// Bumped every time [pdfImages] gains an entry. [pdfImages] itself is the
+  /// same mutable Map instance on every rebuild (see
+  /// _NoteCanvasPageState._pdfImageCache), so comparing it by equality in
+  /// [shouldRepaint] would never detect a newly-landed image — this is what
+  /// actually changes value when that happens.
+  final int pdfImageGen;
+  final Color gapColor;
   const _PersonalPaperPainter({
-    required this.dot,
-    required this.pageH,
-    required this.pageCount,
+    required this.pageHeights,
+    required this.paper,
+    required this.pdfImages,
+    required this.pdfImageGen,
+    required this.gapColor,
   });
+
+  static Color paperColor(PaperTint t) => switch (t) {
+        PaperTint.white => Colors.white,
+        PaperTint.cream => const Color(0xFFFAF4E6),
+        PaperTint.dark => const Color(0xFF1C1C20),
+      };
+
+  /// Ruling has to sit on its own page's colour — one fixed light grey was
+  /// invisible on dark paper and too cold on cream.
+  static Color _rule(PaperTint t) => switch (t) {
+        PaperTint.white => const Color(0xFFCECED6),
+        PaperTint.cream => const Color(0xFFD8CFBC),
+        PaperTint.dark => const Color(0xFF4A4A52),
+      };
+
+  PagePaper _page(int i) =>
+      i >= 0 && i < paper.length ? paper[i] : const PagePaper();
 
   @override
   void paint(Canvas canvas, Size size) {
-    const gap  = _kPageGap;
-    final step = pageH + gap;
-    final bp   = Paint()..color = const Color(0xFF2B2B2F);
-    final dp   = Paint()..color = dot;
+    const gap = _kPageGap;
 
-    // Draw gap bands between pages (band top = i * (pageH + gap) + pageH).
-    for (var i = 1; i < pageCount; i++) {
-      final top = i * step - gap; // = i*pageH + (i-1)*gap
-      if (top >= size.height) break;
-      canvas.drawRect(Rect.fromLTWH(0, top, size.width, gap), bp);
+    // Desk showing through between pages.
+    canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height), Paint()..color = gapColor);
+
+    const cell = 18.0;      // dotted / grid pitch
+    const lineStep = 26.0;  // ruled pitch
+
+    // Prefix sum, computed once — reading `tops[i]` inside the loop instead
+    // of mutating a running total keeps this correct across the `continue`
+    // below (a `continue` skipping a mutation-at-the-bottom pattern is a
+    // classic way to silently stop advancing).
+    final tops = <double>[];
+    var acc = 0.0;
+    for (final h in pageHeights) {
+      tops.add(acc);
+      acc += h + gap;
     }
 
-    // Dot grid — skip any y that falls inside a gap band.
-    const dotStep = 18.0;
-    for (var y = 10.0; y < size.height; y += dotStep) {
-      final rem = y % step;
-      if (rem >= pageH) continue; // inside a gap
-      for (var x = 10.0; x < size.width; x += dotStep) {
-        canvas.drawCircle(Offset(x, y), 1.1, dp);
+    for (var i = 0; i < pageHeights.length; i++) {
+      final pageH = pageHeights[i];
+      final top = tops[i];
+      if (top >= size.height) break;
+      final bottom = math.min(top + pageH, size.height);
+      final rect = Rect.fromLTRB(0, top, size.width, bottom);
+
+      final page = _page(i);
+      // Dart privacy is per-library (file), not per-class, so this reaches
+      // _NoteCanvasPageState's private key builder directly — keeping the key
+      // format defined in exactly one place rather than duplicated here.
+      final image = page.isPdfBacked
+          ? pdfImages[_NoteCanvasPageState._pdfImageKey(
+              page.pdfPath!, page.pdfPageIndex!)]
+          : null;
+      if (image != null) {
+        canvas.drawImageRect(
+          image,
+          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+          rect,
+          // This is a whole-page image drawn once per repaint (not per pen
+          // sample), so the highest filter quality costs nothing that matters
+          // here — worth it given the source bitmap is now much closer to the
+          // real screen resolution than before.
+          Paint()..filterQuality = FilterQuality.high,
+        );
+      } else {
+        // Either not PDF-backed, or the render hasn't landed yet — either
+        // way, its own paper fill in the meantime.
+        canvas.drawRect(rect, Paint()..color = paperColor(page.tint));
       }
+      if (page.style == PaperStyle.plain) continue;
+
+      final ruleColor = _rule(page.tint);
+      final dp = Paint()..color = ruleColor;
+      final lp = Paint()
+        ..color = ruleColor
+        ..strokeWidth = 0.9
+        ..isAntiAlias = true;
+
+      // Clip so no ruling can bleed into the page break below.
+      canvas.save();
+      canvas.clipRect(rect);
+      switch (page.style) {
+        case PaperStyle.dotted:
+          for (var y = top + 10; y < bottom; y += cell) {
+            for (var x = 10.0; x < size.width; x += cell) {
+              canvas.drawCircle(Offset(x, y), 1.1, dp);
+            }
+          }
+        case PaperStyle.ruled:
+          for (var y = top + lineStep; y < bottom; y += lineStep) {
+            canvas.drawLine(Offset(0, y), Offset(size.width, y), lp);
+          }
+        case PaperStyle.grid:
+          for (var y = top; y < bottom; y += cell) {
+            canvas.drawLine(Offset(0, y), Offset(size.width, y), lp);
+          }
+          for (var x = 0.0; x < size.width; x += cell) {
+            canvas.drawLine(Offset(x, top), Offset(x, bottom), lp);
+          }
+        case PaperStyle.plain:
+          break;
+      }
+      canvas.restore();
     }
   }
 
   @override
   bool shouldRepaint(_PersonalPaperPainter old) =>
-      old.dot != dot || old.pageH != pageH || old.pageCount != pageCount;
+      !listEquals(old.pageHeights, pageHeights) ||
+      old.gapColor != gapColor ||
+      old.pdfImageGen != pdfImageGen ||
+      !listEquals(old.paper, paper);
 }

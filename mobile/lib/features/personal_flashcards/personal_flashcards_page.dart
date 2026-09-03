@@ -166,6 +166,9 @@ Future<String?> _promptTitle(
         autofocus: true,
         decoration: const InputDecoration(hintText: 'Deck name'),
         textCapitalization: TextCapitalization.sentences,
+        // Dismiss the keyboard when tapping anywhere outside the field —
+        // inside a dialog the app-level tap-to-unfocus never fires.
+        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         onSubmitted: (v) => Navigator.pop(ctx, v),
       ),
       actions: [

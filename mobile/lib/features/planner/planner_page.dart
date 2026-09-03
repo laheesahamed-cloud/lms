@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/study_reminders.dart';
-import '../../services/notifications.dart';
 import 'planner_repository.dart';
 
 class PlannerPage extends ConsumerStatefulWidget {
@@ -418,6 +417,9 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
             controller: _controller,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
+            // Dismiss the keyboard when tapping anywhere outside the field —
+            // inside a dialog the app-level tap-to-unfocus never fires.
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             style: TextStyle(color: c.inkStrong),
             decoration: InputDecoration(
               hintText: 'What do you need to study?',

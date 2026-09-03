@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'features/results/reviewed_attempts.dart';
 import 'features/subscriptions/iap_reconciler.dart';
 import 'services/screen_protection.dart';
 import 'theme/app_theme.dart';
@@ -33,6 +34,7 @@ class _PrefsBootstrapState extends State<_PrefsBootstrap> {
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((p) {
+      ReviewedAttempts.init(p);
       if (mounted) setState(() => _prefs = p);
     });
   }

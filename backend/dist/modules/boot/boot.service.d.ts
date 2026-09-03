@@ -92,6 +92,8 @@ export declare class BootService {
             recentAttempts: {
                 id: number;
                 quizTitle: string;
+                quizNumber: number;
+                displayTitleMode: string;
                 courseTitle: string;
                 topicName: string;
                 score: number;
@@ -368,6 +370,8 @@ export declare class BootService {
             recentAttempts: {
                 id: number;
                 quizTitle: string;
+                quizNumber: number;
+                displayTitleMode: string;
                 courseTitle: string;
                 topicName: string;
                 score: number;
@@ -644,6 +648,8 @@ export declare class BootService {
             recentAttempts: {
                 id: number;
                 quizTitle: string;
+                quizNumber: number;
+                displayTitleMode: string;
                 courseTitle: string;
                 topicName: string;
                 score: number;
@@ -920,6 +926,8 @@ export declare class BootService {
             recentAttempts: {
                 id: number;
                 quizTitle: string;
+                quizNumber: number;
+                displayTitleMode: string;
                 courseTitle: string;
                 topicName: string;
                 score: number;
@@ -1196,6 +1204,8 @@ export declare class BootService {
             recentAttempts: {
                 id: number;
                 quizTitle: string;
+                quizNumber: number;
+                displayTitleMode: string;
                 courseTitle: string;
                 topicName: string;
                 score: number;
@@ -1472,6 +1482,8 @@ export declare class BootService {
             recentAttempts: {
                 id: number;
                 quizTitle: string;
+                quizNumber: number;
+                displayTitleMode: string;
                 courseTitle: string;
                 topicName: string;
                 score: number;

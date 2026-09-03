@@ -75,7 +75,14 @@ body {
 }
 
 @media (min-width: 901px) {
-  .app-shell > .main-content {
+  .app-shell:not(.student-app-shell) > .main-content {
+    transition:
+      margin-left var(--lms-sidebar-motion),
+      width var(--lms-sidebar-motion),
+      background-color 140ms ease-out !important;
+  }
+
+  .app-shell.student-app-shell > .main-content {
     transition:
       background-color 140ms ease-out !important;
   }
@@ -148,8 +155,18 @@ body {
       transform 190ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .app-shell.sidebar-collapsed:not(.mobile-top-nav-mode):not(.compact-focus-mode):not(.sidebar-hidden) > .main-content {
-    transform: translate3d(calc(var(--sidebar-w-collapsed, 68px) - var(--sidebar-w, 224px)), 0, 0);
+  /* margin-left/width, NOT transform: a transform here creates a new stacking
+     context on .main-content, which then caps every descendant's z-index
+     (dropdowns, modals, the topbar) below it — trapping them all behind the
+     portalled .lms-sidebar (z-[820], appended to <body>, so unaffected by any
+     stacking context formed inside .main-content). That's why things only
+     went "behind the sidebar" once collapsed: the transform, and the
+     stacking context it creates, didn't exist before collapsing.
+     Scoped off .student-app-shell, which already repositions via
+     padding-left in student-app.css and never had this bug. */
+  .app-shell:not(.student-app-shell).sidebar-collapsed:not(.mobile-top-nav-mode):not(.compact-focus-mode):not(.sidebar-hidden) > .main-content {
+    margin-left: calc(var(--sidebar-w-collapsed, 68px) + var(--sidebar-shell-gap, 16px)) !important;
+    width: calc(100% - var(--sidebar-w-collapsed, 68px) - var(--sidebar-shell-gap, 16px)) !important;
   }
 
   .lms-sidebar:not(.is-overlay-nav).is-collapsed :where(

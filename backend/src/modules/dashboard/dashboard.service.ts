@@ -34,6 +34,8 @@ type StudentUserRow = RowDataPacket & {
 type RecentAttemptRow = RowDataPacket & {
   id: number;
   quiz_title: string;
+  quiz_number: number | null;
+  display_title_mode: string | null;
   course_title: string | null;
   topic_name: string | null;
   score: number;
@@ -598,6 +600,8 @@ export class DashboardService {
         `SELECT
           qa.id,
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+          q.quiz_number,
+          q.display_title_mode,
           c.course_title,
           t.topic_name,
           qa.score,
@@ -908,6 +912,11 @@ export class DashboardService {
       recentAttempts: recentAttempts.map((row) => ({
         id: row.id,
         quizTitle: row.quiz_title,
+        // The client names a quiz "Quiz N" in number mode. Without these it had
+        // to guess by matching titles, which are not unique in that mode, and
+        // it named attempts after the wrong quiz.
+        quizNumber: Number(row.quiz_number || 0),
+        displayTitleMode: row.display_title_mode === 'title' ? 'title' : 'number',
         courseTitle: row.course_title || '',
         topicName: row.topic_name || '',
         score: row.score,

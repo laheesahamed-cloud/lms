@@ -312,6 +312,7 @@ class _OtpBox extends StatelessWidget {
       child: TextField(
         controller: controller,
         focusNode: focusNode,
+        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],

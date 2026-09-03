@@ -36,6 +36,10 @@ void resetUserScopedData(Ref ref) {
   ref.invalidate(flashDecksProvider);
   ref.invalidate(flashQueueProvider);
   // Other student surfaces
+  // Drop any in-flight cold-start prefetch too: it carries the previous
+  // user's dashboard, and invalidating the provider alone would let the
+  // next account adopt it.
+  DashboardPrefetch.clear();
   ref.invalidate(studentDashboardProvider);
   ref.invalidate(bookmarksProvider);
   ref.invalidate(plannerTasksProvider);

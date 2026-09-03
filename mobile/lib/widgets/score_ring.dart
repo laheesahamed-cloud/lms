@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 
@@ -8,7 +10,16 @@ class ScoreRing extends StatefulWidget {
   final double size;
   final String label;
   const ScoreRing(
-      {super.key, required this.percent, this.size = 132, this.label = 'Score'});
+      {super.key,
+      required this.percent,
+      this.size = 132,
+      this.label = 'Score',
+      this.startDelay = Duration.zero});
+
+  /// Hold before sweeping. A caller whose card arrives on a staggered entrance
+  /// needs this: starting on the first frame means the ring fills underneath
+  /// the card's own slide-and-fade, and the sweep is never actually seen.
+  final Duration startDelay;
 
   @override
   State<ScoreRing> createState() => _ScoreRingState();
@@ -17,6 +28,7 @@ class ScoreRing extends StatefulWidget {
 class _ScoreRingState extends State<ScoreRing>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  Timer? _start;
   late final Animation<double> _anim;
 
   @override
@@ -29,14 +41,19 @@ class _ScoreRingState extends State<ScoreRing>
       if (!mounted) return;
       if (MediaQuery.of(context).disableAnimations) {
         _ctrl.value = 1;
-      } else {
+      } else if (widget.startDelay == Duration.zero) {
         _ctrl.forward();
+      } else {
+        _start = Timer(widget.startDelay, () {
+          if (mounted) _ctrl.forward();
+        });
       }
     });
   }
 
   @override
   void dispose() {
+    _start?.cancel();
     _ctrl.dispose();
     super.dispose();
   }

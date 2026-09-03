@@ -397,6 +397,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 chrome: false),
           ),
           GoRoute(
+            // A real pushed route, not a same-page state swap, so opening a
+            // folder gets the native slide-in and edge swipe-back like every
+            // other detail screen — the same route mechanism `slidePage` /
+            // `studyToolPage` gives lessons, notes and quizzes.
+            path: '/app/my-notes/folder/:folderId',
+            pageBuilder: (c, s) => studyToolPage(c,
+                key: s.pageKey,
+                child: PersonalNotesPage(folderId: s.pathParameters['folderId']),
+                chrome: false),
+          ),
+          GoRoute(
             path: '/app/my-flashcards',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const PersonalFlashcardsPage()),

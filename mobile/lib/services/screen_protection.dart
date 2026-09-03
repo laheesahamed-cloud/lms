@@ -175,8 +175,21 @@ class ScreenProtection {
   /// Turn capture protection on/off to match [path]. Only acts on an actual
   /// change: re-parenting the view is visually disruptive, so calling this on
   /// every navigation must be cheap when the state is already correct.
+  /// Kill switch for the iOS secure-view re-parenting.
+  ///
+  /// `SecureQuizMode.enable()` moves Flutter's rendering view into a secure
+  /// text field's canvas — synchronous UIKit work on the main thread, run
+  /// exactly when a protected screen is being pushed. It has repeatedly
+  /// destabilised the app (blank launches, dead touch input, slow navigation,
+  /// lesson screens rendering as a dead end).
+  ///
+  /// Android is unaffected: FLAG_SECURE is a real OS block and stays on.
+  /// iOS keeps screenshot *detection*. Flip this to true only to re-test the
+  /// re-parenting on a device.
+  static const bool _iosSecureViewEnabled = true;
+
   static Future<void> syncForRoute(String path) async {
-    if (!supported || !Platform.isIOS) return;
+    if (!supported || !Platform.isIOS || !_iosSecureViewEnabled) return;
     final shouldProtect = shouldProtectPath(path);
     if (shouldProtect == _secureModeOn) return;
     _secureModeOn = shouldProtect;

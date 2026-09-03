@@ -12,6 +12,7 @@ import '../services/push.dart';
 import '../services/study_reminders.dart';
 import 'local_scope.dart';
 import 'user_data_reset.dart';
+import '../features/dashboard/dashboard_repository.dart';
 
 /// Mirrors the web authStore keys (§8): token, user, isAuthenticated,
 /// isHydrating, error.
@@ -93,6 +94,12 @@ class AuthController extends Notifier<AuthState> {
       return;
     }
     _api.setToken(token);
+    // Cold-start overlap: request the dashboard now, in parallel with me(),
+    // rather than waiting for Study Hub to mount and ask afterwards. Two
+    // serial round trips become one; the splash covers both. Purely a timing
+    // change — nothing renders any earlier than it used to.
+    DashboardPrefetch.start(_api);
+
     try {
       final user = await _repo.me();
       StudyReminders.userId = user.id;
@@ -104,8 +111,12 @@ class AuthController extends Notifier<AuthState> {
           token: token);
       Push.onAuthenticated();
     } catch (_) {
+      DashboardPrefetch.clear();
       await SecureStore.clear();
       _api.setToken(null);
+      StudyReminders.userId = 'anon';
+      LocalScope.uid = 'anon';
+      resetUserScopedData(ref);
       state = const AuthState(isHydrating: false);
     }
   }
