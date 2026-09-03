@@ -294,7 +294,21 @@ class NativePushSender {
         const sign = (0, crypto_1.createSign)(algorithm);
         sign.update(signingInput);
         sign.end();
-        const keyObject = (0, crypto_1.createPrivateKey)(privateKey);
+        let keyObject;
+        try {
+            keyObject = (0, crypto_1.createPrivateKey)(privateKey);
+        }
+        catch (error) {
+            const lines = privateKey.split('\n');
+            this.logger.error(`APNs private key failed to parse: ${error.message}. ` +
+                `length=${privateKey.length} lines=${lines.length} ` +
+                `firstLine="${(lines[0] || '').trim()}" ` +
+                `lastNonEmptyLine="${[...lines].reverse().find((l) => l.trim())?.trim() || ''}" ` +
+                `hasLiteralBackslashN=${privateKey.includes('\\n')} ` +
+                `hasCRLF=${privateKey.includes('\r\n')} ` +
+                `startsWithDashes=${privateKey.trimStart().startsWith('-----BEGIN')}`);
+            throw error;
+        }
         const signature = dsaEncoding
             ? sign.sign({ key: keyObject, dsaEncoding })
             : sign.sign(keyObject);

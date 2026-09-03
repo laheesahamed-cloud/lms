@@ -388,7 +388,29 @@ export class NativePushSender {
     // this is what broke APNs push specifically, since that's the one caller
     // using an EC key with ieee-p1363 encoding. createPrivateKey() uses a
     // different, more specific decoder path that doesn't hit this.
-    const keyObject = createPrivateKey(privateKey);
+    let keyObject: ReturnType<typeof createPrivateKey>;
+    try {
+      keyObject = createPrivateKey(privateKey);
+    } catch (error) {
+      // createPrivateKey() throwing the same "1E08010C:DECODER
+      // routines::unsupported" that used to come from sign.sign() means the
+      // fix that moved the call here didn't change the outcome — the PEM
+      // content itself is what OpenSSL can't parse, not how it was handed to
+      // Node. Log everything about its *shape* that's safe to log (never the
+      // key bytes) so the next failure says what's actually wrong instead of
+      // this same opaque code a third time.
+      const lines = privateKey.split('\n');
+      this.logger.error(
+        `APNs private key failed to parse: ${(error as Error).message}. ` +
+          `length=${privateKey.length} lines=${lines.length} ` +
+          `firstLine="${(lines[0] || '').trim()}" ` +
+          `lastNonEmptyLine="${[...lines].reverse().find((l) => l.trim())?.trim() || ''}" ` +
+          `hasLiteralBackslashN=${privateKey.includes('\\n')} ` +
+          `hasCRLF=${privateKey.includes('\r\n')} ` +
+          `startsWithDashes=${privateKey.trimStart().startsWith('-----BEGIN')}`
+      );
+      throw error;
+    }
     const signature = dsaEncoding
       ? sign.sign({ key: keyObject, dsaEncoding })
       : sign.sign(keyObject);
