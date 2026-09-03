@@ -311,20 +311,34 @@ export class NativePushSender {
   }
 
   private async resolveApnsSettings(): Promise<ApnsRuntimeSettings> {
-    if (this.getApnsRuntimeSettings) {
-      const settings = await this.getApnsRuntimeSettings();
-      if (settings.keyId || settings.teamId || settings.privateKey || settings.privateKeyPath) {
-        return settings;
-      }
-    }
+    // .env now wins over the admin-panel/database value whenever it's set,
+    // per field. Was "DB wins outright if it has anything set, .env only
+    // used when the DB has nothing" — which meant .env couldn't be used to
+    // override a single suspect field (the key) while leaving Key ID/Team ID
+    // in the database, short of clearing the DB row first. A plain .env file
+    // also isn't at the mercy of whatever a web-form textarea might quietly
+    // do to a pasted multi-line key (autocorrect, smart quotes, trimmed
+    // trailing newlines) — worth ruling that out as a source of this bug.
+    const fromDb = this.getApnsRuntimeSettings ? await this.getApnsRuntimeSettings() : undefined;
+
+    const envKeyId = String(this.configService.get<string>('APNS_KEY_ID') || '').trim();
+    const envTeamId = String(this.configService.get<string>('APNS_TEAM_ID') || '').trim();
+    const envBundleId = String(this.configService.get<string>('APNS_BUNDLE_ID') || '').trim();
+    const envSandboxRaw = String(this.configService.get<string>('APNS_USE_SANDBOX') || '').trim();
+    const envKeyPath = String(this.configService.get<string>('APNS_PRIVATE_KEY_PATH') || '').trim();
+    const envKey = String(this.configService.get<string>('APNS_PRIVATE_KEY') || '').replace(/\\n/g, '\n').trim();
 
     return {
-      keyId: String(this.configService.get<string>('APNS_KEY_ID') || '').trim(),
-      teamId: String(this.configService.get<string>('APNS_TEAM_ID') || '').trim(),
-      bundleId: String(this.configService.get<string>('APNS_BUNDLE_ID') || 'com.erpm.medical.lms').trim(),
-      useSandbox: String(this.configService.get<string>('APNS_USE_SANDBOX') || '').toLowerCase() === 'true',
-      privateKeyPath: String(this.configService.get<string>('APNS_PRIVATE_KEY_PATH') || '').trim(),
-      privateKey: String(this.configService.get<string>('APNS_PRIVATE_KEY') || '').replace(/\\n/g, '\n').trim(),
+      keyId: envKeyId || fromDb?.keyId || '',
+      teamId: envTeamId || fromDb?.teamId || '',
+      bundleId: envBundleId || fromDb?.bundleId || 'com.erpm.medical.lms',
+      // Only let .env's sandbox flag override the DB's when it was actually
+      // set — otherwise an unset env var (empty string, falsy) would look
+      // like an explicit "false" and silently flip a DB-configured sandbox
+      // mode to production.
+      useSandbox: envSandboxRaw ? envSandboxRaw.toLowerCase() === 'true' : (fromDb?.useSandbox ?? false),
+      privateKeyPath: envKeyPath || fromDb?.privateKeyPath || '',
+      privateKey: envKey || fromDb?.privateKey || '',
     };
   }
 
