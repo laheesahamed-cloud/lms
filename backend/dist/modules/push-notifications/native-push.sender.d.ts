@@ -51,6 +51,8 @@ export declare class NativePushSender {
     private resolveFcmSettings;
     private resolveApnsSettings;
     private getApnsPrivateKey;
+    private decodeApnsKeyValue;
+    private normalizePem;
     private createApnsJwt;
     private signJwt;
     private postJson;

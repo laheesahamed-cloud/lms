@@ -278,15 +278,33 @@ class NativePushSender {
             return '';
         const unescaped = trimmed.replace(/\\n/g, '\n');
         if (unescaped.includes('-----BEGIN'))
-            return unescaped;
+            return this.normalizePem(unescaped);
         try {
             const decoded = Buffer.from(trimmed, 'base64').toString('utf8');
             if (decoded.includes('-----BEGIN'))
-                return decoded;
+                return this.normalizePem(decoded);
+        }
+        catch {
+        }
+        try {
+            if (Buffer.from(trimmed, 'base64').length > 16) {
+                return this.normalizePem(`-----BEGIN PRIVATE KEY-----\n${trimmed}\n-----END PRIVATE KEY-----\n`);
+            }
         }
         catch {
         }
         return unescaped;
+    }
+    normalizePem(pem) {
+        const match = pem.match(/-----BEGIN ([A-Z0-9 ]+)-----([\s\S]*?)-----END \1-----/);
+        if (!match)
+            return pem;
+        const [, label, bodySource] = match;
+        const body = bodySource.replace(/[^A-Za-z0-9+/=]/g, '');
+        if (!body)
+            return pem;
+        const wrapped = body.match(/.{1,64}/g)?.join('\n') || body;
+        return `-----BEGIN ${label}-----\n${wrapped}\n-----END ${label}-----\n`;
     }
     createApnsJwt(settings) {
         const now = Math.floor(Date.now() / 1000);

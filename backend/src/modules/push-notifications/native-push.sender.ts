@@ -363,22 +363,65 @@ export class NativePushSender {
    * already look like PEM once "\n" is unescaped, try base64-decoding it and
    * check again. Whichever the panel or .env holds, this always hands the
    * signer back real newlines.
+   *
+   * Whatever shape we land on then goes through normalizePem(), which
+   * re-wraps the base64 body at 64 chars/line and rebuilds the BEGIN/END
+   * markers from scratch. That step is what actually matters here: OpenSSL
+   * 3.x's PEM decoder rejects a body that isn't wrapped (all on one line
+   * between the markers) with the exact same generic "error:1E08010C:DECODER
+   * routines::unsupported" this whole function exists to route around —
+   * confirmed locally by reproducing that error from a PEM whose line breaks
+   * were stripped before base64-encoding it (e.g. `tr -d '\n'` on the file,
+   * done to "flatten" it for a single .env line — the wrapping only needs to
+   * be removed from the base64 *text*, never from the file's own PEM
+   * structure before encoding it). Rewrapping unconditionally means it no
+   * longer matters which of those two things whoever pasted it did.
    */
   private decodeApnsKeyValue(raw: string): string {
     const trimmed = String(raw || '').trim();
     if (!trimmed) return '';
     const unescaped = trimmed.replace(/\\n/g, '\n');
-    if (unescaped.includes('-----BEGIN')) return unescaped;
+    if (unescaped.includes('-----BEGIN')) return this.normalizePem(unescaped);
     try {
       const decoded = Buffer.from(trimmed, 'base64').toString('utf8');
-      if (decoded.includes('-----BEGIN')) return decoded;
+      if (decoded.includes('-----BEGIN')) return this.normalizePem(decoded);
     } catch {
       // Not valid base64 either — fall through.
+    }
+    // Base64 that decodes to the raw DER body with no PEM headers at all
+    // (e.g. headers were stripped before encoding). Re-wrap the original
+    // base64 text itself as the body of a fresh PKCS8 PEM block — Apple's
+    // APNs auth keys are always PKCS8 ("PRIVATE KEY", never the SEC1 "EC
+    // PRIVATE KEY" form), so that label is safe to assume here.
+    try {
+      if (Buffer.from(trimmed, 'base64').length > 16) {
+        return this.normalizePem(`-----BEGIN PRIVATE KEY-----\n${trimmed}\n-----END PRIVATE KEY-----\n`);
+      }
+    } catch {
+      // Fall through.
     }
     // Not recognisable as PEM or base64-encoded PEM. Returning it as-is lets
     // the signing step's own diagnostic logging (see signJwt) name exactly
     // what's wrong, rather than silently swallowing it here.
     return unescaped;
+  }
+
+  /**
+   * Rebuilds a PEM block from scratch: strips every non-base64 character out
+   * of the body between the BEGIN/END markers, then re-wraps it at the
+   * standard 64 chars/line. Makes the result immune to however the body
+   * arrived — one long line, extra blank lines, trailing whitespace, mixed
+   * line endings — all of which OpenSSL 3.x's stricter PEM decoder can
+   * reject outright rather than tolerate the way older OpenSSL did.
+   */
+  private normalizePem(pem: string): string {
+    const match = pem.match(/-----BEGIN ([A-Z0-9 ]+)-----([\s\S]*?)-----END \1-----/);
+    if (!match) return pem;
+    const [, label, bodySource] = match;
+    const body = bodySource.replace(/[^A-Za-z0-9+/=]/g, '');
+    if (!body) return pem;
+    const wrapped = body.match(/.{1,64}/g)?.join('\n') || body;
+    return `-----BEGIN ${label}-----\n${wrapped}\n-----END ${label}-----\n`;
   }
 
   private createApnsJwt(settings: ApnsRuntimeSettings) {
