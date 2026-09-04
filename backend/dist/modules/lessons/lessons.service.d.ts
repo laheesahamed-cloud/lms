@@ -5,6 +5,7 @@ import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
 import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 type ContentActor = {
     id: number;
     role?: string;
@@ -45,7 +46,8 @@ export interface NoteCanvas {
 export declare class LessonsService {
     private readonly db;
     private readonly config;
-    constructor(db: Pool, config: ConfigService);
+    private readonly pushNotificationsService;
+    constructor(db: Pool, config: ConfigService, pushNotificationsService: PushNotificationsService);
     getMeta(): Promise<{
         courses: {
             id: number;

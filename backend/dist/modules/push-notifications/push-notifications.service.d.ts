@@ -1,3 +1,4 @@
+import { OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'mysql2/promise';
 import { AuthService } from '../auth/auth.service';
@@ -14,13 +15,14 @@ type PushPayload = {
     channelId?: string;
     data?: Record<string, unknown>;
 };
-export declare class PushNotificationsService {
+export declare class PushNotificationsService implements OnModuleDestroy {
     private readonly db;
     private readonly authService;
     private readonly configService;
     private readonly settingsService;
     private readonly logger;
     private readonly nativePushSender;
+    private readonly pendingDebounced;
     constructor(db: Pool, authService: AuthService, configService: ConfigService, settingsService: SettingsService);
     getPublicConfig(): {
         enabled: boolean;
@@ -103,6 +105,27 @@ export declare class PushNotificationsService {
         failed: number;
         reason?: undefined;
     }>;
+    notifyStudentsOfNewContent(payload: {
+        title: string;
+        body: string;
+        url?: string;
+    }): Promise<void | {
+        ok: boolean;
+        sent: number;
+        failed: number;
+        reason: string;
+    } | {
+        ok: boolean;
+        sent: number;
+        failed: number;
+        reason?: undefined;
+    }>;
+    notifyStudentsOfNewContentDebounced(key: string, buildPayload: (count: number) => {
+        title: string;
+        body: string;
+        url?: string;
+    }, delayMs?: number): void;
+    onModuleDestroy(): void;
     sendToAudience(payload: PushPayload, audience?: {
         targetRole?: string;
         userIds?: number[];

@@ -29,6 +29,7 @@ let PushNotificationsService = PushNotificationsService_1 = class PushNotificati
         this.configService = configService;
         this.settingsService = settingsService;
         this.logger = new common_1.Logger(PushNotificationsService_1.name);
+        this.pendingDebounced = new Map();
         this.nativePushSender = new native_push_sender_1.NativePushSender(this.configService, this.logger, () => this.settingsService.getRawApnsSettings(), () => this.settingsService.getRawFcmSettings());
     }
     getPublicConfig() {
@@ -207,6 +208,35 @@ let PushNotificationsService = PushNotificationsService_1 = class PushNotificati
             url: input.url || '/notifications',
             tag: `announcement-${Date.now()}`,
         }, { targetRole: input.targetRole });
+    }
+    async notifyStudentsOfNewContent(payload) {
+        try {
+            await this.db.execute(`INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
+         VALUES (?, ?, 'student', 'published', NULL, NULL)`, [payload.title.slice(0, 180), payload.body]);
+        }
+        catch (error) {
+            this.logger.warn(`New-content in-app announcement insert failed: ${error?.message || error}`);
+        }
+        return this.sendAnnouncementPush({ ...payload, targetRole: 'student' }).catch((error) => {
+            this.logger.warn(`New-content push failed: ${error?.message || error}`);
+        });
+    }
+    notifyStudentsOfNewContentDebounced(key, buildPayload, delayMs = 60_000) {
+        const existing = this.pendingDebounced.get(key);
+        const count = (existing?.count || 0) + 1;
+        if (existing)
+            clearTimeout(existing.timer);
+        const timer = setTimeout(() => {
+            this.pendingDebounced.delete(key);
+            void this.notifyStudentsOfNewContent(buildPayload(count));
+        }, delayMs);
+        timer.unref?.();
+        this.pendingDebounced.set(key, { timer, count });
+    }
+    onModuleDestroy() {
+        for (const { timer } of this.pendingDebounced.values())
+            clearTimeout(timer);
+        this.pendingDebounced.clear();
     }
     async sendToAudience(payload, audience = {}) {
         if (!(await this.nativePushSender.isConfigured())) {

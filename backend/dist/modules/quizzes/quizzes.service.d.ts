@@ -1,6 +1,7 @@
 import { Pool } from 'mysql2/promise';
 import { PaginationInput } from '../../common/utils/pagination';
 import { AuthService } from '../auth/auth.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 type ContentActor = {
     id: number;
     role?: string;
@@ -13,7 +14,8 @@ import { UpdateQuizDto } from './dto/update-quiz.dto';
 export declare class QuizzesService {
     private readonly db;
     private readonly authService;
-    constructor(db: Pool, authService: AuthService);
+    private readonly pushNotificationsService;
+    constructor(db: Pool, authService: AuthService, pushNotificationsService: PushNotificationsService);
     private resolvePassingMarks;
     findAll(filters: {
         search?: string;

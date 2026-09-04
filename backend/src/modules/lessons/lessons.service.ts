@@ -16,6 +16,7 @@ import {
   isAiProviderKey, normalizeAiProviderBaseUrl,
 } from '../../common/utils/ai-provider.utils';
 import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 
 type LessonRow = RowDataPacket & {
   id: number;
@@ -144,6 +145,7 @@ export class LessonsService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly config: ConfigService,
+    private readonly pushNotificationsService: PushNotificationsService,
   ) {}
 
   async getMeta() {
@@ -422,6 +424,12 @@ export class LessonsService {
       });
 
       await connection.commit();
+      if (snapshot.status === 'active') {
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New lesson added',
+          body: `${snapshot.lessonTitle} is now available.`,
+        });
+      }
       return {
         ok: true,
         id: result.insertId,
@@ -472,6 +480,12 @@ export class LessonsService {
       });
 
       await connection.commit();
+      if (existing.status !== 'active' && snapshot.status === 'active') {
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New lesson added',
+          body: `${snapshot.lessonTitle} is now available.`,
+        });
+      }
       return {
         ok: true,
         id,
@@ -741,6 +755,12 @@ export class LessonsService {
         after: snapshot,
       });
       await connection.commit();
+      if (input.status === 'active' && existing.status !== 'active') {
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New lesson added',
+          body: `${snapshot.lessonTitle} is now available.`,
+        });
+      }
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -1402,7 +1422,7 @@ export class LessonsService {
     token: string,
   ) {
     const admin = await this.requireAdminToken(token);
-    await this.findCanvasLessonRow(id);
+    const lesson = await this.findCanvasLessonRow(id);
     const clean = this.normalizeFlashcardInput(payload);
     const status = this.normalizeFlashcardStatus(payload.status || 'draft');
     this.assertValidFlashcard(clean.question, clean.answer);
@@ -1414,6 +1434,17 @@ export class LessonsService {
        this.serializeFlashcardImageUrls(clean.imageUrls), clean.imageFit, status, sortOrder,
        status === 'approved' ? admin.id : null],
     );
+    if (status === 'approved') {
+      this.pushNotificationsService.notifyStudentsOfNewContentDebounced(
+        `flashcards:${id}`,
+        (count) => ({
+          title: 'New flashcards added',
+          body: count === 1
+            ? `New flashcards are available in ${lesson.lesson_title}.`
+            : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+        }),
+      );
+    }
     return this.findFlashcardById(result.insertId, id);
   }
 
@@ -1423,7 +1454,7 @@ export class LessonsService {
     token: string,
   ) {
     const admin = await this.requireAdminToken(token);
-    await this.findCanvasLessonRow(id);
+    const lesson = await this.findCanvasLessonRow(id);
     const existing = await this.findFlashcardById(cardId, id);
     const question   = patch.question   !== undefined ? this.cleanFlashcardText(patch.question, 1000)   : existing.question;
     const answer     = patch.answer     !== undefined ? this.cleanFlashcardText(patch.answer, 3000)     : existing.answer;
@@ -1440,6 +1471,17 @@ export class LessonsService {
       [question, answer, sourceHint || null, this.serializeFlashcardImageUrls(imageUrls), imageFit, status, sortOrder,
        status === 'approved' ? admin.id : existing.reviewedBy || null, cardId, id],
     );
+    if (existing.status !== 'approved' && status === 'approved') {
+      this.pushNotificationsService.notifyStudentsOfNewContentDebounced(
+        `flashcards:${id}`,
+        (count) => ({
+          title: 'New flashcards added',
+          body: count === 1
+            ? `New flashcards are available in ${lesson.lesson_title}.`
+            : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+        }),
+      );
+    }
     return this.findFlashcardById(cardId, id);
   }
 

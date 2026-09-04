@@ -3,6 +3,7 @@ import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/pro
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { CreatePaperDto } from './dto/create-paper.dto';
 import { UpdatePaperDto } from './dto/update-paper.dto';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 
 type PaperRow = RowDataPacket & {
   id: number;
@@ -33,7 +34,10 @@ type PaperSnapshot = {
 
 @Injectable()
 export class PapersService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Pool,
+    private readonly pushNotificationsService: PushNotificationsService,
+  ) {}
 
   async findAll(filters: { search?: string; status?: string }) {
     let sql = `
@@ -124,6 +128,13 @@ export class PapersService {
       });
       await connection.commit();
 
+      if (snapshot.status === 'active') {
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New paper added',
+          body: `${snapshot.paperTitle} is now available.`,
+        });
+      }
+
       return { ok: true, id: result.insertId };
     } catch (error) {
       await connection.rollback();
@@ -162,6 +173,12 @@ export class PapersService {
         after: snapshot,
       });
       await connection.commit();
+      if (existing.status !== 'active' && snapshot.status === 'active') {
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New paper added',
+          body: `${snapshot.paperTitle} is now available.`,
+        });
+      }
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -362,6 +379,12 @@ export class PapersService {
         after: snapshot,
       });
       await connection.commit();
+      if (input.status === 'active' && existing.status !== 'active') {
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New paper added',
+          body: `${snapshot.paperTitle} is now available.`,
+        });
+      }
     } catch (error) {
       await connection.rollback();
       throw error;

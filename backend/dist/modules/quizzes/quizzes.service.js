@@ -16,12 +16,14 @@ exports.QuizzesService = void 0;
 const common_1 = require("@nestjs/common");
 const pagination_1 = require("../../common/utils/pagination");
 const auth_service_1 = require("../auth/auth.service");
+const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 const database_tokens_1 = require("../../database/database.tokens");
 const DEFAULT_PASSING_MARKS = 45;
 let QuizzesService = class QuizzesService {
-    constructor(db, authService) {
+    constructor(db, authService, pushNotificationsService) {
         this.db = db;
         this.authService = authService;
+        this.pushNotificationsService = pushNotificationsService;
     }
     resolvePassingMarks(value) {
         const numeric = Number(value || 0);
@@ -361,6 +363,12 @@ let QuizzesService = class QuizzesService {
                 after: snapshot,
             });
             await connection.commit();
+            if (createQuizDto.status === 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New quiz added',
+                    body: `${this.resolveStudentTitle(createQuizDto)} is now available in the Q-Bank.`,
+                });
+            }
             return { ok: true, id: result.insertId };
         }
         catch (error) {
@@ -490,6 +498,12 @@ let QuizzesService = class QuizzesService {
                 after: snapshot,
             });
             await connection.commit();
+            if (existing.status !== 'active' && merged.status === 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New quiz added',
+                    body: `${this.resolveStudentTitle(merged)} is now available in the Q-Bank.`,
+                });
+            }
             return { ok: true, id };
         }
         catch (error) {
@@ -1156,6 +1170,7 @@ exports.QuizzesService = QuizzesService;
 exports.QuizzesService = QuizzesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object, auth_service_1.AuthService])
+    __metadata("design:paramtypes", [Object, auth_service_1.AuthService,
+        push_notifications_service_1.PushNotificationsService])
 ], QuizzesService);
 //# sourceMappingURL=quizzes.service.js.map

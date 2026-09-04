@@ -22,14 +22,16 @@ const database_tokens_1 = require("../../database/database.tokens");
 const auth_token_util_1 = require("../auth/auth-token.util");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const fetch_with_retry_1 = require("../../common/utils/fetch-with-retry");
+const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
 const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
 const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
 let LessonsService = class LessonsService {
-    constructor(db, config) {
+    constructor(db, config, pushNotificationsService) {
         this.db = db;
         this.config = config;
+        this.pushNotificationsService = pushNotificationsService;
     }
     async getMeta() {
         const [courses] = await this.db.execute("SELECT id, course_title, status FROM courses ORDER BY course_title ASC");
@@ -240,6 +242,12 @@ let LessonsService = class LessonsService {
                 after: snapshot,
             });
             await connection.commit();
+            if (snapshot.status === 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New lesson added',
+                    body: `${snapshot.lessonTitle} is now available.`,
+                });
+            }
             return {
                 ok: true,
                 id: result.insertId,
@@ -288,6 +296,12 @@ let LessonsService = class LessonsService {
                 after: snapshot,
             });
             await connection.commit();
+            if (existing.status !== 'active' && snapshot.status === 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New lesson added',
+                    body: `${snapshot.lessonTitle} is now available.`,
+                });
+            }
             return {
                 ok: true,
                 id,
@@ -502,6 +516,12 @@ let LessonsService = class LessonsService {
                 after: snapshot,
             });
             await connection.commit();
+            if (input.status === 'active' && existing.status !== 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New lesson added',
+                    body: `${snapshot.lessonTitle} is now available.`,
+                });
+            }
         }
         catch (error) {
             await connection.rollback();
@@ -1042,7 +1062,7 @@ let LessonsService = class LessonsService {
     }
     async canvasAdminCreateFlashcard(id, payload, token) {
         const admin = await this.requireAdminToken(token);
-        await this.findCanvasLessonRow(id);
+        const lesson = await this.findCanvasLessonRow(id);
         const clean = this.normalizeFlashcardInput(payload);
         const status = this.normalizeFlashcardStatus(payload.status || 'draft');
         this.assertValidFlashcard(clean.question, clean.answer);
@@ -1051,11 +1071,19 @@ let LessonsService = class LessonsService {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`, [id, id, clean.question, clean.answer, clean.sourceHint || null,
             this.serializeFlashcardImageUrls(clean.imageUrls), clean.imageFit, status, sortOrder,
             status === 'approved' ? admin.id : null]);
+        if (status === 'approved') {
+            this.pushNotificationsService.notifyStudentsOfNewContentDebounced(`flashcards:${id}`, (count) => ({
+                title: 'New flashcards added',
+                body: count === 1
+                    ? `New flashcards are available in ${lesson.lesson_title}.`
+                    : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+            }));
+        }
         return this.findFlashcardById(result.insertId, id);
     }
     async canvasAdminUpdateFlashcard(id, cardId, patch, token) {
         const admin = await this.requireAdminToken(token);
-        await this.findCanvasLessonRow(id);
+        const lesson = await this.findCanvasLessonRow(id);
         const existing = await this.findFlashcardById(cardId, id);
         const question = patch.question !== undefined ? this.cleanFlashcardText(patch.question, 1000) : existing.question;
         const answer = patch.answer !== undefined ? this.cleanFlashcardText(patch.answer, 3000) : existing.answer;
@@ -1069,6 +1097,14 @@ let LessonsService = class LessonsService {
         await this.db.execute(`UPDATE lesson_flashcards SET question=?, answer=?, source_hint=?, image_url=?, image_fit=?, status=?, sort_order=?, reviewed_by=?
        WHERE id = ? AND lesson_id = ?`, [question, answer, sourceHint || null, this.serializeFlashcardImageUrls(imageUrls), imageFit, status, sortOrder,
             status === 'approved' ? admin.id : existing.reviewedBy || null, cardId, id]);
+        if (existing.status !== 'approved' && status === 'approved') {
+            this.pushNotificationsService.notifyStudentsOfNewContentDebounced(`flashcards:${id}`, (count) => ({
+                title: 'New flashcards added',
+                body: count === 1
+                    ? `New flashcards are available in ${lesson.lesson_title}.`
+                    : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+            }));
+        }
         return this.findFlashcardById(cardId, id);
     }
     async canvasAdminRemoveFlashcard(id, cardId, token) {
@@ -1789,6 +1825,7 @@ exports.LessonsService = LessonsService;
 exports.LessonsService = LessonsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object, config_1.ConfigService])
+    __metadata("design:paramtypes", [Object, config_1.ConfigService,
+        push_notifications_service_1.PushNotificationsService])
 ], LessonsService);
 //# sourceMappingURL=lessons.service.js.map

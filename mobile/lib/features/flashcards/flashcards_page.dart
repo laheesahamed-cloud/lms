@@ -4,11 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
+import '../../services/flashcard_reminders.dart';
 import 'flashcards_repository.dart';
 
 /// Anki-style flashcards: a deck list with New / Learning / Due counts.
 /// Tap a deck to start an FSRS review session.
-class FlashcardsPage extends ConsumerWidget {
+class FlashcardsPage extends ConsumerStatefulWidget {
   const FlashcardsPage({super.key});
 
   static const _new = Color(0xFF2563EB);
@@ -16,7 +17,24 @@ class FlashcardsPage extends ConsumerWidget {
   static const _due = Color(0xFF16A34A);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FlashcardsPage> createState() => _FlashcardsPageState();
+}
+
+class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
+  int? _lastDueNow;
+
+  /// Reconcile the due-cards reminder only when the due count actually
+  /// changed (same page-open + data-changed pattern as the planner).
+  void _maybeReconcile(int dueNow) {
+    if (dueNow == _lastDueNow) return;
+    _lastDueNow = dueNow;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlashcardReminders.reconcile(dueNow);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.c;
     final decksAsync = ref.watch(flashDecksProvider);
 
@@ -41,25 +59,44 @@ class FlashcardsPage extends ConsumerWidget {
             allNotes.addAll(d.noteIds);
           }
           final dueNow = result.totalLearning + result.totalDue;
+          _maybeReconcile(dueNow);
 
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(flashDecksProvider.future),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               children: [
-                Text('SPACED REPETITION',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
-                        color: c.accent)),
-                const SizedBox(height: 5),
-                Text('Flashcards',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: c.inkStrong,
-                        letterSpacing: -0.5)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('SPACED REPETITION',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.4,
+                                  color: c.accent)),
+                          const SizedBox(height: 5),
+                          Text('Flashcards',
+                              style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  color: c.inkStrong,
+                                  letterSpacing: -0.5)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Reminders',
+                      onPressed: _showReminderSettings,
+                      icon: Icon(Icons.notifications_outlined,
+                          color: c.inkMedium),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 14),
                 _summary(c, result),
                 const SizedBox(height: 12),
@@ -158,6 +195,17 @@ class FlashcardsPage extends ConsumerWidget {
         '/app/flashcards/review?notes=$notesCsv&title=${Uri.encodeComponent(title)}');
   }
 
+  Future<void> _showReminderSettings() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.c.page,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _FlashcardReminderSheet(dueNow: _lastDueNow ?? 0),
+    );
+  }
+
   Widget _summary(AppColors c, DecksResult r) {
     Widget pill(String label, int n, Color color) => Expanded(
           child: Container(
@@ -186,11 +234,11 @@ class FlashcardsPage extends ConsumerWidget {
         );
     return Row(
       children: [
-        pill('New', r.totalNew, _new),
+        pill('New', r.totalNew, FlashcardsPage._new),
         const SizedBox(width: 10),
-        pill('Learning', r.totalLearning, _learning),
+        pill('Learning', r.totalLearning, FlashcardsPage._learning),
         const SizedBox(width: 10),
-        pill('Due', r.totalDue, _due),
+        pill('Due', r.totalDue, FlashcardsPage._due),
       ],
     );
   }
@@ -270,5 +318,121 @@ class _DeckRow extends StatelessWidget {
         num(n.dueCount, FlashcardsPage._due),
       ],
     );
+  }
+}
+
+Widget _grabber(AppColors c) => Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration:
+            BoxDecoration(color: c.inkMuted, borderRadius: BorderRadius.circular(2)),
+      ),
+    );
+
+// ── Reminder settings (mirrors the planner's _ReminderSettingsSheet) ──
+class _FlashcardReminderSheet extends StatefulWidget {
+  final int dueNow;
+  const _FlashcardReminderSheet({required this.dueNow});
+  @override
+  State<_FlashcardReminderSheet> createState() =>
+      _FlashcardReminderSheetState();
+}
+
+class _FlashcardReminderSheetState extends State<_FlashcardReminderSheet> {
+  FlashcardReminderPrefs _prefs = const FlashcardReminderPrefs();
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FlashcardReminders.getPrefs().then((p) {
+      if (!mounted) return;
+      setState(() {
+        _prefs = p;
+        _loaded = true;
+      });
+    });
+  }
+
+  Future<void> _apply(FlashcardReminderPrefs next) async {
+    setState(() => _prefs = next);
+    await FlashcardReminders.savePrefs(next);
+    await FlashcardReminders.reconcile(widget.dueNow);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    if (!_loaded) {
+      return const SizedBox(
+          height: 160, child: Center(child: CircularProgressIndicator()));
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _grabber(c),
+          Text('Flashcard reminders',
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800, color: c.inkStrong)),
+          const SizedBox(height: 4),
+          Text('An on-device nudge when you have cards due for review.',
+              style: TextStyle(fontSize: 13, color: c.inkSoft)),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _prefs.enabled,
+            onChanged: (v) => _apply(_prefs.copyWith(enabled: v)),
+            title: Text('Due-cards reminder',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700, color: c.inkStrong)),
+            subtitle: Text('Only fires on days you actually have cards due',
+                style: TextStyle(fontSize: 13, color: c.inkSoft)),
+          ),
+          if (_prefs.enabled)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: GestureDetector(
+                onTap: _pickTime,
+                child: Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: c.surface2,
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.alarm_outlined, size: 17, color: c.primary),
+                      const SizedBox(width: 8),
+                      Text('At ${_prefs.time}',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, color: c.inkStrong)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickTime() async {
+    final parts = _prefs.time.split(':');
+    final init = TimeOfDay(
+        hour: int.tryParse(parts[0]) ?? 19,
+        minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
+    final picked = await showTimePicker(context: context, initialTime: init);
+    if (picked != null) {
+      final hh = picked.hour.toString().padLeft(2, '0');
+      final mm = picked.minute.toString().padLeft(2, '0');
+      await _apply(_prefs.copyWith(time: '$hh:$mm'));
+    }
   }
 }

@@ -3,6 +3,7 @@ import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/pro
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 
 type QuizAccessScopeRow = RowDataPacket & {
   feature_key: string | null;
@@ -69,6 +70,7 @@ export class QuizzesService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly authService: AuthService,
+    private readonly pushNotificationsService: PushNotificationsService,
   ) {}
 
   private resolvePassingMarks(value: number | null | undefined) {
@@ -462,6 +464,13 @@ export class QuizzesService {
         after: snapshot,
       });
       await connection.commit();
+      if (createQuizDto.status === 'active') {
+        // Fire-and-forget: never blocks the save, never throws (errors logged inside).
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New quiz added',
+          body: `${this.resolveStudentTitle(createQuizDto)} is now available in the Q-Bank.`,
+        });
+      }
       return { ok: true, id: result.insertId };
     } catch (error) {
       await connection.rollback();
@@ -597,6 +606,12 @@ export class QuizzesService {
         after: snapshot,
       });
       await connection.commit();
+      if (existing.status !== 'active' && merged.status === 'active') {
+        void this.pushNotificationsService.notifyStudentsOfNewContent({
+          title: 'New quiz added',
+          body: `${this.resolveStudentTitle(merged)} is now available in the Q-Bank.`,
+        });
+      }
       return { ok: true, id };
     } catch (error) {
       await connection.rollback();

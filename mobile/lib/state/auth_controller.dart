@@ -8,8 +8,10 @@ import '../data/google_auth.dart';
 import '../data/public_settings.dart';
 import '../data/models.dart';
 import '../data/secure_store.dart';
+import 'onboarding.dart';
 import '../services/push.dart';
 import '../services/study_reminders.dart';
+import '../services/flashcard_reminders.dart';
 import 'local_scope.dart';
 import 'user_data_reset.dart';
 import '../features/dashboard/dashboard_repository.dart';
@@ -69,7 +71,36 @@ class AuthController extends Notifier<AuthState> {
   ApiClient get _api => ref.read(apiClientProvider);
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
+  /// Set once real SharedPreferences data exists on this install. Checked
+  /// before ever trusting the Keychain — see [_clearStaleKeychainOnFreshInstall].
+  static const String _installedFlagKey = 'xyndrome.installed';
+
+  /// The Keychain survives deleting the app — that's Apple's own design, not
+  /// a bug in this app, and it exists so things like saved passwords survive
+  /// a reinstall. But this app was trusting it unconditionally: delete the
+  /// app, reinstall, and whichever account was last logged in came back
+  /// automatically, Keychain-deep, with no way to tell that had happened.
+  ///
+  /// SharedPreferences, unlike the Keychain, genuinely IS wiped when the app
+  /// is deleted. So its absence is a reliable "this is a fresh install" — and
+  /// on a fresh install any Keychain token left over from before must be a
+  /// leftover from a previous, now-deleted copy of the app, never a real
+  /// active session, since nothing has had the chance to write one yet.
+  Future<void> _clearStaleKeychainOnFreshInstall() async {
+    try {
+      final prefs = ref.read(sharedPrefsProvider);
+      if (prefs.getBool(_installedFlagKey) == true) return;
+      await SecureStore.clear();
+      await prefs.setBool(_installedFlagKey, true);
+    } catch (_) {
+      // Never let this block startup — worst case, a stale Keychain token
+      // survives one more launch than it should.
+    }
+  }
+
   Future<void> _hydrate() async {
+    await _clearStaleKeychainOnFreshInstall();
+
     // The keychain read must never be allowed to throw uncaught. The router
     // pins to /splash for as long as `isHydrating` is true, so a failure here
     // leaves the app on a blank splash screen forever with no way out.
@@ -103,6 +134,7 @@ class AuthController extends Notifier<AuthState> {
     try {
       final user = await _repo.me();
       StudyReminders.userId = user.id;
+      FlashcardReminders.userId = user.id;
       LocalScope.uid = user.id;
       state = AuthState(
           isHydrating: false,
@@ -115,6 +147,7 @@ class AuthController extends Notifier<AuthState> {
       await SecureStore.clear();
       _api.setToken(null);
       StudyReminders.userId = 'anon';
+      FlashcardReminders.userId = 'anon';
       LocalScope.uid = 'anon';
       resetUserScopedData(ref);
       state = const AuthState(isHydrating: false);
@@ -125,7 +158,9 @@ class AuthController extends Notifier<AuthState> {
     SecureStore.clear();
     _api.setToken(null);
     StudyReminders.cancelScheduled();
+    FlashcardReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
+    FlashcardReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false, error: 'Your session expired.');
@@ -260,6 +295,7 @@ class AuthController extends Notifier<AuthState> {
     // user's screens read these providers.
     resetUserScopedData(ref);
     StudyReminders.userId = res.user.id;
+    FlashcardReminders.userId = res.user.id;
     LocalScope.uid = res.user.id;
     state = AuthState(
         isHydrating: false,
@@ -309,7 +345,9 @@ class AuthController extends Notifier<AuthState> {
     await SecureStore.clear();
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
+    await FlashcardReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
+    FlashcardReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);
@@ -326,7 +364,9 @@ class AuthController extends Notifier<AuthState> {
     await SecureStore.clear();
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
+    await FlashcardReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
+    FlashcardReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);

@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
@@ -23,9 +23,15 @@ type PushPayload = {
 };
 
 @Injectable()
-export class PushNotificationsService {
+export class PushNotificationsService implements OnModuleDestroy {
   private readonly logger = new Logger(PushNotificationsService.name);
   private readonly nativePushSender: NativePushSender;
+  // In-memory debounce for "new content" bursts (e.g. an admin approving many
+  // flashcards back-to-back) — coalesces same-key events within the delay
+  // window into a single notification instead of one per event. Per-process
+  // only (no shared cache) — acceptable on this single-instance deployment;
+  // a pending batch is simply lost (not sent) across a process restart.
+  private readonly pendingDebounced = new Map<string, { timer: NodeJS.Timeout; count: number }>();
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
@@ -275,6 +281,56 @@ export class PushNotificationsService {
       },
       { targetRole: input.targetRole }
     );
+  }
+
+  /// Fire-and-forget notify for system-generated "new content" events (quiz/lesson/
+  /// flashcards/paper publish) — writes an in-app announcement row (system-authored,
+  /// created_by = NULL) then sends native push to all students. Callers should never
+  /// await this into a save/publish request path; catch on the call site.
+  async notifyStudentsOfNewContent(payload: { title: string; body: string; url?: string }) {
+    try {
+      await this.db.execute(
+        `INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
+         VALUES (?, ?, 'student', 'published', NULL, NULL)`,
+        [payload.title.slice(0, 180), payload.body]
+      );
+    } catch (error: any) {
+      this.logger.warn(`New-content in-app announcement insert failed: ${error?.message || error}`);
+    }
+
+    return this.sendAnnouncementPush({ ...payload, targetRole: 'student' }).catch((error: any) => {
+      this.logger.warn(`New-content push failed: ${error?.message || error}`);
+    });
+  }
+
+  /// Same as notifyStudentsOfNewContent, but coalesces repeated calls sharing
+  /// the same `key` (e.g. `flashcards:${lessonId}`) within `delayMs` into one
+  /// notification — so approving 20 flashcards in a row sends one "20 new
+  /// flashcards added" push instead of 20 separate ones. Each call resets the
+  /// window and bumps the count; `buildPayload(count)` is invoked once, right
+  /// before sending, with the final tally.
+  notifyStudentsOfNewContentDebounced(
+    key: string,
+    buildPayload: (count: number) => { title: string; body: string; url?: string },
+    delayMs = 60_000
+  ) {
+    const existing = this.pendingDebounced.get(key);
+    const count = (existing?.count || 0) + 1;
+    if (existing) clearTimeout(existing.timer);
+
+    const timer = setTimeout(() => {
+      this.pendingDebounced.delete(key);
+      void this.notifyStudentsOfNewContent(buildPayload(count));
+    }, delayMs);
+    // Timer alone must never keep the process alive (e.g. during shutdown).
+    timer.unref?.();
+
+    this.pendingDebounced.set(key, { timer, count });
+  }
+
+  onModuleDestroy() {
+    for (const { timer } of this.pendingDebounced.values()) clearTimeout(timer);
+    this.pendingDebounced.clear();
   }
 
   async sendToAudience(payload: PushPayload, audience: { targetRole?: string; userIds?: number[] } = {}) {

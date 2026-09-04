@@ -1,6 +1,7 @@
 import { Pool } from 'mysql2/promise';
 import { CreatePaperDto } from './dto/create-paper.dto';
 import { UpdatePaperDto } from './dto/update-paper.dto';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 type ContentActor = {
     id: number;
     role?: string;
@@ -10,7 +11,8 @@ type ContentActorInput = ContentActor | number | undefined;
 type ContentWorkflowState = 'draft' | 'in_review' | 'published' | 'archived';
 export declare class PapersService {
     private readonly db;
-    constructor(db: Pool);
+    private readonly pushNotificationsService;
+    constructor(db: Pool, pushNotificationsService: PushNotificationsService);
     findAll(filters: {
         search?: string;
         status?: string;

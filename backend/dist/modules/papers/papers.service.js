@@ -15,9 +15,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PapersService = void 0;
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
+const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 let PapersService = class PapersService {
-    constructor(db) {
+    constructor(db, pushNotificationsService) {
         this.db = db;
+        this.pushNotificationsService = pushNotificationsService;
     }
     async findAll(filters) {
         let sql = `
@@ -92,6 +94,12 @@ let PapersService = class PapersService {
                 after: snapshot,
             });
             await connection.commit();
+            if (snapshot.status === 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New paper added',
+                    body: `${snapshot.paperTitle} is now available.`,
+                });
+            }
             return { ok: true, id: result.insertId };
         }
         catch (error) {
@@ -130,6 +138,12 @@ let PapersService = class PapersService {
                 after: snapshot,
             });
             await connection.commit();
+            if (existing.status !== 'active' && snapshot.status === 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New paper added',
+                    body: `${snapshot.paperTitle} is now available.`,
+                });
+            }
         }
         catch (error) {
             await connection.rollback();
@@ -294,6 +308,12 @@ let PapersService = class PapersService {
                 after: snapshot,
             });
             await connection.commit();
+            if (input.status === 'active' && existing.status !== 'active') {
+                void this.pushNotificationsService.notifyStudentsOfNewContent({
+                    title: 'New paper added',
+                    body: `${snapshot.paperTitle} is now available.`,
+                });
+            }
         }
         catch (error) {
             await connection.rollback();
@@ -451,6 +471,6 @@ exports.PapersService = PapersService;
 exports.PapersService = PapersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object])
+    __metadata("design:paramtypes", [Object, push_notifications_service_1.PushNotificationsService])
 ], PapersService);
 //# sourceMappingURL=papers.service.js.map
