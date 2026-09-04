@@ -261,16 +261,32 @@ class NativePushSender {
     }
     getApnsPrivateKey(settings) {
         if (settings.privateKey)
-            return settings.privateKey.replace(/\\n/g, '\n');
+            return this.decodeApnsKeyValue(settings.privateKey);
         if (!settings.privateKeyPath)
             return '';
         try {
-            return (0, fs_1.readFileSync)(settings.privateKeyPath, 'utf8');
+            return this.decodeApnsKeyValue((0, fs_1.readFileSync)(settings.privateKeyPath, 'utf8'));
         }
         catch (error) {
             this.logger.warn(`Unable to read APNs private key: ${error?.message || error}`);
             return '';
         }
+    }
+    decodeApnsKeyValue(raw) {
+        const trimmed = String(raw || '').trim();
+        if (!trimmed)
+            return '';
+        const unescaped = trimmed.replace(/\\n/g, '\n');
+        if (unescaped.includes('-----BEGIN'))
+            return unescaped;
+        try {
+            const decoded = Buffer.from(trimmed, 'base64').toString('utf8');
+            if (decoded.includes('-----BEGIN'))
+                return decoded;
+        }
+        catch {
+        }
+        return unescaped;
     }
     createApnsJwt(settings) {
         const now = Math.floor(Date.now() / 1000);

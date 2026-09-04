@@ -343,14 +343,42 @@ export class NativePushSender {
   }
 
   private getApnsPrivateKey(settings: ApnsRuntimeSettings) {
-    if (settings.privateKey) return settings.privateKey.replace(/\\n/g, '\n');
+    if (settings.privateKey) return this.decodeApnsKeyValue(settings.privateKey);
     if (!settings.privateKeyPath) return '';
     try {
-      return readFileSync(settings.privateKeyPath, 'utf8');
+      return this.decodeApnsKeyValue(readFileSync(settings.privateKeyPath, 'utf8'));
     } catch (error: any) {
       this.logger.warn(`Unable to read APNs private key: ${error?.message || error}`);
       return '';
     }
+  }
+
+  /**
+   * Accepts the key stored in whichever shape it was pasted in: a raw PEM
+   * block (reading straight from a file), a PEM block with literal "\n"
+   * escapes standing in for real line breaks (how it has to be typed into a
+   * single-line .env value or a web form field), or — the most robust
+   * option, since it has no characters left for a copy-paste to mangle — the
+   * whole PEM block base64-encoded. Auto-detected: if what's stored doesn't
+   * already look like PEM once "\n" is unescaped, try base64-decoding it and
+   * check again. Whichever the panel or .env holds, this always hands the
+   * signer back real newlines.
+   */
+  private decodeApnsKeyValue(raw: string): string {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return '';
+    const unescaped = trimmed.replace(/\\n/g, '\n');
+    if (unescaped.includes('-----BEGIN')) return unescaped;
+    try {
+      const decoded = Buffer.from(trimmed, 'base64').toString('utf8');
+      if (decoded.includes('-----BEGIN')) return decoded;
+    } catch {
+      // Not valid base64 either — fall through.
+    }
+    // Not recognisable as PEM or base64-encoded PEM. Returning it as-is lets
+    // the signing step's own diagnostic logging (see signJwt) name exactly
+    // what's wrong, rather than silently swallowing it here.
+    return unescaped;
   }
 
   private createApnsJwt(settings: ApnsRuntimeSettings) {
