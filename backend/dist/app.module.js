@@ -7,6 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
+const path_1 = require("path");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const health_controller_1 = require("./health.controller");
@@ -51,6 +52,7 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 load: [database_config_1.default],
+                envFilePath: (0, path_1.join)(__dirname, '..', '.env'),
             }),
             database_module_1.DatabaseModule,
             schema_module_1.SchemaModule,

@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './health.controller';
@@ -39,6 +40,17 @@ import { DatabaseModule } from './database/database.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig],
+      // No path here defaults to dotenv looking for '.env' relative to
+      // process.cwd() — whatever directory the process manager happened to
+      // launch node from, not necessarily this backend's own directory. On
+      // this server that meant every edit to backend/.env (NODE_ENV,
+      // SCHEMA_SYNC, and the APNs key) was silently never read: the running
+      // process was loading a DIFFERENT (or no) .env the whole time, so
+      // ConfigService just returned whatever it already had, restart after
+      // restart. Pointing directly at this file by an absolute path (derived
+      // from this module's own location, so it's correct in dist/ too) means
+      // it no longer depends on how or from where the process was started.
+      envFilePath: join(__dirname, '..', '.env'),
     }),
     DatabaseModule,
     SchemaModule,
