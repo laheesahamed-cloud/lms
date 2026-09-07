@@ -16,8 +16,11 @@ export class DashboardController {
   }
 
   @Get('student')
-  getStudentDashboard(@Headers('authorization') authorization?: string) {
-    return this.dashboardService.getStudentDashboard(authorization);
+  getStudentDashboard(
+    @Headers('authorization') authorization?: string,
+    @Headers('x-app-client') appClient?: string
+  ) {
+    return this.dashboardService.getStudentDashboard(authorization, appClient);
   }
 
   @Post('student/activity')

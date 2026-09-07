@@ -5,12 +5,13 @@ export declare class StudyBookmarksController {
     private readonly studyBookmarksService;
     private readonly authService;
     constructor(studyBookmarksService: StudyBookmarksService, authService: AuthService);
-    list(authorization?: string): Promise<{
+    list(authorization?: string, appClient?: string): Promise<{
         id: number;
         userId: number;
-        itemType: "question" | "quiz" | "ai_note";
+        itemType: "quiz" | "ai_note" | "question";
         itemId: number;
         title: string;
+        appOnly: boolean;
         examModeOnly: boolean;
         engineKey: string | null;
         quizId: number | null;

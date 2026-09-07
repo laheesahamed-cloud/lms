@@ -16,6 +16,7 @@ exports.DashboardService = void 0;
 const common_1 = require("@nestjs/common");
 const node_crypto_1 = require("node:crypto");
 const database_tokens_1 = require("../../database/database.tokens");
+const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const auth_service_1 = require("../auth/auth.service");
 const auth_token_util_1 = require("../auth/auth-token.util");
 const courses_service_1 = require("../courses/courses.service");
@@ -369,7 +370,7 @@ let DashboardService = class DashboardService {
         const label = delta > 0 ? `+${delta}% vs previous period` : `${delta}% vs previous period`;
         return { delta, label };
     }
-    async getStudentDashboard(authorization) {
+    async getStudentDashboard(authorization, appClient) {
         const student = await this.findActiveStudentByToken(this.extractToken(authorization));
         const serverNow = new Date();
         const serverClock = this.buildServerClock(serverNow);
@@ -506,7 +507,7 @@ let DashboardService = class DashboardService {
             this.db.execute(`SELECT 1 FROM study_activity_events
          WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE()
          LIMIT 1`, [student.id]),
-            this.getRandomDashboardQuestion(student.id),
+            this.getRandomDashboardQuestion(student.id, appClient),
             this.coursesService.findStudentCourses(authorization),
         ]);
         const [summaryRows] = summaryResult;
@@ -838,7 +839,8 @@ let DashboardService = class DashboardService {
             },
         ];
     }
-    async getRandomDashboardQuestion(studentId) {
+    async getRandomDashboardQuestion(studentId, appClient) {
+        const isMobileClient = (0, mobile_client_util_1.isMobileAppClient)(appClient);
         const eligibleQuestionWhere = `
        q.status = 'active'
          AND q.question_type = 'sba'
@@ -852,7 +854,12 @@ let DashboardService = class DashboardService {
            FROM question_options qo
            WHERE qo.question_id = q.id
              AND qo.is_correct = 1
-         ) = 1`;
+         ) = 1
+         ${isMobileClient ? '' : `AND EXISTS (
+           SELECT 1 FROM question_quizzes qqf
+           INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
+           WHERE qqf.question_id = q.id
+         )`}`;
         const [[countRow]] = await this.db.execute(`SELECT COUNT(*) AS total_questions
        FROM questions q
        WHERE ${eligibleQuestionWhere}`);

@@ -1,6 +1,8 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
+import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { AiService } from '../ai/ai.service';
 import { UpsertTheoryRecapDto } from './dto/upsert-theory-recap.dto';
 
@@ -49,6 +51,31 @@ export class TheoryRecapService {
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly aiService: AiService
   ) {}
+
+  // The theory recap by itself is rich educational content — full etiology,
+  // pathophysiology, investigations, treatment, etc. Fetching it by raw
+  // question ID has no relationship check otherwise, so a website request
+  // could enumerate every question in the bank regardless of quiz access.
+  // App-only, unless the question also appears in a free quiz (a question
+  // can be linked to several). See common/utils/mobile-client.util.ts.
+  async getByQuestionIdForStudent(questionId: number, appClient?: string) {
+    if (!isMobileAppClient(appClient) && !(await this.isQuestionFreelyAccessible(questionId))) {
+      throw new AppOnlyContentException();
+    }
+    return this.getByQuestionId(questionId);
+  }
+
+  private async isQuestionFreelyAccessible(questionId: number): Promise<boolean> {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT 1
+       FROM question_quizzes qq
+       INNER JOIN quizzes q ON q.id = qq.quiz_id AND q.status = 'active' AND q.is_free = 1
+       WHERE qq.question_id = ?
+       LIMIT 1`,
+      [questionId]
+    );
+    return rows.length > 0;
+  }
 
   async getByQuestionId(questionId: number) {
     const [rows] = await this.db.execute<RecapRow[]>(

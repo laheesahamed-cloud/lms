@@ -15,11 +15,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TheoryRecapService = void 0;
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
+const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
+const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const ai_service_1 = require("../ai/ai.service");
 let TheoryRecapService = class TheoryRecapService {
     constructor(db, aiService) {
         this.db = db;
         this.aiService = aiService;
+    }
+    async getByQuestionIdForStudent(questionId, appClient) {
+        if (!(0, mobile_client_util_1.isMobileAppClient)(appClient) && !(await this.isQuestionFreelyAccessible(questionId))) {
+            throw new app_only_content_exception_1.AppOnlyContentException();
+        }
+        return this.getByQuestionId(questionId);
+    }
+    async isQuestionFreelyAccessible(questionId) {
+        const [rows] = await this.db.execute(`SELECT 1
+       FROM question_quizzes qq
+       INNER JOIN quizzes q ON q.id = qq.quiz_id AND q.status = 'active' AND q.is_free = 1
+       WHERE qq.question_id = ?
+       LIMIT 1`, [questionId]);
+        return rows.length > 0;
     }
     async getByQuestionId(questionId) {
         const [rows] = await this.db.execute(`SELECT

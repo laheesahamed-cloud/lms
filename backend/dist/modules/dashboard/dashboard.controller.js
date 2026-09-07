@@ -25,8 +25,8 @@ let DashboardController = class DashboardController {
     getAdminDashboard(authorization) {
         return this.dashboardService.getAdminDashboard(authorization);
     }
-    getStudentDashboard(authorization) {
-        return this.dashboardService.getStudentDashboard(authorization);
+    getStudentDashboard(authorization, appClient) {
+        return this.dashboardService.getStudentDashboard(authorization, appClient);
     }
     recordStudentActivity(authorization, dto) {
         return this.dashboardService.recordStudentActivity(authorization, dto);
@@ -45,8 +45,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('student'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getStudentDashboard", null);
 __decorate([

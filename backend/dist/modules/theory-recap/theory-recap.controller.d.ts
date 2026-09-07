@@ -5,7 +5,7 @@ export declare class TheoryRecapController {
     private readonly theoryRecapService;
     private readonly authService;
     constructor(theoryRecapService: TheoryRecapService, authService: AuthService);
-    getByQuestionId(questionId: number, authorization?: string): Promise<{
+    getByQuestionId(questionId: number, authorization?: string, appClient?: string): Promise<{
         id: number;
         questionId: number;
         conceptName: string;
@@ -23,7 +23,7 @@ export declare class TheoryRecapController {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -45,7 +45,7 @@ export declare class TheoryRecapController {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -67,7 +67,7 @@ export declare class TheoryRecapController {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -89,7 +89,7 @@ export declare class TheoryRecapController {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;

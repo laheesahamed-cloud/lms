@@ -13,6 +13,8 @@ import { TopicsService } from '../src/modules/topics/topics.service';
 import { SubtopicsService } from '../src/modules/subtopics/subtopics.service';
 import { PapersService } from '../src/modules/papers/papers.service';
 import { WorkspaceService } from '../src/modules/workspace/workspace.service';
+import { TheoryRecapService } from '../src/modules/theory-recap/theory-recap.service';
+import { StudyBookmarksService } from '../src/modules/study-bookmarks/study-bookmarks.service';
 import { AppOnlyContentException } from '../src/common/exceptions/app-only-content.exception';
 
 // The student-facing "open this quiz" path used to be QuizzesService.getCards;
@@ -102,6 +104,87 @@ class QuizAccessMockPool {
     }
 
     throw new Error(`Unexpected SQL in access control regression test: ${normalizedSql}`);
+  }
+}
+
+// "Question of the day" on the student dashboard used to draw from every
+// question in the bank, options and correct answer included, with no
+// premium check — this pins the fix restricting the website's pool to
+// questions that also appear in a free quiz.
+class DashboardQuestionMockPool {
+  freeEligibleCount: number;
+  allEligibleCount: number;
+
+  constructor(input: { freeEligibleCount: number; allEligibleCount: number }) {
+    this.freeEligibleCount = input.freeEligibleCount;
+    this.allEligibleCount = input.allEligibleCount;
+  }
+
+  async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
+    const normalizedSql = sql.replace(/\s+/g, ' ').trim();
+    const isFreeOnlyQuery = normalizedSql.includes('free_quiz');
+
+    if (normalizedSql.startsWith('SELECT COUNT(*) AS total_questions')) {
+      return [[{ total_questions: isFreeOnlyQuery ? this.freeEligibleCount : this.allEligibleCount }] as T, []];
+    }
+
+    if (normalizedSql.includes('FROM questions q') && normalizedSql.includes('LEFT JOIN courses c')) {
+      return [[{ id: 49, question_text: 'Q', question_type: 'sba', course_title: 'Medicine', subject_name: 'Cardiology', topic_name: 'Heart Failure' }] as T, []];
+    }
+
+    if (normalizedSql.startsWith('SELECT id, question_id, option_label, option_text, is_correct')) {
+      return [[{ id: 1, question_id: 49, option_label: 'A', option_text: 'Answer', is_correct: 1 }] as T, []];
+    }
+
+    throw new Error(`Unexpected SQL in dashboard question regression test: ${normalizedSql}`);
+  }
+}
+
+// Theory recap is rich educational content fetched by raw question ID, with
+// no relationship check otherwise — this pins the fix requiring the mobile
+// header unless the question also appears in a free quiz.
+class TheoryRecapMockPool {
+  isFreeLinked: boolean;
+
+  constructor(input: { isFreeLinked: boolean }) {
+    this.isFreeLinked = input.isFreeLinked;
+  }
+
+  async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
+    const normalizedSql = sql.replace(/\s+/g, ' ').trim();
+
+    if (normalizedSql.includes('FROM question_quizzes qq') && normalizedSql.includes('q.is_free = 1')) {
+      return [(this.isFreeLinked ? [{ 1: 1 }] : []) as T, []];
+    }
+
+    if (normalizedSql.includes('FROM question_theory_recaps')) {
+      return [[{
+        id: 7, question_id: 203, concept_name: 'HFrEF', hierarchy_course: 'Medicine', hierarchy_subject: 'Cardiology',
+        hierarchy_topic: 'Heart Failure', hierarchy_lesson: 'Heart failure', etiology: '[]', pathophysiology: '[]',
+        clinical_features: '[]', investigations: '[]', treatment: '[]', key_points: '[]', mnemonic: null,
+        generated_by: 'manual', reviewed_status: 'reviewed', created_at: new Date(), updated_at: new Date(),
+      }] as T, []];
+    }
+
+    throw new Error(`Unexpected SQL in theory recap regression test: ${normalizedSql}`);
+  }
+}
+
+// A bookmarked question is premium content too — this pins the fix that
+// blanks the text preview (title stays generic) instead of leaking it.
+class StudyBookmarksMockPool {
+  rows: any[];
+
+  constructor(rows: any[]) {
+    this.rows = rows;
+  }
+
+  async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
+    const normalizedSql = sql.replace(/\s+/g, ' ').trim();
+    if (normalizedSql.includes('FROM study_bookmarks b')) {
+      return [this.rows as T, []];
+    }
+    throw new Error(`Unexpected SQL in study bookmarks regression test: ${normalizedSql}`);
   }
 }
 
@@ -469,6 +552,69 @@ async function testFreeQuizReviewAllowedWithoutMobileHeader() {
   assert.equal(result.questions.length, 1, 'free quiz reviews stay reachable from the website with no header at all');
 }
 
+async function testTheoryRecapDeniedForPremiumOnlyQuestionWithoutMobileHeader() {
+  const db = new TheoryRecapMockPool({ isFreeLinked: false });
+  const service = new TheoryRecapService(db as any, {} as any);
+  await assert.rejects(
+    () => service.getByQuestionIdForStudent(203),
+    AppOnlyContentException
+  );
+}
+
+async function testTheoryRecapAllowedForPremiumOnlyQuestionWithMobileHeader() {
+  const db = new TheoryRecapMockPool({ isFreeLinked: false });
+  const service = new TheoryRecapService(db as any, {} as any);
+  const recap = await service.getByQuestionIdForStudent(203, MOBILE_CLIENT);
+  assert.equal(recap?.questionId, 203);
+}
+
+async function testTheoryRecapAllowedForFreeLinkedQuestionWithoutMobileHeader() {
+  const db = new TheoryRecapMockPool({ isFreeLinked: true });
+  const service = new TheoryRecapService(db as any, {} as any);
+  const recap = await service.getByQuestionIdForStudent(203);
+  assert.equal(recap?.questionId, 203, 'a question that also appears in a free quiz stays reachable from the website');
+}
+
+async function testBookmarkedPremiumQuestionTextHiddenWithoutMobileHeader() {
+  const db = new StudyBookmarksMockPool([{
+    id: 34, user_id: 112, item_type: 'question', item_id: 203, created_at: new Date(),
+    quiz_title: null, exam_mode_only: null, note_title: null, note_engine_key: null,
+    question_text: 'Which medication improves mortality in heart failure with reduced ejection fraction?',
+    question_quiz_id: 23, question_is_free: 0, course_title: 'Medicine', topic_name: 'Cardiology',
+  }]);
+  const service = new StudyBookmarksService(db as any);
+  const [bookmark] = await service.list(112);
+  assert.equal(bookmark.title, 'Premium question', 'a premium question bookmark must not leak its text on the website');
+  assert.equal(bookmark.appOnly, true);
+}
+
+async function testBookmarkedFreeLinkedQuestionTextShownWithoutMobileHeader() {
+  const db = new StudyBookmarksMockPool([{
+    id: 35, user_id: 112, item_type: 'question', item_id: 206, created_at: new Date(),
+    quiz_title: null, exam_mode_only: null, note_title: null, note_engine_key: null,
+    question_text: 'What is the most common cause of mitral stenosis?',
+    question_quiz_id: 18, question_is_free: 1, course_title: 'Medicine', topic_name: 'Cardiology',
+  }]);
+  const service = new StudyBookmarksService(db as any);
+  const [bookmark] = await service.list(112);
+  assert.equal(bookmark.title, 'What is the most common cause of mitral stenosis?');
+  assert.equal(bookmark.appOnly, false);
+}
+
+async function testDashboardQuestionOfDayExcludesPremiumOnlyPoolWithoutMobileHeader() {
+  const db = new DashboardQuestionMockPool({ freeEligibleCount: 0, allEligibleCount: 5 });
+  const service = new DashboardService(db as any, {} as any, {} as any);
+  const question = await (service as any).getRandomDashboardQuestion(112);
+  assert.equal(question, null, 'website must not surface a "question of the day" drawn only from premium quizzes');
+}
+
+async function testDashboardQuestionOfDayUsesFullPoolWithMobileHeader() {
+  const db = new DashboardQuestionMockPool({ freeEligibleCount: 0, allEligibleCount: 5 });
+  const service = new DashboardService(db as any, {} as any, {} as any);
+  const question = await (service as any).getRandomDashboardQuestion(112, MOBILE_CLIENT);
+  assert.equal(question?.id, 49);
+}
+
 async function testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission() {
   const controller = new SubscriptionsController(
     { findAdminList: async () => [], getStudentBilling: async () => ({}) } as any,
@@ -762,6 +908,13 @@ async function main() {
   await testPremiumQuizReviewDeniedWithoutMobileHeader();
   await testPremiumQuizReviewAllowedWithMobileHeader();
   await testFreeQuizReviewAllowedWithoutMobileHeader();
+  await testTheoryRecapDeniedForPremiumOnlyQuestionWithoutMobileHeader();
+  await testTheoryRecapAllowedForPremiumOnlyQuestionWithMobileHeader();
+  await testTheoryRecapAllowedForFreeLinkedQuestionWithoutMobileHeader();
+  await testBookmarkedPremiumQuestionTextHiddenWithoutMobileHeader();
+  await testBookmarkedFreeLinkedQuestionTextShownWithoutMobileHeader();
+  await testDashboardQuestionOfDayExcludesPremiumOnlyPoolWithoutMobileHeader();
+  await testDashboardQuestionOfDayUsesFullPoolWithMobileHeader();
   await testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission();
   await testSubscriptionDefaultRouteAllowsFinanceAdminList();
   await testSubscriptionDefaultRouteDeniesInactiveStaffSession();

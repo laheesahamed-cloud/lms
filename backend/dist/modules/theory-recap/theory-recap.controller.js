@@ -23,9 +23,9 @@ let TheoryRecapController = class TheoryRecapController {
         this.theoryRecapService = theoryRecapService;
         this.authService = authService;
     }
-    async getByQuestionId(questionId, authorization) {
+    async getByQuestionId(questionId, authorization, appClient) {
         await this.authService.requireAuthenticatedUser(authorization);
-        return this.theoryRecapService.getByQuestionId(questionId);
+        return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient);
     }
     async upsert(questionId, dto, authorization) {
         await this.authService.requireAdmin(authorization);
@@ -54,8 +54,9 @@ __decorate([
     (0, common_1.Get)('question/:questionId'),
     __param(0, (0, common_1.Param)('questionId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Headers)('authorization')),
+    __param(2, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [Number, String, String]),
     __metadata("design:returntype", Promise)
 ], TheoryRecapController.prototype, "getByQuestionId", null);
 __decorate([

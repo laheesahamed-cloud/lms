@@ -81,7 +81,7 @@ export declare class DashboardService {
     private canViewLearnerPii;
     private anonymizedLearnerRef;
     private calculateSeriesDelta;
-    getStudentDashboard(authorization?: string): Promise<{
+    getStudentDashboard(authorization?: string, appClient?: string): Promise<{
         user: {
             id: number;
             fullName: string;

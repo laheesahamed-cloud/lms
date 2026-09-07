@@ -5,6 +5,29 @@ export declare class TheoryRecapService {
     private readonly db;
     private readonly aiService;
     constructor(db: Pool, aiService: AiService);
+    getByQuestionIdForStudent(questionId: number, appClient?: string): Promise<{
+        id: number;
+        questionId: number;
+        conceptName: string;
+        hierarchy: {
+            course: string;
+            subject: string;
+            topic: string;
+            lesson: string;
+        };
+        etiology: string[];
+        pathophysiology: string[];
+        clinicalFeatures: string[];
+        investigations: string[];
+        treatment: string[];
+        keyPoints: string[];
+        mnemonic: string;
+        generatedBy: "ai" | "manual";
+        reviewedStatus: "pending" | "approved" | "rejected";
+        createdAt: string;
+        updatedAt: string;
+    } | null>;
+    private isQuestionFreelyAccessible;
     getByQuestionId(questionId: number): Promise<{
         id: number;
         questionId: number;
@@ -23,7 +46,7 @@ export declare class TheoryRecapService {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -45,7 +68,7 @@ export declare class TheoryRecapService {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -67,7 +90,7 @@ export declare class TheoryRecapService {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;

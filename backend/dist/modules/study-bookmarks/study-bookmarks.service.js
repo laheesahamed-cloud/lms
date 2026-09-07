@@ -15,11 +15,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudyBookmarksService = void 0;
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
+const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 let StudyBookmarksService = class StudyBookmarksService {
     constructor(db) {
         this.db = db;
     }
-    async list(userId) {
+    async list(userId, appClient) {
+        const isMobileClient = (0, mobile_client_util_1.isMobileAppClient)(appClient);
         const [rows] = await this.db.execute(`SELECT
          b.id,
          b.user_id,
@@ -37,6 +39,12 @@ let StudyBookmarksService = class StudyBookmarksService {
            INNER JOIN quizzes linked_quiz ON linked_quiz.id = qq.quiz_id AND linked_quiz.status = 'active'
            WHERE qq.question_id = qn.id
          ) AS question_quiz_id,
+         (
+           SELECT COUNT(*)
+           FROM question_quizzes qqf
+           INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
+           WHERE qqf.question_id = qn.id
+         ) AS question_is_free,
          COALESCE(qc.course_title, nc.course_title, qnc.course_title) AS course_title,
          COALESCE(qt.topic_name, nt.topic_name, qnt.topic_name) AS topic_name
        FROM study_bookmarks b
@@ -51,23 +59,28 @@ let StudyBookmarksService = class StudyBookmarksService {
        LEFT JOIN topics qnt ON qnt.id = qn.topic_id
        WHERE b.user_id = ?
        ORDER BY b.created_at DESC, b.id DESC`, [userId]);
-        return rows.map((row) => ({
-            id: row.id,
-            userId: row.user_id,
-            itemType: row.item_type,
-            itemId: row.item_id,
-            title: row.item_type === 'quiz'
-                ? String(row.quiz_title || 'Quiz')
-                : row.item_type === 'question'
-                    ? String(row.question_text || `Question #${row.item_id}`)
-                    : String(row.note_title || 'AI Note'),
-            examModeOnly: row.item_type === 'quiz' ? Number(row.exam_mode_only || 0) === 1 : false,
-            engineKey: row.item_type === 'ai_note' ? String(row.note_engine_key || 'gemini') : null,
-            quizId: row.item_type === 'question' && row.question_quiz_id ? Number(row.question_quiz_id) : null,
-            courseTitle: String(row.course_title || ''),
-            topicName: String(row.topic_name || ''),
-            createdAt: row.created_at || null,
-        }));
+        return rows.map((row) => {
+            const isQuestion = row.item_type === 'question';
+            const questionAppOnly = isQuestion && Number(row.question_is_free || 0) === 0 && !isMobileClient;
+            return {
+                id: row.id,
+                userId: row.user_id,
+                itemType: row.item_type,
+                itemId: row.item_id,
+                title: row.item_type === 'quiz'
+                    ? String(row.quiz_title || 'Quiz')
+                    : isQuestion
+                        ? (questionAppOnly ? 'Premium question' : String(row.question_text || `Question #${row.item_id}`))
+                        : String(row.note_title || 'AI Note'),
+                appOnly: questionAppOnly,
+                examModeOnly: row.item_type === 'quiz' ? Number(row.exam_mode_only || 0) === 1 : false,
+                engineKey: row.item_type === 'ai_note' ? String(row.note_engine_key || 'gemini') : null,
+                quizId: isQuestion && row.question_quiz_id ? Number(row.question_quiz_id) : null,
+                courseTitle: String(row.course_title || ''),
+                topicName: String(row.topic_name || ''),
+                createdAt: row.created_at || null,
+            };
+        });
     }
     async toggle(userId, dto) {
         await this.assertTargetExists(dto.itemType, dto.itemId);

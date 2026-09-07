@@ -2,6 +2,7 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { AuthService } from '../auth/auth.service';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { CoursesService } from '../courses/courses.service';
@@ -567,7 +568,7 @@ export class DashboardService {
     return { delta, label };
   }
 
-  async getStudentDashboard(authorization?: string) {
+  async getStudentDashboard(authorization?: string, appClient?: string) {
     const student = await this.findActiveStudentByToken(this.extractToken(authorization));
     const serverNow = new Date();
     const serverClock = this.buildServerClock(serverNow);
@@ -751,7 +752,7 @@ export class DashboardService {
          LIMIT 1`,
         [student.id]
       ),
-      this.getRandomDashboardQuestion(student.id),
+      this.getRandomDashboardQuestion(student.id, appClient),
       this.coursesService.findStudentCourses(authorization),
     ]);
 
@@ -1164,7 +1165,14 @@ export class DashboardService {
     ];
   }
 
-  private async getRandomDashboardQuestion(studentId: number) {
+  private async getRandomDashboardQuestion(studentId: number, appClient?: string) {
+    // This "question of the day" widget had no premium check at all — any
+    // question in the entire bank (full text, all options, correct answer
+    // marked) could be picked, dashboard-wide, for every student. Restrict
+    // the website's pool to questions that also appear in a free quiz (a
+    // question can be linked to several); the app can draw from the full
+    // bank since it's allowed to show premium content anyway.
+    const isMobileClient = isMobileAppClient(appClient);
     const eligibleQuestionWhere = `
        q.status = 'active'
          AND q.question_type = 'sba'
@@ -1178,7 +1186,12 @@ export class DashboardService {
            FROM question_options qo
            WHERE qo.question_id = q.id
              AND qo.is_correct = 1
-         ) = 1`;
+         ) = 1
+         ${isMobileClient ? '' : `AND EXISTS (
+           SELECT 1 FROM question_quizzes qqf
+           INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
+           WHERE qqf.question_id = q.id
+         )`}`;
 
     const [[countRow]] = await this.db.execute<(RowDataPacket & { total_questions: number })[]>(
       `SELECT COUNT(*) AS total_questions

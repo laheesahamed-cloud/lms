@@ -22,9 +22,9 @@ let StudyBookmarksController = class StudyBookmarksController {
         this.studyBookmarksService = studyBookmarksService;
         this.authService = authService;
     }
-    async list(authorization) {
+    async list(authorization, appClient) {
         const student = await this.authService.requireStudent(authorization);
-        return this.studyBookmarksService.list(student.id);
+        return this.studyBookmarksService.list(student.id, appClient);
     }
     async toggle(authorization, dto) {
         const student = await this.authService.requireStudent(authorization);
@@ -35,8 +35,9 @@ exports.StudyBookmarksController = StudyBookmarksController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], StudyBookmarksController.prototype, "list", null);
 __decorate([

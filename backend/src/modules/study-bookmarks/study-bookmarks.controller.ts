@@ -11,9 +11,12 @@ export class StudyBookmarksController {
   ) {}
 
   @Get()
-  async list(@Headers('authorization') authorization?: string) {
+  async list(
+    @Headers('authorization') authorization?: string,
+    @Headers('x-app-client') appClient?: string
+  ) {
     const student = await this.authService.requireStudent(authorization);
-    return this.studyBookmarksService.list(student.id);
+    return this.studyBookmarksService.list(student.id, appClient);
   }
 
   @Post('toggle')

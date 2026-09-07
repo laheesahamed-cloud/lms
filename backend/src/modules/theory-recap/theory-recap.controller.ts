@@ -14,10 +14,11 @@ export class TheoryRecapController {
   @Get('question/:questionId')
   async getByQuestionId(
     @Param('questionId', ParseIntPipe) questionId: number,
-    @Headers('authorization') authorization?: string
+    @Headers('authorization') authorization?: string,
+    @Headers('x-app-client') appClient?: string
   ) {
     await this.authService.requireAuthenticatedUser(authorization);
-    return this.theoryRecapService.getByQuestionId(questionId);
+    return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient);
   }
 
   @Put('question/:questionId')

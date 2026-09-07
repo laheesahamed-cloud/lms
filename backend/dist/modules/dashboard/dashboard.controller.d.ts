@@ -69,7 +69,7 @@ export declare class DashboardController {
             path: string;
         }[];
     }>;
-    getStudentDashboard(authorization?: string): Promise<{
+    getStudentDashboard(authorization?: string, appClient?: string): Promise<{
         user: {
             id: number;
             fullName: string;
