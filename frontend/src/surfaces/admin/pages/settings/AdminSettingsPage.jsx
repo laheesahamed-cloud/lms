@@ -10,6 +10,7 @@ import { AdminPopupAlertSettingsPanel } from './AdminPopupAlertSettingsPanel.jsx
 import { AdminThemeSettingsPanel } from './AdminThemeSettingsPanel.jsx';
 import { AdminNotificationSettingsPanel } from './AdminNotificationSettingsPanel.jsx';
 import { AdminApiRecoverySettingsPanel } from './AdminApiRecoverySettingsPanel.jsx';
+import { AdminAppOnlyContentSettingsPanel } from './AdminAppOnlyContentSettingsPanel.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 const settingsCategories = [
@@ -61,6 +62,13 @@ const settingsCategories = [
     title: 'Popup alert',
     description: 'Create an image or text popup for the landing page, login page, inside the app, or everywhere.',
     panel: <AdminPopupAlertSettingsPanel />,
+  },
+  {
+    id: 'app-only-content',
+    label: 'App-Only Content',
+    title: 'App-only premium content',
+    description: 'Require the mobile app for premium quizzes, lessons, and flashcards, regardless of subscription. Subscribing on the website is unaffected.',
+    panel: <AdminAppOnlyContentSettingsPanel />,
   },
   {
     id: 'notifications',

@@ -1,5 +1,6 @@
 import { Pool } from 'mysql2/promise';
 import { PlansService } from '../plans/plans.service';
+import { SettingsService } from '../settings/settings.service';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 type TheoryRecapData = {
@@ -21,10 +22,11 @@ type TheoryRecapData = {
 export declare class QuizAttemptsService {
     private readonly db;
     private readonly plansService;
+    private readonly settingsService;
     private readonly activeQuizCache;
     private readonly quizQuestionCache;
     private readonly dynamicQuestionPoolCache;
-    constructor(db: Pool, plansService: PlansService);
+    constructor(db: Pool, plansService: PlansService, settingsService: SettingsService);
     listQuizzes(authorization?: string): Promise<{
         id: number;
         courseId: number;
@@ -80,7 +82,7 @@ export declare class QuizAttemptsService {
         submittedAt: any;
         reviewedAt: any;
     }[]>;
-    loadQuiz(authorization: string | undefined, quizId: number, mode: string, questionId?: number | null): Promise<{
+    loadQuiz(authorization: string | undefined, quizId: number, mode: string, questionId?: number | null, appClient?: string): Promise<{
         mode: string;
         quiz: {
             id: number;
@@ -109,7 +111,7 @@ export declare class QuizAttemptsService {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "submitted" | "expired";
+            status: "expired" | "in_progress" | "submitted";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;

@@ -65,7 +65,7 @@ export declare class LessonsController {
         topicName: string;
         subtopicName: string;
     }[]>;
-    findStudentLesson(id: number, authorization?: string): Promise<{
+    findStudentLesson(id: number, authorization?: string, appClient?: string): Promise<{
         excerpt: string;
         id: number;
         courseId: number;
@@ -87,7 +87,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -100,7 +100,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -113,7 +113,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -266,7 +266,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -283,7 +283,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -310,7 +310,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "approved" | "rejected";
+            status: "approved" | "rejected" | "draft";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;
@@ -328,7 +328,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -339,10 +339,11 @@ export declare class LessonsController {
         ok: boolean;
         id: number;
     }>;
-    canvasStudentList(auth: string, engineKey?: string): Promise<{
+    canvasStudentList(auth: string, engineKey?: string, appClient?: string): Promise<{
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
         noteData: unknown;
@@ -373,10 +374,11 @@ export declare class LessonsController {
         createdAt: string;
         updatedAt: string;
     }[]>;
-    canvasStudentFindNote(auth: string, id: number, engineKey?: string): Promise<{
+    canvasStudentFindNote(auth: string, id: number, engineKey?: string, appClient?: string): Promise<{
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
         noteData: unknown;
@@ -412,9 +414,10 @@ export declare class LessonsController {
         lessonTitle: any;
         pdfUrl: string;
         accessLocked: boolean;
+        appOnly: boolean;
         lockReason: string;
     }>;
-    canvasStudentFlashcards(auth: string, id: number, engineKey?: string): Promise<{
+    canvasStudentFlashcards(auth: string, id: number, engineKey?: string, appClient?: string): Promise<{
         flashcards: {
             id: number;
             lessonId: number;
@@ -425,7 +428,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "approved" | "rejected";
+            status: "approved" | "rejected" | "draft";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;

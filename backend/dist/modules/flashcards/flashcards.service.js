@@ -69,8 +69,8 @@ let FlashcardsService = class FlashcardsService {
             weights: s.weights,
         };
     }
-    async listDecks(userId, token) {
-        const notes = await this.loadAccessibleNotes(token);
+    async listDecks(userId, token, appClient) {
+        const notes = await this.loadAccessibleNotes(token, appClient);
         const reviewByNote = await this.reviewCountsByNote(userId);
         const tree = buildDeckTree(notes, reviewByNote);
         const totals = tree.reduce((acc, node) => {
@@ -81,10 +81,10 @@ let FlashcardsService = class FlashcardsService {
         }, { newCount: 0, learningCount: 0, dueCount: 0 });
         return { decks: tree, totals };
     }
-    async getQueue(userId, token, params) {
+    async getQueue(userId, token, params, appClient) {
         const settings = await this.getSettings();
         const fsrs = this.fsrsSettings(settings);
-        const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token)).filter((n) => n.canAccess).map((n) => n.id));
+        const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token, appClient)).filter((n) => n.canAccess).map((n) => n.id));
         const noteIds = params.noteIds.filter((id) => accessibleNoteIds.has(id));
         if (!noteIds.length)
             return { cards: [], counts: { new: 0, learning: 0, due: 0 } };
@@ -268,8 +268,8 @@ let FlashcardsService = class FlashcardsService {
         const r = Number(rating);
         return r === 1 || r === 2 || r === 4 ? r : 3;
     }
-    async loadAccessibleNotes(token) {
-        const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine)));
+    async loadAccessibleNotes(token, appClient) {
+        const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine, appClient)));
         const merged = new Map();
         for (const list of lists) {
             for (const note of list) {
@@ -369,6 +369,7 @@ function normalizeNote(note) {
         lessonTitle: String(note.lessonTitle || note.title || 'Untitled lesson'),
         approvedFlashcardCount: Math.max(0, Number(note.approvedFlashcardCount || 0)),
         canAccess: Boolean(note.canAccess),
+        appOnly: Boolean(note.appOnly),
     };
 }
 function buildDeckTree(notes, reviewByNote) {
@@ -378,7 +379,7 @@ function buildDeckTree(notes, reviewByNote) {
         const siblings = Array.isArray(parent) ? parent : parent.children;
         let node = index.get(key);
         if (!node) {
-            node = { key, label, type, depth, noteIds: [], newCount: 0, learningCount: 0, dueCount: 0, cardCount: 0, locked: false, children: [] };
+            node = { key, label, type, depth, noteIds: [], newCount: 0, learningCount: 0, dueCount: 0, cardCount: 0, locked: false, appOnly: false, children: [] };
             index.set(key, node);
             siblings.push(node);
         }
@@ -403,6 +404,8 @@ function buildDeckTree(notes, reviewByNote) {
             node.cardCount += note.approvedFlashcardCount;
             if (!note.canAccess)
                 node.locked = true;
+            if (note.appOnly)
+                node.appOnly = true;
         }
     }
     index.forEach((node) => { node.noteIds = [...new Set(node.noteIds)]; });

@@ -4,6 +4,9 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
+import { SettingsService } from '../settings/settings.service';
+import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
+import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 
@@ -188,7 +191,8 @@ export class QuizAttemptsService {
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
-    private readonly plansService: PlansService
+    private readonly plansService: PlansService,
+    private readonly settingsService: SettingsService
   ) {}
 
   async listQuizzes(authorization?: string) {
@@ -373,7 +377,8 @@ export class QuizAttemptsService {
     authorization: string | undefined,
     quizId: number,
     mode: string,
-    questionId?: number | null
+    questionId?: number | null,
+    appClient?: string
   ) {
     if (mode !== 'practice' && mode !== 'exam') {
       throw new BadRequestException('Invalid quiz mode');
@@ -399,7 +404,7 @@ export class QuizAttemptsService {
     // The access, dynamic-eligibility and plan-feature checks all depend only on
     // (user, quiz) and are independent of each other — run them concurrently.
     await Promise.all([
-      this.ensureStudentCanAccessQuiz(user.id, quiz),
+      this.ensureStudentCanAccessQuiz(user.id, quiz, appClient),
       this.ensureStudentCanUseDynamicQuiz(user.id, quiz),
       isFreeQuiz
         ? Promise.resolve()
@@ -740,7 +745,18 @@ export class QuizAttemptsService {
     return token;
   }
 
-  private async ensureStudentCanAccessQuiz(userId: number, quiz: Pick<QuizRow, 'id' | 'course_id' | 'is_free'>) {
+  private async ensureStudentCanAccessQuiz(
+    userId: number,
+    quiz: Pick<QuizRow, 'id' | 'course_id' | 'is_free'>,
+    appClient?: string
+  ) {
+    // Premium quizzes are app-only, regardless of subscription — checked before
+    // (and independent of) the subscription-scope check below. See
+    // common/utils/mobile-client.util.ts.
+    if (Number(quiz.is_free) !== 1 && !isMobileAppClient(appClient) && (await this.settingsService.isAppOnlyContentEnabled())) {
+      throw new AppOnlyContentException();
+    }
+
     const accessProfile = await this.getQuizAccessProfile(userId);
     if (!this.canAccessQuiz(quiz, accessProfile)) {
       throw new BadRequestException('This quiz is included with selected course plans');

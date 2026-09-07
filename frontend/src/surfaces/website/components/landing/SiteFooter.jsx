@@ -3,6 +3,7 @@
  * mobile, with a bottom bar. Logo uses the dark-bg (light) brand mark.
  */
 import { Link } from 'react-router-dom';
+import { APP_STORE_URL, PLAY_STORE_URL } from '../../../../shared/config/appLinks.js';
 
 const ASSET = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
 const LOGO = `${ASSET}brand/xyndrome-logo-mark-dark.webp`;
@@ -26,6 +27,15 @@ function Social({ label, d }) {
     <a href="#" aria-label={label} className="grid h-9 w-9 place-items-center rounded-lg border border-white/12 text-white/55 transition-colors duration-200 hover:border-[#5274f3]/50 hover:text-[#7aa2ff]">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={d} /></svg>
     </a>
+  );
+}
+
+// Plain (non-clickable) until APP_STORE_URL/PLAY_STORE_URL are set in shared/config/appLinks.js.
+function FooterStoreLink({ href, label }) {
+  const className = 'inline-flex items-center justify-center gap-2 rounded-lg border border-white/14 px-3 py-2 text-[12px] font-semibold text-white/60 no-underline transition-colors duration-200 hover:border-white/28 hover:text-white/85';
+  if (!href) return <span className={className}>{label}</span>;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={className}>{label}</a>
   );
 }
 
@@ -68,8 +78,8 @@ export function SiteFooter() {
             <Social label="X" d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.65l-5.21-6.82-5.97 6.82H1.68l7.73-8.84L1.25 2.25h6.82l4.71 6.23 5.46-6.23zm-1.16 17.52h1.84L7.01 4.13H5.04l12.04 15.64z" />
           </div>
           <div className="mt-5 flex flex-col gap-2">
-            <span className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/14 px-3 py-2 text-[12px] font-semibold text-white/60"> App Store</span>
-            <span className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/14 px-3 py-2 text-[12px] font-semibold text-white/60">Google Play</span>
+            <FooterStoreLink href={APP_STORE_URL} label="App Store" />
+            <FooterStoreLink href={PLAY_STORE_URL} label="Google Play" />
           </div>
         </div>
       </div>

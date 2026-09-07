@@ -22,9 +22,10 @@ export class QuizAttemptsController {
     @Param('quizId', ParseIntPipe) quizId: number,
     @Query('mode') mode: string,
     @Query('questionId') questionId?: string,
-    @Headers('authorization') authorization?: string
+    @Headers('authorization') authorization?: string,
+    @Headers('x-app-client') appClient?: string
   ) {
-    return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null);
+    return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null, appClient);
   }
 
   @Post('exam/:quizId/submit')

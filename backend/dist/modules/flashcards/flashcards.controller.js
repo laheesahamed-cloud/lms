@@ -31,17 +31,17 @@ let FlashcardsController = class FlashcardsController {
         this.svc = svc;
         this.authService = authService;
     }
-    async decks(auth) {
+    async decks(auth, appClient) {
         const student = await this.authService.requireStudent(auth);
-        return this.svc.listDecks(student.id, rawToken(auth));
+        return this.svc.listDecks(student.id, rawToken(auth), appClient);
     }
-    async queue(noteIds, limit, newLimit, auth) {
+    async queue(noteIds, limit, newLimit, auth, appClient) {
         const student = await this.authService.requireStudent(auth);
         return this.svc.getQueue(student.id, rawToken(auth), {
             noteIds: parseNoteIds(noteIds),
             limit: limit ? Number(limit) : undefined,
             newLimit: newLimit ? Number(newLimit) : undefined,
-        });
+        }, appClient);
     }
     async submit(dto, auth) {
         const student = await this.authService.requireStudent(auth);
@@ -75,8 +75,9 @@ exports.FlashcardsController = FlashcardsController;
 __decorate([
     (0, common_1.Get)('decks'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], FlashcardsController.prototype, "decks", null);
 __decorate([
@@ -85,8 +86,9 @@ __decorate([
     __param(1, (0, common_1.Query)('limit')),
     __param(2, (0, common_1.Query)('newLimit')),
     __param(3, (0, common_1.Headers)('authorization')),
+    __param(4, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], FlashcardsController.prototype, "queue", null);
 __decorate([

@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const auth_module_1 = require("../auth/auth.module");
 const push_notifications_module_1 = require("../push-notifications/push-notifications.module");
+const settings_module_1 = require("../settings/settings.module");
 const lessons_controller_1 = require("./lessons.controller");
 const lessons_service_1 = require("./lessons.service");
 let LessonsModule = class LessonsModule {
@@ -18,7 +19,7 @@ let LessonsModule = class LessonsModule {
 exports.LessonsModule = LessonsModule;
 exports.LessonsModule = LessonsModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, config_1.ConfigModule, push_notifications_module_1.PushNotificationsModule],
+        imports: [auth_module_1.AuthModule, config_1.ConfigModule, push_notifications_module_1.PushNotificationsModule, settings_module_1.SettingsModule],
         controllers: [lessons_controller_1.LessonsController],
         providers: [lessons_service_1.LessonsService],
         exports: [lessons_service_1.LessonsService],

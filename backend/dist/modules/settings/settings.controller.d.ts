@@ -8,6 +8,7 @@ import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
 import { TestSmtpSettingsDto } from './dto/test-smtp-settings.dto';
 import { UpdatePopupAlertSettingsDto } from './dto/update-popup-alert-settings.dto';
+import { UpdateAppOnlyContentSettingsDto } from './dto/update-app-only-content-settings.dto';
 import { UpdateApnsSettingsDto } from './dto/update-apns-settings.dto';
 import { UpdateFcmSettingsDto } from './dto/update-fcm-settings.dto';
 import { SettingsService } from './settings.service';
@@ -205,7 +206,7 @@ export declare class SettingsController {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -229,7 +230,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -267,6 +268,16 @@ export declare class SettingsController {
         maskedServiceAccountJson: string;
         configured: boolean;
         ok: boolean;
+    }>;
+    getAppOnlyContentSettings(authorization?: string): Promise<{
+        ok: boolean;
+        enabled: boolean;
+        note: string;
+    }>;
+    updateAppOnlyContentSettings(authorization: string | undefined, dto: UpdateAppOnlyContentSettingsDto): Promise<{
+        ok: boolean;
+        enabled: boolean;
+        note: string;
     }>;
     createAiProvider(authorization: string | undefined, dto: CreateAiProviderDto): Promise<{
         ok: boolean;
@@ -436,7 +447,7 @@ export declare class SettingsController {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -465,7 +476,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;

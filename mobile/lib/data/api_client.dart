@@ -21,7 +21,12 @@ class ApiClient {
       ..connectTimeout = AppConfig.apiTimeout
       ..receiveTimeout = AppConfig.apiTimeout
       ..sendTimeout = AppConfig.apiTimeout
-      ..headers['Accept'] = 'application/json';
+      ..headers['Accept'] = 'application/json'
+      // Identifies this as the official mobile app so the backend serves
+      // premium (non-free) quiz/lesson/flashcard content here instead of
+      // showing the website's "Open in the App" gate. Must stay in sync with
+      // backend/src/common/utils/mobile-client.util.ts.
+      ..headers['X-App-Client'] = 'xyndrome-mobile-app';
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {

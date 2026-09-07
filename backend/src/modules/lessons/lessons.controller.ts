@@ -55,8 +55,12 @@ export class LessonsController {
   }
 
   @Get('student/:id')
-  findStudentLesson(@Param('id', ParseIntPipe) id: number, @Headers('authorization') authorization?: string) {
-    return this.lessonsService.findStudentLesson(id, authorization);
+  findStudentLesson(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('authorization') authorization?: string,
+    @Headers('x-app-client') appClient?: string
+  ) {
+    return this.lessonsService.findStudentLesson(id, authorization, appClient);
   }
 
   @Get(':lessonId/annotations')
@@ -315,8 +319,12 @@ export class LessonsController {
   }
 
   @Get('canvas/student/notes')
-  canvasStudentList(@Headers('authorization') auth: string, @Query('engineKey') engineKey?: string) {
-    return this.lessonsService.canvasStudentList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  canvasStudentList(
+    @Headers('authorization') auth: string,
+    @Query('engineKey') engineKey?: string,
+    @Headers('x-app-client') appClient?: string,
+  ) {
+    return this.lessonsService.canvasStudentList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey), appClient);
   }
 
   @Get(':id/note')
@@ -324,8 +332,9 @@ export class LessonsController {
     @Headers('authorization') auth: string,
     @Param('id', ParseIntPipe) id: number,
     @Query('engineKey') engineKey?: string,
+    @Headers('x-app-client') appClient?: string,
   ) {
-    return this.lessonsService.canvasStudentFindNote(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    return this.lessonsService.canvasStudentFindNote(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey), appClient);
   }
 
   @Get(':id/flashcards')
@@ -333,8 +342,9 @@ export class LessonsController {
     @Headers('authorization') auth: string,
     @Param('id', ParseIntPipe) id: number,
     @Query('engineKey') engineKey?: string,
+    @Headers('x-app-client') appClient?: string,
   ) {
-    return this.lessonsService.canvasStudentFlashcards(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    return this.lessonsService.canvasStudentFlashcards(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey), appClient);
   }
 
   private bearerToken(auth: string | undefined) {

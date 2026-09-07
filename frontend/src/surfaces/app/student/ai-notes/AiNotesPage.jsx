@@ -12,6 +12,7 @@ import { canNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
+import { APP_STORE_URL, PLAY_STORE_URL } from '../../../../shared/config/appLinks.js';
 import { NoteCanvas } from './NoteCanvas.jsx';
 
 let drawingAudioContext = null;
@@ -3100,9 +3101,23 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fbfcff', padding:48, textAlign:'center' }}>
                 <span style={{ color:isDark?'#93c5fd':'#2563eb' }}><LockIcon /></span>
                 <div style={{ fontSize:15, fontWeight:800, color:isDark?'#f0f4ff':'#374151' }}>{note.upgradeLabel||'Plan access needed'}</div>
-                <div style={{ fontSize:13, color:isDark?'#94a3b8':'#6b7280' }}>{note.lockReason||'This lesson is included with selected subscriptions.'}</div>
-                <button className="inline-flex items-center justify-center" onClick={() => navigate('/subscriptions',{state:{from:location.pathname}})}
-                  style={{ background:isDark?'rgba(167,139,250,.14)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}>View access options</button>
+                <div style={{ fontSize:13, color:isDark?'#94a3b8':'#6b7280', maxWidth:360 }}>{note.lockReason||'This lesson is included with selected subscriptions.'}</div>
+                {note.appOnly ? (
+                  <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'center', gap:10 }}>
+                    {[['Download on the App Store', APP_STORE_URL], ['Get it on Google Play', PLAY_STORE_URL]].map(([label, href]) => (
+                      href ? (
+                        <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center"
+                          style={{ background:isDark?'rgba(167,139,250,.14)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, textDecoration:'none' }}>{label}</a>
+                      ) : (
+                        <span key={label} className="inline-flex items-center justify-center"
+                          style={{ opacity:.6, color:isDark?'#94a3b8':'#6b7280', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${topBd}` }}>{label} · Coming soon</span>
+                      )
+                    ))}
+                  </div>
+                ) : (
+                  <button className="inline-flex items-center justify-center" onClick={() => navigate('/subscriptions',{state:{from:location.pathname}})}
+                    style={{ background:isDark?'rgba(167,139,250,.14)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}>View access options</button>
+                )}
               </div>
             ) : note.pdfUrl && pages.length === 0 ? (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400 }}>

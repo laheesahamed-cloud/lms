@@ -18,6 +18,9 @@ const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_token_util_1 = require("../auth/auth-token.util");
 const plans_service_1 = require("../plans/plans.service");
+const settings_service_1 = require("../settings/settings.service");
+const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
+const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const SBA_QUESTION_MARKS = 2;
 const TRUE_FALSE_STATEMENT_MARKS = 0.4;
 const QUIZ_TOTAL_MARKS = 100;
@@ -28,9 +31,10 @@ const DYNAMIC_QUESTION_POOL_CACHE_MS = 60000;
 const DYNAMIC_QUESTION_POOL_CACHE_MAX = 300;
 const DYNAMIC_RANDOMIZATION_FEATURE = 'dynamic_quiz_randomization';
 let QuizAttemptsService = class QuizAttemptsService {
-    constructor(db, plansService) {
+    constructor(db, plansService, settingsService) {
         this.db = db;
         this.plansService = plansService;
+        this.settingsService = settingsService;
         this.activeQuizCache = new Map();
         this.quizQuestionCache = new Map();
         this.dynamicQuestionPoolCache = new Map();
@@ -198,7 +202,7 @@ let QuizAttemptsService = class QuizAttemptsService {
             reviewedAt: row.reviewed_at || null,
         }));
     }
-    async loadQuiz(authorization, quizId, mode, questionId) {
+    async loadQuiz(authorization, quizId, mode, questionId, appClient) {
         if (mode !== 'practice' && mode !== 'exam') {
             throw new common_1.BadRequestException('Invalid quiz mode');
         }
@@ -216,7 +220,7 @@ let QuizAttemptsService = class QuizAttemptsService {
             ? 'Exam mode is included with selected plans'
             : 'Practice mode is included with selected plans';
         await Promise.all([
-            this.ensureStudentCanAccessQuiz(user.id, quiz),
+            this.ensureStudentCanAccessQuiz(user.id, quiz, appClient),
             this.ensureStudentCanUseDynamicQuiz(user.id, quiz),
             isFreeQuiz
                 ? Promise.resolve()
@@ -500,7 +504,10 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         return token;
     }
-    async ensureStudentCanAccessQuiz(userId, quiz) {
+    async ensureStudentCanAccessQuiz(userId, quiz, appClient) {
+        if (Number(quiz.is_free) !== 1 && !(0, mobile_client_util_1.isMobileAppClient)(appClient) && (await this.settingsService.isAppOnlyContentEnabled())) {
+            throw new app_only_content_exception_1.AppOnlyContentException();
+        }
         const accessProfile = await this.getQuizAccessProfile(userId);
         if (!this.canAccessQuiz(quiz, accessProfile)) {
             throw new common_1.BadRequestException('This quiz is included with selected course plans');
@@ -1496,6 +1503,7 @@ exports.QuizAttemptsService = QuizAttemptsService;
 exports.QuizAttemptsService = QuizAttemptsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object, plans_service_1.PlansService])
+    __metadata("design:paramtypes", [Object, plans_service_1.PlansService,
+        settings_service_1.SettingsService])
 ], QuizAttemptsService);
 //# sourceMappingURL=quiz-attempts.service.js.map

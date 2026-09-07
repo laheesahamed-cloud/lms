@@ -59,7 +59,7 @@ export declare class QuizAttemptsController {
         submittedAt: any;
         reviewedAt: any;
     }[]>;
-    loadQuiz(quizId: number, mode: string, questionId?: string, authorization?: string): Promise<{
+    loadQuiz(quizId: number, mode: string, questionId?: string, authorization?: string, appClient?: string): Promise<{
         mode: string;
         quiz: {
             id: number;
@@ -88,7 +88,7 @@ export declare class QuizAttemptsController {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "submitted" | "expired";
+            status: "expired" | "in_progress" | "submitted";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;

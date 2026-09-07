@@ -5,7 +5,7 @@ export declare class FlashcardsController {
     private readonly svc;
     private readonly authService;
     constructor(svc: FlashcardsService, authService: AuthService);
-    decks(auth?: string): Promise<{
+    decks(auth?: string, appClient?: string): Promise<{
         decks: import("./flashcards.service").DeckNode[];
         totals: {
             newCount: number;
@@ -13,7 +13,7 @@ export declare class FlashcardsController {
             dueCount: number;
         };
     }>;
-    queue(noteIds: string, limit: string, newLimit: string, auth?: string): Promise<{
+    queue(noteIds: string, limit: string, newLimit: string, auth?: string, appClient?: string): Promise<{
         cards: import("./flashcards.service").QueueItem[];
         counts: {
             new: number;

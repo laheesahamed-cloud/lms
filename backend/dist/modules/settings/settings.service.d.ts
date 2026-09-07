@@ -195,6 +195,19 @@ export declare class SettingsService {
         scope: "all" | "website" | "none";
         ok: boolean;
     }>;
+    getAppOnlyContentSettings(): Promise<{
+        ok: boolean;
+        enabled: boolean;
+        note: string;
+    }>;
+    updateAppOnlyContentSettings(input: {
+        enabled?: boolean;
+    }): Promise<{
+        ok: boolean;
+        enabled: boolean;
+        note: string;
+    }>;
+    isAppOnlyContentEnabled(): Promise<boolean>;
     getPublicSettings(): Promise<PublicSettingsResponse>;
     getPublicAvailabilitySettings(): Promise<{
         ok: boolean;
@@ -330,7 +343,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -354,7 +367,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -485,7 +498,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -516,7 +529,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;

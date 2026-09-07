@@ -278,7 +278,7 @@ function DeckRow({ node, depth, expanded, onToggle, onStart, onDelete }) {
         <button type="button" className="xfc-deck-main" onClick={() => (hasChildren ? onToggle(node) : onStart(node))}>
           {hasChildren ? <IcChevron open={open} /> : <span className="xfc-chevron-spacer" aria-hidden="true" />}
           <span className="xfc-deck-label">{node.label}</span>
-          {node.locked ? <span className="xfc-lock" title="Locked"><IcLock /></span> : null}
+          {node.locked ? <span className="xfc-lock" title={node.appOnly ? 'Only available in the Xyndrome app' : 'Locked'}><IcLock /></span> : null}
         </button>
         <div className="xfc-deck-counts">
           <Count value={node.newCount} tone="new" />

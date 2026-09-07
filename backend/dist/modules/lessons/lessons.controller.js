@@ -47,8 +47,8 @@ let LessonsController = class LessonsController {
     findStudentList(authorization) {
         return this.lessonsService.findStudentList(authorization);
     }
-    findStudentLesson(id, authorization) {
-        return this.lessonsService.findStudentLesson(id, authorization);
+    findStudentLesson(id, authorization, appClient) {
+        return this.lessonsService.findStudentLesson(id, authorization, appClient);
     }
     findStudentAnnotations(lessonId, authorization) {
         return this.lessonsService.findStudentAnnotations(lessonId, authorization);
@@ -161,14 +161,14 @@ let LessonsController = class LessonsController {
     canvasAdminRemoveFlashcard(auth, id, cardId) {
         return this.lessonsService.canvasAdminRemoveFlashcard(id, cardId, this.bearerToken(auth));
     }
-    canvasStudentList(auth, engineKey) {
-        return this.lessonsService.canvasStudentList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    canvasStudentList(auth, engineKey, appClient) {
+        return this.lessonsService.canvasStudentList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey), appClient);
     }
-    canvasStudentFindNote(auth, id, engineKey) {
-        return this.lessonsService.canvasStudentFindNote(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    canvasStudentFindNote(auth, id, engineKey, appClient) {
+        return this.lessonsService.canvasStudentFindNote(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey), appClient);
     }
-    canvasStudentFlashcards(auth, id, engineKey) {
-        return this.lessonsService.canvasStudentFlashcards(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    canvasStudentFlashcards(auth, id, engineKey, appClient) {
+        return this.lessonsService.canvasStudentFlashcards(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey), appClient);
     }
     bearerToken(auth) {
         if (!auth)
@@ -227,8 +227,9 @@ __decorate([
     (0, common_1.Get)('student/:id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Headers)('authorization')),
+    __param(2, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [Number, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "findStudentLesson", null);
 __decorate([
@@ -508,8 +509,9 @@ __decorate([
     (0, common_1.Get)('canvas/student/notes'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Query)('engineKey')),
+    __param(2, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasStudentList", null);
 __decorate([
@@ -517,8 +519,9 @@ __decorate([
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(2, (0, common_1.Query)('engineKey')),
+    __param(3, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number, String]),
+    __metadata("design:paramtypes", [String, Number, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasStudentFindNote", null);
 __decorate([
@@ -526,8 +529,9 @@ __decorate([
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(2, (0, common_1.Query)('engineKey')),
+    __param(3, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number, String]),
+    __metadata("design:paramtypes", [String, Number, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasStudentFlashcards", null);
 exports.LessonsController = LessonsController = __decorate([

@@ -18,20 +18,29 @@ const config_1 = require("@nestjs/config");
 const fs = require("fs");
 const path = require("path");
 const pagination_1 = require("../../common/utils/pagination");
+const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
 const database_tokens_1 = require("../../database/database.tokens");
 const auth_token_util_1 = require("../auth/auth-token.util");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const fetch_with_retry_1 = require("../../common/utils/fetch-with-retry");
+const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
+const settings_service_1 = require("../settings/settings.service");
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
 const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
 const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
 let LessonsService = class LessonsService {
-    constructor(db, config, pushNotificationsService) {
+    constructor(db, config, pushNotificationsService, settingsService) {
         this.db = db;
         this.config = config;
         this.pushNotificationsService = pushNotificationsService;
+        this.settingsService = settingsService;
+    }
+    async isAppOnlyBlocked(appClient) {
+        if ((0, mobile_client_util_1.isMobileAppClient)(appClient))
+            return false;
+        return this.settingsService.isAppOnlyContentEnabled();
     }
     async getMeta() {
         const [courses] = await this.db.execute("SELECT id, course_title, status FROM courses ORDER BY course_title ASC");
@@ -131,11 +140,14 @@ let LessonsService = class LessonsService {
       ORDER BY l.created_at DESC, l.id DESC`);
         return rows.map((row) => this.mapStudentLesson(row, accessProfile));
     }
-    async findStudentLesson(id, authorization) {
+    async findStudentLesson(id, authorization, appClient) {
         const student = await this.findActiveStudentByToken(this.extractToken(authorization));
         const lesson = await this.findById(id);
         if (lesson.status !== 'active') {
             throw new common_1.NotFoundException('Lesson not found');
+        }
+        if (Number(lesson.isFree ?? lesson.is_free) !== 1 && (await this.isAppOnlyBlocked(appClient))) {
+            throw new app_only_content_exception_1.AppOnlyContentException();
         }
         const accessProfile = await this.getLessonAccessProfile(student.id);
         if (!this.canAccessLesson(lesson, accessProfile)) {
@@ -244,8 +256,8 @@ let LessonsService = class LessonsService {
             await connection.commit();
             if (snapshot.status === 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New lesson added',
-                    body: `${snapshot.lessonTitle} is now available.`,
+                    title: 'New lesson to study',
+                    body: `${snapshot.lessonTitle} just dropped — dive in and keep the streak going.`,
                 });
             }
             return {
@@ -298,8 +310,8 @@ let LessonsService = class LessonsService {
             await connection.commit();
             if (existing.status !== 'active' && snapshot.status === 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New lesson added',
-                    body: `${snapshot.lessonTitle} is now available.`,
+                    title: 'New lesson to study',
+                    body: `${snapshot.lessonTitle} just dropped — dive in and keep the streak going.`,
                 });
             }
             return {
@@ -518,8 +530,8 @@ let LessonsService = class LessonsService {
             await connection.commit();
             if (input.status === 'active' && existing.status !== 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New lesson added',
-                    body: `${snapshot.lessonTitle} is now available.`,
+                    title: 'New lesson to study',
+                    body: `${snapshot.lessonTitle} just dropped — dive in and keep the streak going.`,
                 });
             }
         }
@@ -1073,10 +1085,10 @@ let LessonsService = class LessonsService {
             status === 'approved' ? admin.id : null]);
         if (status === 'approved') {
             this.pushNotificationsService.notifyStudentsOfNewContentDebounced(`flashcards:${id}`, (count) => ({
-                title: 'New flashcards added',
+                title: 'New flashcards to review',
                 body: count === 1
-                    ? `New flashcards are available in ${lesson.lesson_title}.`
-                    : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+                    ? `A new flashcard was added to ${lesson.lesson_title}. Quick reps, long-term memory.`
+                    : `${count} new flashcards added to ${lesson.lesson_title}. Quick reps, long-term memory.`,
             }));
         }
         return this.findFlashcardById(result.insertId, id);
@@ -1099,10 +1111,10 @@ let LessonsService = class LessonsService {
             status === 'approved' ? admin.id : existing.reviewedBy || null, cardId, id]);
         if (existing.status !== 'approved' && status === 'approved') {
             this.pushNotificationsService.notifyStudentsOfNewContentDebounced(`flashcards:${id}`, (count) => ({
-                title: 'New flashcards added',
+                title: 'New flashcards to review',
                 body: count === 1
-                    ? `New flashcards are available in ${lesson.lesson_title}.`
-                    : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+                    ? `A new flashcard was added to ${lesson.lesson_title}. Quick reps, long-term memory.`
+                    : `${count} new flashcards added to ${lesson.lesson_title}. Quick reps, long-term memory.`,
             }));
         }
         return this.findFlashcardById(cardId, id);
@@ -1239,9 +1251,9 @@ let LessonsService = class LessonsService {
             'Return ONLY this JSON: {"title":"","subtitle":"","sections":[{"heading":"...","bullets":["..."]}],"summary_box":"","key_points":[]}',
         ].join('\n');
     }
-    async canvasStudentList(token, engineKey = 'gemini') {
+    async canvasStudentList(token, engineKey = 'gemini', appClient) {
         const student = await this.requireStudentToken(token);
-        const accessProfile = await this.getCanvasAccessProfile(student.id);
+        const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
         const [rows] = await this.db.execute(`
       SELECT ${this.canvasLessonSelect(false)},
              slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
@@ -1255,9 +1267,9 @@ let LessonsService = class LessonsService {
       ORDER BY c.course_title ASC, t.topic_name ASC, l.updated_at DESC`, [student.id, engineKey]);
         return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
     }
-    async canvasStudentFindNote(id, token, engineKey = 'gemini') {
+    async canvasStudentFindNote(id, token, engineKey = 'gemini', appClient) {
         const student = await this.requireStudentToken(token);
-        const accessProfile = await this.getCanvasAccessProfile(student.id);
+        const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
         const [rows] = await this.db.execute(`
       SELECT ${this.canvasLessonSelect(true)},
              slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
@@ -1273,15 +1285,22 @@ let LessonsService = class LessonsService {
             const lesson = lr[0];
             if (lesson && lesson.pdf_url && lesson.status === 'active') {
                 const canAccess = this.canAccessCanvasLesson({ courseId: lesson.course_id, isFree: lesson.is_free, id: lesson.id }, accessProfile);
-                return { lessonType: 'pdf', lessonId: id, lessonTitle: lesson.lesson_title || '', pdfUrl: canAccess ? String(lesson.pdf_url) : '', accessLocked: !canAccess, lockReason: canAccess ? '' : 'Your subscription does not include this premium lesson.' };
+                const appOnly = !canAccess && Number(lesson.is_free) !== 1 && accessProfile.appOnlyBlocked;
+                return {
+                    lessonType: 'pdf', lessonId: id, lessonTitle: lesson.lesson_title || '',
+                    pdfUrl: canAccess ? String(lesson.pdf_url) : '',
+                    accessLocked: !canAccess,
+                    appOnly,
+                    lockReason: canAccess ? '' : appOnly ? 'This lesson is only available in the Xyndrome mobile app.' : 'Your subscription does not include this premium lesson.',
+                };
             }
             throw new common_1.NotFoundException('Lesson not found');
         }
         return this.mapCanvasStudentNote(rows[0], accessProfile, true);
     }
-    async canvasStudentFlashcards(id, token, engineKey = 'gemini') {
+    async canvasStudentFlashcards(id, token, engineKey = 'gemini', appClient) {
         const student = await this.requireStudentToken(token);
-        const accessProfile = await this.getCanvasAccessProfile(student.id);
+        const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
         const [rows] = await this.db.execute(`SELECT l.id, l.course_id, l.is_free, l.engine_key, l.status, l.is_public
        FROM lessons l WHERE l.id = ? AND l.is_public = 1 AND l.status = 'active' AND l.engine_key = ?`, [id, engineKey]);
         if (!rows.length)
@@ -1399,21 +1418,28 @@ let LessonsService = class LessonsService {
     mapCanvasStudentNote(row, accessProfile, includeNoteData) {
         const note = this.deserializeCanvas(row);
         const canAccess = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: row.id }, accessProfile);
+        const appOnly = !canAccess && !note.isFree && accessProfile.appOnlyBlocked;
         const hasStudyMode = accessProfile.hasAnyPaidLessonAccess || note.isFree;
         return {
             ...note,
             cardCount: note.approvedFlashcardCount,
             canAccess, accessLocked: !canAccess,
-            upgradeLabel: hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
-            lockReason: !canAccess ? (hasStudyMode ? 'Your package only unlocks selected course or lesson content.' : 'Upgrade to access this feature') : '',
+            appOnly,
+            upgradeLabel: appOnly ? 'Open in the app' : hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
+            lockReason: !canAccess
+                ? (appOnly ? 'This lesson is only available in the Xyndrome mobile app.' : hasStudyMode ? 'Your package only unlocks selected course or lesson content.' : 'Upgrade to access this feature')
+                : '',
             noteData: includeNoteData && canAccess ? note.noteData : null,
         };
     }
-    async getCanvasAccessProfile(userId) {
-        const [rows] = await this.db.execute(`SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-       FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
-       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]);
-        const profile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set() };
+    async getCanvasAccessProfile(userId, appClient) {
+        const [rows, appOnlyBlocked] = await Promise.all([
+            this.db.execute(`SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+         FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
+         WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]).then(([r]) => r),
+            this.isAppOnlyBlocked(appClient),
+        ]);
+        const profile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked };
         for (const row of rows) {
             const courseIds = this.parseIdList(row.course_ids_json);
             const lessonIds = this.parseIdList(row.lesson_ids_json);
@@ -1433,6 +1459,8 @@ let LessonsService = class LessonsService {
     canAccessCanvasLesson(lesson, profile) {
         if (Number(lesson.isFree) === 1)
             return true;
+        if (profile.appOnlyBlocked)
+            return false;
         if (!profile.hasAnyPaidLessonAccess)
             return false;
         if (profile.hasFullAccess)
@@ -1826,6 +1854,7 @@ exports.LessonsService = LessonsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, config_1.ConfigService,
-        push_notifications_service_1.PushNotificationsService])
+        push_notifications_service_1.PushNotificationsService,
+        settings_service_1.SettingsService])
 ], LessonsService);
 //# sourceMappingURL=lessons.service.js.map

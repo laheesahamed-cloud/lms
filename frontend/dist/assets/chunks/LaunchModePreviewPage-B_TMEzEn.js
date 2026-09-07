@@ -1,1 +1,0 @@
-import{$a as e,Va as t,Ya as n}from"./app-shared-DA9NTIoc.js";import{t as r}from"./LaunchModePage-CYn0HV_F.js";/* empty css                        */var i=e();function a(){let{mode:e}=n();return e!==`maintenance`&&e!==`coming-soon`?(0,i.jsx)(t,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:e,preview:!0})}export{a as LaunchModePreviewPage};

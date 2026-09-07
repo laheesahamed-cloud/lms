@@ -27,8 +27,8 @@ let QuizAttemptsController = class QuizAttemptsController {
     listResults(authorization) {
         return this.quizAttemptsService.listResults(authorization);
     }
-    loadQuiz(quizId, mode, questionId, authorization) {
-        return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null);
+    loadQuiz(quizId, mode, questionId, authorization, appClient) {
+        return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null, appClient);
     }
     submitExam(quizId, authorization, submitExamDto) {
         return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto);
@@ -67,8 +67,9 @@ __decorate([
     __param(1, (0, common_1.Query)('mode')),
     __param(2, (0, common_1.Query)('questionId')),
     __param(3, (0, common_1.Headers)('authorization')),
+    __param(4, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String, String, String]),
+    __metadata("design:paramtypes", [Number, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuizAttemptsController.prototype, "loadQuiz", null);
 __decorate([

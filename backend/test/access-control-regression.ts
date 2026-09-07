@@ -300,9 +300,15 @@ const plansService = {
   hasFeatureAccess: async () => true,
 };
 
+// The app-only content gate (see AppOnlyContentException) is off by default;
+// these tests exercise the ordinary subscription-scope checks underneath it.
+const settingsService = {
+  isAppOnlyContentEnabled: async () => false,
+};
+
 async function testQuizContentDeniedWithoutCourseAccess() {
   const db = new QuizAccessMockPool({});
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, settingsService as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice'),
     BadRequestException
@@ -319,7 +325,7 @@ async function testQuizContentAllowedForOwnedCourse() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, settingsService as any);
   const result = await service.loadQuiz('Bearer student-token', 99, 'practice');
   assert.equal(result.questions.length, 1);
   assert.equal(db.questionQueryCount, 1);
@@ -335,7 +341,7 @@ async function testQuizContentDeniedForCourseOutsideSubscriptionScope() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, settingsService as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice'),
     BadRequestException
@@ -495,7 +501,7 @@ async function testReviewerCanPublishQuestionWithAuditTrail() {
 }
 
 async function testContentEditorCannotCreatePublishedQuiz() {
-  const service = new QuizzesService({} as any, {} as any);
+  const service = new QuizzesService({} as any, {} as any, {} as any);
   await assert.rejects(
     () => service.create(publishReadyQuizPayload, { id: 303, role: 'content_editor', permissions: ['quizzes.manage'] }),
     ForbiddenException
@@ -511,8 +517,9 @@ async function testContentEditorCannotCreatePublishedCourse() {
 }
 
 async function testContentEditorCannotCreatePublishedLesson() {
-  // (db, ConfigService) — the create() guard rejects before either is touched.
-  const service = new LessonsService({} as any, {} as any);
+  // (db, ConfigService, pushNotificationsService, settingsService) — the
+  // create() guard rejects before any of them is touched.
+  const service = new LessonsService({} as any, {} as any, {} as any, {} as any);
   await assert.rejects(
     () => service.create(publishReadyLessonPayload, { id: 305, role: 'content_editor', permissions: ['content.manage'] }),
     ForbiddenException
@@ -524,14 +531,14 @@ async function testContentEditorCannotCreatePublishedLesson() {
 // it is live. Only content.review/admin can flip that. These pin both halves —
 // the publish side previously regressed open and went unnoticed for months.
 async function testContentEditorCanEditLivePublishedLessonBody() {
-  const service = new LessonsService({} as any, {} as any) as any;
+  const service = new LessonsService({} as any, {} as any, {} as any, {} as any) as any;
   const editor = { id: 305, role: 'content_editor', permissions: ['content.manage'] };
   assert.doesNotThrow(() => service.assertCanModifyExistingStatus(editor, 'active'));
   assert.doesNotThrow(() => service.assertCanSaveStatus(editor, 'active', 'active'));
 }
 
 async function testContentEditorCannotFlipLessonLiveState() {
-  const service = new LessonsService({} as any, {} as any) as any;
+  const service = new LessonsService({} as any, {} as any, {} as any, {} as any) as any;
   const editor = { id: 305, role: 'content_editor', permissions: ['content.manage'] };
   assert.throws(() => service.assertCanSaveStatus(editor, 'active', 'inactive'), ForbiddenException, 'editors must not publish');
   assert.throws(() => service.assertCanSaveStatus(editor, 'inactive', 'active'), ForbiddenException, 'editors must not unpublish');
@@ -557,7 +564,7 @@ async function testContentEditorCannotCreatePublishedSubtopic() {
 }
 
 async function testContentEditorCannotCreatePublishedPaper() {
-  const service = new PapersService({} as any);
+  const service = new PapersService({} as any, {} as any);
   await assert.rejects(
     () => service.create(publishReadyPaperPayload, { id: 308, role: 'content_editor', permissions: ['content.manage'] }),
     ForbiddenException

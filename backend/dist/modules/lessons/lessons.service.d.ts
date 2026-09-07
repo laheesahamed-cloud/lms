@@ -6,6 +6,7 @@ import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
 import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { SettingsService } from '../settings/settings.service';
 type ContentActor = {
     id: number;
     role?: string;
@@ -47,7 +48,9 @@ export declare class LessonsService {
     private readonly db;
     private readonly config;
     private readonly pushNotificationsService;
-    constructor(db: Pool, config: ConfigService, pushNotificationsService: PushNotificationsService);
+    private readonly settingsService;
+    constructor(db: Pool, config: ConfigService, pushNotificationsService: PushNotificationsService, settingsService: SettingsService);
+    private isAppOnlyBlocked;
     getMeta(): Promise<{
         courses: {
             id: number;
@@ -111,7 +114,7 @@ export declare class LessonsService {
         topicName: string;
         subtopicName: string;
     }[]>;
-    findStudentLesson(id: number, authorization?: string): Promise<{
+    findStudentLesson(id: number, authorization?: string, appClient?: string): Promise<{
         excerpt: string;
         id: number;
         courseId: number;
@@ -133,7 +136,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -146,7 +149,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -159,7 +162,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -453,10 +456,11 @@ export declare class LessonsService {
     private mergeCanvases;
     private ensureCompleteness;
     private buildCompletenessPrompt;
-    canvasStudentList(token: string, engineKey?: CanvasEngineKey): Promise<{
+    canvasStudentList(token: string, engineKey?: CanvasEngineKey, appClient?: string): Promise<{
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
         noteData: unknown;
@@ -487,10 +491,11 @@ export declare class LessonsService {
         createdAt: string;
         updatedAt: string;
     }[]>;
-    canvasStudentFindNote(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
+    canvasStudentFindNote(id: number, token: string, engineKey?: CanvasEngineKey, appClient?: string): Promise<{
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
         noteData: unknown;
@@ -526,9 +531,10 @@ export declare class LessonsService {
         lessonTitle: any;
         pdfUrl: string;
         accessLocked: boolean;
+        appOnly: boolean;
         lockReason: string;
     }>;
-    canvasStudentFlashcards(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
+    canvasStudentFlashcards(id: number, token: string, engineKey?: CanvasEngineKey, appClient?: string): Promise<{
         flashcards: {
             id: number;
             lessonId: number;

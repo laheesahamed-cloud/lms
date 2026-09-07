@@ -4,6 +4,7 @@ import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/pro
 import * as fs from 'fs';
 import * as path from 'path';
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
+import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { CreateLessonDto } from './dto/create-lesson.dto';
@@ -16,7 +17,9 @@ import {
   isAiProviderKey, normalizeAiProviderBaseUrl,
 } from '../../common/utils/ai-provider.utils';
 import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
+import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { SettingsService } from '../settings/settings.service';
 
 type LessonRow = RowDataPacket & {
   id: number;
@@ -110,6 +113,9 @@ type CanvasAccessProfile = {
   hasFullAccess: boolean;
   courseIds: Set<number>;
   lessonIds: Set<number>;
+  // true when this request is from the website (not the mobile app) and the
+  // "premium content is app-only" admin setting is on — see isAppOnlyBlocked().
+  appOnlyBlocked: boolean;
 };
 type LessonFlashcardStatus = 'draft' | 'approved' | 'rejected';
 type LessonFlashcardGeneratedBy = 'ai' | 'manual';
@@ -146,7 +152,15 @@ export class LessonsService {
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly config: ConfigService,
     private readonly pushNotificationsService: PushNotificationsService,
+    private readonly settingsService: SettingsService,
   ) {}
+
+  // Premium (non-free) lessons/flashcards are app-only, regardless of
+  // subscription — see common/utils/mobile-client.util.ts + AppOnlyContentException.
+  private async isAppOnlyBlocked(appClient?: string): Promise<boolean> {
+    if (isMobileAppClient(appClient)) return false;
+    return this.settingsService.isAppOnlyContentEnabled();
+  }
 
   async getMeta() {
     const [courses] = await this.db.execute<LookupRow[]>(
@@ -277,12 +291,16 @@ export class LessonsService {
     return rows.map((row) => this.mapStudentLesson(row, accessProfile));
   }
 
-  async findStudentLesson(id: number, authorization?: string) {
+  async findStudentLesson(id: number, authorization?: string, appClient?: string) {
     const student = await this.findActiveStudentByToken(this.extractToken(authorization));
     const lesson = await this.findById(id);
 
     if (lesson.status !== 'active') {
       throw new NotFoundException('Lesson not found');
+    }
+
+    if (Number(lesson.isFree ?? (lesson as unknown as { is_free?: number }).is_free) !== 1 && (await this.isAppOnlyBlocked(appClient))) {
+      throw new AppOnlyContentException();
     }
 
     const accessProfile = await this.getLessonAccessProfile(student.id);
@@ -426,8 +444,8 @@ export class LessonsService {
       await connection.commit();
       if (snapshot.status === 'active') {
         void this.pushNotificationsService.notifyStudentsOfNewContent({
-          title: 'New lesson added',
-          body: `${snapshot.lessonTitle} is now available.`,
+          title: 'New lesson to study',
+          body: `${snapshot.lessonTitle} just dropped — dive in and keep the streak going.`,
         });
       }
       return {
@@ -482,8 +500,8 @@ export class LessonsService {
       await connection.commit();
       if (existing.status !== 'active' && snapshot.status === 'active') {
         void this.pushNotificationsService.notifyStudentsOfNewContent({
-          title: 'New lesson added',
-          body: `${snapshot.lessonTitle} is now available.`,
+          title: 'New lesson to study',
+          body: `${snapshot.lessonTitle} just dropped — dive in and keep the streak going.`,
         });
       }
       return {
@@ -757,8 +775,8 @@ export class LessonsService {
       await connection.commit();
       if (input.status === 'active' && existing.status !== 'active') {
         void this.pushNotificationsService.notifyStudentsOfNewContent({
-          title: 'New lesson added',
-          body: `${snapshot.lessonTitle} is now available.`,
+          title: 'New lesson to study',
+          body: `${snapshot.lessonTitle} just dropped — dive in and keep the streak going.`,
         });
       }
     } catch (error) {
@@ -1438,10 +1456,10 @@ export class LessonsService {
       this.pushNotificationsService.notifyStudentsOfNewContentDebounced(
         `flashcards:${id}`,
         (count) => ({
-          title: 'New flashcards added',
+          title: 'New flashcards to review',
           body: count === 1
-            ? `New flashcards are available in ${lesson.lesson_title}.`
-            : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+            ? `A new flashcard was added to ${lesson.lesson_title}. Quick reps, long-term memory.`
+            : `${count} new flashcards added to ${lesson.lesson_title}. Quick reps, long-term memory.`,
         }),
       );
     }
@@ -1475,10 +1493,10 @@ export class LessonsService {
       this.pushNotificationsService.notifyStudentsOfNewContentDebounced(
         `flashcards:${id}`,
         (count) => ({
-          title: 'New flashcards added',
+          title: 'New flashcards to review',
           body: count === 1
-            ? `New flashcards are available in ${lesson.lesson_title}.`
-            : `${count} new flashcards are available in ${lesson.lesson_title}.`,
+            ? `A new flashcard was added to ${lesson.lesson_title}. Quick reps, long-term memory.`
+            : `${count} new flashcards added to ${lesson.lesson_title}. Quick reps, long-term memory.`,
         }),
       );
     }
@@ -1611,9 +1629,9 @@ export class LessonsService {
     ].join('\n');
   }
 
-  async canvasStudentList(token: string, engineKey: CanvasEngineKey = 'gemini') {
+  async canvasStudentList(token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
     const student = await this.requireStudentToken(token);
-    const accessProfile = await this.getCanvasAccessProfile(student.id);
+    const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
     const [rows] = await this.db.execute<CanvasLessonRow[]>(`
       SELECT ${this.canvasLessonSelect(false)},
              slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
@@ -1628,9 +1646,9 @@ export class LessonsService {
     return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
   }
 
-  async canvasStudentFindNote(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
+  async canvasStudentFindNote(id: number, token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
     const student = await this.requireStudentToken(token);
-    const accessProfile = await this.getCanvasAccessProfile(student.id);
+    const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
     const [rows] = await this.db.execute<CanvasLessonRow[]>(`
       SELECT ${this.canvasLessonSelect(true)},
              slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
@@ -1648,16 +1666,23 @@ export class LessonsService {
       const lesson = lr[0];
       if (lesson && lesson.pdf_url && lesson.status === 'active') {
         const canAccess = this.canAccessCanvasLesson({ courseId: lesson.course_id, isFree: lesson.is_free, id: lesson.id }, accessProfile);
-        return { lessonType: 'pdf', lessonId: id, lessonTitle: lesson.lesson_title || '', pdfUrl: canAccess ? String(lesson.pdf_url) : '', accessLocked: !canAccess, lockReason: canAccess ? '' : 'Your subscription does not include this premium lesson.' };
+        const appOnly = !canAccess && Number(lesson.is_free) !== 1 && accessProfile.appOnlyBlocked;
+        return {
+          lessonType: 'pdf', lessonId: id, lessonTitle: lesson.lesson_title || '',
+          pdfUrl: canAccess ? String(lesson.pdf_url) : '',
+          accessLocked: !canAccess,
+          appOnly,
+          lockReason: canAccess ? '' : appOnly ? 'This lesson is only available in the Xyndrome mobile app.' : 'Your subscription does not include this premium lesson.',
+        };
       }
       throw new NotFoundException('Lesson not found');
     }
     return this.mapCanvasStudentNote(rows[0], accessProfile, true);
   }
 
-  async canvasStudentFlashcards(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
+  async canvasStudentFlashcards(id: number, token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
     const student = await this.requireStudentToken(token);
-    const accessProfile = await this.getCanvasAccessProfile(student.id);
+    const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
     const [rows] = await this.db.execute<CanvasLessonRow[]>(
       `SELECT l.id, l.course_id, l.is_free, l.engine_key, l.status, l.is_public
        FROM lessons l WHERE l.id = ? AND l.is_public = 1 AND l.status = 'active' AND l.engine_key = ?`, [id, engineKey]);
@@ -1799,23 +1824,31 @@ export class LessonsService {
   private mapCanvasStudentNote(row: CanvasLessonRow, accessProfile: CanvasAccessProfile, includeNoteData: boolean) {
     const note = this.deserializeCanvas(row);
     const canAccess = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: row.id }, accessProfile);
+    const appOnly = !canAccess && !note.isFree && accessProfile.appOnlyBlocked;
     const hasStudyMode = accessProfile.hasAnyPaidLessonAccess || note.isFree;
     return {
       ...note,
       cardCount: note.approvedFlashcardCount,
       canAccess, accessLocked: !canAccess,
-      upgradeLabel: hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
-      lockReason: !canAccess ? (hasStudyMode ? 'Your package only unlocks selected course or lesson content.' : 'Upgrade to access this feature') : '',
+      appOnly,
+      upgradeLabel: appOnly ? 'Open in the app' : hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
+      lockReason: !canAccess
+        ? (appOnly ? 'This lesson is only available in the Xyndrome mobile app.' : hasStudyMode ? 'Your package only unlocks selected course or lesson content.' : 'Upgrade to access this feature')
+        : '',
       noteData: includeNoteData && canAccess ? note.noteData : null,
     };
   }
 
-  private async getCanvasAccessProfile(userId: number): Promise<CanvasAccessProfile> {
-    const [rows] = await this.db.execute<AccessScopeRow[]>(
-      `SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-       FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
-       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]);
-    const profile: CanvasAccessProfile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set() };
+  private async getCanvasAccessProfile(userId: number, appClient?: string): Promise<CanvasAccessProfile> {
+    const [rows, appOnlyBlocked] = await Promise.all([
+      this.db.execute<AccessScopeRow[]>(
+        `SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+         FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
+         WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]
+      ).then(([r]) => r),
+      this.isAppOnlyBlocked(appClient),
+    ]);
+    const profile: CanvasAccessProfile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked };
     for (const row of rows) {
       const courseIds = this.parseIdList(row.course_ids_json);
       const lessonIds = this.parseIdList(row.lesson_ids_json);
@@ -1829,6 +1862,8 @@ export class LessonsService {
 
   private canAccessCanvasLesson(lesson: { courseId: number | null; isFree: number; id: number }, profile: CanvasAccessProfile) {
     if (Number(lesson.isFree) === 1) return true;
+    // App-only gate applies regardless of subscription — checked before scope.
+    if (profile.appOnlyBlocked) return false;
     if (!profile.hasAnyPaidLessonAccess) return false;
     if (profile.hasFullAccess) return true;
     if (lesson.courseId && profile.courseIds.has(Number(lesson.courseId))) return true;

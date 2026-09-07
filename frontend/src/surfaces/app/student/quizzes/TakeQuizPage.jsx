@@ -12,6 +12,7 @@ import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } fro
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
+import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/quickTheoryRecapUtils.js';
@@ -180,6 +181,12 @@ function isQuizAccessError(error) {
   if (status === undefined || status >= 500) return false; // network / timeout / server crash
   const message = String(error?.response?.data?.message || error?.message || '').toLowerCase();
   return /\bplan\b|included with|premium|subscription|upgrade/.test(message);
+}
+
+// Premium quizzes are app-only regardless of subscription — the backend
+// refuses to serve them to the website and returns this machine-readable code.
+function isAppOnlyContentError(error) {
+  return error?.response?.data?.code === 'APP_ONLY_CONTENT';
 }
 
 function normalizeQuestionForPracticeReveal(question) {
@@ -1576,6 +1583,7 @@ export function TakeQuizPage() {
   // Only access/entitlement failures should send the student to plans; a
   // timeout or unreachable API must offer a retry instead.
   const [errorIsAccess, setErrorIsAccess] = useState(false);
+  const [errorIsAppOnly, setErrorIsAppOnly] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
   // Stays false until the loader has shown for at least one full intro loop.
   const [loaderMinElapsed, setLoaderMinElapsed] = useState(false);
@@ -1733,6 +1741,7 @@ export function TakeQuizPage() {
         if (!cancelled) {
           setError(getErrorMessage(e, 'Unable to load quiz'));
           setErrorIsAccess(isQuizAccessError(e));
+          setErrorIsAppOnly(isAppOnlyContentError(e));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -2364,22 +2373,26 @@ export function TakeQuizPage() {
 
   if (!data || !currentQuestion) return (
     <main className={ui.studentScreenShell}>
-      <div className={ui.emptyBox}>
-        {error || 'Quiz unavailable.'}
-        {error ? (
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {errorIsAccess ? (
-              <button className={ui.primaryAction} type="button" onClick={() => navigate('/subscriptions')}>
-                View plans
-              </button>
-            ) : (
-              <button className={ui.primaryAction} type="button" onClick={retryQuizLoad}>
-                Try again
-              </button>
-            )}
-          </div>
-        ) : null}
-      </div>
+      {errorIsAppOnly ? (
+        <AppOnlyGate contentLabel="quiz" />
+      ) : (
+        <div className={ui.emptyBox}>
+          {error || 'Quiz unavailable.'}
+          {error ? (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              {errorIsAccess ? (
+                <button className={ui.primaryAction} type="button" onClick={() => navigate('/subscriptions')}>
+                  View plans
+                </button>
+              ) : (
+                <button className={ui.primaryAction} type="button" onClick={retryQuizLoad}>
+                  Try again
+                </button>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
     </main>
   );
 

@@ -22,9 +22,9 @@ export class FlashcardsController {
   ) {}
 
   @Get('decks')
-  async decks(@Headers('authorization') auth?: string) {
+  async decks(@Headers('authorization') auth?: string, @Headers('x-app-client') appClient?: string) {
     const student = await this.authService.requireStudent(auth);
-    return this.svc.listDecks(student.id, rawToken(auth));
+    return this.svc.listDecks(student.id, rawToken(auth), appClient);
   }
 
   @Get('queue')
@@ -33,13 +33,14 @@ export class FlashcardsController {
     @Query('limit') limit: string,
     @Query('newLimit') newLimit: string,
     @Headers('authorization') auth?: string,
+    @Headers('x-app-client') appClient?: string,
   ) {
     const student = await this.authService.requireStudent(auth);
     return this.svc.getQueue(student.id, rawToken(auth), {
       noteIds: parseNoteIds(noteIds),
       limit: limit ? Number(limit) : undefined,
       newLimit: newLimit ? Number(newLimit) : undefined,
-    });
+    }, appClient);
   }
 
   @Post('reviews')

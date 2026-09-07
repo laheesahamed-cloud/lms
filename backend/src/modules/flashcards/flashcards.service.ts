@@ -125,8 +125,8 @@ export class FlashcardsService {
 
   // ── deck list with live New / Learning / Due counts ────────
 
-  async listDecks(userId: number, token: string) {
-    const notes = await this.loadAccessibleNotes(token);
+  async listDecks(userId: number, token: string, appClient?: string) {
+    const notes = await this.loadAccessibleNotes(token, appClient);
     const reviewByNote = await this.reviewCountsByNote(userId);
     const tree = buildDeckTree(notes, reviewByNote);
     const totals = tree.reduce(
@@ -143,10 +143,10 @@ export class FlashcardsService {
 
   // ── review queue for a deck scope ──────────────────────────
 
-  async getQueue(userId: number, token: string, params: { noteIds: number[]; limit?: number; newLimit?: number }) {
+  async getQueue(userId: number, token: string, params: { noteIds: number[]; limit?: number; newLimit?: number }, appClient?: string) {
     const settings = await this.getSettings();
     const fsrs = this.fsrsSettings(settings);
-    const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token)).filter((n) => n.canAccess).map((n) => n.id));
+    const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token, appClient)).filter((n) => n.canAccess).map((n) => n.id));
     const noteIds = params.noteIds.filter((id) => accessibleNoteIds.has(id));
     if (!noteIds.length) return { cards: [], counts: { new: 0, learning: 0, due: 0 } };
 
@@ -348,8 +348,8 @@ export class FlashcardsService {
     return r === 1 || r === 2 || r === 4 ? r : 3;
   }
 
-  private async loadAccessibleNotes(token: string) {
-    const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine)));
+  private async loadAccessibleNotes(token: string, appClient?: string) {
+    const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine, appClient)));
     const merged = new Map<number, ReturnType<typeof normalizeNote>>();
     for (const list of lists) {
       for (const note of list) {
@@ -471,6 +471,7 @@ function normalizeNote(note: any) {
     lessonTitle: String(note.lessonTitle || note.title || 'Untitled lesson'),
     approvedFlashcardCount: Math.max(0, Number(note.approvedFlashcardCount || 0)),
     canAccess: Boolean(note.canAccess),
+    appOnly: Boolean(note.appOnly),
   };
 }
 
@@ -485,6 +486,7 @@ export interface DeckNode {
   dueCount: number;
   cardCount: number;
   locked: boolean;
+  appOnly: boolean;
   children: DeckNode[];
 }
 
@@ -496,7 +498,7 @@ function buildDeckTree(notes: ReturnType<typeof normalizeNote>[], reviewByNote: 
     const siblings = Array.isArray(parent) ? parent : parent.children;
     let node = index.get(key);
     if (!node) {
-      node = { key, label, type, depth, noteIds: [], newCount: 0, learningCount: 0, dueCount: 0, cardCount: 0, locked: false, children: [] };
+      node = { key, label, type, depth, noteIds: [], newCount: 0, learningCount: 0, dueCount: 0, cardCount: 0, locked: false, appOnly: false, children: [] };
       index.set(key, node);
       siblings.push(node);
     }
@@ -522,6 +524,7 @@ function buildDeckTree(notes: ReturnType<typeof normalizeNote>[], reviewByNote: 
       node.dueCount += review.due;
       node.cardCount += note.approvedFlashcardCount;
       if (!note.canAccess) node.locked = true;
+      if (note.appOnly) node.appOnly = true;
     }
   }
 

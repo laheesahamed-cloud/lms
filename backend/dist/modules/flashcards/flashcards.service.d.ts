@@ -36,7 +36,7 @@ export declare class FlashcardsService {
         reviewsPerDay: number;
     }>;
     private fsrsSettings;
-    listDecks(userId: number, token: string): Promise<{
+    listDecks(userId: number, token: string, appClient?: string): Promise<{
         decks: DeckNode[];
         totals: {
             newCount: number;
@@ -48,7 +48,7 @@ export declare class FlashcardsService {
         noteIds: number[];
         limit?: number;
         newLimit?: number;
-    }): Promise<{
+    }, appClient?: string): Promise<{
         cards: QueueItem[];
         counts: {
             new: number;
@@ -126,6 +126,7 @@ export interface DeckNode {
     dueCount: number;
     cardCount: number;
     locked: boolean;
+    appOnly: boolean;
     children: DeckNode[];
 }
 declare function mapCardContent(row: CardContentRow): {

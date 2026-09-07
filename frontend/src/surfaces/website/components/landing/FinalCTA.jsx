@@ -1,7 +1,11 @@
 /*
  * FinalCTA — section 10. Pastel gradient-mesh background (never flat),
- * DM Serif headline, store badges (non-clickable), Instagram, trust line.
+ * DM Serif headline, store badges, Instagram, trust line.
+ *
+ * Store badges link out once APP_STORE_URL/PLAY_STORE_URL are set in
+ * shared/config/appLinks.js (still just non-clickable images until then).
  */
+import { APP_STORE_URL, PLAY_STORE_URL } from '../../../../shared/config/appLinks.js';
 
 const ASSET = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
 
@@ -11,6 +15,16 @@ const MESH = `
   radial-gradient(ellipse at 60% 80%, rgba(214,255,232,0.5) 0%, transparent 50%),
   #fafaf7
 `;
+
+function StoreBadge({ href, className, children }) {
+  const wrapperClass = `inline-flex items-center overflow-hidden rounded-xl ${className || ''}`;
+  if (!href) return <div className={wrapperClass}>{children}</div>;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={wrapperClass}>
+      {children}
+    </a>
+  );
+}
 
 export function FinalCTA() {
   return (
@@ -24,23 +38,23 @@ export function FinalCTA() {
             Write-on notes, a teaching Q-Bank, your own flashcards, mock exams and a study planner — all in one app.
           </p>
 
-          {/* Store badges — display only, not clickable */}
+          {/* Store badges — link out once the URLs are set, plain images until then */}
           <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
-            <div className="inline-flex h-[52px] items-center overflow-hidden rounded-xl">
+            <StoreBadge href={PLAY_STORE_URL} className="h-[52px]">
               <img
                 src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
                 alt="Get it on Google Play"
                 className="h-[70px] w-auto"
                 style={{ marginTop: '-9px', marginBottom: '-9px' }}
               />
-            </div>
-            <div className="inline-flex h-[52px] items-center overflow-hidden rounded-xl">
+            </StoreBadge>
+            <StoreBadge href={APP_STORE_URL} className="h-[52px]">
               <img
                 src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
                 alt="Download on the App Store"
                 className="h-[52px] w-auto"
               />
-            </div>
+            </StoreBadge>
           </div>
           <p className="mt-4 text-[13.5px] font-medium italic text-[#6b7280]">
             coming soon — in progress. very slowly. but in progress.<br />
