@@ -381,6 +381,15 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Premium quiz/lesson/flashcard content is app-only, permanently — the
+// backend refuses to serve it to the website and returns this machine-
+// readable code (see backend/src/common/exceptions/app-only-content.exception.ts).
+// Callers use this to branch to the "Open in the App" gate instead of a
+// generic error or the old "View plans" upgrade flow.
+export function isAppOnlyContentError(error) {
+  return error?.response?.data?.code === 'APP_ONLY_CONTENT';
+}
+
 export function getErrorMessage(error, fallback = 'Something went wrong') {
   const serverMessage = error?.response?.data?.message;
   const platform = detectPlatform();

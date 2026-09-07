@@ -1,0 +1,1 @@
+import{u as e}from"./vendor-BqXMCqM3.js";export{e as SocialLogin};

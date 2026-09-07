@@ -240,7 +240,7 @@ export declare class QuizAttemptsController {
         percentage: number;
         passingMarks: number;
     }>;
-    review(attemptId: number, authorization?: string): Promise<{
+    review(attemptId: number, authorization?: string, appClient?: string): Promise<{
         attempt: {
             attemptId: number;
             quizId: number;

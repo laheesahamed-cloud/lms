@@ -21,10 +21,12 @@ import { AppOnlyContentException } from '../src/common/exceptions/app-only-conte
 class QuizAccessMockPool {
   accessRows: any[];
   quizRows: any[];
+  attemptRows: any[];
   questionQueryCount = 0;
 
-  constructor(input: { accessRows?: any[]; quizRows?: any[] }) {
+  constructor(input: { accessRows?: any[]; quizRows?: any[]; attemptRows?: any[] }) {
     this.accessRows = input.accessRows || [];
+    this.attemptRows = input.attemptRows || [];
     this.quizRows = input.quizRows || [{
       id: 99,
       course_id: 55,
@@ -82,6 +84,20 @@ class QuizAccessMockPool {
     }
 
     if (normalizedSql.includes("FROM content_versions WHERE entity_type = 'question'")) {
+      return [[] as T, []];
+    }
+
+    if (normalizedSql.includes('FROM quiz_attempts qa INNER JOIN quizzes q ON qa.quiz_id = q.id')) {
+      assert.equal(params[1], 10);
+      return [this.attemptRows as T, []];
+    }
+
+    if (normalizedSql.includes('FROM questions q WHERE q.id IN')) {
+      this.questionQueryCount += 1;
+      return [[{ id: 1, course_id: 55, topic_id: null, subtopic: null, category: null, question_type: 'sba', question_text: 'Q', explanation: 'E', explanation_image_url: null, status: 'active' }] as T, []];
+    }
+
+    if (normalizedSql.includes('FROM student_answers WHERE attempt_id = ?')) {
       return [[] as T, []];
     }
 
@@ -401,6 +417,58 @@ async function testFreeQuizContentAllowedWithoutMobileHeader() {
   assert.equal(result.questions.length, 1, 'free content stays reachable from the website with no header at all');
 }
 
+// A student who takes a premium quiz on the app, then opens the *review*
+// screen on the website afterward, must not get the full question-by-question
+// breakdown there either — reviewing is just as much "premium content" as
+// taking the quiz was. This regression pins that specific gap (review() used
+// to check nothing but attempt ownership).
+function premiumReviewAttemptRow(overrides: Record<string, unknown> = {}) {
+  return [{
+    id: 501,
+    quiz_id: 99,
+    score: 100,
+    percentage: 100,
+    correct_answers: 1,
+    wrong_answers: 0,
+    unanswered_questions: 0,
+    question_ids_json: '[1]',
+    pass_status: 'pass',
+    submitted_at: new Date(),
+    created_at: new Date(),
+    quiz_title: 'Locked Quiz',
+    lesson_id: null,
+    is_general: 0,
+    is_free: 0,
+    course_title: 'Medicine',
+    topic_name: 'Cardiology',
+    ...overrides,
+  }];
+}
+
+async function testPremiumQuizReviewDeniedWithoutMobileHeader() {
+  const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow() });
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  await assert.rejects(
+    () => service.review('Bearer student-token', 501),
+    AppOnlyContentException
+  );
+  assert.equal(db.questionQueryCount, 0, 'a premium quiz review must not read question content for a website request');
+}
+
+async function testPremiumQuizReviewAllowedWithMobileHeader() {
+  const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow() });
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  const result = await service.review('Bearer student-token', 501, MOBILE_CLIENT);
+  assert.equal(result.questions.length, 1);
+}
+
+async function testFreeQuizReviewAllowedWithoutMobileHeader() {
+  const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow({ is_free: 1 }) });
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  const result = await service.review('Bearer student-token', 501);
+  assert.equal(result.questions.length, 1, 'free quiz reviews stay reachable from the website with no header at all');
+}
+
 async function testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission() {
   const controller = new SubscriptionsController(
     { findAdminList: async () => [], getStudentBilling: async () => ({}) } as any,
@@ -691,6 +759,9 @@ async function main() {
   await testQuizContentDeniedForCourseOutsideSubscriptionScope();
   await testPremiumQuizContentDeniedWithoutMobileHeaderEvenWithFullAccess();
   await testFreeQuizContentAllowedWithoutMobileHeader();
+  await testPremiumQuizReviewDeniedWithoutMobileHeader();
+  await testPremiumQuizReviewAllowedWithMobileHeader();
+  await testFreeQuizReviewAllowedWithoutMobileHeader();
   await testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission();
   await testSubscriptionDefaultRouteAllowsFinanceAdminList();
   await testSubscriptionDefaultRouteDeniesInactiveStaffSession();

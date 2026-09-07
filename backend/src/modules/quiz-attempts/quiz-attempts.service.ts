@@ -630,7 +630,7 @@ export class QuizAttemptsService {
     };
   }
 
-  async review(authorization: string | undefined, attemptId: number) {
+  async review(authorization: string | undefined, attemptId: number, appClient?: string) {
     const user = await this.requireStudent(authorization);
     const [attemptRows] = await this.db.execute<RowDataPacket[]>(
       `
@@ -649,6 +649,7 @@ export class QuizAttemptsService {
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
           q.lesson_id,
           q.is_general,
+          q.is_free,
           c.course_title,
           t.topic_name
         FROM quiz_attempts qa
@@ -663,6 +664,14 @@ export class QuizAttemptsService {
     const attempt = attemptRows[0];
     if (!attempt) {
       throw new NotFoundException('Review not found');
+    }
+
+    // Reviewing a completed premium quiz is app-only too — otherwise a
+    // student can take it on the app (correctly allowed) and then read the
+    // full question-by-question review, with answers and explanations, on
+    // the website. Free quizzes stay reviewable everywhere.
+    if (Number(attempt.is_free) !== 1 && !isMobileAppClient(appClient)) {
+      throw new AppOnlyContentException();
     }
 
     const attemptQuestionIds = this.parseNumberJsonArray(attempt.question_ids_json ? String(attempt.question_ids_json) : null);

@@ -2,10 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { completeAttemptReview, fetchAttemptReview } from '../../../../shared/api/quizAttempts.api.js';
-import { getErrorMessage } from '../../../../shared/api/client.js';
+import { getErrorMessage, isAppOnlyContentError } from '../../../../shared/api/client.js';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
+import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
 import { getQuizDisplayLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 
@@ -108,6 +109,7 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [errorIsAppOnly, setErrorIsAppOnly] = useState(false);
   const goBack = () => safeNavigateBack(navigate, { fallbackPath: '/results' });
   const finishReview = async () => {
     try {
@@ -124,6 +126,7 @@ export function ReviewPage() {
         setData(await fetchAttemptReview(attemptId));
       } catch (loadError) {
         setError(getErrorMessage(loadError, 'Unable to load review'));
+        setErrorIsAppOnly(isAppOnlyContentError(loadError));
       }
     }
     load();
@@ -134,6 +137,16 @@ export function ReviewPage() {
       <main className={reviewPageUi.screen}>
         <section className={reviewPageUi.layout}>
           <div className={ui.emptyBox}>Loading review...</div>
+        </section>
+      </main>
+    );
+  }
+
+  if (errorIsAppOnly) {
+    return (
+      <main className={reviewPageUi.screen}>
+        <section className={reviewPageUi.layout}>
+          <AppOnlyGate contentLabel="quiz review" title="Review this quiz in the app" />
         </section>
       </main>
     );

@@ -57,9 +57,10 @@ export class QuizAttemptsController {
   @Get('review/:attemptId')
   review(
     @Param('attemptId', ParseIntPipe) attemptId: number,
-    @Headers('authorization') authorization?: string
+    @Headers('authorization') authorization?: string,
+    @Headers('x-app-client') appClient?: string
   ) {
-    return this.quizAttemptsService.review(authorization, attemptId);
+    return this.quizAttemptsService.review(authorization, attemptId, appClient);
   }
 
   @Post('review/:attemptId/complete')

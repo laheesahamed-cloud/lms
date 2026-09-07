@@ -247,7 +247,7 @@ export declare class QuizAttemptsService {
         percentage: number;
         passingMarks: number;
     }>;
-    review(authorization: string | undefined, attemptId: number): Promise<{
+    review(authorization: string | undefined, attemptId: number, appClient?: string): Promise<{
         attempt: {
             attemptId: number;
             quizId: number;

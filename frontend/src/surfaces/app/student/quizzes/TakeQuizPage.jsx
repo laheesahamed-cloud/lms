@@ -10,7 +10,7 @@ import {
 } from '../../../../shared/api/quizAttempts.api.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
-import { getErrorMessage } from '../../../../shared/api/client.js';
+import { getErrorMessage, isAppOnlyContentError } from '../../../../shared/api/client.js';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
@@ -181,12 +181,6 @@ function isQuizAccessError(error) {
   if (status === undefined || status >= 500) return false; // network / timeout / server crash
   const message = String(error?.response?.data?.message || error?.message || '').toLowerCase();
   return /\bplan\b|included with|premium|subscription|upgrade/.test(message);
-}
-
-// Premium quizzes are app-only regardless of subscription — the backend
-// refuses to serve them to the website and returns this machine-readable code.
-function isAppOnlyContentError(error) {
-  return error?.response?.data?.code === 'APP_ONLY_CONTENT';
 }
 
 function normalizeQuestionForPracticeReveal(question) {

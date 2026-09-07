@@ -413,7 +413,7 @@ let QuizAttemptsService = class QuizAttemptsService {
             passingMarks: this.resolvePassingMarks(Number(row.passing_marks || 0)),
         };
     }
-    async review(authorization, attemptId) {
+    async review(authorization, attemptId, appClient) {
         const user = await this.requireStudent(authorization);
         const [attemptRows] = await this.db.execute(`
         SELECT
@@ -431,6 +431,7 @@ let QuizAttemptsService = class QuizAttemptsService {
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
           q.lesson_id,
           q.is_general,
+          q.is_free,
           c.course_title,
           t.topic_name
         FROM quiz_attempts qa
@@ -443,6 +444,9 @@ let QuizAttemptsService = class QuizAttemptsService {
         const attempt = attemptRows[0];
         if (!attempt) {
             throw new common_1.NotFoundException('Review not found');
+        }
+        if (Number(attempt.is_free) !== 1 && !(0, mobile_client_util_1.isMobileAppClient)(appClient)) {
+            throw new app_only_content_exception_1.AppOnlyContentException();
         }
         const attemptQuestionIds = this.parseNumberJsonArray(attempt.question_ids_json ? String(attempt.question_ids_json) : null);
         const questions = await this.loadQuestionsForQuiz(Number(attempt.quiz_id), null, attemptQuestionIds.length ? attemptQuestionIds : undefined);

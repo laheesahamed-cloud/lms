@@ -39,8 +39,8 @@ let QuizAttemptsController = class QuizAttemptsController {
     result(attemptId, authorization) {
         return this.quizAttemptsService.result(authorization, attemptId);
     }
-    review(attemptId, authorization) {
-        return this.quizAttemptsService.review(authorization, attemptId);
+    review(attemptId, authorization, appClient) {
+        return this.quizAttemptsService.review(authorization, attemptId, appClient);
     }
     completeReview(attemptId, authorization) {
         return this.quizAttemptsService.completeReview(authorization, attemptId);
@@ -102,8 +102,9 @@ __decorate([
     (0, common_1.Get)('review/:attemptId'),
     __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Headers)('authorization')),
+    __param(2, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [Number, String, String]),
     __metadata("design:returntype", void 0)
 ], QuizAttemptsController.prototype, "review", null);
 __decorate([

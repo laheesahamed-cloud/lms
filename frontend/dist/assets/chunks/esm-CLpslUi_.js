@@ -1,1 +1,0 @@
-import{u as e}from"./vendor-UkeVMb-z.js";export{e as SocialLogin};
