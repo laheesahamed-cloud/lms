@@ -4,7 +4,6 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
-import { SettingsService } from '../settings/settings.service';
 import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
 import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
@@ -191,8 +190,7 @@ export class QuizAttemptsService {
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
-    private readonly plansService: PlansService,
-    private readonly settingsService: SettingsService
+    private readonly plansService: PlansService
   ) {}
 
   async listQuizzes(authorization?: string) {
@@ -750,10 +748,10 @@ export class QuizAttemptsService {
     quiz: Pick<QuizRow, 'id' | 'course_id' | 'is_free'>,
     appClient?: string
   ) {
-    // Premium quizzes are app-only, regardless of subscription — checked before
-    // (and independent of) the subscription-scope check below. See
-    // common/utils/mobile-client.util.ts.
-    if (Number(quiz.is_free) !== 1 && !isMobileAppClient(appClient) && (await this.settingsService.isAppOnlyContentEnabled())) {
+    // Premium quizzes are app-only, permanently, regardless of subscription —
+    // checked before (and independent of) the subscription-scope check below.
+    // See common/utils/mobile-client.util.ts.
+    if (Number(quiz.is_free) !== 1 && !isMobileAppClient(appClient)) {
       throw new AppOnlyContentException();
     }
 

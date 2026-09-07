@@ -30,7 +30,6 @@ const AVAILABILITY_MODE_SETTING_KEY = 'site_availability_mode';
 const AVAILABILITY_UNLOCK_CODE_SETTING_KEY = 'site_availability_unlock_code';
 const AVAILABILITY_MODES = ['live', 'maintenance', 'coming-soon'];
 const DEFAULT_AVAILABILITY_UNLOCK_CODE = '1122334455';
-const APP_ONLY_CONTENT_SETTING_KEY = 'app_only_premium_content_enabled';
 const DEFAULT_LANDING_PAGE_CONTENT = {
     metaTitle: 'Medical Study Platform',
     metaDescription: 'xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.',
@@ -186,22 +185,6 @@ let SettingsService = SettingsService_1 = class SettingsService {
             },
             note: 'Maintenance mode pauses the public website, student app, and native shells. Coming Soon only covers the public website. Admins enter the secret code on the launch screen, then sign in with their admin account.',
         };
-    }
-    async getAppOnlyContentSettings() {
-        return {
-            ok: true,
-            enabled: await this.isAppOnlyContentEnabled(),
-            note: 'When enabled, premium (non-free) quizzes, lessons, and flashcards can only be opened in the Xyndrome mobile app — the website shows a download prompt instead, even for subscribed students. Subscribing/checkout on the website is unaffected.',
-        };
-    }
-    async updateAppOnlyContentSettings(input) {
-        if (input.enabled !== undefined) {
-            await this.saveSettingValue(APP_ONLY_CONTENT_SETTING_KEY, input.enabled ? 'true' : 'false');
-        }
-        return this.getAppOnlyContentSettings();
-    }
-    async isAppOnlyContentEnabled() {
-        return this.parseBoolean(await this.getSettingValue(APP_ONLY_CONTENT_SETTING_KEY), false);
     }
     async getPublicSettings() {
         const now = Date.now();

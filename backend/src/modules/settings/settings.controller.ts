@@ -10,7 +10,6 @@ import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
 import { TestSmtpSettingsDto } from './dto/test-smtp-settings.dto';
 import { UpdatePopupAlertSettingsDto } from './dto/update-popup-alert-settings.dto';
-import { UpdateAppOnlyContentSettingsDto } from './dto/update-app-only-content-settings.dto';
 import { UpdateApnsSettingsDto } from './dto/update-apns-settings.dto';
 import { UpdateFcmSettingsDto } from './dto/update-fcm-settings.dto';
 import { SettingsService } from './settings.service';
@@ -100,23 +99,6 @@ export class SettingsController {
   async getFcmSettings(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.settingsService.getFcmSettings();
-  }
-
-  @Get('app-only-content')
-  @RequirePermissions('settings.manage')
-  async getAppOnlyContentSettings(@Headers('authorization') authorization?: string) {
-    await this.authService.requireAdmin(authorization);
-    return this.settingsService.getAppOnlyContentSettings();
-  }
-
-  @Put('app-only-content')
-  @RequirePermissions('settings.manage')
-  async updateAppOnlyContentSettings(
-    @Headers('authorization') authorization: string | undefined,
-    @Body() dto: UpdateAppOnlyContentSettingsDto
-  ) {
-    await this.authService.requireAdmin(authorization);
-    return this.settingsService.updateAppOnlyContentSettings(dto);
   }
 
   @Post('ai-providers')

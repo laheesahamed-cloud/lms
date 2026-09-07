@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { QuizAttemptsService } from '../src/modules/quiz-attempts/quiz-attempts.service';
 
-const service = new QuizAttemptsService({} as any, {} as any, {} as any) as any;
+const service = new QuizAttemptsService({} as any, {} as any) as any;
 
 const sbaQuestion = {
   id: 101,

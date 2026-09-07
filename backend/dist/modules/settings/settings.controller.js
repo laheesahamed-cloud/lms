@@ -25,7 +25,6 @@ const update_payment_settings_dto_1 = require("./dto/update-payment-settings.dto
 const update_smtp_settings_dto_1 = require("./dto/update-smtp-settings.dto");
 const test_smtp_settings_dto_1 = require("./dto/test-smtp-settings.dto");
 const update_popup_alert_settings_dto_1 = require("./dto/update-popup-alert-settings.dto");
-const update_app_only_content_settings_dto_1 = require("./dto/update-app-only-content-settings.dto");
 const update_apns_settings_dto_1 = require("./dto/update-apns-settings.dto");
 const update_fcm_settings_dto_1 = require("./dto/update-fcm-settings.dto");
 const settings_service_1 = require("./settings.service");
@@ -78,14 +77,6 @@ let SettingsController = class SettingsController {
     async getFcmSettings(authorization) {
         await this.authService.requireAdmin(authorization);
         return this.settingsService.getFcmSettings();
-    }
-    async getAppOnlyContentSettings(authorization) {
-        await this.authService.requireAdmin(authorization);
-        return this.settingsService.getAppOnlyContentSettings();
-    }
-    async updateAppOnlyContentSettings(authorization, dto) {
-        await this.authService.requireAdmin(authorization);
-        return this.settingsService.updateAppOnlyContentSettings(dto);
     }
     async createAiProvider(authorization, dto) {
         await this.authService.requireAdmin(authorization);
@@ -238,23 +229,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], SettingsController.prototype, "getFcmSettings", null);
-__decorate([
-    (0, common_1.Get)('app-only-content'),
-    (0, permissions_decorator_1.RequirePermissions)('settings.manage'),
-    __param(0, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], SettingsController.prototype, "getAppOnlyContentSettings", null);
-__decorate([
-    (0, common_1.Put)('app-only-content'),
-    (0, permissions_decorator_1.RequirePermissions)('settings.manage'),
-    __param(0, (0, common_1.Headers)('authorization')),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, update_app_only_content_settings_dto_1.UpdateAppOnlyContentSettingsDto]),
-    __metadata("design:returntype", Promise)
-], SettingsController.prototype, "updateAppOnlyContentSettings", null);
 __decorate([
     (0, common_1.Post)('ai-providers'),
     (0, permissions_decorator_1.RequirePermissions)('settings.manage'),

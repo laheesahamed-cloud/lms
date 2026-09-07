@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { PlansModule } from '../plans/plans.module';
-import { SettingsModule } from '../settings/settings.module';
 import { QuizAttemptsController } from './quiz-attempts.controller';
 import { QuizAttemptsService } from './quiz-attempts.service';
 
 @Module({
-  imports: [PlansModule, SettingsModule],
+  imports: [PlansModule],
   controllers: [QuizAttemptsController],
   providers: [QuizAttemptsService],
   exports: [QuizAttemptsService],

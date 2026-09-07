@@ -13,6 +13,7 @@ import { TopicsService } from '../src/modules/topics/topics.service';
 import { SubtopicsService } from '../src/modules/subtopics/subtopics.service';
 import { PapersService } from '../src/modules/papers/papers.service';
 import { WorkspaceService } from '../src/modules/workspace/workspace.service';
+import { AppOnlyContentException } from '../src/common/exceptions/app-only-content.exception';
 
 // The student-facing "open this quiz" path used to be QuizzesService.getCards;
 // it now lives in QuizAttemptsService.loadQuiz, which resolves the student
@@ -300,17 +301,16 @@ const plansService = {
   hasFeatureAccess: async () => true,
 };
 
-// The app-only content gate (see AppOnlyContentException) is off by default;
-// these tests exercise the ordinary subscription-scope checks underneath it.
-const settingsService = {
-  isAppOnlyContentEnabled: async () => false,
-};
+// Premium quizzes are permanently app-only (see AppOnlyContentException) —
+// these tests exercise the subscription-scope check *behind* that gate, so
+// they pass the mobile client header, same as the real app would.
+const MOBILE_CLIENT = 'xyndrome-mobile-app';
 
 async function testQuizContentDeniedWithoutCourseAccess() {
   const db = new QuizAccessMockPool({});
-  const service = new QuizAttemptsService(db as any, plansService as any, settingsService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any);
   await assert.rejects(
-    () => service.loadQuiz('Bearer student-token', 99, 'practice'),
+    () => service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT),
     BadRequestException
   );
   assert.equal(db.questionQueryCount, 0, 'question content must not be read for an out-of-scope quiz');
@@ -325,8 +325,8 @@ async function testQuizContentAllowedForOwnedCourse() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any, settingsService as any);
-  const result = await service.loadQuiz('Bearer student-token', 99, 'practice');
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  const result = await service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT);
   assert.equal(result.questions.length, 1);
   assert.equal(db.questionQueryCount, 1);
 }
@@ -341,12 +341,64 @@ async function testQuizContentDeniedForCourseOutsideSubscriptionScope() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any, settingsService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any);
   await assert.rejects(
-    () => service.loadQuiz('Bearer student-token', 99, 'practice'),
+    () => service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT),
     BadRequestException
   );
   assert.equal(db.questionQueryCount, 0);
+}
+
+// The app-only gate is permanent and unconditional: even a student with full,
+// unrestricted course access must not get premium quiz content on the web
+// (no mobile client header) — there is no admin switch to bypass this.
+async function testPremiumQuizContentDeniedWithoutMobileHeaderEvenWithFullAccess() {
+  const db = new QuizAccessMockPool({
+    accessRows: [{
+      plan_slug: 'master-prep-6m',
+      access_scope: 'all',
+      course_ids_json: null,
+      lesson_ids_json: null,
+    }],
+  });
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  await assert.rejects(
+    () => service.loadQuiz('Bearer student-token', 99, 'practice'),
+    AppOnlyContentException
+  );
+  assert.equal(db.questionQueryCount, 0, 'premium quiz content must never reach the website, regardless of access');
+}
+
+async function testFreeQuizContentAllowedWithoutMobileHeader() {
+  const db = new QuizAccessMockPool({
+    quizRows: [{
+      id: 99,
+      course_id: 55,
+      topic_id: null,
+      subtopic_id: null,
+      lesson_id: null,
+      paper_id: null,
+      subtopic: null,
+      category: null,
+      is_general: 0,
+      is_free: 1,
+      exam_mode_only: 0,
+      blueprint_json: null,
+      randomization_mode: 'static',
+      quiz_title: 'Free Quiz',
+      quiz_description: null,
+      total_questions: 1,
+      total_marks: 1,
+      time_limit: 0,
+      hide_time_limit: 0,
+      passing_marks: 0,
+      hide_passing_marks: 0,
+      status: 'active',
+    }],
+  });
+  const service = new QuizAttemptsService(db as any, plansService as any);
+  const result = await service.loadQuiz('Bearer student-token', 99, 'practice');
+  assert.equal(result.questions.length, 1, 'free content stays reachable from the website with no header at all');
 }
 
 async function testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission() {
@@ -517,9 +569,9 @@ async function testContentEditorCannotCreatePublishedCourse() {
 }
 
 async function testContentEditorCannotCreatePublishedLesson() {
-  // (db, ConfigService, pushNotificationsService, settingsService) — the
-  // create() guard rejects before any of them is touched.
-  const service = new LessonsService({} as any, {} as any, {} as any, {} as any);
+  // (db, ConfigService, pushNotificationsService) — the create() guard
+  // rejects before any of them is touched.
+  const service = new LessonsService({} as any, {} as any, {} as any);
   await assert.rejects(
     () => service.create(publishReadyLessonPayload, { id: 305, role: 'content_editor', permissions: ['content.manage'] }),
     ForbiddenException
@@ -531,14 +583,14 @@ async function testContentEditorCannotCreatePublishedLesson() {
 // it is live. Only content.review/admin can flip that. These pin both halves —
 // the publish side previously regressed open and went unnoticed for months.
 async function testContentEditorCanEditLivePublishedLessonBody() {
-  const service = new LessonsService({} as any, {} as any, {} as any, {} as any) as any;
+  const service = new LessonsService({} as any, {} as any, {} as any) as any;
   const editor = { id: 305, role: 'content_editor', permissions: ['content.manage'] };
   assert.doesNotThrow(() => service.assertCanModifyExistingStatus(editor, 'active'));
   assert.doesNotThrow(() => service.assertCanSaveStatus(editor, 'active', 'active'));
 }
 
 async function testContentEditorCannotFlipLessonLiveState() {
-  const service = new LessonsService({} as any, {} as any, {} as any, {} as any) as any;
+  const service = new LessonsService({} as any, {} as any, {} as any) as any;
   const editor = { id: 305, role: 'content_editor', permissions: ['content.manage'] };
   assert.throws(() => service.assertCanSaveStatus(editor, 'active', 'inactive'), ForbiddenException, 'editors must not publish');
   assert.throws(() => service.assertCanSaveStatus(editor, 'inactive', 'active'), ForbiddenException, 'editors must not unpublish');
@@ -637,6 +689,8 @@ async function main() {
   await testQuizContentDeniedWithoutCourseAccess();
   await testQuizContentAllowedForOwnedCourse();
   await testQuizContentDeniedForCourseOutsideSubscriptionScope();
+  await testPremiumQuizContentDeniedWithoutMobileHeaderEvenWithFullAccess();
+  await testFreeQuizContentAllowedWithoutMobileHeader();
   await testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission();
   await testSubscriptionDefaultRouteAllowsFinanceAdminList();
   await testSubscriptionDefaultRouteDeniesInactiveStaffSession();

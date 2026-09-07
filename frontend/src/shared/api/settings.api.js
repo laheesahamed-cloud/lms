@@ -51,10 +51,6 @@ export async function fetchFcmSettings() {
   return response.data;
 }
 
-export async function fetchAppOnlyContentSettings() {
-  const response = await apiClient.get('/admin/settings/app-only-content');
-  return response.data;
-}
 
 export async function fetchPublicSettings({ force = false } = {}) {
   const now = Date.now();
@@ -154,11 +150,6 @@ export async function updatePopupAlertSettings(payload) {
 
 export async function updateApnsSettings(payload) {
   const response = await apiClient.put('/admin/settings/apns', payload);
-  return response.data;
-}
-
-export async function updateAppOnlyContentSettings(payload) {
-  const response = await apiClient.put('/admin/settings/app-only-content', payload);
   return response.data;
 }
 

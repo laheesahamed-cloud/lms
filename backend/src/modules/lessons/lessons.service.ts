@@ -19,7 +19,6 @@ import {
 import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
 import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
-import { SettingsService } from '../settings/settings.service';
 
 type LessonRow = RowDataPacket & {
   id: number;
@@ -113,8 +112,8 @@ type CanvasAccessProfile = {
   hasFullAccess: boolean;
   courseIds: Set<number>;
   lessonIds: Set<number>;
-  // true when this request is from the website (not the mobile app) and the
-  // "premium content is app-only" admin setting is on — see isAppOnlyBlocked().
+  // true when this request is from the website, not the mobile app — see
+  // isAppOnlyBlocked(). Premium content is always app-only, no admin switch.
   appOnlyBlocked: boolean;
 };
 type LessonFlashcardStatus = 'draft' | 'approved' | 'rejected';
@@ -152,14 +151,13 @@ export class LessonsService {
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly config: ConfigService,
     private readonly pushNotificationsService: PushNotificationsService,
-    private readonly settingsService: SettingsService,
   ) {}
 
-  // Premium (non-free) lessons/flashcards are app-only, regardless of
-  // subscription — see common/utils/mobile-client.util.ts + AppOnlyContentException.
-  private async isAppOnlyBlocked(appClient?: string): Promise<boolean> {
-    if (isMobileAppClient(appClient)) return false;
-    return this.settingsService.isAppOnlyContentEnabled();
+  // Premium (non-free) lessons/flashcards are app-only, permanently,
+  // regardless of subscription — see common/utils/mobile-client.util.ts +
+  // AppOnlyContentException.
+  private isAppOnlyBlocked(appClient?: string): boolean {
+    return !isMobileAppClient(appClient);
   }
 
   async getMeta() {
@@ -299,7 +297,7 @@ export class LessonsService {
       throw new NotFoundException('Lesson not found');
     }
 
-    if (Number(lesson.isFree ?? (lesson as unknown as { is_free?: number }).is_free) !== 1 && (await this.isAppOnlyBlocked(appClient))) {
+    if (Number(lesson.isFree ?? (lesson as unknown as { is_free?: number }).is_free) !== 1 && this.isAppOnlyBlocked(appClient)) {
       throw new AppOnlyContentException();
     }
 
@@ -1840,14 +1838,12 @@ export class LessonsService {
   }
 
   private async getCanvasAccessProfile(userId: number, appClient?: string): Promise<CanvasAccessProfile> {
-    const [rows, appOnlyBlocked] = await Promise.all([
-      this.db.execute<AccessScopeRow[]>(
-        `SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-         FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
-         WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]
-      ).then(([r]) => r),
-      this.isAppOnlyBlocked(appClient),
-    ]);
+    const [rows] = await this.db.execute<AccessScopeRow[]>(
+      `SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+       FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
+       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]
+    );
+    const appOnlyBlocked = this.isAppOnlyBlocked(appClient);
     const profile: CanvasAccessProfile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked };
     for (const row of rows) {
       const courseIds = this.parseIdList(row.course_ids_json);

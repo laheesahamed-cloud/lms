@@ -25,22 +25,18 @@ const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const fetch_with_retry_1 = require("../../common/utils/fetch-with-retry");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
-const settings_service_1 = require("../settings/settings.service");
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
 const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
 const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
 let LessonsService = class LessonsService {
-    constructor(db, config, pushNotificationsService, settingsService) {
+    constructor(db, config, pushNotificationsService) {
         this.db = db;
         this.config = config;
         this.pushNotificationsService = pushNotificationsService;
-        this.settingsService = settingsService;
     }
-    async isAppOnlyBlocked(appClient) {
-        if ((0, mobile_client_util_1.isMobileAppClient)(appClient))
-            return false;
-        return this.settingsService.isAppOnlyContentEnabled();
+    isAppOnlyBlocked(appClient) {
+        return !(0, mobile_client_util_1.isMobileAppClient)(appClient);
     }
     async getMeta() {
         const [courses] = await this.db.execute("SELECT id, course_title, status FROM courses ORDER BY course_title ASC");
@@ -146,7 +142,7 @@ let LessonsService = class LessonsService {
         if (lesson.status !== 'active') {
             throw new common_1.NotFoundException('Lesson not found');
         }
-        if (Number(lesson.isFree ?? lesson.is_free) !== 1 && (await this.isAppOnlyBlocked(appClient))) {
+        if (Number(lesson.isFree ?? lesson.is_free) !== 1 && this.isAppOnlyBlocked(appClient)) {
             throw new app_only_content_exception_1.AppOnlyContentException();
         }
         const accessProfile = await this.getLessonAccessProfile(student.id);
@@ -1433,12 +1429,10 @@ let LessonsService = class LessonsService {
         };
     }
     async getCanvasAccessProfile(userId, appClient) {
-        const [rows, appOnlyBlocked] = await Promise.all([
-            this.db.execute(`SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-         FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
-         WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]).then(([r]) => r),
-            this.isAppOnlyBlocked(appClient),
-        ]);
+        const [rows] = await this.db.execute(`SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+       FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
+       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]);
+        const appOnlyBlocked = this.isAppOnlyBlocked(appClient);
         const profile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked };
         for (const row of rows) {
             const courseIds = this.parseIdList(row.course_ids_json);
@@ -1854,7 +1848,6 @@ exports.LessonsService = LessonsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, config_1.ConfigService,
-        push_notifications_service_1.PushNotificationsService,
-        settings_service_1.SettingsService])
+        push_notifications_service_1.PushNotificationsService])
 ], LessonsService);
 //# sourceMappingURL=lessons.service.js.map

@@ -18,7 +18,6 @@ const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_token_util_1 = require("../auth/auth-token.util");
 const plans_service_1 = require("../plans/plans.service");
-const settings_service_1 = require("../settings/settings.service");
 const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const SBA_QUESTION_MARKS = 2;
@@ -31,10 +30,9 @@ const DYNAMIC_QUESTION_POOL_CACHE_MS = 60000;
 const DYNAMIC_QUESTION_POOL_CACHE_MAX = 300;
 const DYNAMIC_RANDOMIZATION_FEATURE = 'dynamic_quiz_randomization';
 let QuizAttemptsService = class QuizAttemptsService {
-    constructor(db, plansService, settingsService) {
+    constructor(db, plansService) {
         this.db = db;
         this.plansService = plansService;
-        this.settingsService = settingsService;
         this.activeQuizCache = new Map();
         this.quizQuestionCache = new Map();
         this.dynamicQuestionPoolCache = new Map();
@@ -505,7 +503,7 @@ let QuizAttemptsService = class QuizAttemptsService {
         return token;
     }
     async ensureStudentCanAccessQuiz(userId, quiz, appClient) {
-        if (Number(quiz.is_free) !== 1 && !(0, mobile_client_util_1.isMobileAppClient)(appClient) && (await this.settingsService.isAppOnlyContentEnabled())) {
+        if (Number(quiz.is_free) !== 1 && !(0, mobile_client_util_1.isMobileAppClient)(appClient)) {
             throw new app_only_content_exception_1.AppOnlyContentException();
         }
         const accessProfile = await this.getQuizAccessProfile(userId);
@@ -1503,7 +1501,6 @@ exports.QuizAttemptsService = QuizAttemptsService;
 exports.QuizAttemptsService = QuizAttemptsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object, plans_service_1.PlansService,
-        settings_service_1.SettingsService])
+    __metadata("design:paramtypes", [Object, plans_service_1.PlansService])
 ], QuizAttemptsService);
 //# sourceMappingURL=quiz-attempts.service.js.map

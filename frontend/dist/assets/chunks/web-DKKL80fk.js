@@ -1,0 +1,1 @@
+import{S as e}from"./vendor-UkeVMb-z.js";export{e as AppWeb};

@@ -1,1 +1,0 @@
-import{c as e}from"./vendor-Bbkaf1RM.js";export{e as SocialLoginWeb};

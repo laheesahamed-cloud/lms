@@ -268,7 +268,7 @@ export declare class LessonsController {
         imageFit: "contain" | "cover";
         status: "approved" | "rejected" | "draft";
         sortOrder: number;
-        generatedBy: "ai" | "manual";
+        generatedBy: "manual" | "ai";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -285,7 +285,7 @@ export declare class LessonsController {
         imageFit: "contain" | "cover";
         status: "approved" | "rejected" | "draft";
         sortOrder: number;
-        generatedBy: "ai" | "manual";
+        generatedBy: "manual" | "ai";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -312,7 +312,7 @@ export declare class LessonsController {
             imageFit: "contain" | "cover";
             status: "approved" | "rejected" | "draft";
             sortOrder: number;
-            generatedBy: "ai" | "manual";
+            generatedBy: "manual" | "ai";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;
@@ -330,7 +330,7 @@ export declare class LessonsController {
         imageFit: "contain" | "cover";
         status: "approved" | "rejected" | "draft";
         sortOrder: number;
-        generatedBy: "ai" | "manual";
+        generatedBy: "manual" | "ai";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -430,7 +430,7 @@ export declare class LessonsController {
             imageFit: "contain" | "cover";
             status: "approved" | "rejected" | "draft";
             sortOrder: number;
-            generatedBy: "ai" | "manual";
+            generatedBy: "manual" | "ai";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;

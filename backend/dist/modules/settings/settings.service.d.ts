@@ -195,19 +195,6 @@ export declare class SettingsService {
         scope: "all" | "website" | "none";
         ok: boolean;
     }>;
-    getAppOnlyContentSettings(): Promise<{
-        ok: boolean;
-        enabled: boolean;
-        note: string;
-    }>;
-    updateAppOnlyContentSettings(input: {
-        enabled?: boolean;
-    }): Promise<{
-        ok: boolean;
-        enabled: boolean;
-        note: string;
-    }>;
-    isAppOnlyContentEnabled(): Promise<boolean>;
     getPublicSettings(): Promise<PublicSettingsResponse>;
     getPublicAvailabilitySettings(): Promise<{
         ok: boolean;

@@ -6,7 +6,6 @@ import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
 import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
-import { SettingsService } from '../settings/settings.service';
 type ContentActor = {
     id: number;
     role?: string;
@@ -48,8 +47,7 @@ export declare class LessonsService {
     private readonly db;
     private readonly config;
     private readonly pushNotificationsService;
-    private readonly settingsService;
-    constructor(db: Pool, config: ConfigService, pushNotificationsService: PushNotificationsService, settingsService: SettingsService);
+    constructor(db: Pool, config: ConfigService, pushNotificationsService: PushNotificationsService);
     private isAppOnlyBlocked;
     getMeta(): Promise<{
         courses: {
