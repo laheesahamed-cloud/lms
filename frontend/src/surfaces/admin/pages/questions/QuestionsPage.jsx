@@ -265,6 +265,11 @@ export function QuestionsPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkKeywordOpen, setBulkKeywordOpen] = useState(false);
   const [bulkKeywordForm, setBulkKeywordForm] = useState({ keywordsText: '', mode: 'append' });
+  const [bulkAiOpen, setBulkAiOpen] = useState(false);
+  const [bulkAiMode, setBulkAiMode] = useState('skip');
+  const [bulkAiRunning, setBulkAiRunning] = useState(false);
+  const [bulkAiProgress, setBulkAiProgress] = useState({ done: 0, total: 0, failed: 0, label: '' });
+  const bulkAiCancelRef = useRef(false);
   const [toast, setToast] = useState(null);
   const [error, setError] = useState('');
   const [recap, setRecap] = useState(null);
@@ -1034,6 +1039,92 @@ export function QuestionsPage() {
     }
   }
 
+  async function handleBulkGenerateAi() {
+    const ids = [...selectedVisibleIds];
+    if (ids.length === 0) return;
+
+    const regenerate = bulkAiMode === 'regenerate';
+    bulkAiCancelRef.current = false;
+    setBulkAiRunning(true);
+    setError('');
+    setBulkAiProgress({ done: 0, total: ids.length, failed: 0, label: '' });
+
+    let failed = 0;
+    for (let i = 0; i < ids.length; i++) {
+      if (bulkAiCancelRef.current) break;
+      const id = ids[i];
+      setBulkAiProgress({ done: i, total: ids.length, failed, label: `Question #${id}` });
+
+      try {
+        const fetched = await fetchQuestion(id);
+        const mapped = mapQuestionToForm(fetched);
+        const correctOption = mapped.options.find((option) => Number(option.isCorrect) === 1);
+        if (!mapped.questionText.trim() || !correctOption) {
+          failed += 1;
+          setBulkAiProgress({ done: i + 1, total: ids.length, failed, label: '' });
+          continue;
+        }
+
+        let explanation = mapped.explanation;
+        if (regenerate || !explanation.trim()) {
+          const result = await generateQuestionExplanation(buildAiLearningPayload(mapped, explanation));
+          explanation = result.explanation || explanation;
+        }
+
+        let options = mapped.options;
+        if (mapped.questionType === 'sba') {
+          const whyResult = await generateWhyIncorrectExplanations(buildAiLearningPayload({ ...mapped, explanation }, explanation));
+          const generatedMap = new Map((whyResult.items || []).map((item) => [String(item.optionLabel || '').toUpperCase(), item.whyIncorrect || '']));
+          options = mapped.options.map((option) => {
+            if (Number(option.isCorrect) === 1) return option;
+            if (!regenerate && option.whyIncorrect) return option;
+            const generated = generatedMap.get(option.optionLabel);
+            return generated ? { ...option, whyIncorrect: generated } : option;
+          });
+        }
+
+        let questionApproach = mapped.questionApproach;
+        let questionApproachHighlights = mapped.questionApproachHighlights;
+        if (regenerate || !questionApproach.trim()) {
+          const approachResult = await generateQuestionApproach(buildAiLearningPayload({ ...mapped, explanation }, explanation));
+          questionApproach = approachResult.questionApproach || questionApproach;
+          questionApproachHighlights = arrayToText(approachResult.highlights || []);
+        }
+
+        await updateQuestion(id, {
+          courseId: Number(mapped.courseId),
+          subjectId: Number(mapped.subjectId),
+          topicId: mapped.topicId ? Number(mapped.topicId) : null,
+          lessonId: mapped.lessonId ? Number(mapped.lessonId) : null,
+          paperId: mapped.paperId ? Number(mapped.paperId) : null,
+          topicLabel: mapped.topicLabel,
+          category: mapped.category,
+          questionType: mapped.questionType,
+          questionText: mapped.questionText,
+          keywordsText: mapped.keywordsText,
+          explanation,
+          explanationImageUrl: mapped.explanationImageUrl || null,
+          questionApproach,
+          questionApproachHighlights: textToArray(questionApproachHighlights),
+          status: mapped.status,
+          options,
+        });
+      } catch (bulkError) {
+        failed += 1;
+      }
+
+      setBulkAiProgress({ done: i + 1, total: ids.length, failed, label: '' });
+    }
+
+    const cancelled = bulkAiCancelRef.current;
+    setBulkAiRunning(false);
+    setBulkAiOpen(false);
+    showToast(
+      `${cancelled ? 'Stopped' : 'Finished'}: generated AI content for ${ids.length - failed}/${ids.length} question(s)${failed ? `, ${failed} failed` : ''}.`
+    );
+    await loadQuestions(filters);
+  }
+
   return (
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
@@ -1233,6 +1324,13 @@ export function QuestionsPage() {
                   disabled={selectedVisibleIds.length === 0 || bulkKeywordSaving}
                 >
                   Update keywords
+                </button>
+                <button className={ui.secondaryAction}
+                  type="button"
+                  onClick={() => { setBulkAiMode('skip'); setBulkAiOpen(true); }}
+                  disabled={selectedVisibleIds.length === 0 || bulkAiRunning}
+                >
+                  Generate AI content
                 </button>
                 <button className={ui.dangerAction}
                   type="button"
@@ -1443,6 +1541,71 @@ export function QuestionsPage() {
                 </button>
               </div>
             </form>
+          </div>,
+          document.body
+        )}
+
+        {bulkAiOpen && createPortal(
+          <div className={ui.modalBackdrop} onClick={() => !bulkAiRunning && setBulkAiOpen(false)}>
+            <div className={ui.confirmModal} onClick={(event) => event.stopPropagation()}>
+              <div className={ui.confirmModalHead}>
+                <div>
+                  <h2>Generate AI content for selected questions</h2>
+                  <p>Generate Explanation, Why Incorrect, and Question Approach for {selectedVisibleIds.length} selected question(s).</p>
+                </div>
+              </div>
+              <div className={bulkKeywordGridClass}>
+                {!bulkAiRunning ? (
+                  <>
+                    <div className={bulkWarningClass}>
+                      This calls AI once per field per question, one question at a time — it can take a while for a large selection. You can stop partway; questions already processed stay saved.
+                    </div>
+                    <label className={ui.formLabel}>
+                      Mode
+                      <select
+                        className={ui.input}
+                        value={bulkAiMode}
+                        onChange={(event) => setBulkAiMode(event.target.value)}
+                      >
+                        <option value="skip">Only fill in missing content</option>
+                        <option value="regenerate">Regenerate everything, even if already filled</option>
+                      </select>
+                    </label>
+                  </>
+                ) : (
+                  <div className={bulkWarningClass}>
+                    Processing {bulkAiProgress.done} of {bulkAiProgress.total}{bulkAiProgress.label ? ` — ${bulkAiProgress.label}` : ''}
+                    {bulkAiProgress.failed ? ` (${bulkAiProgress.failed} failed so far)` : ''}
+                  </div>
+                )}
+              </div>
+              <div className={ui.modalActions}>
+                {bulkAiRunning ? (
+                  <button className={ui.dangerAction}
+                    type="button"
+                    onClick={() => { bulkAiCancelRef.current = true; }}
+                  >
+                    Stop after current question
+                  </button>
+                ) : (
+                  <>
+                    <button className={ui.secondaryAction}
+                      type="button"
+                      onClick={() => setBulkAiOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button className={ui.primaryAction}
+                      type="button"
+                      onClick={handleBulkGenerateAi}
+                      disabled={selectedVisibleIds.length === 0}
+                    >
+                      Start
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>,
           document.body
         )}
