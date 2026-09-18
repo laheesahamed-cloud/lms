@@ -134,7 +134,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -147,7 +147,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -160,7 +160,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;

@@ -244,6 +244,34 @@ export class AiService {
     };
   }
 
+  /// "How to approach this question" — a clue-by-clue reasoning walkthrough for
+  /// the STEM itself (distinct from generateExplanation, which is about the
+  /// answer options). Returns the walkthrough text plus a short list of exact
+  /// phrases from the stem to highlight in the UI.
+  async generateQuestionApproach(dto: GenerateExplanationDto) {
+    if (!dto.questionText?.trim()) {
+      throw new BadRequestException('Question text is required');
+    }
+
+    const provider = await this.resolveRuntimeProvider();
+    const candidateText = await this.runJsonPrompt(this.buildApproachPrompt(dto), provider);
+    const parsed = this.parseJson(candidateText, provider.providerKey) as any;
+    const questionApproach = this.normalizeString(parsed?.questionApproach);
+    const highlights = this.normalizeApproachHighlights(parsed?.highlights, dto.questionText);
+
+    if (!questionApproach) {
+      throw new BadGatewayException(`${AI_PROVIDER_LABELS[provider.providerKey]} returned an empty approach`);
+    }
+
+    return {
+      ok: true,
+      source: provider.providerKey,
+      generatedAt: new Date().toISOString(),
+      questionApproach,
+      highlights,
+    };
+  }
+
   async generateTheoryCardFromQuestion(dto: GenerateExplanationDto & { explanation?: string }) {
     if (!dto.questionText?.trim()) {
       throw new BadRequestException('Question text is required');
@@ -471,6 +499,52 @@ export class AiService {
   "explanation": "string"
 }`,
     ].filter(Boolean).join('\n');
+  }
+
+  private buildApproachPrompt(input: GenerateExplanationDto): string {
+    const correctLabel = String(input.correctAnswerLabel || '').trim().toUpperCase();
+    const options = (input.options || [])
+      .map((option) => {
+        const label = String(option.optionLabel || '').trim().toUpperCase();
+        const isCorrect = label === correctLabel || option.isCorrect === 1 || option.isCorrect === true;
+        return `${label}. ${option.optionText}${isCorrect ? ' [CORRECT]' : ''}`;
+      })
+      .join('\n');
+
+    return [
+      'You are a senior medical educator teaching students HOW TO APPROACH a question stem, not why the options are right or wrong.',
+      'Return strict JSON only. No markdown fences. No extra commentary.',
+      'Do not change the question text, answer options, or correct answer.',
+      'Walk through the question stem clue by clue, in the order the details appear: what each detail signals, why the examiner included it, and explicitly call out anything that is a red herring or distractor rather than a real clue.',
+      'Show how the clues chain together to point at the answer, without simply restating the answer explanation.',
+      'Write "questionApproach" as a numbered list (e.g. "1. ...\\n2. ...\\n3. ..."), concise, medically accurate, exam-focused for medical students.',
+      'Also return "highlights": 3 to 8 short phrases copied VERBATIM as exact substrings from the question text (not paraphrased, not reworded) marking the key clue phrases discussed above, so the app can locate and highlight them in the original stem.',
+      '',
+      `Question type: ${input.questionType === 'true_false' ? 'True/False' : 'Single Best Answer (SBA)'}`,
+      `Course: ${input.course || 'Not specified'}`,
+      `Subject: ${input.subject || 'Not specified'}`,
+      `Topic: ${input.topic || 'Not specified'}`,
+      `Lesson: ${input.lesson || 'Not specified'}`,
+      '',
+      `Question:\n${input.questionText}`,
+      '',
+      `Correct answer label: ${correctLabel}`,
+      '',
+      `Options:\n${options}`,
+      '',
+      `Return this JSON shape:
+{
+  "questionApproach": "string",
+  "highlights": ["string"]
+}`,
+    ].filter(Boolean).join('\n');
+  }
+
+  private normalizeApproachHighlights(value: unknown, questionText: string): string[] {
+    const candidates = this.normalizeStringArray(value);
+    if (!questionText) return candidates;
+    const haystack = questionText.toLowerCase();
+    return candidates.filter((phrase) => haystack.includes(phrase.toLowerCase()));
   }
 
   private normalizeStringArray(value: unknown): string[] {

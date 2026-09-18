@@ -42,6 +42,13 @@ export async function generateQuestionExplanation(payload) {
   return response.data;
 }
 
+export async function generateQuestionApproach(payload) {
+  const response = await apiClient.post('/admin/ai/generate-approach', payload, {
+    timeout: AI_REQUEST_TIMEOUT_MS,
+  });
+  return response.data;
+}
+
 export async function generateQuestionTheoryCard(payload) {
   const response = await apiClient.post('/admin/ai/generate-theory-card', payload, {
     timeout: AI_REQUEST_TIMEOUT_MS,

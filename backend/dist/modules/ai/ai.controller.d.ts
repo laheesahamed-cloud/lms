@@ -85,6 +85,13 @@ export declare class AiController {
         generatedAt: string;
         explanation: string;
     }>;
+    generateQuestionApproach(dto: GenerateExplanationDto): Promise<{
+        ok: boolean;
+        source: "openai" | "gemini" | "claude" | "openrouter";
+        generatedAt: string;
+        questionApproach: string;
+        highlights: string[];
+    }>;
     generateTheoryCard(dto: GenerateExplanationDto & {
         explanation?: string;
     }): Promise<{

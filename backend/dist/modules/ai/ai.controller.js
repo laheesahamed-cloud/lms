@@ -44,6 +44,9 @@ let AiController = class AiController {
     generateExplanation(dto) {
         return this.aiService.generateExplanation(dto);
     }
+    generateQuestionApproach(dto) {
+        return this.aiService.generateQuestionApproach(dto);
+    }
     generateTheoryCard(dto) {
         return this.aiService.generateTheoryCardFromQuestion(dto);
     }
@@ -81,6 +84,13 @@ __decorate([
     __metadata("design:paramtypes", [generate_explanation_dto_1.GenerateExplanationDto]),
     __metadata("design:returntype", void 0)
 ], AiController.prototype, "generateExplanation", null);
+__decorate([
+    (0, common_1.Post)('generate-approach'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [generate_explanation_dto_1.GenerateExplanationDto]),
+    __metadata("design:returntype", void 0)
+], AiController.prototype, "generateQuestionApproach", null);
 __decorate([
     (0, common_1.Post)('generate-theory-card'),
     __param(0, (0, common_1.Body)()),

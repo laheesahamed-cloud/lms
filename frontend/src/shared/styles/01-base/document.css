@@ -85,3 +85,12 @@ samp,
 pre {
   font-family: var(--type-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
 }
+
+.lms-question-approach-highlight {
+  background: color-mix(in srgb, var(--brand-primary, #2563eb) 22%, transparent);
+  color: inherit;
+  border-radius: 4px;
+  padding: 0 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

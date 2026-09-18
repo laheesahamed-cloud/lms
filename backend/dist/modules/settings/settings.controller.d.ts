@@ -205,7 +205,7 @@ export declare class SettingsController {
         enabled: boolean;
         host: string;
         port: number;
-        security: "starttls" | "ssl";
+        security: "ssl" | "starttls";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -229,7 +229,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -436,7 +436,7 @@ export declare class SettingsController {
         enabled: boolean;
         host: string;
         port: number;
-        security: "starttls" | "ssl";
+        security: "ssl" | "starttls";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -465,7 +465,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;

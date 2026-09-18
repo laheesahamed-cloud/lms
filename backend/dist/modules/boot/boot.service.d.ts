@@ -192,6 +192,7 @@ export declare class BootService {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
+            appOnly: boolean;
             upgradeLabel: string;
             lockReason: string;
             noteData: unknown;
@@ -227,6 +228,7 @@ export declare class BootService {
             itemType: "question" | "quiz" | "ai_note";
             itemId: number;
             title: string;
+            appOnly: boolean;
             examModeOnly: boolean;
             engineKey: string | null;
             quizId: number | null;
@@ -470,6 +472,7 @@ export declare class BootService {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
+            appOnly: boolean;
             upgradeLabel: string;
             lockReason: string;
             noteData: unknown;
@@ -505,6 +508,7 @@ export declare class BootService {
             itemType: "question" | "quiz" | "ai_note";
             itemId: number;
             title: string;
+            appOnly: boolean;
             examModeOnly: boolean;
             engineKey: string | null;
             quizId: number | null;
@@ -748,6 +752,7 @@ export declare class BootService {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
+            appOnly: boolean;
             upgradeLabel: string;
             lockReason: string;
             noteData: unknown;
@@ -783,6 +788,7 @@ export declare class BootService {
             itemType: "question" | "quiz" | "ai_note";
             itemId: number;
             title: string;
+            appOnly: boolean;
             examModeOnly: boolean;
             engineKey: string | null;
             quizId: number | null;
@@ -1026,6 +1032,7 @@ export declare class BootService {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
+            appOnly: boolean;
             upgradeLabel: string;
             lockReason: string;
             noteData: unknown;
@@ -1061,6 +1068,7 @@ export declare class BootService {
             itemType: "question" | "quiz" | "ai_note";
             itemId: number;
             title: string;
+            appOnly: boolean;
             examModeOnly: boolean;
             engineKey: string | null;
             quizId: number | null;
@@ -1304,6 +1312,7 @@ export declare class BootService {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
+            appOnly: boolean;
             upgradeLabel: string;
             lockReason: string;
             noteData: unknown;
@@ -1339,6 +1348,7 @@ export declare class BootService {
             itemType: "question" | "quiz" | "ai_note";
             itemId: number;
             title: string;
+            appOnly: boolean;
             examModeOnly: boolean;
             engineKey: string | null;
             quizId: number | null;
@@ -1582,6 +1592,7 @@ export declare class BootService {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
+            appOnly: boolean;
             upgradeLabel: string;
             lockReason: string;
             noteData: unknown;
@@ -1617,6 +1628,7 @@ export declare class BootService {
             itemType: "question" | "quiz" | "ai_note";
             itemId: number;
             title: string;
+            appOnly: boolean;
             examModeOnly: boolean;
             engineKey: string | null;
             quizId: number | null;

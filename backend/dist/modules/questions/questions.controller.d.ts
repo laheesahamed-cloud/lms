@@ -22,6 +22,8 @@ export declare class QuestionsController {
         keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
+        questionApproach: string;
+        questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
         courseTitle: string;
@@ -138,6 +140,8 @@ export declare class QuestionsController {
         keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
+        questionApproach: string;
+        questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
         courseTitle: string;

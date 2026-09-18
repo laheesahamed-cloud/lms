@@ -120,6 +120,13 @@ export declare class AiService {
         generatedAt: string;
         explanation: string;
     }>;
+    generateQuestionApproach(dto: GenerateExplanationDto): Promise<{
+        ok: boolean;
+        source: "openai" | "gemini" | "claude" | "openrouter";
+        generatedAt: string;
+        questionApproach: string;
+        highlights: string[];
+    }>;
     generateTheoryCardFromQuestion(dto: GenerateExplanationDto & {
         explanation?: string;
     }): Promise<{
@@ -145,6 +152,8 @@ export declare class AiService {
     private buildTheoryRecapPrompt;
     private buildWhyIncorrectPrompt;
     private buildExplanationPrompt;
+    private buildApproachPrompt;
+    private normalizeApproachHighlights;
     private normalizeStringArray;
     private buildPrompt;
     private buildBeautifyLessonPrompt;

@@ -65,6 +65,8 @@ type QuestionRow = RowDataPacket & {
   question_text: string;
   explanation: string | null;
   explanation_image_url?: string | null;
+  question_approach?: string | null;
+  question_approach_highlights?: string | null;
   status: 'active' | 'inactive';
   updated_at?: string | Date | null;
 };
@@ -946,6 +948,8 @@ export class QuizAttemptsService {
             q.question_text,
             q.explanation,
             q.explanation_image_url,
+            q.question_approach,
+            q.question_approach_highlights,
             q.status,
             q.updated_at
           FROM questions q
@@ -971,6 +975,8 @@ export class QuizAttemptsService {
             q.question_text,
             q.explanation,
             q.explanation_image_url,
+            q.question_approach,
+            q.question_approach_highlights,
             q.status,
             q.updated_at
           FROM questions q
@@ -1857,6 +1863,8 @@ export class QuizAttemptsService {
       questionText: question.question_text,
       explanation: question.explanation || '',
       explanationImageUrl: question.explanation_image_url || '',
+      questionApproach: question.question_approach || '',
+      questionApproachHighlights: this.parseJsonArray(question.question_approach_highlights ?? null),
       contentTrace: {
         source: question.contentSourceLabel,
         sourceId: question.id,

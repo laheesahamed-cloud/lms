@@ -44,6 +44,8 @@ export declare class ResultsController {
             questionText: string;
             explanation: string;
             explanationImageUrl: string;
+            questionApproach: string;
+            questionApproachHighlights: string[];
             contentTrace: {
                 source: string;
                 sourceId: number;

@@ -142,6 +142,8 @@ export declare class QuizAttemptsController {
             questionText: string;
             explanation: string;
             explanationImageUrl: string;
+            questionApproach: string;
+            questionApproachHighlights: string[];
             contentTrace: {
                 source: string;
                 sourceId: number;
@@ -265,6 +267,8 @@ export declare class QuizAttemptsController {
             questionText: string;
             explanation: string;
             explanationImageUrl: string;
+            questionApproach: string;
+            questionApproachHighlights: string[];
             contentTrace: {
                 source: string;
                 sourceId: number;

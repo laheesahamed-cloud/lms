@@ -96,8 +96,8 @@ let PapersService = class PapersService {
             await connection.commit();
             if (snapshot.status === 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New paper added',
-                    body: `${snapshot.paperTitle} is now available.`,
+                    title: 'New past paper added',
+                    body: `${snapshot.paperTitle} added. Practice like it's exam day.`,
                 });
             }
             return { ok: true, id: result.insertId };
@@ -140,8 +140,8 @@ let PapersService = class PapersService {
             await connection.commit();
             if (existing.status !== 'active' && snapshot.status === 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New paper added',
-                    body: `${snapshot.paperTitle} is now available.`,
+                    title: 'New past paper added',
+                    body: `${snapshot.paperTitle} added. Practice like it's exam day.`,
                 });
             }
         }
@@ -310,8 +310,8 @@ let PapersService = class PapersService {
             await connection.commit();
             if (input.status === 'active' && existing.status !== 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New paper added',
-                    body: `${snapshot.paperTitle} is now available.`,
+                    title: 'New past paper added',
+                    body: `${snapshot.paperTitle} added. Practice like it's exam day.`,
                 });
             }
         }

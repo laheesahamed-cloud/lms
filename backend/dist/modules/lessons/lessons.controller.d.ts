@@ -87,7 +87,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -100,7 +100,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -113,7 +113,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -266,9 +266,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -283,9 +283,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -310,9 +310,9 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "approved" | "rejected" | "draft";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;
@@ -328,9 +328,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -428,9 +428,9 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "approved" | "rejected" | "draft";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;

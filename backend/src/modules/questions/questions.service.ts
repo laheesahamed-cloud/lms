@@ -23,6 +23,8 @@ type QuestionRow = RowDataPacket & {
   keywords_text: string | null;
   explanation: string | null;
   explanation_image_url?: string | null;
+  question_approach?: string | null;
+  question_approach_highlights?: string | null;
   status: 'active' | 'inactive';
   created_at?: string | null;
   course_title?: string | null;
@@ -142,6 +144,8 @@ export class QuestionsService {
         q.keywords_text,
         q.explanation,
         q.explanation_image_url,
+        q.question_approach,
+        q.question_approach_highlights,
         q.status,
         q.created_at,
         c.course_title,
@@ -427,6 +431,8 @@ export class QuestionsService {
           q.keywords_text,
           q.explanation,
           q.explanation_image_url,
+          q.question_approach,
+          q.question_approach_highlights,
           q.status,
           q.created_at,
           c.course_title,
@@ -813,8 +819,8 @@ export class QuestionsService {
         `
           INSERT INTO questions (
             course_id, topic_id, subtopic_id, lesson_id, paper_id, subtopic, category, question_category, question_type,
-            question_text, keywords_text, explanation, explanation_image_url, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            question_text, keywords_text, explanation, explanation_image_url, question_approach, question_approach_highlights, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           createQuestionDto.courseId,
@@ -830,6 +836,8 @@ export class QuestionsService {
           this.normalizeKeywords(createQuestionDto.keywordsText),
           (createQuestionDto.explanation || '').trim(),
           this.cleanExplanationImage(createQuestionDto.explanationImageUrl),
+          (createQuestionDto.questionApproach || '').trim(),
+          this.serializeApproachHighlights(createQuestionDto.questionApproachHighlights),
           createQuestionDto.status,
         ]
       );
@@ -876,6 +884,9 @@ export class QuestionsService {
         updateQuestionDto.explanationImageUrl !== undefined
           ? updateQuestionDto.explanationImageUrl
           : existing.explanationImageUrl ?? null,
+      questionApproach: updateQuestionDto.questionApproach ?? existing.questionApproach ?? '',
+      questionApproachHighlights:
+        updateQuestionDto.questionApproachHighlights ?? existing.questionApproachHighlights ?? [],
       status: updateQuestionDto.status ?? existing.status,
       options:
         updateQuestionDto.options ??
@@ -915,6 +926,8 @@ export class QuestionsService {
             keywords_text = ?,
             explanation = ?,
             explanation_image_url = ?,
+            question_approach = ?,
+            question_approach_highlights = ?,
             status = ?
           WHERE id = ?
         `,
@@ -932,6 +945,8 @@ export class QuestionsService {
           this.normalizeKeywords(merged.keywordsText),
           (merged.explanation || '').trim(),
           this.cleanExplanationImage(merged.explanationImageUrl),
+          (merged.questionApproach || '').trim(),
+          this.serializeApproachHighlights(merged.questionApproachHighlights),
           merged.status,
           id,
         ]
@@ -1279,6 +1294,8 @@ export class QuestionsService {
       keywordsText: this.normalizeKeywords(question.keywordsText),
       explanation: question.explanation || '',
       explanationImageUrl: question.explanationImageUrl || null,
+      questionApproach: question.questionApproach || '',
+      questionApproachHighlights: question.questionApproachHighlights || [],
       status: question.status,
       options: (question.options || []).map((option) => ({
         optionLabel: option.optionLabel,
@@ -1303,6 +1320,8 @@ export class QuestionsService {
       keywordsText: question.keywordsText || '',
       explanation: question.explanation || '',
       explanationImageUrl: question.explanationImageUrl || null,
+      questionApproach: question.questionApproach || '',
+      questionApproachHighlights: question.questionApproachHighlights || [],
       status,
       options: question.options.map((option) => ({
         optionLabel: option.optionLabel,
@@ -2071,6 +2090,22 @@ export class QuestionsService {
     throw new BadRequestException('Explanation image must be an http(s) image URL or a PNG/JPG/WebP/GIF image.');
   }
 
+  private serializeApproachHighlights(value: string[] | undefined | null): string | null {
+    if (!Array.isArray(value) || value.length === 0) return null;
+    const cleaned = value.map((v) => String(v || '').trim()).filter(Boolean);
+    return cleaned.length ? JSON.stringify(cleaned) : null;
+  }
+
+  private parseApproachHighlights(value: string | null | undefined): string[] {
+    if (!value) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+
   private mapQuestionSummary(row: QuestionRow) {
     const normalizedCategory =
       row.question_category === 'ai' || row.category === 'ai'
@@ -2093,6 +2128,8 @@ export class QuestionsService {
       keywordsText: row.keywords_text || '',
       explanation: row.explanation || '',
       explanationImageUrl: row.explanation_image_url || '',
+      questionApproach: row.question_approach || '',
+      questionApproachHighlights: this.parseApproachHighlights(row.question_approach_highlights),
       status: row.status,
       createdAt: row.created_at || null,
       courseTitle: row.course_title || '',

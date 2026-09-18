@@ -163,6 +163,8 @@ export declare class QuizAttemptsService {
             questionText: string;
             explanation: string;
             explanationImageUrl: string;
+            questionApproach: string;
+            questionApproachHighlights: string[];
             contentTrace: {
                 source: string;
                 sourceId: number;
@@ -272,6 +274,8 @@ export declare class QuizAttemptsService {
             questionText: string;
             explanation: string;
             explanationImageUrl: string;
+            questionApproach: string;
+            questionApproachHighlights: string[];
             contentTrace: {
                 source: string;
                 sourceId: number;

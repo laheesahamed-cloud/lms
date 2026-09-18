@@ -47,6 +47,8 @@ export declare class QuestionsService {
         keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
+        questionApproach: string;
+        questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
         courseTitle: string;
@@ -115,6 +117,8 @@ export declare class QuestionsService {
         keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
+        questionApproach: string;
+        questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
         courseTitle: string;
@@ -235,6 +239,8 @@ export declare class QuestionsService {
     private getKeywordSuggestions;
     private syncQuestionKeywords;
     private cleanExplanationImage;
+    private serializeApproachHighlights;
+    private parseApproachHighlights;
     private mapQuestionSummary;
 }
 export {};

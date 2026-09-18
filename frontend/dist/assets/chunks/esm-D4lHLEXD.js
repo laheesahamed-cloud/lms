@@ -1,0 +1,1 @@
+import{C as e}from"./vendor-C2kheduv.js";export{e as App};

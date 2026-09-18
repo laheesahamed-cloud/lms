@@ -24,6 +24,7 @@ import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValida
 import { optimizeImageFile, IMAGE_OPTIMIZER_MAX_BYTES } from '../../../../shared/utils/imageOptimizer.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import {
+  generateQuestionApproach,
   generateQuestionExplanation,
   generateQuestionTheoryCard,
   generateWhyIncorrectExplanations,
@@ -127,6 +128,8 @@ function buildDefaultForm() {
     keywordsText: '',
     explanation: '',
     explanationImageUrl: '',
+    questionApproach: '',
+    questionApproachHighlights: '',
     status: 'active',
     options: buildOptions('sba'),
   };
@@ -148,6 +151,8 @@ function mapQuestionToForm(question) {
     keywordsText: question.keywordsText || '',
     explanation: question.explanation || '',
     explanationImageUrl: question.explanationImageUrl || '',
+    questionApproach: question.questionApproach || '',
+    questionApproachHighlights: arrayToText(question.questionApproachHighlights || []),
     status: question.status || 'active',
     options: buildOptions(questionType, question.options || []),
   };
@@ -268,6 +273,7 @@ export function QuestionsPage() {
   const [recapGenerating, setRecapGenerating] = useState(false);
   const [whyGenerating, setWhyGenerating] = useState(false);
   const [explanationGenerating, setExplanationGenerating] = useState(false);
+  const [approachGenerating, setApproachGenerating] = useState(false);
   const [learningContentGenerating, setLearningContentGenerating] = useState(false);
   const [recapError, setRecapError] = useState('');
 
@@ -570,10 +576,7 @@ export function QuestionsPage() {
     try {
       const result = await generateQuestionExplanation(buildAiLearningPayload());
       const explanation = result.explanation || '';
-      setForm((current) => ({
-        ...current,
-        explanation: current.explanation?.trim() ? current.explanation : explanation,
-      }));
+      setForm((current) => ({ ...current, explanation }));
       if (!silent) {
         showToast('AI drafted the main explanation. Review before saving.');
       }
@@ -583,6 +586,30 @@ export function QuestionsPage() {
       return '';
     } finally {
       setExplanationGenerating(false);
+    }
+  }
+
+  async function handleGenerateApproach() {
+    const correctOption = form.options.find((option) => Number(option.isCorrect) === 1);
+    if (!form.questionText.trim() || !correctOption) {
+      setError('Add question text and select the correct answer before generating a question approach.');
+      return;
+    }
+
+    setApproachGenerating(true);
+    setError('');
+    try {
+      const result = await generateQuestionApproach(buildAiLearningPayload());
+      setForm((current) => ({
+        ...current,
+        questionApproach: result.questionApproach || '',
+        questionApproachHighlights: arrayToText(result.highlights || []),
+      }));
+      showToast('AI drafted the question approach. Review before saving.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to generate question approach'));
+    } finally {
+      setApproachGenerating(false);
     }
   }
 
@@ -751,6 +778,8 @@ export function QuestionsPage() {
         keywordsText: form.keywordsText,
         explanation: form.explanation,
         explanationImageUrl: form.explanationImageUrl || null,
+        questionApproach: form.questionApproach,
+        questionApproachHighlights: textToArray(form.questionApproachHighlights),
         status: form.status,
         options: form.options,
       };
@@ -1433,11 +1462,13 @@ export function QuestionsPage() {
           onGenerateExplanation={handleGenerateExplanation}
           onGenerateWhyIncorrect={handleGenerateWhyIncorrect}
           onGenerateLearningContent={handleGenerateLearningContent}
+          onGenerateApproach={handleGenerateApproach}
           onExplanationImageFile={handleExplanationImageFile}
           onRemoveExplanationImage={handleRemoveExplanationImage}
           explanationGenerating={explanationGenerating}
           whyGenerating={whyGenerating}
           learningContentGenerating={learningContentGenerating}
+          approachGenerating={approachGenerating}
           visibleSubjects={visibleSubjects}
           visibleTopics={visibleTopics}
           visibleLessons={visibleLessons}
@@ -1600,6 +1631,17 @@ function QuestionDetailModal({ open, question, recap, loading, error, onClose, o
               <section className={detailPanelClass}>
                 <strong className={detailPanelTitleClass}>Explanation</strong>
                 <MedicalText as="p" className="m-0 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium" text={question.explanation || 'No explanation added yet.'} />
+              </section>
+
+              <section className={detailPanelClass}>
+                <strong className={detailPanelTitleClass}>How to approach this question</strong>
+                <MedicalText as="p" className="m-0 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium" text={question.questionApproach || 'No approach added yet.'} />
+                {(question.questionApproachHighlights || []).length > 0 ? (
+                  <p className="mb-0 mt-3 text-[13px] leading-relaxed text-ink-soft">
+                    <strong className="text-ink-strong">Highlighted clues: </strong>
+                    {(question.questionApproachHighlights || []).join(' • ')}
+                  </p>
+                ) : null}
               </section>
 
               <section className={detailPanelClass}>
@@ -1858,11 +1900,13 @@ function QuestionEditModal({
   onGenerateExplanation,
   onGenerateWhyIncorrect,
   onGenerateLearningContent,
+  onGenerateApproach,
   onExplanationImageFile,
   onRemoveExplanationImage,
   explanationGenerating,
   whyGenerating,
   learningContentGenerating,
+  approachGenerating,
   visibleSubjects,
   visibleTopics,
   visibleLessons,
@@ -2052,25 +2096,42 @@ function QuestionEditModal({
             </div>
           </div>
 
+          <label className={ui.formLabel}>
+            How to approach this question
+            <textarea className={ui.textarea} name="questionApproach" rows="4" value={form.questionApproach} onChange={onFormChange} placeholder="Numbered, clue-by-clue walkthrough of the question stem" />
+          </label>
+
+          <label className={ui.formLabel}>
+            Stem highlight phrases (one per line, must match the question text exactly)
+            <textarea className={ui.textarea} name="questionApproachHighlights" rows="3" value={form.questionApproachHighlights} onChange={onFormChange} placeholder={'50-year-old\nsudden-onset chest pain'} />
+          </label>
+
           <div className="grid items-center gap-3 rounded-2xl border border-brand-primary/20 bg-[linear-gradient(135deg,rgba(37,99,235,0.05),transparent_54%),var(--surface-2)] p-3.5 min-[721px]:grid-cols-[minmax(0,1fr)_auto]">
             <div>
               <strong className="m-0 block text-sm font-extrabold text-ink-strong">AI learning content</strong>
-              <span className="mt-1 block text-xs leading-snug text-ink-soft">Generate only missing study content. Question text, options, and correct answer stay unchanged.</span>
+              <span className="mt-1 block text-xs leading-snug text-ink-soft">Generate or regenerate study content anytime. Question text, options, and correct answer stay unchanged.</span>
             </div>
             <div className={ui.buttonRow}>
               <button className={ui.secondaryAction}
                 type="button"
-               
                 onClick={() => onGenerateExplanation()}
-                disabled={explanationGenerating || learningContentGenerating || Boolean(form.explanation?.trim())}
+                disabled={explanationGenerating || learningContentGenerating}
               >
-                {explanationGenerating ? 'Generating...' : 'Generate Explanation'}
+                {explanationGenerating ? 'Generating...' : form.explanation?.trim() ? 'Regenerate Explanation' : 'Generate Explanation'}
               </button>
               {form.questionType === 'sba' ? (
                 <button type="button" className={ui.secondaryAction} onClick={onGenerateWhyIncorrect} disabled={whyGenerating || learningContentGenerating}>
                   {whyGenerating ? 'Generating...' : 'Generate Why Incorrect'}
                 </button>
               ) : null}
+              <button className={ui.secondaryAction}
+                type="button"
+                onClick={onGenerateApproach}
+                disabled={approachGenerating || learningContentGenerating}
+              >
+                {approachGenerating ? 'Generating...' : form.questionApproach?.trim() ? 'Regenerate Approach' : 'Generate Approach'}
+                {form.questionApproach?.trim() ? <span className="ml-1.5 text-emerald-600">✓</span> : null}
+              </button>
               <button className={ui.primaryAction}
                 type="button"
                 onClick={onGenerateLearningContent}

@@ -12,6 +12,7 @@ import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } fro
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage, isAppOnlyContentError } from '../../../../shared/api/client.js';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
+import { HighlightedQuestionText } from '../../../../shared/components/HighlightedQuestionText.jsx';
 import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
@@ -209,6 +210,8 @@ function normalizeQuestionForPracticeReveal(question) {
     questionType: getQuestionType(question),
     questionText: question.questionText || question.question_text || question.text || '',
     explanation: getQuestionExplanationText(question),
+    questionApproach: getQuestionApproachText(question),
+    questionApproachHighlights: getQuestionApproachHighlights(question),
     options,
     answerKey,
     theoryRecap,
@@ -286,6 +289,18 @@ function getQuestionExplanationText(question) {
     question?.correctExplanation,
     question?.correct_explanation,
   ]) || '');
+}
+
+function getQuestionApproachText(question) {
+  return String(firstNonEmptyValue([
+    question?.questionApproach,
+    question?.question_approach,
+  ]) || '');
+}
+
+function getQuestionApproachHighlights(question) {
+  const value = question?.questionApproachHighlights ?? question?.question_approach_highlights;
+  return Array.isArray(value) ? value : [];
 }
 
 function getQuestionExplanationImage(question) {
@@ -1462,6 +1477,7 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
   const incorrectReasons = getIncorrectOptionReasons(currentQuestion);
   const explanationBlocks = formatPrimaryExplanationBlocks(getQuestionExplanationText(currentQuestion), incorrectReasons.length > 0);
   const explanationImage = getQuestionExplanationImage(currentQuestion);
+  const approachBlocks = formatExplanationBlocks(getQuestionApproachText(currentQuestion));
   const hasStudySupport = showStudySupport && hasQuickTheoryRecapContent(normalizeQuickTheoryRecap(getQuestionRecapPayload(currentQuestion)));
   const explanationTitle = explanationBlocks.length
     ? 'Explanation'
@@ -1470,7 +1486,7 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
       : 'Explanation';
 
   if (!currentQuestionRevealed) return null;
-  if (!answerKeyItems.length && !explanationBlocks.length && !explanationImage && !incorrectReasons.length && !hasStudySupport) return null;
+  if (!answerKeyItems.length && !explanationBlocks.length && !explanationImage && !incorrectReasons.length && !approachBlocks.length && !hasStudySupport) return null;
 
   return (
     <div className={cx(practiceLearningSupportClass, className)}>
@@ -1513,6 +1529,21 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
                 ))}
               </div>
             ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {approachBlocks.length ? (
+        <section className={quizReviewExplanationClass} aria-label="How to approach this question">
+          <div className={quizReviewExplanationHeaderClass}>
+            <h3>How to approach this question</h3>
+          </div>
+          <div className={quizReviewExplanationGridClass}>
+            <div className={quizReviewExplanationCopyClass}>
+              {approachBlocks.map((part, index) => (
+                <MedicalText as="p" key={`${index}-${part.slice(0, 24)}`} text={part} />
+              ))}
+            </div>
           </div>
         </section>
       ) : null}
@@ -2484,10 +2515,11 @@ export function TakeQuizPage() {
 
             <section className={practiceQuizMainClass}>
               <article className={cx(practiceQuizQuestionCardClass, examQuestionStartAnchorClass)} ref={questionContentRef}>
-                <MedicalText
+                <HighlightedQuestionText
                   as="p"
                   className={practiceQuizQuestionTextClass}
                   text={currentQuestion.questionText}
+                  highlights={practiceAnswerVisible ? getQuestionApproachHighlights(currentQuestion) : null}
                   imageLoading="eager"
                   imageFetchPriority="high"
                   imageZoomable

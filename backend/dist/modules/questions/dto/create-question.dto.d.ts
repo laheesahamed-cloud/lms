@@ -18,6 +18,8 @@ export declare class CreateQuestionDto {
     keywordsText?: string;
     explanation?: string;
     explanationImageUrl?: string | null;
+    questionApproach?: string;
+    questionApproachHighlights?: string[];
     status: 'active' | 'inactive';
     options: QuestionOptionDto[];
 }

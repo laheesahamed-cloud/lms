@@ -99,6 +99,8 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'questions', 'keywords_text', 'TEXT NULL AFTER question_text');
             await this.ensureColumn(connection, 'questions', 'question_category', "VARCHAR(20) NULL AFTER category");
             await this.ensureColumn(connection, 'questions', 'explanation_image_url', 'LONGTEXT NULL AFTER explanation');
+            await this.ensureColumn(connection, 'questions', 'question_approach', 'LONGTEXT NULL AFTER explanation_image_url');
+            await this.ensureColumn(connection, 'questions', 'question_approach_highlights', 'LONGTEXT NULL AFTER question_approach');
             await this.ensureQuestionCategoryColumns(connection);
             await this.ensureColumn(connection, 'question_options', 'why_incorrect', 'TEXT NULL AFTER is_correct');
             await this.ensureColumn(connection, 'courses', 'updated_at', 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');

@@ -3,6 +3,7 @@ import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
+import { HighlightedQuestionText } from '../../../../shared/components/HighlightedQuestionText.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/quickTheoryRecapUtils.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -64,6 +65,18 @@ function getQuestionExplanationImage(question) {
     question?.explanationImage,
     question?.explanation_image,
   ]) || '').trim();
+}
+
+function getQuestionApproachText(question) {
+  return String(firstNonEmptyValue([
+    question?.questionApproach,
+    question?.question_approach,
+  ]) || '');
+}
+
+function getQuestionApproachHighlights(question) {
+  const value = question?.questionApproachHighlights ?? question?.question_approach_highlights;
+  return Array.isArray(value) ? value : [];
 }
 
 function getQuestionRecapPayload(question) {
@@ -583,6 +596,27 @@ function ReviewExplanation({ question }) {
   );
 }
 
+function ReviewApproach({ question }) {
+  const approachText = getQuestionApproachText(question);
+  const approachBlocks = formatExplanationBlocks(approachText);
+  if (approachBlocks.length === 0) return null;
+
+  return (
+    <section className={reviewUi.explanation} aria-label="How to approach this question">
+      <div className={reviewUi.explanationHeader}>
+        <h3>How to approach this question</h3>
+      </div>
+      <div className={reviewUi.explanationGrid}>
+        <div className={reviewUi.explanationCopy}>
+          {approachBlocks.map((block, index) => (
+            <MedicalText as="p" key={`${index}-${block.slice(0, 16)}`} text={block} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ReviewExplanationEmpty() {
   return (
     <div className="grid gap-3">
@@ -833,10 +867,11 @@ export function ReviewWorkspace({
 
       <section className={focusQuestionOnly ? reviewUi.mainFocus : reviewUi.main} ref={mainRef}>
         <article className={reviewUi.questionCard} ref={questionCardRef}>
-          <MedicalText
+          <HighlightedQuestionText
             as="p"
             className={reviewUi.questionText}
             text={activeQuestion.questionText}
+            highlights={getQuestionApproachHighlights(activeQuestion)}
             imageLoading="eager"
             imageFetchPriority="high"
             imageZoomable
@@ -856,6 +891,7 @@ export function ReviewWorkspace({
 
           <div className="grid gap-3">
             {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+            <ReviewApproach question={activeQuestion} />
             <div className={focusQuestionOnly ? '' : 'min-[1181px]:hidden'}>
               <ReviewStudySupport question={activeQuestion} />
             </div>

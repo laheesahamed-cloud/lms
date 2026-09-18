@@ -102,6 +102,13 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'questions', 'keywords_text', 'TEXT NULL AFTER question_text');
       await this.ensureColumn(connection, 'questions', 'question_category', "VARCHAR(20) NULL AFTER category");
       await this.ensureColumn(connection, 'questions', 'explanation_image_url', 'LONGTEXT NULL AFTER explanation');
+      // "How to approach this question" — a clue-by-clue reasoning walkthrough for
+      // the STEM (distinct from `explanation`, which covers why each option is
+      // right/wrong). `question_approach_highlights` is a JSON array of short
+      // phrases copied verbatim from question_text, so the frontend can locate and
+      // highlight them in the stem once the student reveals the answer.
+      await this.ensureColumn(connection, 'questions', 'question_approach', 'LONGTEXT NULL AFTER explanation_image_url');
+      await this.ensureColumn(connection, 'questions', 'question_approach_highlights', 'LONGTEXT NULL AFTER question_approach');
       await this.ensureQuestionCategoryColumns(connection);
       await this.ensureColumn(connection, 'question_options', 'why_incorrect', 'TEXT NULL AFTER is_correct');
       await this.ensureColumn(connection, 'courses', 'updated_at', 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');

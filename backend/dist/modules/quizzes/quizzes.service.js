@@ -365,8 +365,8 @@ let QuizzesService = class QuizzesService {
             await connection.commit();
             if (createQuizDto.status === 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New quiz added',
-                    body: `${this.resolveStudentTitle(createQuizDto)} is now available in the Q-Bank.`,
+                    title: 'New quiz — test yourself',
+                    body: `${this.resolveStudentTitle(createQuizDto)} added to the Q-Bank. Put your knowledge to the test.`,
                 });
             }
             return { ok: true, id: result.insertId };
@@ -500,8 +500,8 @@ let QuizzesService = class QuizzesService {
             await connection.commit();
             if (existing.status !== 'active' && merged.status === 'active') {
                 void this.pushNotificationsService.notifyStudentsOfNewContent({
-                    title: 'New quiz added',
-                    body: `${this.resolveStudentTitle(merged)} is now available in the Q-Bank.`,
+                    title: 'New quiz — test yourself',
+                    body: `${this.resolveStudentTitle(merged)} added to the Q-Bank. Put your knowledge to the test.`,
                 });
             }
             return { ok: true, id };

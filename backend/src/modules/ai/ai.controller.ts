@@ -48,6 +48,11 @@ export class AiController {
     return this.aiService.generateExplanation(dto);
   }
 
+  @Post('generate-approach')
+  generateQuestionApproach(@Body() dto: GenerateExplanationDto) {
+    return this.aiService.generateQuestionApproach(dto);
+  }
+
   @Post('generate-theory-card')
   generateTheoryCard(@Body() dto: GenerateExplanationDto & { explanation?: string }) {
     return this.aiService.generateTheoryCardFromQuestion(dto);
