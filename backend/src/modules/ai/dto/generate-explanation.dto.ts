@@ -10,6 +10,10 @@ class ExplanationOptionDto {
 
   @IsOptional()
   isCorrect?: number | boolean;
+
+  @IsOptional()
+  @IsString()
+  whyIncorrect?: string | null;
 }
 
 export class GenerateExplanationDto {
@@ -22,6 +26,10 @@ export class GenerateExplanationDto {
 
   @IsString()
   correctAnswerLabel!: string;
+
+  @IsOptional()
+  @IsString()
+  explanation?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

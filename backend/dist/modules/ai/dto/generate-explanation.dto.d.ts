@@ -2,11 +2,13 @@ declare class ExplanationOptionDto {
     optionLabel: string;
     optionText: string;
     isCorrect?: number | boolean;
+    whyIncorrect?: string | null;
 }
 export declare class GenerateExplanationDto {
     questionText: string;
     questionType?: 'sba' | 'true_false';
     correctAnswerLabel: string;
+    explanation?: string;
     options: ExplanationOptionDto[];
     course?: string;
     subject?: string;
