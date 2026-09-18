@@ -467,8 +467,8 @@ export class QuizzesService {
       if (createQuizDto.status === 'active') {
         // Fire-and-forget: never blocks the save, never throws (errors logged inside).
         void this.pushNotificationsService.notifyStudentsOfNewContent({
-          title: 'New quiz added',
-          body: `${this.resolveStudentTitle(createQuizDto)} is now available in the Q-Bank.`,
+          title: 'New quiz — test yourself',
+          body: `${this.resolveStudentTitle(createQuizDto)} added to the Q-Bank. Put your knowledge to the test.`,
         });
       }
       return { ok: true, id: result.insertId };
@@ -608,8 +608,8 @@ export class QuizzesService {
       await connection.commit();
       if (existing.status !== 'active' && merged.status === 'active') {
         void this.pushNotificationsService.notifyStudentsOfNewContent({
-          title: 'New quiz added',
-          body: `${this.resolveStudentTitle(merged)} is now available in the Q-Bank.`,
+          title: 'New quiz — test yourself',
+          body: `${this.resolveStudentTitle(merged)} added to the Q-Bank. Put your knowledge to the test.`,
         });
       }
       return { ok: true, id };
