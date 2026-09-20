@@ -356,161 +356,131 @@ function guessTopicFamily(heading) {
   return hit ? hit.key : null;
 }
 
-// One clean, purpose-drawn line icon per recognized topic — same visual
-// language as MedicalIconSvg below (24x24, currentColor stroke, rounded
-// caps/joins) but each shape is chosen to actually mean something, so a
-// student scanning the lesson can tell what a card is about before reading
-// its heading.
+// One real, professional icon per recognized topic family — sourced from
+// Lucide (ISC license, https://lucide.dev), the same stroke-based minimal
+// line style already used throughout this file (24x24, currentColor
+// stroke, rounded caps/joins) — not hand-drawn, so it reads as a real
+// icon set rather than an approximation of one.
 function TopicFamilyIconSvg({ family }) {
   switch (family) {
-    case 'definition':
+    case "definition":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 5.6c-1.9-1.4-4.4-1.8-7.3-1.3v13.2c2.9-.5 5.4-.1 7.3 1.3 1.9-1.4 4.4-1.8 7.3-1.3V4.3c-2.9-.5-5.4-.1-7.3 1.3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-          <path d="M12 5.6v13.2" stroke="currentColor" strokeWidth="1.3" opacity="0.5"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 5v16" /> <path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z" />
         </svg>
       );
-    case 'epidemiology':
+    case "epidemiology":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M5 19v-6M12 19V8M19 19v-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <path d="M4 19h16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" />
         </svg>
       );
-    case 'aetiology':
+    case "aetiology":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="10.3" cy="10.3" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
-          <path d="M14.4 14.4L19 19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          <path d="M10.3 7.8v2.6M10.3 13v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.65"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" />
         </svg>
       );
-    case 'risk-stratification':
+    case "risk-stratification":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3.5l8.5 15.5h-17L12 3.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-          <path d="M7.8 14h8.4M9.2 17.5h5.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.55"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m12 14 4-4" /> <path d="M3.34 19a10 10 0 1 1 17.32 0" />
         </svg>
       );
-    case 'classification':
+    case "classification":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="4" y="4" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
-          <rect x="12.8" y="4" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5" opacity="0.55"/>
-          <rect x="4" y="12.8" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5" opacity="0.55"/>
-          <rect x="12.8" y="12.8" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" />
         </svg>
       );
-    case 'pathophysiology':
+    case "pathophysiology":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="7.8" stroke="currentColor" strokeWidth="1.6"/>
-          <path d="M7 12h2.3l1.4-3.3 2 6.6 1.4-3.3H17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
         </svg>
       );
-    case 'mechanism-of-action':
+    case "mechanism-of-action":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="7.5" cy="16.5" r="3.1" stroke="currentColor" strokeWidth="1.6"/>
-          <path d="M9.7 14.3l7-7M15 8.3l2 2M12.8 10.5l1.6 1.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m2 21 9.6-9.6" /> <path d="m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19" /> <circle cx="15.5" cy="7.5" r="5.5" />
         </svg>
       );
-    case 'clinical-features':
+    case "clinical-features":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M6.5 4v6.2a5 5 0 0 0 10 0V4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-          <path d="M5.3 4h2.2M14.7 4h2.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-          <circle cx="18.3" cy="15.7" r="2.4" stroke="currentColor" strokeWidth="1.6"/>
-          <path d="M16.5 10.5v2.3a2.4 2.4 0 0 0 2.4 2.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M11 2v2" /> <path d="M5 2v2" /> <path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1" /> <path d="M8 15a6 6 0 0 0 12 0v-3" /> <circle cx="20" cy="10" r="2" />
         </svg>
       );
-    case 'red-flags':
+    case "red-flags":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M6 3v18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-          <path d="M6 4.6c2.8-1.4 4.7 1.4 7.5 0v6.6c-2.8 1.4-4.7-1.4-7.5 0V4.6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />
         </svg>
       );
-    case 'differential':
+    case "differential":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M6.5 5.5v5.2a4 4 0 0 0 4 4h3a4 4 0 0 1 4 4v1.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-          <circle cx="6.5" cy="5.2" r="1.9" stroke="currentColor" strokeWidth="1.4"/>
-          <circle cx="6.5" cy="19.2" r="1.9" stroke="currentColor" strokeWidth="1.4" opacity="0.6"/>
-          <circle cx="17.5" cy="19.2" r="1.9" stroke="currentColor" strokeWidth="1.4"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M15 6a9 9 0 0 0-9 9V3" /> <circle cx="18" cy="6" r="3" /> <circle cx="6" cy="18" r="3" />
         </svg>
       );
-    case 'investigations':
+    case "investigations":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M9.5 3h5M10.3 3v9.3L6.7 17.8a2 2 0 0 0 1.7 3.1h7.2a2 2 0 0 0 1.7-3.1l-3.6-5.5V3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M8.6 15h6.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.55"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5c-1.4 0-2.5-1.1-2.5-2.5V2" /> <path d="M8.5 2h7" /> <path d="M14.5 16h-5" />
         </svg>
       );
-    case 'diagnosis':
+    case "diagnosis":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="5" y="4.2" width="14" height="16.8" rx="2" stroke="currentColor" strokeWidth="1.6"/>
-          <path d="M9 3.6h6a1 1 0 0 1 1 1V6.3H8V4.6a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.4"/>
-          <path d="M8.4 13l2.1 2.1L15.6 10.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="m9 14 2 2 4-4" />
         </svg>
       );
-    case 'management':
+    case "management":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3.3l7 2.9v4.9c0 5-3 8.4-7 9.8-4-1.4-7-4.8-7-9.8V6.2l7-2.9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-          <path d="M12 8.6v6.6M8.7 11.9h6.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="M9 12h6" /> <path d="M12 9v6" />
         </svg>
       );
-    case 'dosing':
+    case "dosing":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M6 8h12l-1.5 10.6a2 2 0 0 1-2 1.7H9.5a2 2 0 0 1-2-1.7L6 8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-          <path d="M5 8h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-          <path d="M8.5 11.3h7M9 14.7h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /> <path d="m8.5 8.5 7 7" />
         </svg>
       );
-    case 'adverse-effects':
+    case "adverse-effects":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3.8l9.2 15.8H2.8L12 3.8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-          <path d="M12 10v3.6M12 16.7v.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" />
         </svg>
       );
-    case 'contraindications':
+    case "contraindications":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7"/>
-          <path d="M6.7 17.3L17.3 6.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" /> <path d="M4.929 4.929 19.07 19.071" />
         </svg>
       );
-    case 'complications':
+    case "complications":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M8.3 3h7.4L20.5 8v7.4L15.7 21H8.3L3.5 15.4V8L8.3 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-          <path d="M12 8v5M12 16v.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 16h.01" /> <path d="M12 8v4" /> <path d="M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z" />
         </svg>
       );
-    case 'follow-up':
+    case "follow-up":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6"/>
-          <path d="M4 9.5h16M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-          <path d="M8.5 14.4l2 2 4.5-4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M8 2v3" /> <path d="M16 2v3" /> <rect x="3" y="3" width="18" height="18" rx="2" /> <path d="M3 9h18" /> <path d="m9 15 2 2 4-4" />
         </svg>
       );
-    case 'prognosis':
+    case "prognosis":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 16l5-5 4 3 7-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M15 6h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M16 7h6v6" /> <path d="m22 7-8.5 8.5-5-5L2 17" />
         </svg>
       );
-    case 'prevention':
+    case "prevention":
       return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3.3l7 2.9v4.9c0 5-3 8.4-7 9.8-4-1.4-7-4.8-7-9.8V6.2l7-2.9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-          <path d="M8.8 12.1l2.2 2.2L15.5 9.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="m9 12 2 2 4-4" />
         </svg>
       );
     default:
