@@ -246,8 +246,10 @@ function rewriteApiBoundary(path, method) {
         if (resource === 'dashboard')
             return `/api/dashboard/admin${restPath}`;
         if (resource === 'ai-notes') {
-            if (rest[0] === 'generate')
-                return '/api/lessons/canvas/generate';
+            if (rest[0] === 'generate') {
+                const sub = rest.length > 1 ? `/${rest.slice(1).join('/')}` : '';
+                return `/api/lessons/canvas/generate${sub}`;
+            }
             if (rest[0] === 'hierarchy')
                 return `/api/lessons/canvas${restPath}`;
             return `/api/lessons/canvas/admin${restPath}`;

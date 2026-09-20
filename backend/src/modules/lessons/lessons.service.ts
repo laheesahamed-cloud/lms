@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as fs from 'fs';
 import * as path from 'path';
+import { randomUUID } from 'crypto';
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
@@ -145,6 +146,22 @@ export interface NoteResult { title: string; subtitle: string; sections: NoteSec
 export interface NoteCanvas { pages: NoteResult[]; }
 const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
 
+// Thrown when a model's JSON response fails to parse — almost always because
+// it was cut off mid-output by the token limit on dense/detailed source text,
+// not a genuine provider failure. Distinct from other errors so the caller
+// can react by splitting the source into smaller pieces instead of giving up.
+class LessonJsonTruncatedError extends Error {}
+
+export type LessonGenerationProgress = (stage: string, message: string) => void;
+
+export interface LessonGenerationJob {
+  status: 'running' | 'done' | 'error';
+  stages: Array<{ stage: string; message: string; at: number }>;
+  result?: NoteCanvas;
+  error?: string;
+  createdAt: number;
+}
+
 @Injectable()
 export class LessonsService {
   constructor(
@@ -152,6 +169,11 @@ export class LessonsService {
     private readonly config: ConfigService,
     private readonly pushNotificationsService: PushNotificationsService,
   ) {}
+
+  // In-memory progress log for the "Generate lesson" flow — one admin at a
+  // time, low traffic, single Node process, so a Map is enough (no Redis/DB
+  // needed). Jobs older than 30 minutes are pruned lazily on next access.
+  private readonly generationJobs = new Map<string, LessonGenerationJob>();
 
   // Premium (non-free) lessons/flashcards are app-only, permanently,
   // regardless of subscription — see common/utils/mobile-client.util.ts +
@@ -1556,30 +1578,104 @@ export class LessonsService {
     return { ok: true, createdCount: fresh.length, provider: { key: provider.providerKey, label: provider.providerLabel, model: provider.model }, items: await this.findFlashcardsForLesson(id) };
   }
 
-  async canvasGenerate(text: string, token: string): Promise<NoteCanvas> {
+  async canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress): Promise<NoteCanvas> {
     await this.requireAdminToken(token);
     const trimmed = String(text || '').trim();
     if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
+    onProgress?.('provider', 'Connecting to your AI provider…');
     const provider = await this.resolveActiveCanvasProvider();
 
     // Item 3 — chunk very long pastes so the AI's output limit never truncates the tail.
     const CHUNK_LIMIT = 9000;
     let canvas: NoteCanvas;
     if (trimmed.length <= CHUNK_LIMIT) {
-      canvas = await this.generateWithProvider(this.buildPrompt(trimmed), provider);
+      onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
+      canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress);
     } else {
       const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
       const canvases: NoteCanvas[] = [];
-      for (const chunk of chunks) canvases.push(await this.generateWithProvider(this.buildPrompt(chunk), provider));
+      for (let i = 0; i < chunks.length; i += 1) {
+        onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
+        canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress));
+      }
       canvas = this.mergeCanvases(canvases);
     }
 
     // Item 2 — completeness self-check: ask the model what it left out and append it (best effort).
+    onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
     const completed = await this.ensureCompleteness(trimmed, canvas, provider);
     // Always renumber last — guarantees flat "1., 2., 3." card numbers no matter
     // which path above produced the canvas, or whether the model followed the
     // numbering instruction exactly.
-    return this.renumberSections(completed);
+    onProgress?.('finalize', 'Organizing and numbering cards…');
+    const finalCanvas = this.renumberSections(completed);
+    onProgress?.('done', 'Lesson ready!');
+    return finalCanvas;
+  }
+
+  // Generates one chunk of source text, and — if the model's response came
+  // back truncated (too dense for its output limit) — automatically splits
+  // that SAME chunk in half and generates each half separately instead of
+  // losing content, merging the results back together (grouped + numbered
+  // later by the caller). Caps at 2 split levels (up to 4 pieces) so a
+  // genuinely broken provider can't loop forever.
+  private async generateChunkResilient(
+    chunkText: string,
+    provider: RuntimeCanvasProvider,
+    depth = 0,
+    onProgress?: LessonGenerationProgress,
+  ): Promise<NoteCanvas> {
+    try {
+      return await this.generateWithProvider(this.buildPrompt(chunkText), provider);
+    } catch (err) {
+      if (!(err instanceof LessonJsonTruncatedError) || depth >= 2 || chunkText.length < 800) throw err;
+      const half = Math.ceil(chunkText.length / 2);
+      const pieces = this.splitSourceIntoChunks(chunkText, half);
+      if (pieces.length < 2) throw err;
+      onProgress?.('split', 'That part was too dense for one pass — splitting it into smaller pieces so nothing gets cut off…');
+      const results: NoteCanvas[] = [];
+      for (let i = 0; i < pieces.length; i += 1) {
+        onProgress?.('split', `Writing piece ${i + 1} of ${pieces.length}…`);
+        results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress));
+      }
+      return this.mergeCanvases(results);
+    }
+  }
+
+  // Starts generation in the background and returns immediately with a job id
+  // to poll — lets the admin UI show a running progress log instead of one
+  // long blocking wait with no visibility.
+  async startCanvasGenerate(text: string, token: string): Promise<{ jobId: string }> {
+    await this.requireAdminToken(token); // fail fast on bad auth/input before returning a job id
+    const trimmed = String(text || '').trim();
+    if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
+
+    this.pruneOldGenerationJobs();
+    const jobId = randomUUID();
+    const job: LessonGenerationJob = { status: 'running', stages: [], createdAt: Date.now() };
+    this.generationJobs.set(jobId, job);
+
+    void this.canvasGenerate(text, token, (stage, message) => {
+      job.stages.push({ stage, message, at: Date.now() });
+    })
+      .then((result) => { job.status = 'done'; job.result = result; })
+      .catch((err) => { job.status = 'error'; job.error = err instanceof Error ? err.message : String(err); });
+
+    return { jobId };
+  }
+
+  async getCanvasGenerateJob(jobId: string, token: string): Promise<LessonGenerationJob> {
+    await this.requireAdminToken(token);
+    const job = this.generationJobs.get(jobId);
+    if (!job) throw new NotFoundException('Generation job not found — it may have expired.');
+    return job;
+  }
+
+  private pruneOldGenerationJobs() {
+    const cutoff = Date.now() - 30 * 60 * 1000;
+    for (const [id, job] of this.generationJobs) {
+      if (job.createdAt < cutoff) this.generationJobs.delete(id);
+    }
   }
 
   // Split long source text on paragraph boundaries so no chunk exceeds `limit` chars.
@@ -1988,24 +2084,42 @@ export class LessonsService {
     return this.generateWithChatProvider(prompt, provider);
   }
 
+  // Cleans code-fence wrapping and parses the model's JSON response. A parse
+  // failure here almost always means the output was cut off mid-JSON by the
+  // token limit \u2014 surfaced as a distinct error type so callers can react by
+  // splitting the source and retrying smaller, instead of just failing.
+  private parseCanvasJson(raw: string): NoteCanvas {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (err) {
+      throw new LessonJsonTruncatedError(err instanceof Error ? err.message : String(err));
+    }
+    return this.splitIntoPages(this.validate(parsed));
+  }
+
   private async generateWithGeminiProvider(prompt: string, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
     const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || getDefaultModelForProvider('gemini')).trim()].filter(Boolean)));
     const errors: string[] = [];
+    let sawTruncation = false;
     for (const model of modelCandidates) {
       const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
       try {
-        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }, contents: [{ parts: [{ text: prompt }] }] }) });
+        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
         if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); continue; }
         const json = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
         const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
         if (!raw) { errors.push(`${model}: empty`); continue; }
-        return this.splitIntoPages(this.validate(JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim())));
+        return this.parseCanvasJson(raw);
       } catch (err) {
         if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
+        if (err instanceof LessonJsonTruncatedError) { sawTruncation = true; errors.push(`${model}: truncated response`); continue; }
         const msg = err instanceof Error ? err.message : String(err);
         errors.push(`${model}: ${msg.includes('abort') || msg.includes('timeout') ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
       } finally { clearTimeout(t); }
     }
+    if (sawTruncation) throw new LessonJsonTruncatedError(errors.join(' | '));
     throw new ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
   }
 
@@ -2016,9 +2130,9 @@ export class LessonsService {
       try { text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, true); }
       catch (error) { const m = error instanceof Error ? error.message : String(error); if (!this.isUnsupportedOpenAiJsonModeError(m)) throw error; text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, false); }
       if (!text) throw new ServiceUnavailableException(`${provider.providerLabel} returned empty`);
-      return this.splitIntoPages(this.validate(JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim())));
+      return this.parseCanvasJson(text);
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof ServiceUnavailableException) throw error;
+      if (error instanceof BadRequestException || error instanceof ServiceUnavailableException || error instanceof LessonJsonTruncatedError) throw error;
       const message = error instanceof Error ? error.message : String(error); const n = message.toLowerCase();
       throw new ServiceUnavailableException(n.includes('abort') || n.includes('timeout') ? `${provider.providerLabel} timed out` : n.includes('econnreset') || n.includes('fetch failed') ? `${provider.providerLabel} could not be reached` : `${provider.providerLabel} failed: ${message}`);
     } finally { clearTimeout(timeout); }
@@ -2026,13 +2140,13 @@ export class LessonsService {
 
   private async sendChatCanvasPrompt(provider: RuntimeCanvasProvider, prompt: string, signal: AbortSignal, useJsonMode: boolean): Promise<string> {
     if (provider.providerKey === 'claude') {
-      const res = await fetchWithRetry(normalizeAiProviderBaseUrl('claude', provider.baseUrl), { method: 'POST', headers: { 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 8192, temperature: 0.7, system: 'Return ONLY raw valid JSON.', messages: [{ role: 'user', content: prompt }] }) });
+      const res = await fetchWithRetry(normalizeAiProviderBaseUrl('claude', provider.baseUrl), { method: 'POST', headers: { 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 16384, temperature: 0.7, system: 'Return ONLY raw valid JSON.', messages: [{ role: 'user', content: prompt }] }) });
       const p = await res.json().catch(() => null);
       if (!res.ok) throw new ServiceUnavailableException(`${provider.providerLabel}: ${(p as { error?: { message?: string } })?.error?.message || 'error'}`);
       const content = (p as { content?: Array<{ type?: string; text?: string }> })?.content;
       return Array.isArray(content) ? content.map(c => c?.type === 'text' ? c.text || '' : '').join('').trim() : '';
     }
-    const res = await fetchWithRetry(normalizeAiProviderBaseUrl(provider.providerKey === 'openrouter' ? 'openrouter' : 'openai', provider.baseUrl), { method: 'POST', headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 8192, temperature: 0.7, top_p: 0.9, ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}), messages: [{ role: 'system', content: 'Return valid JSON only.' }, { role: 'user', content: prompt }] }) });
+    const res = await fetchWithRetry(normalizeAiProviderBaseUrl(provider.providerKey === 'openrouter' ? 'openrouter' : 'openai', provider.baseUrl), { method: 'POST', headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 16384, temperature: 0.7, top_p: 0.9, ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}), messages: [{ role: 'system', content: 'Return valid JSON only.' }, { role: 'user', content: prompt }] }) });
     const p = await res.json().catch(() => null);
     if (!res.ok) throw new ServiceUnavailableException(`${provider.providerLabel}: ${(p as { error?: { message?: string } })?.error?.message || 'error'}`);
     const content = (p as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message?.content;

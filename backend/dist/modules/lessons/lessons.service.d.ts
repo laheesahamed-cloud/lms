@@ -43,11 +43,24 @@ export interface NoteResult {
 export interface NoteCanvas {
     pages: NoteResult[];
 }
+export type LessonGenerationProgress = (stage: string, message: string) => void;
+export interface LessonGenerationJob {
+    status: 'running' | 'done' | 'error';
+    stages: Array<{
+        stage: string;
+        message: string;
+        at: number;
+    }>;
+    result?: NoteCanvas;
+    error?: string;
+    createdAt: number;
+}
 export declare class LessonsService {
     private readonly db;
     private readonly config;
     private readonly pushNotificationsService;
     constructor(db: Pool, config: ConfigService, pushNotificationsService: PushNotificationsService);
+    private readonly generationJobs;
     private isAppOnlyBlocked;
     getMeta(): Promise<{
         courses: {
@@ -454,7 +467,13 @@ export declare class LessonsService {
             updatedAt: string;
         }[];
     }>;
-    canvasGenerate(text: string, token: string): Promise<NoteCanvas>;
+    canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress): Promise<NoteCanvas>;
+    private generateChunkResilient;
+    startCanvasGenerate(text: string, token: string): Promise<{
+        jobId: string;
+    }>;
+    getCanvasGenerateJob(jobId: string, token: string): Promise<LessonGenerationJob>;
+    private pruneOldGenerationJobs;
     private splitSourceIntoChunks;
     private stripHeadingNumber;
     private normalizeTopicKey;
@@ -580,6 +599,7 @@ export declare class LessonsService {
     private resolveActiveCanvasProvider;
     private safeDecryptSecret;
     private generateWithProvider;
+    private parseCanvasJson;
     private generateWithGeminiProvider;
     private generateWithChatProvider;
     private sendChatCanvasPrompt;

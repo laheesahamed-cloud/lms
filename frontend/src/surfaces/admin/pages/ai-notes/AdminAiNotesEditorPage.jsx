@@ -5,7 +5,8 @@ import { optimizeImageFile, IMAGE_OPTIMIZER_MAX_BYTES } from '../../../../shared
 import {
   adminCreateLessonFlashcard,
   adminDeleteLessonFlashcard,
-  adminGenerateAiNotes,
+  adminStartAiNoteGeneration,
+  adminGetAiNoteGenerationStatus,
   adminGenerateLessonFlashcards,
   adminGetAiNote,
   adminGetCourses,
@@ -184,6 +185,10 @@ const editorUi = {
     'flex min-h-[300px] flex-1 flex-col items-center justify-center gap-3.5 px-10 py-[60px] text-center text-ink-muted [&_p]:m-0 [&_p]:text-sm [&_p]:font-semibold [&_p]:text-ink-body [&_span]:text-xs',
   loadingSpinner:
     'size-10 animate-[spin_0.8s_linear_infinite] rounded-full border-[3px] border-line-medium border-t-primary',
+  progressLogList:
+    'flex max-h-[220px] w-full max-w-[420px] flex-col gap-1.5 overflow-y-auto rounded-xl border border-line-soft bg-surface-card px-4 py-3 text-left [&_li]:list-none [&_li]:text-xs [&_li]:leading-snug [&_li]:text-ink-muted [&_li]:before:mr-1.5 [&_li]:before:content-["✓"] [&_li]:before:text-green-600',
+  progressLogCurrent:
+    '!text-ink-body !font-semibold [&::before]:!content-["›"] [&::before]:!text-primary',
   book: 'flex flex-col px-2.5 pb-7 pt-4',
   bookPage: 'flex flex-col',
   pageTurn: 'my-9 mb-8 flex select-none items-center gap-3.5',
@@ -224,6 +229,7 @@ export function AdminAiNotesEditorPage({
   const [loading,    setLoading]    = useState(true);
   const [processing, setProcessing] = useState(false);
   const [processMsg, setProcessMsg] = useState('');
+  const [progressLog, setProgressLog] = useState([]);
   const [saveStatus, setSaveStatus] = useState('');
   const [saving,     setSaving]     = useState(false);
   const [editMode,   setEditMode]   = useState(false);
@@ -454,13 +460,31 @@ export function AdminAiNotesEditorPage({
     finally { setMetaSaving(false); }
   }
 
+  // Polls the background generation job until it finishes, appending each new
+  // stage to the visible progress log instead of one long blind wait.
+  async function pollGenerationJob(jobId) {
+    let seenCount = 0;
+    for (;;) {
+      const job = await adminGetAiNoteGenerationStatus(jobId, { engine: engineKey });
+      if (job.stages?.length > seenCount) {
+        const newStages = job.stages.slice(seenCount);
+        seenCount = job.stages.length;
+        setProgressLog(prev => [...prev, ...newStages]);
+        setProcessMsg(newStages[newStages.length - 1].message);
+      }
+      if (job.status === 'done') return job.result;
+      if (job.status === 'error') throw new Error(job.error || 'Generation failed');
+      await new Promise(resolve => setTimeout(resolve, 900));
+    }
+  }
+
   async function handleGenerate() {
     if (rawText.trim().length < 10) { setError('Add at least a few lines of text first.'); return; }
-    setError(''); setProcessing(true); setProcessMsg(`Sending to ${generatorLabel}…`);
+    setError(''); setProcessing(true); setProcessMsg(`Sending to ${generatorLabel}…`); setProgressLog([]);
     try {
       await adminUpdateAiNote(Number(id), { title, rawText }, undefined, { engine: engineKey });
-      setProcessMsg('Building notes…');
-      const result = await adminGenerateAiNotes(rawText, { engine: engineKey });
+      const { jobId } = await adminStartAiNoteGeneration(rawText, { engine: engineKey });
+      const result = await pollGenerationJob(jobId);
       const nd = normalizeNoteData(result);
       const cleanData = cleanNoteDataForSave(nd);
       const roughSize = getNoteDataSize(cleanData);
@@ -1303,7 +1327,17 @@ export function AdminAiNotesEditorPage({
             <div className={editorUi.loadingState}>
               <div className={editorUi.loadingSpinner}/>
               <p>{processMsg || 'Generating…'}</p>
-              <span>Organizing pages · Adding mnemonics · Building logical connections</span>
+              {progressLog.length > 0 ? (
+                <ol className={editorUi.progressLogList}>
+                  {progressLog.map((entry, i) => (
+                    <li key={`${entry.at}-${i}`} className={i === progressLog.length - 1 ? editorUi.progressLogCurrent : ''}>
+                      {entry.message}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <span>Connecting…</span>
+              )}
             </div>
           )}
 

@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const fs = require("fs");
 const path = require("path");
+const crypto_1 = require("crypto");
 const pagination_1 = require("../../common/utils/pagination");
 const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
 const database_tokens_1 = require("../../database/database.tokens");
@@ -29,11 +30,14 @@ const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
 const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
 const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
+class LessonJsonTruncatedError extends Error {
+}
 let LessonsService = class LessonsService {
     constructor(db, config, pushNotificationsService) {
         this.db = db;
         this.config = config;
         this.pushNotificationsService = pushNotificationsService;
+        this.generationJobs = new Map();
     }
     isAppOnlyBlocked(appClient) {
         return !(0, mobile_client_util_1.isMobileAppClient)(appClient);
@@ -1157,26 +1161,84 @@ let LessonsService = class LessonsService {
             await this.insertGeneratedFlashcards(id, fresh);
         return { ok: true, createdCount: fresh.length, provider: { key: provider.providerKey, label: provider.providerLabel, model: provider.model }, items: await this.findFlashcardsForLesson(id) };
     }
-    async canvasGenerate(text, token) {
+    async canvasGenerate(text, token, onProgress) {
         await this.requireAdminToken(token);
         const trimmed = String(text || '').trim();
         if (trimmed.length < 10)
             throw new common_1.BadRequestException('Text must be at least 10 characters');
+        onProgress?.('provider', 'Connecting to your AI provider…');
         const provider = await this.resolveActiveCanvasProvider();
         const CHUNK_LIMIT = 9000;
         let canvas;
         if (trimmed.length <= CHUNK_LIMIT) {
-            canvas = await this.generateWithProvider(this.buildPrompt(trimmed), provider);
+            onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
+            canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress);
         }
         else {
             const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
             const canvases = [];
-            for (const chunk of chunks)
-                canvases.push(await this.generateWithProvider(this.buildPrompt(chunk), provider));
+            for (let i = 0; i < chunks.length; i += 1) {
+                onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
+                canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress));
+            }
             canvas = this.mergeCanvases(canvases);
         }
+        onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
         const completed = await this.ensureCompleteness(trimmed, canvas, provider);
-        return this.renumberSections(completed);
+        onProgress?.('finalize', 'Organizing and numbering cards…');
+        const finalCanvas = this.renumberSections(completed);
+        onProgress?.('done', 'Lesson ready!');
+        return finalCanvas;
+    }
+    async generateChunkResilient(chunkText, provider, depth = 0, onProgress) {
+        try {
+            return await this.generateWithProvider(this.buildPrompt(chunkText), provider);
+        }
+        catch (err) {
+            if (!(err instanceof LessonJsonTruncatedError) || depth >= 2 || chunkText.length < 800)
+                throw err;
+            const half = Math.ceil(chunkText.length / 2);
+            const pieces = this.splitSourceIntoChunks(chunkText, half);
+            if (pieces.length < 2)
+                throw err;
+            onProgress?.('split', 'That part was too dense for one pass — splitting it into smaller pieces so nothing gets cut off…');
+            const results = [];
+            for (let i = 0; i < pieces.length; i += 1) {
+                onProgress?.('split', `Writing piece ${i + 1} of ${pieces.length}…`);
+                results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress));
+            }
+            return this.mergeCanvases(results);
+        }
+    }
+    async startCanvasGenerate(text, token) {
+        await this.requireAdminToken(token);
+        const trimmed = String(text || '').trim();
+        if (trimmed.length < 10)
+            throw new common_1.BadRequestException('Text must be at least 10 characters');
+        this.pruneOldGenerationJobs();
+        const jobId = (0, crypto_1.randomUUID)();
+        const job = { status: 'running', stages: [], createdAt: Date.now() };
+        this.generationJobs.set(jobId, job);
+        void this.canvasGenerate(text, token, (stage, message) => {
+            job.stages.push({ stage, message, at: Date.now() });
+        })
+            .then((result) => { job.status = 'done'; job.result = result; })
+            .catch((err) => { job.status = 'error'; job.error = err instanceof Error ? err.message : String(err); });
+        return { jobId };
+    }
+    async getCanvasGenerateJob(jobId, token) {
+        await this.requireAdminToken(token);
+        const job = this.generationJobs.get(jobId);
+        if (!job)
+            throw new common_1.NotFoundException('Generation job not found — it may have expired.');
+        return job;
+    }
+    pruneOldGenerationJobs() {
+        const cutoff = Date.now() - 30 * 60 * 1000;
+        for (const [id, job] of this.generationJobs) {
+            if (job.createdAt < cutoff)
+                this.generationJobs.delete(id);
+        }
     }
     splitSourceIntoChunks(text, limit) {
         const paras = text.split(/\n\s*\n/);
@@ -1554,14 +1616,26 @@ let LessonsService = class LessonsService {
             return this.generateWithGeminiProvider(prompt, provider);
         return this.generateWithChatProvider(prompt, provider);
     }
+    parseCanvasJson(raw) {
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+        let parsed;
+        try {
+            parsed = JSON.parse(cleaned);
+        }
+        catch (err) {
+            throw new LessonJsonTruncatedError(err instanceof Error ? err.message : String(err));
+        }
+        return this.splitIntoPages(this.validate(parsed));
+    }
     async generateWithGeminiProvider(prompt, provider) {
         const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim()].filter(Boolean)));
         const errors = [];
+        let sawTruncation = false;
         for (const model of modelCandidates) {
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
             try {
-                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }, contents: [{ parts: [{ text: prompt }] }] }) });
+                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
                 if (!res.ok) {
                     let d = '';
                     try {
@@ -1578,11 +1652,16 @@ let LessonsService = class LessonsService {
                     errors.push(`${model}: empty`);
                     continue;
                 }
-                return this.splitIntoPages(this.validate(JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim())));
+                return this.parseCanvasJson(raw);
             }
             catch (err) {
                 if (err instanceof common_1.BadRequestException || err instanceof common_1.ServiceUnavailableException)
                     throw err;
+                if (err instanceof LessonJsonTruncatedError) {
+                    sawTruncation = true;
+                    errors.push(`${model}: truncated response`);
+                    continue;
+                }
                 const msg = err instanceof Error ? err.message : String(err);
                 errors.push(`${model}: ${msg.includes('abort') || msg.includes('timeout') ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
             }
@@ -1590,6 +1669,8 @@ let LessonsService = class LessonsService {
                 clearTimeout(t);
             }
         }
+        if (sawTruncation)
+            throw new LessonJsonTruncatedError(errors.join(' | '));
         throw new common_1.ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
     }
     async generateWithChatProvider(prompt, provider) {
@@ -1608,10 +1689,10 @@ let LessonsService = class LessonsService {
             }
             if (!text)
                 throw new common_1.ServiceUnavailableException(`${provider.providerLabel} returned empty`);
-            return this.splitIntoPages(this.validate(JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim())));
+            return this.parseCanvasJson(text);
         }
         catch (error) {
-            if (error instanceof common_1.BadRequestException || error instanceof common_1.ServiceUnavailableException)
+            if (error instanceof common_1.BadRequestException || error instanceof common_1.ServiceUnavailableException || error instanceof LessonJsonTruncatedError)
                 throw error;
             const message = error instanceof Error ? error.message : String(error);
             const n = message.toLowerCase();
@@ -1623,14 +1704,14 @@ let LessonsService = class LessonsService {
     }
     async sendChatCanvasPrompt(provider, prompt, signal, useJsonMode) {
         if (provider.providerKey === 'claude') {
-            const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)('claude', provider.baseUrl), { method: 'POST', headers: { 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 8192, temperature: 0.7, system: 'Return ONLY raw valid JSON.', messages: [{ role: 'user', content: prompt }] }) });
+            const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)('claude', provider.baseUrl), { method: 'POST', headers: { 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 16384, temperature: 0.7, system: 'Return ONLY raw valid JSON.', messages: [{ role: 'user', content: prompt }] }) });
             const p = await res.json().catch(() => null);
             if (!res.ok)
                 throw new common_1.ServiceUnavailableException(`${provider.providerLabel}: ${p?.error?.message || 'error'}`);
             const content = p?.content;
             return Array.isArray(content) ? content.map(c => c?.type === 'text' ? c.text || '' : '').join('').trim() : '';
         }
-        const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)(provider.providerKey === 'openrouter' ? 'openrouter' : 'openai', provider.baseUrl), { method: 'POST', headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 8192, temperature: 0.7, top_p: 0.9, ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}), messages: [{ role: 'system', content: 'Return valid JSON only.' }, { role: 'user', content: prompt }] }) });
+        const res = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)(provider.providerKey === 'openrouter' ? 'openrouter' : 'openai', provider.baseUrl), { method: 'POST', headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 16384, temperature: 0.7, top_p: 0.9, ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}), messages: [{ role: 'system', content: 'Return valid JSON only.' }, { role: 'user', content: prompt }] }) });
         const p = await res.json().catch(() => null);
         if (!res.ok)
             throw new common_1.ServiceUnavailableException(`${provider.providerLabel}: ${p?.error?.message || 'error'}`);

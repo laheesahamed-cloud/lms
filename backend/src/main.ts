@@ -279,7 +279,12 @@ function rewriteApiBoundary(path: string, method: string) {
   if (path.startsWith('/api/admin/')) {
     if (resource === 'dashboard') return `/api/dashboard/admin${restPath}`;
     if (resource === 'ai-notes') {
-      if (rest[0] === 'generate') return '/api/lessons/canvas/generate';
+      if (rest[0] === 'generate') {
+        // /admin/ai-notes/generate -> /api/lessons/canvas/generate (unchanged)
+        // /admin/ai-notes/generate/start|status/:id -> same path, sub-path kept
+        const sub = rest.length > 1 ? `/${rest.slice(1).join('/')}` : '';
+        return `/api/lessons/canvas/generate${sub}`;
+      }
       if (rest[0] === 'hierarchy') return `/api/lessons/canvas${restPath}`;
       return `/api/lessons/canvas/admin${restPath}`;
     }

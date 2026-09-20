@@ -232,6 +232,19 @@ export class LessonsController {
     return this.lessonsService.canvasGenerate(text, this.bearerToken(auth));
   }
 
+  // Progress-log variant: starts generation in the background and returns a
+  // job id immediately; the admin UI polls canvasGenerateStatus for a running
+  // log of stages instead of one long blocking wait with no visibility.
+  @Post('canvas/generate/start')
+  canvasGenerateStart(@Headers('authorization') auth: string, @Body('text') text: string) {
+    return this.lessonsService.startCanvasGenerate(text, this.bearerToken(auth));
+  }
+
+  @Get('canvas/generate/status/:jobId')
+  canvasGenerateStatus(@Headers('authorization') auth: string, @Param('jobId') jobId: string) {
+    return this.lessonsService.getCanvasGenerateJob(jobId, this.bearerToken(auth));
+  }
+
   @Get('canvas/admin')
   canvasAdminList(@Headers('authorization') auth: string, @Query('engineKey') engineKey?: string) {
     return this.lessonsService.canvasAdminList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
