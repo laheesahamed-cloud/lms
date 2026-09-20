@@ -628,6 +628,108 @@ function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   WYSIWYG MARKUP HELPERS — shared by the edit fields below so typing
+   ==highlight== / **bold** shows the styled result immediately instead of
+   the raw marker characters, matching RichText's own scan order exactly.
+══════════════════════════════════════════════════════════════ */
+function scanInlineMarkup(text) {
+  const segments = [];
+  let s = String(text || '');
+  while (s.length) {
+    const hi = s.indexOf('=='), bd = s.indexOf('**');
+    const next = Math.min(hi === -1 ? Infinity : hi, bd === -1 ? Infinity : bd);
+    if (next === Infinity) { segments.push({ type: 'plain', text: s }); break; }
+    if (next > 0) { segments.push({ type: 'plain', text: s.slice(0, next) }); s = s.slice(next); }
+    if (s.startsWith('==')) {
+      const e = s.indexOf('==', 2);
+      if (e === -1) { segments.push({ type: 'plain', text: s }); break; }
+      segments.push({ type: 'highlight', text: s.slice(2, e) });
+      s = s.slice(e + 2);
+    } else {
+      const e = s.indexOf('**', 2);
+      if (e === -1) { segments.push({ type: 'plain', text: s }); break; }
+      segments.push({ type: 'bold', text: s.slice(2, e) });
+      s = s.slice(e + 2);
+    }
+  }
+  return segments;
+}
+
+function escapeEditableHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Raw marked-up string ("**term**") → contentEditable innerHTML (styled
+// <strong>/<mark>, markers stripped, \n as <br>).
+function markupToEditableHtml(text) {
+  return scanInlineMarkup(text)
+    .map((seg) => {
+      const escaped = escapeEditableHtml(seg.text).replace(/\n/g, '<br>');
+      if (seg.type === 'bold') return `<strong class="${noteCanvasUi.boldTerm}">${escaped}</strong>`;
+      if (seg.type === 'highlight') return `<mark class="${noteCanvasUi.highlight}">${escaped}</mark>`;
+      return escaped;
+    })
+    .join('');
+}
+
+// contentEditable DOM → raw marked-up string (the inverse of the above),
+// so what gets saved is still plain text with **/== markers, unchanged from
+// before — only how it's DISPLAYED while editing has changed.
+function editableDomToMarkup(root) {
+  let out = '';
+  const collectText = (node) => {
+    let t = '';
+    node.childNodes.forEach((n) => {
+      if (n.nodeType === Node.TEXT_NODE) t += n.textContent;
+      else if (n.nodeName === 'BR') t += '\n';
+      else t += n.textContent || '';
+    });
+    return t;
+  };
+  const walk = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) { out += node.textContent; return; }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.tagName;
+    if (tag === 'BR') { out += '\n'; return; }
+    if (tag === 'STRONG' || tag === 'B') {
+      const inner = collectText(node);
+      if (inner) out += `**${inner}**`;
+      return;
+    }
+    if (tag === 'MARK') {
+      const inner = collectText(node);
+      if (inner) out += `==${inner}==`;
+      return;
+    }
+    if (tag === 'DIV' || tag === 'P') {
+      // Some browsers wrap a new line in a block element instead of a <br>
+      // (e.g. after a paste) — treat it as an implicit line break.
+      if (out.length) out += '\n';
+      node.childNodes.forEach(walk);
+      return;
+    }
+    node.childNodes.forEach(walk);
+  };
+  root.childNodes.forEach(walk);
+  return out;
+}
+
+// Insert a plain <br> at the caret without letting the browser create a new
+// block container — keeps the DOM (and so editableDomToMarkup) simple.
+function insertLineBreakAtCaret() {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  const br = document.createElement('br');
+  range.insertNode(br);
+  range.setStartAfter(br);
+  range.setEndAfter(br);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+/* ══════════════════════════════════════════════════════════════
    INLINE EDIT FIELDS
 ══════════════════════════════════════════════════════════════ */
 function stopCanvasInputGesture(event) {
@@ -722,10 +824,41 @@ function playScribbleSound(force = false) {
   }
 }
 
+// Shared by EField/EArea: keeps a contentEditable node's displayed HTML in
+// sync with the raw marked-up `value` string, but only when that value
+// changed from OUTSIDE this field (e.g. switching sections) — not on every
+// keystroke, which would otherwise reset the caret mid-typing.
+function useRichEditableSync(value) {
+  const nodeRef = useRef(null);
+  const lastEmittedRef = useRef(null);
+
+  useEffect(() => {
+    if (!nodeRef.current) return;
+    if (value === lastEmittedRef.current) return;
+    nodeRef.current.innerHTML = markupToEditableHtml(value || '');
+    lastEmittedRef.current = value;
+  }, [value]);
+
+  function emit(onChange) {
+    if (!nodeRef.current || !onChange) return;
+    const raw = editableDomToMarkup(nodeRef.current);
+    lastEmittedRef.current = raw;
+    onChange(raw);
+  }
+
+  return { nodeRef, emit };
+}
+
 function EField({ value, onChange, placeholder, className, style, onPointerDown, onTouchStart, onFocus, onKeyDown, onInput, onBeforeInput, onCompositionUpdate, ...props }) {
+  const { nodeRef, emit } = useRichEditableSync(value);
   return (
-    <input className={cx(noteCanvasUi.editInput, className)} type="text" value={value || ''} onChange={e => { playScribbleSound(); onChange(e.target.value); }}
-      placeholder={placeholder}
+    <span
+      ref={nodeRef}
+      className={cx(noteCanvasUi.editInput, className)}
+      contentEditable
+      suppressContentEditableWarning
+      data-ncv-rich-editable="true"
+      data-placeholder={placeholder}
       aria-label={props['aria-label'] || placeholder || 'Canvas text field'}
       data-lms-canvas-input="true"
       onPointerDown={event => {
@@ -748,10 +881,12 @@ function EField({ value, onChange, placeholder, className, style, onPointerDown,
       }}
       onKeyDown={event => {
         playScribbleSound();
+        if (event.key === 'Enter') event.preventDefault(); // single-line field, no newlines
         onKeyDown?.(event);
       }}
       onInput={event => {
         playScribbleSound();
+        emit(onChange);
         onInput?.(event);
       }}
       onBeforeInput={event => {
@@ -762,17 +897,21 @@ function EField({ value, onChange, placeholder, className, style, onPointerDown,
         playScribbleSound();
         onCompositionUpdate?.(event);
       }}
-      style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', ...style }}
+      style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', display: 'inline-block', minWidth: 4, ...style }}
       {...props}/>
   );
 }
 function EArea({ value, onChange, placeholder, className, style, minRows = 2, onPointerDown, onTouchStart, onFocus, onKeyDown, onInput, onBeforeInput, onCompositionUpdate, ...props }) {
-  const rows = Math.max(minRows, (value || '').split('\n').length + 1);
+  const { nodeRef, emit } = useRichEditableSync(value);
   return (
-    <textarea className={cx(noteCanvasUi.editArea, className)} value={value || ''} onChange={e => { playScribbleSound(); onChange(e.target.value); }}
-      placeholder={placeholder}
+    <div
+      ref={nodeRef}
+      className={cx(noteCanvasUi.editArea, className)}
+      contentEditable
+      suppressContentEditableWarning
+      data-ncv-rich-editable="true"
+      data-placeholder={placeholder}
       aria-label={props['aria-label'] || placeholder || 'Canvas text area'}
-      rows={rows}
       data-lms-canvas-input="true"
       onPointerDown={event => {
         stopCanvasInputGesture(event);
@@ -794,10 +933,12 @@ function EArea({ value, onChange, placeholder, className, style, minRows = 2, on
       }}
       onKeyDown={event => {
         playScribbleSound();
+        if (event.key === 'Enter') { event.preventDefault(); insertLineBreakAtCaret(); emit(onChange); }
         onKeyDown?.(event);
       }}
       onInput={event => {
         playScribbleSound();
+        emit(onChange);
         onInput?.(event);
       }}
       onBeforeInput={event => {
@@ -808,7 +949,7 @@ function EArea({ value, onChange, placeholder, className, style, minRows = 2, on
         playScribbleSound();
         onCompositionUpdate?.(event);
       }}
-      style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', ...style }}
+      style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', minHeight: `${minRows * 1.6}em`, ...style }}
       {...props}/>
   );
 }
@@ -929,7 +1070,9 @@ function BulletEditor({ bullets = [], accentColor, onChange }) {
                   e.preventDefault();
                   addRow(i);
                 }
-                if (e.key === 'Backspace' && !e.currentTarget.value && rows.length > 1) {
+                // Row text is read from the closure, not the DOM (contentEditable
+                // has no .value) — b is this row's current raw string.
+                if (e.key === 'Backspace' && !(sub ? b.replace(/^→\s*/, '') : b) && rows.length > 1) {
                   e.preventDefault();
                   removeRow(i);
                 }
