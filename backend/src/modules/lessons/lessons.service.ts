@@ -1607,8 +1607,8 @@ export class LessonsService {
     // Always renumber last — guarantees flat "1., 2., 3." card numbers no matter
     // which path above produced the canvas, or whether the model followed the
     // numbering instruction exactly.
-    onProgress?.('finalize', 'Organizing and numbering cards…');
-    const finalCanvas = this.renumberSections(completed);
+    onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
+    const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
     onProgress?.('done', 'Lesson ready!');
     return finalCanvas;
   }
@@ -1702,6 +1702,41 @@ export class LessonsService {
     return this.stripHeadingNumber(heading).toLowerCase().replace(/[:\s]+$/, '').trim();
   }
 
+  // "Medical management" and "Surgical management" are the SAME topic to a
+  // student — they belong in one card with labelled sub-parts, not as cards
+  // 15 and 17 with something unrelated in between. Order matters here: the
+  // first match wins, so narrower families are listed before broader ones
+  // ("differential diagnosis" before "diagnosis").
+  private static readonly TOPIC_FAMILIES: Array<{ key: string; title: string; test: RegExp }> = [
+    { key: 'differential',      title: 'Differential diagnosis',  test: /differential|\bddx\b/ },
+    { key: 'red-flags',         title: 'Red flags',               test: /red flag/ },
+    { key: 'management',        title: 'Management',              test: /manage|treat|therap/ },
+    { key: 'investigations',    title: 'Investigations',          test: /investigat|work[- ]?up/ },
+    { key: 'pathophysiology',   title: 'Pathophysiology',         test: /pathophysiolog|pathogenes|mechanism/ },
+    { key: 'clinical-features', title: 'Clinical features',       test: /clinical feature|symptom|\bsigns?\b|presentation/ },
+    { key: 'complications',     title: 'Complications',           test: /complication/ },
+    { key: 'aetiology',         title: 'Causes & risk factors',   test: /aetiolog|etiolog|\bcauses?\b|risk factor/ },
+    { key: 'classification',    title: 'Classification',          test: /classification|staging|\bgrades?\b/ },
+    { key: 'diagnosis',         title: 'Diagnosis',               test: /diagnos/ },
+    { key: 'epidemiology',      title: 'Epidemiology',            test: /epidemiolog|incidence|prevalence/ },
+    { key: 'prevention',        title: 'Prevention & screening',  test: /prevention|prophylax|screening/ },
+    { key: 'prognosis',         title: 'Prognosis',               test: /prognos|outcome/ },
+    { key: 'definition',        title: 'Definition',              test: /definition|\bdefined\b/ },
+  ];
+
+  private topicFamily(heading: string): { key: string; title: string } | null {
+    const h = this.normalizeTopicKey(heading);
+    if (!h) return null;
+    return LessonsService.TOPIC_FAMILIES.find((f) => f.test.test(h)) || null;
+  }
+
+  // A stray "Short notes" between two topics should be a box inside the card
+  // before it, not its own numbered section breaking the run of topics.
+  private isAsideHeading(heading: string): boolean {
+    const h = this.normalizeTopicKey(heading);
+    return /^(short|extra|additional|side|other|general|misc)?\s*-?\s*notes?$/.test(h) || h === 'miscellaneous';
+  }
+
   // Flat, sequential numbering — "1. ", "2. ", "3. "… — applied in final card
   // order, never nested/decimal. Run this as the LAST step on any canvas
   // returned to the client, since even a single AI call can drift into
@@ -1716,6 +1751,117 @@ export class LessonsService {
       }
     }
     return canvas;
+  }
+
+  // Folds everything about one topic into a single card. The model (and a
+  // multi-pass generation) happily emits "15. Medical management",
+  // "16. Short notes", "17. Surgical management" — three numbered cards for
+  // what a student reads as one topic plus an aside. This pass merges
+  // same-topic text cards into one, labelling each sub-part with a parent
+  // bullet so nothing about which-is-which is lost, drops asides into the
+  // previous card's boxed note, and keeps a topic's table/flow cards (which
+  // can't merge into bullets) sitting directly beside their own topic.
+  // Content is only ever moved, never dropped.
+  private groupSectionFamilies(canvas: NoteCanvas): NoteCanvas {
+    const flat = canvas.pages.flatMap((p) => p.sections);
+    const out: NoteSection[] = [];
+    const anchorByFamily = new Map<string, number>();
+    const labelledFamilies = new Set<string>();
+    const append = (target: NoteSection, ...items: string[]) => {
+      target.bullets = [...(target.bullets || []), ...items.filter(Boolean)];
+    };
+
+    for (const section of flat) {
+      const heading = this.stripHeadingNumber(section.heading || '');
+      const isText = !section.type || section.type === 'text';
+
+      if (isText && heading && this.isAsideHeading(heading) && out.length) {
+        const prev = out[out.length - 1];
+        const bullets = (section.bullets || []).filter(Boolean);
+        if (!prev.callout && bullets.length === 1) prev.callout = bullets[0];
+        else if (bullets.length) append(prev, '**Note**:', ...bullets);
+        if (section.callout) { if (prev.callout) append(prev, section.callout); else prev.callout = section.callout; }
+        if (section.sticky_note) { if (prev.sticky_note) append(prev, section.sticky_note); else prev.sticky_note = section.sticky_note; }
+        if (section.mnemonic) { if (prev.mnemonic) append(prev, `**Mnemonic**: ${section.mnemonic}`); else prev.mnemonic = section.mnemonic; }
+        continue;
+      }
+
+      const family = this.topicFamily(heading);
+      const familyKey = heading ? (family?.key || this.normalizeTopicKey(heading)) : '';
+      const anchorIndex = isText && familyKey ? anchorByFamily.get(familyKey) : undefined;
+
+      if (anchorIndex !== undefined) {
+        const target = out[anchorIndex];
+        const sameLabel = this.normalizeTopicKey(target.heading) === this.normalizeTopicKey(heading);
+        // Different wording for the same topic ("Medical" vs "Surgical
+        // management") becomes labelled sub-parts under the family name;
+        // an identical heading is just more of the same card.
+        if (!sameLabel && !labelledFamilies.has(familyKey)) {
+          target.bullets = [`**${target.heading}**:`, ...(target.bullets || [])];
+          target.heading = family?.title || target.heading;
+          target.span = 'full';
+          labelledFamilies.add(familyKey);
+        }
+        if (!sameLabel) append(target, `**${heading}**:`);
+        append(target, ...(section.bullets || []));
+        if (section.callout) { if (target.callout) append(target, section.callout); else target.callout = section.callout; }
+        if (section.sticky_note) { if (target.sticky_note) append(target, section.sticky_note); else target.sticky_note = section.sticky_note; }
+        if (section.mnemonic) { if (target.mnemonic) append(target, `**Mnemonic**: ${section.mnemonic}`); else target.mnemonic = section.mnemonic; }
+        continue;
+      }
+
+      out.push({ ...section, heading });
+      if (isText && familyKey) anchorByFamily.set(familyKey, out.length - 1);
+    }
+
+    // Tables and flows can't fold into a bullet list, so instead keep them
+    // adjacent to the topic they belong to (stable — a topic keeps the
+    // position where it first appeared). Images are pinned to whatever card
+    // they followed, since an image illustrates the card above it.
+    const isImage = (s: NoteSection) => s.type === 'image' || s.type === 'image-explained';
+    const indexOf = new Map<NoteSection, number>();
+    out.forEach((s, i) => indexOf.set(s, i));
+
+    const imagesAfter = new Map<number, NoteSection[]>();
+    const reorderable: NoteSection[] = [];
+    let lastCardIndex = -1;
+    for (const section of out) {
+      if (isImage(section)) {
+        const bucket = imagesAfter.get(lastCardIndex) || [];
+        bucket.push(section);
+        imagesAfter.set(lastCardIndex, bucket);
+      } else {
+        reorderable.push(section);
+        lastCardIndex = indexOf.get(section)!;
+      }
+    }
+
+    const order: string[] = [];
+    const buckets = new Map<string, NoteSection[]>();
+    for (const section of reorderable) {
+      const heading = this.stripHeadingNumber(section.heading || '');
+      const key = heading ? (this.topicFamily(heading)?.key || `__solo_${indexOf.get(section)}`) : `__solo_${indexOf.get(section)}`;
+      if (!buckets.has(key)) { buckets.set(key, []); order.push(key); }
+      buckets.get(key)!.push(section);
+    }
+
+    const grouped: NoteSection[] = [...(imagesAfter.get(-1) || [])];
+    for (const key of order) {
+      for (const section of buckets.get(key)!) {
+        grouped.push(section);
+        grouped.push(...(imagesAfter.get(indexOf.get(section)!) || []));
+      }
+    }
+
+    const first = canvas.pages[0];
+    return this.splitIntoPages({
+      title: first?.title || 'Lesson',
+      subtitle: first?.subtitle || '',
+      sections: grouped,
+      summary_box: canvas.pages.map((p) => p.summary_box).filter(Boolean).pop() || '',
+      key_points: Array.from(new Set(canvas.pages.flatMap((p) => p.key_points || []))),
+      visual_style: canvas.pages.find((p) => p.visual_style)?.visual_style,
+    });
   }
 
   // Merge several generated canvases into one. Each chunk (long source) or the
@@ -2341,7 +2487,7 @@ export class LessonsService {
   }
 
   private buildPrompt(text: string): string {
-    return `You are a senior medical educator writing high-yield lessons for ERPM/SLMC exams.\n\n\u2501\u2501\u2501 CORE RULE: NEVER DROP CONTENT \u2501\u2501\u2501\n- Reproduce EVERY fact, definition, drug, dose, route, number, example and clinical pearl from the source. Leaving content out is the single worst error you can make.\n- Cause\u2192effect chains (pathophysiology, mechanisms) go into a "flow" section (see below) \u2014 everything else is crisp short bullets and \u21b3 sub-points, never long paragraphs.\n- Keep every secondary example and parenthetical detail (second-line drugs, alternative doses, qualifiers, routes). These are important \u2014 never trim them.\n- Preserve the author's structure and hierarchy. You MAY add accurate high-yield detail, but you may NEVER remove or shorten away the author's content.\n\n\u2501\u2501\u2501 BREAK IT UP (crisp, beautiful, one topic per card) \u2501\u2501\u2501\n- Give EACH topic its OWN section (Definition, Clinical features, Investigations, Management, Complications are SEPARATE sections). Number the headings flat and sequential — 1., 2., 3., 4. — NEVER nested/decimal numbers like 1.1 or 2.3. Generate as many sections as the content needs.\n- Keep every bullet SHORT \u2014 one idea per bullet, never a paragraph. To keep everything, add MORE bullets, never longer ones.\n\n\u2501\u2501\u2501 SUB-POINTS (\u21b3 arrows) \u2501\u2501\u2501\n- When a bullet introduces a list (tests, drugs, features, causes), put the list heading on the main bullet, then put EACH item on its OWN sub-bullet by starting that bullet string with "\u2192 ".\n- ALWAYS start each "\u2192 " sub-bullet with its key term in **bold** (the test / drug / feature name), then a SHORT reason in brackets (why it is done or used).\n- Each individual drug + dose goes on its OWN "\u2192 " sub-bullet \u2014 never put several drugs on one line.\n- Example bullets array: ["Blood tests:", "\u2192 **FBC** (screens for ==anaemia==)", "\u2192 **Lipids** (==cardiovascular risk==)", "\u2192 **HbA1c / glucose** (checks for ==diabetes==)"]\n\n\u2501\u2501\u2501 DRUGS & INVESTIGATIONS (always give a reason) \u2501\u2501\u2501\n- Every drug/class AND every investigation/test shows a SHORT reason in brackets the first time \u2014 WHY it is used or done, e.g. "**\u03b2-blocker** (\u2193 heart rate \u2192 \u2193 O\u2082 demand)", "**CTCA** (rules out obstructive disease)", "**FBC** (screens for anaemia)". Do NOT repeat that reason later \u2014 once each is enough.\n\n\u2501\u2501\u2501 DIFFERENTIAL DIAGNOSIS (DDx) \u2014 add when relevant \u2501\u2501\u2501\n- If the topic is a disease or clinical presentation with meaningful differentials, ADD a "Differential diagnosis" section. List each differential with ONE distinguishing feature (how to tell it apart), as \u21b3 sub-points ("\u2192 **Diagnosis** \u2014 distinguishing feature") or a 2-column table. Only add it where it makes clinical sense \u2014 skip it for pure pharmacology or definition-only topics.\n\n\u2501\u2501\u2501 RED FLAGS \u2014 add when relevant \u2501\u2501\u2501\n- For conditions where dangerous or emergency signs matter, add a short section titled "\ud83d\udea9 Red flags" listing the warning signs that need urgent action (one per bullet). Skip it for anatomy, pharmacology or non-clinical topics.\n\n\u2501\u2501\u2501 HIGHLIGHTS (mark up EVERY clinically important word \u2014 be generous, not sparing) \u2501\u2501\u2501\n- ==double equals== \u2192 highlight every diagnosis, disease name, key term, mechanism word, lab/vital cut-off, percentage and time frame. If it is something a student would circle while revising, wrap it in ==...==. Aim for at least one ==highlight== in nearly every bullet, sub-bullet, callout, sticky note, mnemonic line, flow step, AND table cell \u2014 sparse highlighting is a failure, not a style choice.\n- **double asterisks** \u2192 bold every drug name + dose, lab value, and numeric threshold.\n- Tables are NOT exempt: a cell like \\"\u2265140/90, confirmed on repeat\\" must come out as \\"\u2265**140/90**, confirmed on ==repeat measurement==\\" \u2014 bold the numbers AND highlight the diagnostic terms, in every row, not just the first one.\n\n\u2501\u2501\u2501 WORDING \u2501\u2501\u2501\n- Professional but clear: correct medical terms, with a SHORT plain-English gloss in brackets only for genuinely hard terms \u2014 e.g. lumen (the channel blood flows through). Do not oversimplify like a children's book.\n\n\u2501\u2501\u2501 FLOW RULE (cause \u2192 effect) \u2501\u2501\u2501\n- When content is a cause-and-effect chain, mechanism, or pathophysiology sequence, use a "flow" section instead of bullets so the reasoning reads top to bottom.\n- Flow sections use: {"type":"flow","heading":"Heading","steps":["first step as a full sentence","next step","result"],"span":"full"}\n- Each step is ONE complete sentence and keeps the cause\u2192effect logic (\u2192, because, but) inside it. Use 2\u20136 steps. Only use flow for genuine reasoning chains \u2014 lists stay bullets, comparisons stay tables.\n\n\u2501\u2501\u2501 TABLE RULE \u2501\u2501\u2501\n- When content is a comparison (e.g. drug classes, differentials, stages, classification), use a table section instead of bullets\n- Table sections use: {"type":"table","heading":"Heading","headers":["Col1","Col2"],"rows":[["a","b"],["c","d"]],"span":"full"}\n- Keep ALL columns and ALL rows from the source \u2014 never drop a column or row to make it fit\n- If the source already contains a table, keep it AS a table. Cells may hold a full phrase or short sentence \u2014 do NOT shrink them to 1\u20132 keywords\n\nReturn ONLY this JSON (no markdown, no code fences):\n{"title":"TOPIC IN CAPS","subtitle":"one fragment","sections":[{"heading":"1. Investigations","bullets":["**CTCA** (rules out ==obstructive disease==) — first-line imaging","Blood tests:","→ **FBC** (screens for ==anaemia==)","→ **Lipids** (==cardiovascular risk==)"],"callout":"[EXAM TRAP] fragment","sticky_note":"key fact","mnemonic":""},{"type":"table","heading":"2. Comparison","headers":["Drug","Dose"],"rows":[["==Drug A==","**5mg** once daily"],["==Drug B==","**10mg** twice daily"]],"span":"full"},{"type":"flow","heading":"3. Pathophysiology","steps":["Full sentence step","Next step with because/but logic","Result"],"span":"full"}],"summary_box":"fragment \u00b7 fragment","key_points":["==Term==: value"],"visual_style":{"theme":"notebook","look":"hand-drawn academic","colors":["#A7D8FF","#FFE680","#FFB3B3","#C7F0BD","#CE93D8","#80DEEA","#F48FB1","#FFCC80"]}}\n\nSource notes (reproduce ALL of this — nothing may be left out):\n${text.slice(0, 60000)}`;
+    return `You are a senior medical educator writing high-yield lessons for ERPM/SLMC exams.\n\n\u2501\u2501\u2501 CORE RULE: NEVER DROP CONTENT \u2501\u2501\u2501\n- Reproduce EVERY fact, definition, drug, dose, route, number, example and clinical pearl from the source. Leaving content out is the single worst error you can make.\n- Cause\u2192effect chains (pathophysiology, mechanisms) go into a "flow" section (see below) \u2014 everything else is crisp short bullets and \u21b3 sub-points, never long paragraphs.\n- Keep every secondary example and parenthetical detail (second-line drugs, alternative doses, qualifiers, routes). These are important \u2014 never trim them.\n- Preserve the author's structure and hierarchy. You MAY add accurate high-yield detail, but you may NEVER remove or shorten away the author's content.\n\n\u2501\u2501\u2501 BREAK IT UP (crisp, beautiful, one topic per card) \u2501\u2501\u2501\n- Give EACH topic its OWN section (Definition, Clinical features, Investigations, Management, Complications are SEPARATE sections). Number the headings flat and sequential — 1., 2., 3., 4. — NEVER nested/decimal numbers like 1.1 or 2.3. Generate as many sections as the content needs.\n- Keep every bullet SHORT \u2014 one idea per bullet, never a paragraph. To keep everything, add MORE bullets, never longer ones.\n\n\u2501\u2501\u2501 ONE CARD PER TOPIC \u2014 never split a topic across numbered cards \u2501\u2501\u2501\n- ALL management content goes in ONE "Management" section. Medical, surgical, conservative, first-line, second-line, step 1/2/3, method 1/2 are SUB-PARTS inside that single section \u2014 never their own numbered sections. The same rule applies to Investigations, Pathophysiology, Clinical features, Complications, Causes, Classification and every other topic.\n- NEVER output "12. Surgical management \u2014 method 1" and "13. Surgical management \u2014 method 2", and never "15. Medical management" ... "17. Surgical management". That is ONE card with labelled sub-parts.\n- Label each sub-part with a parent bullet that names it and ends with a colon, then put that sub-part\'s points under it as "\u2192 " sub-bullets. Example bullets array: ["**Medical management**:", "\u2192 **Ramipril** (==first-line== ACEi)", "\u2192 **Amlodipine** (==CCB==)", "**Surgical management**:", "\u2192 **Renal denervation** (for ==resistant hypertension==)"]\n- Use a table or flow section for a sub-part that is a comparison or a cause\u2192effect chain, and place it immediately after its parent topic.\n- Grouping must NEVER cost content: keep every drug, dose, step, qualifier and detail from every sub-part. Group them, do not shorten them.\n\n\u2501\u2501\u2501 SIDE NOTES ARE NOT SECTIONS \u2501\u2501\u2501\n- A short note, aside, reminder or comment sitting between two topics in the source is NOT its own numbered section \u2014 it belongs in that topic\'s "callout" or "sticky_note" (both render as a box). Numbered cards stay one-topic-each, in order.\n\n\u2501\u2501\u2501 SUB-POINTS (\u21b3 arrows) \u2501\u2501\u2501\n- When a bullet introduces a list (tests, drugs, features, causes), put the list heading on the main bullet, then put EACH item on its OWN sub-bullet by starting that bullet string with "\u2192 ".\n- ALWAYS start each "\u2192 " sub-bullet with its key term in **bold** (the test / drug / feature name), then a SHORT reason in brackets (why it is done or used).\n- Each individual drug + dose goes on its OWN "\u2192 " sub-bullet \u2014 never put several drugs on one line.\n- Example bullets array: ["Blood tests:", "\u2192 **FBC** (screens for ==anaemia==)", "\u2192 **Lipids** (==cardiovascular risk==)", "\u2192 **HbA1c / glucose** (checks for ==diabetes==)"]\n\n\u2501\u2501\u2501 DRUGS & INVESTIGATIONS (always give a reason) \u2501\u2501\u2501\n- Every drug/class AND every investigation/test shows a SHORT reason in brackets the first time \u2014 WHY it is used or done, e.g. "**\u03b2-blocker** (\u2193 heart rate \u2192 \u2193 O\u2082 demand)", "**CTCA** (rules out obstructive disease)", "**FBC** (screens for anaemia)". Do NOT repeat that reason later \u2014 once each is enough.\n\n\u2501\u2501\u2501 DIFFERENTIAL DIAGNOSIS (DDx) \u2014 add when relevant \u2501\u2501\u2501\n- If the topic is a disease or clinical presentation with meaningful differentials, ADD a "Differential diagnosis" section. List each differential with ONE distinguishing feature (how to tell it apart), as \u21b3 sub-points ("\u2192 **Diagnosis** \u2014 distinguishing feature") or a 2-column table. Only add it where it makes clinical sense \u2014 skip it for pure pharmacology or definition-only topics.\n\n\u2501\u2501\u2501 RED FLAGS \u2014 add when relevant \u2501\u2501\u2501\n- For conditions where dangerous or emergency signs matter, add a short section titled "\ud83d\udea9 Red flags" listing the warning signs that need urgent action (one per bullet). Skip it for anatomy, pharmacology or non-clinical topics.\n\n\u2501\u2501\u2501 HIGHLIGHTS (mark up EVERY clinically important word \u2014 be generous, not sparing) \u2501\u2501\u2501\n- ==double equals== \u2192 highlight every diagnosis, disease name, key term, mechanism word, lab/vital cut-off, percentage and time frame. If it is something a student would circle while revising, wrap it in ==...==. Aim for at least one ==highlight== in nearly every bullet, sub-bullet, callout, sticky note, mnemonic line, flow step, AND table cell \u2014 sparse highlighting is a failure, not a style choice.\n- **double asterisks** \u2192 bold every drug name + dose, lab value, and numeric threshold.\n- Tables are NOT exempt: a cell like \\"\u2265140/90, confirmed on repeat\\" must come out as \\"\u2265**140/90**, confirmed on ==repeat measurement==\\" \u2014 bold the numbers AND highlight the diagnostic terms, in every row, not just the first one.\n\n\u2501\u2501\u2501 WORDING \u2501\u2501\u2501\n- Professional but clear: correct medical terms, with a SHORT plain-English gloss in brackets only for genuinely hard terms \u2014 e.g. lumen (the channel blood flows through). Do not oversimplify like a children's book.\n\n\u2501\u2501\u2501 FLOW RULE (cause \u2192 effect) \u2501\u2501\u2501\n- When content is a cause-and-effect chain, mechanism, or pathophysiology sequence, use a "flow" section instead of bullets so the reasoning reads top to bottom.\n- Flow sections use: {"type":"flow","heading":"Heading","steps":["first step as a full sentence","next step","result"],"span":"full"}\n- Each step is ONE complete sentence and keeps the cause\u2192effect logic (\u2192, because, but) inside it. Use 2\u20136 steps. Only use flow for genuine reasoning chains \u2014 lists stay bullets, comparisons stay tables.\n\n\u2501\u2501\u2501 TABLE RULE \u2501\u2501\u2501\n- When content is a comparison (e.g. drug classes, differentials, stages, classification), use a table section instead of bullets\n- Table sections use: {"type":"table","heading":"Heading","headers":["Col1","Col2"],"rows":[["a","b"],["c","d"]],"span":"full"}\n- Keep ALL columns and ALL rows from the source \u2014 never drop a column or row to make it fit\n- If the source already contains a table, keep it AS a table. Cells may hold a full phrase or short sentence \u2014 do NOT shrink them to 1\u20132 keywords\n\nReturn ONLY this JSON (no markdown, no code fences):\n{"title":"TOPIC IN CAPS","subtitle":"one fragment","sections":[{"heading":"1. Investigations","bullets":["**CTCA** (rules out ==obstructive disease==) — first-line imaging","Blood tests:","→ **FBC** (screens for ==anaemia==)","→ **Lipids** (==cardiovascular risk==)"],"callout":"[EXAM TRAP] fragment","sticky_note":"key fact","mnemonic":""},{"type":"table","heading":"2. Comparison","headers":["Drug","Dose"],"rows":[["==Drug A==","**5mg** once daily"],["==Drug B==","**10mg** twice daily"]],"span":"full"},{"type":"flow","heading":"3. Pathophysiology","steps":["Full sentence step","Next step with because/but logic","Result"],"span":"full"}],"summary_box":"fragment \u00b7 fragment","key_points":["==Term==: value"],"visual_style":{"theme":"notebook","look":"hand-drawn academic","colors":["#A7D8FF","#FFE680","#FFB3B3","#C7F0BD","#CE93D8","#80DEEA","#F48FB1","#FFCC80"]}}\n\nSource notes (reproduce ALL of this — nothing may be left out):\n${text.slice(0, 60000)}`;
   }
 
 }

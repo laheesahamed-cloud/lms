@@ -477,7 +477,11 @@ export declare class LessonsService {
     private splitSourceIntoChunks;
     private stripHeadingNumber;
     private normalizeTopicKey;
+    private static readonly TOPIC_FAMILIES;
+    private topicFamily;
+    private isAsideHeading;
     private renumberSections;
+    private groupSectionFamilies;
     private mergeCanvases;
     private ensureCompleteness;
     private buildCompletenessPrompt;
