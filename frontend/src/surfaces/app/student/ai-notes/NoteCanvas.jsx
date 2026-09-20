@@ -2053,7 +2053,8 @@ function EmbeddedTable({ table, accentColor, editable, onChange }) {
             <thead className={noteCanvasUi.thead}>
               <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
                 {headers.map((h, ci) => (
-                  <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>
+                  <th key={ci} className={noteCanvasUi.th}
+                    style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                       <EField value={h} onChange={v => updateHeader(ci, v)}
                         placeholder={`Col ${ci + 1}`} style={{ fontSize: 11, fontWeight: 800, width: '100%' }}/>
@@ -2069,9 +2070,9 @@ function EmbeddedTable({ table, accentColor, editable, onChange }) {
             </thead>
             <tbody className={noteCanvasUi.tbody}>
               {rows.map((row, ri) => (
-                <tr key={ri} className={noteCanvasUi.tr}>
+                <tr key={ri} className={noteCanvasUi.tr} style={{ borderBottomColor: accentColor + '1f' }}>
                   {headers.map((_, ci) => (
-                    <td key={ci} className={noteCanvasUi.td}>
+                    <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}>
                       <EField value={row[ci] || ''} onChange={v => updateCell(ri, ci, v)}
                         placeholder="—" style={{ width: '100%', fontSize: 13 }}/>
                     </td>
@@ -2095,15 +2096,16 @@ function EmbeddedTable({ table, accentColor, editable, onChange }) {
           <thead className={noteCanvasUi.thead}>
             <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
               {headers.map((h, ci) => (
-                <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>{h}</th>
+                <th key={ci} className={noteCanvasUi.th}
+                  style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className={noteCanvasUi.tbody}>
             {rows.map((row, ri) => (
-              <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)}>
+              <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)} style={{ borderBottomColor: accentColor + '1f' }}>
                 {headers.map((_, ci) => (
-                  <td key={ci} className={noteCanvasUi.td}><RichText text={row[ci] || ''} accentColor={accentColor}/></td>
+                  <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}><RichText text={row[ci] || ''} accentColor={accentColor}/></td>
                 ))}
               </tr>
             ))}
@@ -2387,7 +2389,8 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
               <thead className={noteCanvasUi.thead}>
                 <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
                   {headers.map((h, ci) => (
-                    <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>
+                    <th key={ci} className={noteCanvasUi.th}
+                      style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:3 }}>
                         <EField value={h} onChange={v => updateHeader(ci, v)}
                           placeholder={`Col ${ci + 1}`} style={{ fontSize:11, fontWeight:800, width:'100%' }}/>
@@ -2403,9 +2406,9 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
               </thead>
               <tbody className={noteCanvasUi.tbody}>
                 {rows.map((row, ri) => (
-                  <tr key={ri} className={noteCanvasUi.tr}>
+                  <tr key={ri} className={noteCanvasUi.tr} style={{ borderBottomColor: accentColor + '1f' }}>
                     {headers.map((_, ci) => (
-                      <td key={ci} className={noteCanvasUi.td}>
+                      <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}>
                         <EField value={row[ci] || ''} onChange={v => updateCell(ri, ci, v)}
                           placeholder="—" style={{ width:'100%', fontSize:13 }}/>
                       </td>
@@ -2428,15 +2431,16 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
             <thead className={noteCanvasUi.thead}>
               <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
                 {headers.map((h, ci) => (
-                  <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>{h}</th>
+                  <th key={ci} className={noteCanvasUi.th}
+                    style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className={noteCanvasUi.tbody}>
               {rows.map((row, ri) => (
-                <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)}>
+                <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)} style={{ borderBottomColor: accentColor + '1f' }}>
                   {headers.map((_, ci) => (
-                    <td key={ci} className={noteCanvasUi.td}><RichText text={row[ci] || ''} accentColor={accentColor} /></td>
+                    <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}><RichText text={row[ci] || ''} accentColor={accentColor} /></td>
                   ))}
                 </tr>
               ))}
