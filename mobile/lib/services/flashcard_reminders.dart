@@ -100,10 +100,10 @@ class FlashcardReminders {
 
     await Notifications.schedule(
       id: _reminderId,
-      title: 'Flashcards due',
+      title: 'Cards waiting for you',
       body: dueCount == 1
-          ? 'You have 1 card due for review.'
-          : 'You have $dueCount cards due for review.',
+          ? 'You have 1 card due — a few minutes now saves hours later.'
+          : 'You have $dueCount cards due — a few minutes now saves hours later.',
       when: at,
     );
     await sp.setBool(_idKey, true);

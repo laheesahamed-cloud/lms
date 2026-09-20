@@ -72,6 +72,17 @@ class _NotesCourseDetailPageState
           final visibleLessons =
               groups.fold<int>(0, (sum, g) => sum + g.lessons.length);
 
+          // Each row's numbered badge counts across every visible subject —
+          // not reset back to 1 at the top of each subject section — so
+          // scanning down the whole course reads as one continuous list
+          // instead of several lists that all start over at "1".
+          final sectionWidgets = <Widget>[];
+          var runningIndex = 0;
+          for (final g in groups) {
+            sectionWidgets.add(_subjectSection(c, g, startIndex: runningIndex));
+            runningIndex += g.lessons.length;
+          }
+
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
@@ -135,9 +146,7 @@ class _NotesCourseDetailPageState
                         verticalOffset: 20,
                         child: FadeInAnimation(child: w),
                       ),
-                      children: [
-                        for (final g in groups) _subjectSection(c, g),
-                      ],
+                      children: sectionWidgets,
                     ),
                   ),
                 ),
@@ -148,7 +157,8 @@ class _NotesCourseDetailPageState
     );
   }
 
-  Widget _subjectSection(AppColors c, LessonSubjectGroup g) {
+  Widget _subjectSection(AppColors c, LessonSubjectGroup g,
+      {required int startIndex}) {
     final collapsed = _collapsed.contains(g.subjectName);
 
     // Group lessons by topicName to show dividers
@@ -163,7 +173,7 @@ class _NotesCourseDetailPageState
       topicMap[key]!.add(lesson);
     }
 
-    var globalIndex = 0;
+    var globalIndex = startIndex;
     final lessonWidgets = <Widget>[];
     for (final topicKey in topicOrder) {
       final topicLessons = topicMap[topicKey]!;

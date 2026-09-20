@@ -7,7 +7,15 @@ class VideoEmbed {
   final VideoEmbedType type;
   final String src;
   final String provider; // 'youtube' | 'vimeo' | 'drive' | ''
-  const VideoEmbed({required this.type, this.src = '', this.provider = ''});
+  // True for a vertical video (e.g. a YouTube Short) — the player should use
+  // a 9:16 box instead of the default 16:9, or the picture gets stretched.
+  final bool isVertical;
+  const VideoEmbed({
+    required this.type,
+    this.src = '',
+    this.provider = '',
+    this.isVertical = false,
+  });
 }
 
 String _normalizeUrl(String raw) {
@@ -59,12 +67,13 @@ VideoEmbed getVideoEmbed(String url) {
     if (id.isNotEmpty) return _ytEmbed(id);
   }
   if (host.contains('youtube.com')) {
+    final first = segments.isNotEmpty ? segments.first : '';
     final watchId = u.queryParameters['v'];
-    final embeddedId = ['embed', 'shorts', 'live'].contains(segments.isNotEmpty ? segments.first : '')
+    final embeddedId = ['embed', 'shorts', 'live'].contains(first)
         ? (segments.length > 1 ? segments[1] : null)
         : null;
     final id = watchId ?? embeddedId ?? '';
-    if (id.isNotEmpty) return _ytEmbed(id);
+    if (id.isNotEmpty) return _ytEmbed(id, isVertical: first == 'shorts');
   }
 
   // ── Vimeo ──────────────────────────────────────────────────────────────────
@@ -83,6 +92,14 @@ VideoEmbed getVideoEmbed(String url) {
   }
 
   // ── Google Drive ───────────────────────────────────────────────────────────
+  // Back to Drive's `/preview` page (their own file viewer + player chrome).
+  // The "clean" direct-stream URL (`uc?export=download`) only works when a
+  // file is fully public and small enough to skip Google's confirmation
+  // flow — for a real private/shared file it needs cookies and an
+  // interactive confirmation that a bare <video> tag can't do, so it just
+  // fails to load. `/preview` is Google's own page handling all of that
+  // internally, so it reliably plays — the trade-off is Drive's own chrome
+  // (open/download icons) stays visible, same as Vimeo's iframe below.
   if (host == 'drive.google.com') {
     final dIdx = segments.indexOf('d');
     final id = (dIdx >= 0 && dIdx + 1 < segments.length)
@@ -105,9 +122,10 @@ VideoEmbed getVideoEmbed(String url) {
   return VideoEmbed(type: VideoEmbedType.blocked, src: raw);
 }
 
-VideoEmbed _ytEmbed(String id) => VideoEmbed(
+VideoEmbed _ytEmbed(String id, {bool isVertical = false}) => VideoEmbed(
       type: VideoEmbedType.iframe,
       src: 'https://www.youtube.com/embed/$id'
           '?rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&controls=1&fs=1',
       provider: 'youtube',
+      isVertical: isVertical,
     );

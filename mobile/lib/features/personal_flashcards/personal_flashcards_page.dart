@@ -6,6 +6,24 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'personal_flashcards_store.dart';
 
+/// Accent palette for deck tiles — hashed per deck id (same technique as My
+/// Notes' cover colours) so decks read as distinct at a glance instead of
+/// every tile sharing one generic icon/colour, which was a big part of why
+/// this screen read as a flat, interchangeable list.
+const _kDeckPalette = <Color>[
+  Color(0xFF5E7CA6), Color(0xFFB0685F), Color(0xFF5B93A5), Color(0xFFA8895A),
+  Color(0xFF8878A8), Color(0xFF7E9BC2), Color(0xFFB0728F), Color(0xFFBE7E5A),
+  Color(0xFF6C9B77), Color(0xFF9E9057),
+];
+
+Color _deckColorFor(String id) {
+  var hash = 0;
+  for (final unit in id.codeUnits) {
+    hash = (hash * 31 + unit) & 0x7fffffff;
+  }
+  return _kDeckPalette[hash % _kDeckPalette.length];
+}
+
 /// My Flashcards — list of user-created local decks.
 class PersonalFlashcardsPage extends StatefulWidget {
   const PersonalFlashcardsPage({super.key});
@@ -196,6 +214,11 @@ class _AddButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    // Same foreground-on-primary logic as AppButton's primary kind — c.primary
+    // is bright enough in dark mode to need a dark (not white) foreground for
+    // real contrast; this was hardcoding white unconditionally.
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fg = dark ? const Color(0xFF04121F) : Colors.white;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -207,13 +230,13 @@ class _AddButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add_rounded, size: 16, color: Colors.white),
+            Icon(Icons.add_rounded, size: 16, color: fg),
             const SizedBox(width: 4),
             Text('New Deck',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white)),
+                    color: fg)),
           ],
         ),
       ),
@@ -237,6 +260,7 @@ class _DeckTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.c;
     final s = entry.stats;
+    final accent = _deckColorFor(entry.deck.id);
     return GlassCard(
       onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -246,10 +270,10 @@ class _DeckTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: c.primary.withValues(alpha: 0.12),
+              color: accent.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.style_rounded, size: 20, color: c.primary),
+            child: Icon(Icons.style_rounded, size: 20, color: accent),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -307,12 +331,15 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Same tint/border alpha as the main Flashcards screen's summary pills
+    // (flashcards_page.dart's _summary) — 0.10/0.22, not the heavier 0.12/0.3
+    // this used before.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Text(label,
           style: TextStyle(

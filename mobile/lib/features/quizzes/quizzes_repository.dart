@@ -213,6 +213,8 @@ class PracticeQuestion {
   final String text;
   final String explanation;
   final String explanationImageUrl;
+  final String questionApproach;
+  final List<String> questionApproachHighlights;
   final List<QOption> options;
   final Set<int> correctOptionIds;
   final TheoryRecap? recap;
@@ -223,6 +225,8 @@ class PracticeQuestion {
     required this.text,
     required this.explanation,
     required this.explanationImageUrl,
+    required this.questionApproach,
+    required this.questionApproachHighlights,
     required this.options,
     required this.correctOptionIds,
     required this.recap,
@@ -250,6 +254,8 @@ class PracticeQuestion {
       text: _s(m['questionText'] ?? m['text']),
       explanation: _s(m['explanation']),
       explanationImageUrl: _s(m['explanationImageUrl']),
+      questionApproach: _s(m['questionApproach']),
+      questionApproachHighlights: _sl(m['questionApproachHighlights']),
       options: options,
       correctOptionIds: correct,
       recap: TheoryRecap.fromJson(m['theoryRecap']),

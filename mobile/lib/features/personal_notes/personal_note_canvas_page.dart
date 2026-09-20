@@ -78,18 +78,22 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
   /// records the page — so `_pageCount` never briefly disagrees with what has
   /// already been drawn.
   Future<void> _insertPageFlow({required int atIndex}) async {
-    final result = await showModalBottomSheet<(PaperStyle, PaperTint)>(
+    final result = await showModalBottomSheet<
+        (PaperStyle, PaperTint, PaperSize, PaperOrientation)>(
       context: context,
       showDragHandle: true,
       builder: (ctx) => _PaperSheet(
         style: _current.style,
         tint: _current.tint,
+        size: _current.size,
+        orientation: _current.orientation,
         pageNumber: atIndex + 1,
         intent: _PaperIntent.insertPage,
       ),
     );
     if (result == null || !mounted) return;
-    final paper = PagePaper(style: result.$1, tint: result.$2);
+    final paper = PagePaper(
+        style: result.$1, tint: result.$2, size: result.$3, orientation: result.$4);
     HapticFeedback.mediumImpact();
     _ops.insertPage?.call(atIndex);
     final newTotal =
@@ -226,22 +230,31 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
 
   /// Choose paper, then either add a page with it or restyle the current one.
   Future<void> _pickPaper({required bool addNew}) async {
-    final result = await showModalBottomSheet<(PaperStyle, PaperTint)>(
+    final result = await showModalBottomSheet<
+        (PaperStyle, PaperTint, PaperSize, PaperOrientation)>(
       context: context,
       showDragHandle: true,
       builder: (ctx) => _PaperSheet(
         style: _current.style,
         tint: _current.tint,
+        size: _current.size,
+        orientation: _current.orientation,
         pageNumber: _page + 1,
         intent: addNew ? _PaperIntent.appendPage : _PaperIntent.restyle,
       ),
     );
     if (result == null || !mounted) return;
-    final chosen = PagePaper(style: result.$1, tint: result.$2);
+    final chosen = PagePaper(
+        style: result.$1, tint: result.$2, size: result.$3, orientation: result.$4);
     if (addNew) {
       await _addPage(paper: chosen);
       return;
     }
+    // Ink surgery before the paper-list update — same ordering insert/delete
+    // use — so the canvas can still read _page's *old* paper to size the
+    // shift, and everything below it stays lined up with its own page
+    // instead of jumping when this page's height changes.
+    _ops.resizePage?.call(_page, chosen);
     // Only the page being looked at changes; the rest keep their own paper.
     final next = [
       for (var i = 0; i < _pageCount; i++)
@@ -251,7 +264,7 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
     ];
     setState(() => _paper = next);
     await PersonalNotesStore.setPagePaper(
-        widget.noteId, _page, result.$1, result.$2);
+        widget.noteId, _page, result.$1, result.$2, result.$3, result.$4);
   }
 
   // All pages share a single canvas ink key (no per-page suffix).
@@ -441,11 +454,15 @@ enum _PaperIntent { restyle, appendPage, insertPage }
 class _PaperSheet extends StatefulWidget {
   final PaperStyle style;
   final PaperTint tint;
+  final PaperSize size;
+  final PaperOrientation orientation;
   final int pageNumber;
   final _PaperIntent intent;
   const _PaperSheet(
       {required this.style,
       required this.tint,
+      required this.size,
+      required this.orientation,
       required this.pageNumber,
       required this.intent});
 
@@ -456,6 +473,8 @@ class _PaperSheet extends StatefulWidget {
 class _PaperSheetState extends State<_PaperSheet> {
   late PaperStyle _style = widget.style;
   late PaperTint _tint = widget.tint;
+  late PaperSize _size = widget.size;
+  late PaperOrientation _orientation = widget.orientation;
 
   static const _styleLabels = {
     PaperStyle.plain: 'Plain',
@@ -469,9 +488,20 @@ class _PaperSheetState extends State<_PaperSheet> {
     PaperTint.dark: 'Dark',
   };
   static const _tintSwatch = {
-    PaperTint.white: Colors.white,
+    // Matches _PersonalPaperPainter.paperColor in lesson_canvas_page.dart —
+    // softened off-white instead of literal Colors.white, and a lightened
+    // charcoal instead of near-black for Dark (see there for why).
+    PaperTint.white: Color(0xFFFAFAFA),
     PaperTint.cream: Color(0xFFFAF4E6),
-    PaperTint.dark: Color(0xFF1C1C20),
+    PaperTint.dark: Color(0xFF26262B),
+  };
+  static const _sizeLabels = {
+    PaperSize.a4: 'A4',
+    PaperSize.letter: 'US Letter',
+  };
+  static const _orientationLabels = {
+    PaperOrientation.portrait: 'Portrait',
+    PaperOrientation.landscape: 'Landscape',
   };
 
   @override
@@ -540,11 +570,42 @@ class _PaperSheetState extends State<_PaperSheet> {
                   ),
               ],
             ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final s in PaperSize.values)
+                  ChoiceChip(
+                    label: Text(_sizeLabels[s]!),
+                    selected: _size == s,
+                    onSelected: (_) => setState(() => _size = s),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final o in PaperOrientation.values)
+                  ChoiceChip(
+                    avatar: Icon(
+                      o == PaperOrientation.landscape
+                          ? Icons.crop_landscape
+                          : Icons.crop_portrait,
+                      size: 16,
+                    ),
+                    label: Text(_orientationLabels[o]!),
+                    selected: _orientation == o,
+                    onSelected: (_) => setState(() => _orientation = o),
+                  ),
+              ],
+            ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => Navigator.pop(context, (_style, _tint)),
+                onPressed: () =>
+                    Navigator.pop(context, (_style, _tint, _size, _orientation)),
                 child: Text(switch (widget.intent) {
                   _PaperIntent.appendPage => 'Add page',
                   _PaperIntent.insertPage => 'Insert page',

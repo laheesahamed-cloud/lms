@@ -218,6 +218,14 @@ Future<(String, String)?> _showCardEditor(
                     fontWeight: FontWeight.w800,
                     color: ctx.c.inkStrong)),
             const SizedBox(height: 16),
+            // No explicit `border:` here — the app's global
+            // InputDecorationTheme (app_theme.dart) already gives every text
+            // field a filled, borderless, radius-12 look with a primary-
+            // coloured focus ring; overriding it with a plain
+            // OutlineInputBorder() (the old behaviour) was what made this
+            // sheet's fields look like a generic/unstyled form instead of
+            // matching every other input in the app (e.g. My Notes' rename
+            // dialogs).
             TextField(
               controller: frontCtrl,
               autofocus: true,
@@ -227,10 +235,7 @@ Future<(String, String)?> _showCardEditor(
               onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Front (question)',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Front (question)'),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -241,10 +246,7 @@ Future<(String, String)?> _showCardEditor(
               onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Back (answer)',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Back (answer)'),
             ),
             const SizedBox(height: 16),
             Row(

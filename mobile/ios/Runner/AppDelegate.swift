@@ -12,6 +12,7 @@ import UserNotifications
   private var pencilInteraction: UIPencilInteraction?
   private var storeKitBridge: AnyObject?
   private var screenProtection: ScreenProtection?
+  private var ttsBridge: TtsBridge?
 
   override func application(
     _ application: UIApplication,
@@ -121,6 +122,16 @@ import UserNotifications
       screenProtection = protection
       protectionChannel.setMethodCallHandler { call, result in
         protection.handle(call, result: result)
+      }
+    }
+
+    // Read-aloud for the question approach text, via native AVSpeechSynthesizer.
+    if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromeTts")?.messenger() {
+      let ttsChannel = FlutterMethodChannel(name: "app.xyndrome.lk/tts", binaryMessenger: messenger)
+      let bridge = TtsBridge()
+      ttsBridge = bridge
+      ttsChannel.setMethodCallHandler { call, result in
+        bridge.handle(call, result: result)
       }
     }
   }

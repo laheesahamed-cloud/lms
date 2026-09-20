@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show compute, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/api_client.dart';
@@ -22,6 +25,28 @@ import 'lessons_repository.dart';
 import 'pdf_lesson_page.dart';
 import 'watch_video_modal.dart';
 import '../personal_notes/personal_notes_store.dart';
+
+// TEMPORARY: file-based tracing for diagnosing a writing-time jump/flicker
+// that's specific to My Notes. Live device logging (both `flutter run
+// --debug`'s VM-service connection and `devicectl --console`) failed
+// repeatedly against this device, so this writes plain timestamped lines to
+// a file in the app's documents directory instead — pulled off afterward
+// with a one-shot file copy rather than a live stream. Fire-and-forget by
+// design: never awaited from a hot path, and failures are swallowed so a
+// full disk or a race never affects the app itself.
+File? _traceFile;
+void _trace(String msg) {
+  () async {
+    try {
+      _traceFile ??= File('${(await getApplicationDocumentsDirectory()).path}/write_trace.log');
+      await _traceFile!.writeAsString(
+        '${DateTime.now().toIso8601String()} $msg\n',
+        mode: FileMode.append,
+        flush: false,
+      );
+    } catch (_) {}
+  }();
+}
 
 /// Full AI-notes screen (100% Flutter).
 /// Fixed chrome (header + tool strip) sits OUTSIDE the canvas; the warm "canvas"
@@ -82,6 +107,14 @@ class PersonalPageOps {
   /// (`viewport.width / pdfAspectRatio`); the wrapper that owns this callback
   /// has no viewport of its own to compute that with.
   void Function(int pageIndex, List<PagePaper> newPages)? insertPages;
+
+  /// Page [pageIndex] is about to get [newPaper] (a size/orientation change,
+  /// most likely) — shift every stroke from the *next* page onward by the
+  /// resulting height delta, the same way [insertPage]/[deletePage] do for a
+  /// page appearing/disappearing. Call *before* the store/paper-list update,
+  /// same ordering as those two, so `_personalPageHeight(pageIndex)` here
+  /// still reads the page's old paper.
+  void Function(int pageIndex, PagePaper newPaper)? resizePage;
 }
 
 enum _Tool { pen, highlighter, eraser }
@@ -245,7 +278,12 @@ class _OneEuro {
 }
 
 class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
+  // "Reels" review mode — swaps the scrollable canvas for a full-screen,
+  // swipe-up-through-cards view of the same sections (Ink tools make no
+  // sense there, so the tool strip is hidden while this is on).
+  bool _reelsMode = false;
+
   final List<_Stroke> _strokes = [];
   _Stroke? _active;
   _OneEuro? _euro; // per-stroke input filter (recreated on each pen-down)
@@ -261,6 +299,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // pen-lift — a burst of strokes is coalesced into one save after writing stops.
   Timer? _saveTimer;
   bool _inkDirty = false;
+  // Debounces didChangeMetrics — see its own doc comment for why.
+  Timer? _metricsDebounce;
   // Bumped whenever the COMMITTED ink changes (commit/undo/clear/load). The
   // committed painters repaint via this listenable — no setState, so the note
   // tree is never rebuilt mid-stroke. `_strokes` is mutated in place, so its
@@ -280,6 +320,12 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // always see "unchanged" even right after a new image lands — this is what
   // actually changes value each time, so the painter can tell.
   int _pdfImageGen = 0;
+  // Repaints ONLY the personal-notes paper layer when a PDF page image
+  // finishes loading, instead of setState()-ing the whole page. A PDF image
+  // can land at any time, including mid-stroke if you started writing before
+  // it rendered — setState() there forced a full widget-tree rebuild right
+  // then, which is exactly the kind of surprise mid-write hitch this avoids.
+  final ValueNotifier<int> _paperTick = ValueNotifier(0);
 
   // ── Zoom / pan (manual transform — replaces InteractiveViewer) ──────────────
   // One top-level Listener routes pointers: Apple Pencil draws, fingers pan/zoom.
@@ -292,11 +338,53 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // note tree are passed as a const `child` and are not rebuilt).
   final ValueNotifier<int> _xform = ValueNotifier<int>(0);
   Size _viewport = Size.zero; // from LayoutBuilder
+  // The page/canvas's own content width — 85% of the device's PORTRAIT
+  // width (min(viewport.width, viewport.height), so it's the same number
+  // whichever way the device is currently held) rather than the live
+  // viewport. Ink and page size are only ever supposed to change via the
+  // user's own pinch-zoom; before this, _viewport.width was used directly
+  // as content width, so rotating the device resized/re-baked the whole
+  // canvas out from under existing ink. `_viewport` itself keeps tracking
+  // the live screen size — chrome (toolbar/header) and pan-clamp bounds
+  // legitimately do respond to rotation, only the page's own width doesn't.
+  double _pageRefWidth = 0;
+  // Falls back to the live viewport only in the sliver of time before the
+  // very first LayoutBuilder pass has run and set _pageRefWidth.
+  double get _pageWidth => _pageRefWidth > 0 ? _pageRefWidth : _viewport.width;
+  // A flat 85% of the short edge reads as deliberate page margins on a big
+  // iPad screen, but on a phone (~360-430pt short edge) that same 7.5%
+  // gutter on each side just looks like wasted space in an already-narrow
+  // column. Scale the fraction up as the short edge shrinks: ~96% on a
+  // typical phone, easing down to 85% by the time we're at tablet width.
+  static double _pageWidthFraction(double shortEdge) {
+    const phoneEdge = 430.0;
+    const tabletEdge = 700.0;
+    const phoneFraction = 0.96;
+    const tabletFraction = 0.85;
+    if (shortEdge <= phoneEdge) return phoneFraction;
+    if (shortEdge >= tabletEdge) return tabletFraction;
+    final t = (shortEdge - phoneEdge) / (tabletEdge - phoneEdge);
+    return phoneFraction + (tabletFraction - phoneFraction) * t;
+  }
   double _contentH = 0; // measured paper height (document space)
   Size _measuredAt = Size.zero; // viewport size at last measure (re-measure on rotate)
   final GlobalKey _paperKey = GlobalKey();
   // Active finger contacts (global/viewport coords). Stylus never appears here.
   final Map<int, Offset> _touches = {};
+  // Palm rejection. `_active != null` (a stylus stroke literally in progress)
+  // already keeps a finger from panning, but that only covers the instant a
+  // stroke is being drawn — not the gaps between strokes, which is when a
+  // resting palm/wrist most often sneaks a touch-down or nudge in and pans
+  // or pinch-zooms the canvas out from under the person still writing. A
+  // real two-finger pinch happening in the same breath as pencil contact is
+  // effectively never intentional, so any finger activity within this grace
+  // window of the last stylus contact is treated as palm, not gesture.
+  DateTime? _lastStylusActivity;
+  static const Duration _palmRejectionWindow = Duration(milliseconds: 800);
+  bool get _palmRejectionActive =>
+      _active != null ||
+      (_lastStylusActivity != null &&
+          DateTime.now().difference(_lastStylusActivity!) < _palmRejectionWindow);
   Matrix4 _startMatrix = Matrix4.identity();
   Offset _startFocal = Offset.zero;
   double _startDist = 1.0;
@@ -486,7 +574,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       // so this runs on every rebuild without re-fetching anything.
       for (var i = 0; i < widget.personalPageCount && i < widget.paper.length; i++) {
         final p = widget.paper[i];
-        if (p.isPdfBacked) _ensurePdfImage(p.pdfPath!, p.pdfPageIndex!, _viewport.width);
+        if (p.isPdfBacked) _ensurePdfImage(p.pdfPath!, p.pdfPageIndex!, _pageWidth);
       }
       return SizedBox(
         height: _personalContentHeight(widget.personalPageCount),
@@ -498,6 +586,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
             pdfImageGen: _pdfImageGen,
             // The break between pages reads as the desk showing through.
             gapColor: dark ? const Color(0xFF2B2B2F) : const Color(0xFFE8E8EC),
+            repaint: _paperTick,
           ),
           // The painter fills every page band with that page's own colour, so
           // this is only what shows through before it paints.
@@ -543,15 +632,92 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _uid = ref.read(authControllerProvider).user?.id ?? 'anon';
     _loadInk();
     widget.pageOps
       ?..clearPage = _clearPage
       ..deletePage = _deletePage
       ..insertPage = _insertPage
-      ..insertPages = _insertPages;
+      ..insertPages = _insertPages
+      ..resizePage = _resizePage;
     _loadTools();
     _pencilChannel.setMethodCallHandler(_onPencilEvent);
+  }
+
+  // TEMPORARY: catches EVERY setState call (from any of the ~25 call sites
+  // in this file) that happens to land while a stroke is in flight, without
+  // having to instrument each site individually. A full rebuild mid-stroke
+  // recreates the whole widget subtree; whether that's visible as a jump/
+  // flicker depends on what actually changed, but this tells us definitively
+  // whether it's happening at all, and from where (via the stack trace).
+  @override
+  void setState(VoidCallback fn) {
+    if (_active != null) {
+      _trace('[MidStrokeTransform] setState() called isPersonal=${widget.isPersonal} tool=$_tool\n${StackTrace.current}');
+    }
+    super.setState(fn);
+  }
+
+  // The authoritative "the window's actual size/orientation changed" signal
+  // — unlike inferring it from this LayoutBuilder's own constraints, which
+  // can still be mid-transition (an intermediate width/height, not yet the
+  // final rotated one) when its builder re-runs. Framework calls this only
+  // once metrics genuinely changed, so re-centring here — via a real
+  // setState, not a same-build field mutation something might not repaint
+  // for — is what makes a rotation always land correctly, no dependence
+  // on exactly which frame the LayoutBuilder's own rebuild happens to fire.
+  //
+  // Applies to BOTH personal notes and lesson/AI notes: `_contentH > 0` is
+  // the "the page has been measured at least once" gate for either mode
+  // (personal sets it synchronously in build; lesson sets it once
+  // `_maybeMeasure`'s first post-frame callback runs) — this used to be
+  // gated on `widget.isPersonal`, which left lesson notes recentring on
+  // nothing after a rotation: their old translation, clamped against the
+  // pre-rotation viewport, was never revisited.
+  //
+  // Debounced, and recomputes `_pageRefWidth`/`_contentH` itself rather than
+  // trusting a single post-frame callback to land after the LayoutBuilder's
+  // own rebuild has already refreshed them. A physical rotation can fire
+  // this callback more than once (once per intermediate frame as the OS
+  // animates the size change) before the layout truly settles; reacting to
+  // each one individually risked clamping against a transient, not-yet-final
+  // size. That was hard to notice on a single-page lesson card, but a
+  // personal note's content height is the sum of every one of its pages —
+  // the same small timing slip there produces a proportionally much bigger,
+  // visible jump. Collapsing to the LAST metrics-changed event in a short
+  // window, then recomputing fresh from MediaQuery right before clamping,
+  // removes the "relayout already landed" assumption entirely.
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (!mounted || _contentH <= 0) return;
+    // TEMPORARY: same diagnostic as _setMatrix — did a metrics event
+    // (window resize, e.g. Stage Manager on iPad, not necessarily a
+    // physical rotation) fire while a stroke was in flight?
+    if (_active != null) {
+      _trace('[MidStrokeTransform] didChangeMetrics fired isPersonal=${widget.isPersonal} tool=$_tool');
+    }
+    _metricsDebounce?.cancel();
+    _metricsDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      if (_active != null) {
+        _trace('[MidStrokeTransform] didChangeMetrics debounce fired isPersonal=${widget.isPersonal} tool=$_tool');
+      }
+      final win = MediaQuery.sizeOf(context);
+      if (win.width > 0 && win.height > 0) {
+        final shortEdge = math.min(win.width, win.height);
+        _pageRefWidth = shortEdge * _pageWidthFraction(shortEdge);
+      }
+      if (widget.isPersonal) {
+        _contentH = _personalContentHeight(widget.personalPageCount);
+      }
+      setState(() {
+        _matrix = _clamp(_matrix);
+        _reportVisiblePage();
+        _invMatrix = Matrix4.inverted(_matrix);
+      });
+    });
   }
 
   @override
@@ -581,12 +747,15 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pencilChannel.setMethodCallHandler(null);
     _saveTimer?.cancel();
+    _metricsDebounce?.cancel();
     if (_inkDirty) _saveInk(); // flush any pending ink before leaving
     _tick.dispose();
     _inkGen.dispose();
     _xform.dispose();
+    _paperTick.dispose();
     _stopFling();
     _fling?.dispose();
     _penPic?.dispose();
@@ -607,7 +776,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final pen = ui.PictureRecorder();
     _paintPenLayer(Canvas(pen), size, _strokes, null, dark);
     final hl = ui.PictureRecorder();
-    _paintHighlighterLayer(Canvas(hl), size, _strokes, null, dark);
+    final (pageHeights, pageDark) = _highlighterSpans(dark, size.height);
+    _paintHighlighterLayer(Canvas(hl), size, _strokes, null, pageHeights, pageDark);
     _penPic?.dispose();
     _hlPic?.dispose();
     _penPic = pen.endRecording();
@@ -719,8 +889,16 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Future<void> _saveInk() async {
     _inkDirty = false;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _inkKey, jsonEncode([for (final s in _strokes) s.toJson()]));
+    final data = [for (final s in _strokes) s.toJson()];
+    // jsonEncode of the whole stroke list is synchronous CPU work; on the
+    // main isolate it stalls a frame right when the 1.2s debounce fires. A
+    // My Notes page can carry far more cumulative ink than a single lesson's
+    // annotations (it's one save per NOTE, but a note can span many
+    // handwritten pages), so that stall scales with how much you've
+    // written — off to a background isolate so it never blocks a frame
+    // regardless of size.
+    final json = await compute(jsonEncode, data);
+    await prefs.setString(_inkKey, json);
   }
 
   // Normalise raw stylus pressure into 0..1 across the device's own range. Pens
@@ -740,10 +918,12 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   /// Height of page [i] in document space.
   ///
-  /// A4 by default. A PDF-imported page keeps its own aspect ratio instead —
-  /// captured once at import time onto that page's [PagePaper] (see
-  /// PdfImportService), so this stays synchronous: it never needs to open the
-  /// PDF file just to ask how tall page i is.
+  /// A4 portrait by default. A page with its own [PagePaper.size] /
+  /// [PagePaper.orientation] (or a PDF-imported page, which keeps its own
+  /// scanned aspect ratio — captured once at import time, see
+  /// PdfImportService) uses [PagePaper.aspectRatio] instead, so this stays
+  /// synchronous either way: it never needs to open a file just to ask how
+  /// tall page i is.
   double _personalPageHeight(int i) {
     final p = i >= 0 && i < widget.paper.length ? widget.paper[i] : null;
     return _heightForPaper(p);
@@ -753,9 +933,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   /// [_personalPageHeight] (an existing page, looked up by index) and
   /// [_insertPages] (a page about to exist, which has no index yet).
   double _heightForPaper(PagePaper? p) {
-    final ratio = p?.pdfAspectRatio;
-    if (ratio != null && ratio > 0) return _viewport.width / ratio;
-    return _viewport.width * 1.41;
+    final ratio = p?.aspectRatio ?? (210 / 297); // A4 portrait fallback
+    return _pageWidth / ratio;
   }
 
   /// Y where page [i] begins, in document space. Sums every page above it —
@@ -777,6 +956,50 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     return _personalPageTop(pageCount - 1) + _personalPageHeight(pageCount - 1);
   }
 
+  /// The (heights, isDark) pair [_paintHighlighterLayer] blends against.
+  ///
+  /// A lesson note is one span covering the whole canvas, coloured by the
+  /// device's theme — unchanged from before. A My Notes page picks its own
+  /// paper tint independently of the device theme (see [PaperTint]), so a
+  /// single canvas-wide blend-mode choice can land on the WRONG side of a
+  /// page's actual background — e.g. system Dark Mode + the default White
+  /// paper meant `BlendMode.screen` against white, which saturates straight
+  /// to white and made every highlighter stroke invisible the instant it
+  /// committed. Splitting the blend by page, keyed to that page's own tint,
+  /// fixes it regardless of the device theme.
+  (List<double>, List<bool>) _highlighterSpans(bool themeDark, double totalHeight) {
+    if (!widget.isPersonal) return ([totalHeight], [themeDark]);
+    final heights = <double>[];
+    final darks = <bool>[];
+    for (var i = 0; i < widget.personalPageCount; i++) {
+      heights.add(_personalPageHeight(i));
+      final tint = i < widget.paper.length ? widget.paper[i].tint : PaperTint.white;
+      darks.add(tint == PaperTint.dark);
+    }
+    return (heights, darks);
+  }
+
+  /// Whether the paper actually under document-space y-coordinate [y] is
+  /// dark — the SAME per-page-tint-over-device-theme fix as
+  /// [_highlighterSpans], applied to the eraser cursor ring. It picked its
+  /// black/white tint from the device's theme, so a My Notes page whose own
+  /// paper tint disagreed with the system theme (dark mode + the default
+  /// White paper, say) got a white ring on white paper — invisible at any
+  /// opacity, which is what looked like "no border at all".
+  bool _isPaperDarkAt(double y, bool themeDark) {
+    if (!widget.isPersonal) return themeDark;
+    var top = 0.0;
+    for (var i = 0; i < widget.personalPageCount; i++) {
+      final h = _personalPageHeight(i);
+      if (y < top + h) {
+        final tint = i < widget.paper.length ? widget.paper[i].tint : PaperTint.white;
+        return tint == PaperTint.dark;
+      }
+      top += h + _kPageGap;
+    }
+    return themeDark;
+  }
+
   static String _pdfImageKey(String path, int pageIndex) => '$path#$pageIndex';
 
   /// Render page [pageIndex] of the PDF at [path] to a cached bitmap, if it
@@ -795,7 +1018,13 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     () async {
       PdfDocument? doc;
       try {
-        doc = await PdfDocument.openFile(path);
+        // `path` is what PagePaper.pdfPath stores, which — for anything
+        // imported since the container-UUID fix — is relative to the app's
+        // documents directory, not directly openable. Always resolve before
+        // touching the filesystem; resolvePdfPath is a no-op passthrough for
+        // legacy absolute paths from before that fix.
+        final resolvedPath = await PersonalNotesStore.resolvePdfPath(path);
+        doc = await PdfDocument.openFile(resolvedPath);
         if (pageIndex < 0 || pageIndex >= doc.pages.length) return;
         final page = doc.pages[pageIndex];
         // targetWidth is in LOGICAL pixels — the old flat *1.5 rendered at
@@ -819,7 +1048,11 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         }
         _pdfImageCache[key] = image;
         _pdfImageGen++;
-        setState(() {}); // now that it's ready, let the painter pick it up
+        // Repaint ONLY the paper layer (Listenable-driven, like the ink
+        // painters) instead of setState()-ing the whole page — this can
+        // land at any time, including mid-stroke, and a full rebuild right
+        // then was a real source of an unpredictable write-time hitch.
+        _paperTick.value++;
       } catch (_) {
         // Leave uncached — the page keeps its plain background.
       } finally {
@@ -829,32 +1062,82 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     }();
   }
 
-  // Returns true if the pointer is inside a personal-note page-break gap.
-  bool _inPersonalGap(Offset localPos) {
-    if (!widget.isPersonal || _viewport.width <= 0) return false;
-    final docY = _toDoc(localPos).dy;
-    if (docY < 0) return false;
+  // Returns true if the pointer is outside the page's own writable area.
+  //
+  // Personal notes: past a page's left/right edge (drawn edge-to-edge, no
+  // card inset — `_PersonalPaperPainter` fills the full width), a page-break
+  // gap, above the first page, or below the last one.
+  //
+  // Lesson/AI notes: the visible "paper" is NOT the full outer content box —
+  // it's the rounded card `_NoteContent` draws inset by `_kNoteCardMargin`
+  // (see its Container), so the writable area has to be that same inset,
+  // rounded rect, or a stroke can land in the margin gutter or a corner the
+  // card's own rounding clips, which then renders past the card's border —
+  // ink "slightly outside the canvas".
+  bool _outsidePage(Offset localPos) {
+    if (_pageWidth <= 0) return false;
+    final doc = _toDoc(localPos);
+    if (!widget.isPersonal) {
+      if (_contentH <= 0) return false; // not yet measured — fail open
+      final card = RRect.fromRectAndRadius(
+        Rect.fromLTRB(_kNoteCardMargin, _kNoteCardMargin,
+            _pageWidth - _kNoteCardMargin, _contentH - _kNoteCardMargin),
+        const Radius.circular(_kNoteCardRadius),
+      );
+      return !card.contains(doc);
+    }
+    if (doc.dx < 0 || doc.dx > _pageWidth) return true;
+    final docY = doc.dy;
+    if (docY < 0) return true; // above the first page
     // Walk pages until docY falls at or before this page's bottom: either
     // inside it, or in the gap immediately below it.
+    //
+    // Tracks `top` as a running sum instead of calling _personalPageTop(i)
+    // (itself an O(i) sum from page 0) on every iteration — that combination
+    // made this whole function O(n²) in page count, and since this runs on
+    // EVERY pointer-move sample while writing with a stylus, a note with many
+    // pages made writing measurably laggier the deeper into the document you
+    // wrote — with no equivalent in Lesson notes, which check a single fixed
+    // rect regardless of length. This was very plausibly the real cause of
+    // "writing feels different in My Notes vs Lessons".
+    var top = 0.0;
     for (var i = 0; i < widget.personalPageCount; i++) {
-      final top = _personalPageTop(i);
       final bottom = top + _personalPageHeight(i);
       if (docY < bottom) return false; // inside page i
       if (docY < bottom + _kPageGap) return true; // in the gap after page i
+      top = bottom + _kPageGap;
     }
-    return false; // past the last page — treated as gap-free open space
+    return true; // below the last page
   }
 
   // ── Pointer routing — ONE listener, pencil vs finger by kind ────────────────
   void _onPointerDown(PointerDownEvent e) {
     _stopFling(); // any new contact (or the pen) cancels an in-flight glide
     if (e.kind == PointerDeviceKind.stylus) {
-      // Stylus: reject if in a page-break gap — finger pan must still work freely.
-      if (_inPersonalGap(e.localPosition)) return;
+      _lastStylusActivity = DateTime.now();
+      // Stylus: reject outside the page's own area — finger pan must still work freely.
+      if (_outsidePage(e.localPosition)) return;
+      // Any finger already down when a stroke starts is, in practice, never
+      // an intentional pinch/pan happening in the exact same instant as pen
+      // contact — it's a palm/wrist that was already resting on the glass.
+      // Drop it rather than let it keep panning once the stroke ends.
+      if (_touches.isNotEmpty) {
+        _touches.clear();
+        _vt = null;
+      }
+      // A settle/spring-back/zoom animation left running past this point would
+      // keep nudging `_matrix` for its remaining frames while the stroke below
+      // is recording points against it — the pen tip doesn't move but the
+      // screen-to-document mapping does, which reads as the ink jumping. My
+      // Notes hits this far more than Lessons: it's the only mode with
+      // rubber-band pinch-zoom and a canvas tall enough to need flinging
+      // around, both of which leave this animation running. Snap straight to
+      // wherever it was headed before the stroke starts.
+      _finishTransformAnim();
       _startStroke(e);
       return;
     }
-    if (_active != null) return; // fingers are inert while the pen is down
+    if (_palmRejectionActive) return; // pen down, or was down within the grace window
     // Local (Listener-space) coords: the Transform's matrix lives in this space,
     // so scale-about-focal pins the real finger centroid (global would be offset
     // by the header/toolbar height above the canvas).
@@ -871,10 +1154,11 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _onPointerMove(PointerMoveEvent e) {
     if (e.kind == PointerDeviceKind.stylus) {
+      _lastStylusActivity = DateTime.now();
       _extendStroke(e);
       return;
     }
-    if (_active != null || !_touches.containsKey(e.pointer)) return;
+    if (_palmRejectionActive || !_touches.containsKey(e.pointer)) return;
     _touches[e.pointer] = e.localPosition;
     if (_touches.length == 1) _vt?.addPosition(e.timeStamp, e.localPosition);
     _applyTransform();
@@ -882,6 +1166,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _onPointerUp(PointerEvent e) {
     if (e.kind == PointerDeviceKind.stylus) {
+      _lastStylusActivity = DateTime.now();
       _endStroke(commit: true);
       return;
     }
@@ -900,6 +1185,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _onPointerCancel(PointerEvent e) {
     if (e.kind == PointerDeviceKind.stylus) {
+      _lastStylusActivity = DateTime.now();
       _endStroke(commit: false); // system stole the gesture → discard partial mark
       return;
     }
@@ -998,6 +1284,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   // ── Stroke handlers (document space) ────────────────────────────────────────
   void _startStroke(PointerDownEvent e) {
+    _trace('[MidStrokeTransform] === STROKE START === isPersonal=${widget.isPersonal} tool=$_tool');
     // Lighter filter (less lag), faster speed response → tighter fast-stroke
     // tracking (the part that reads worst at high zoom).
     _euro = _OneEuro(minCutoff: 3.0, beta: 1.4, dCutoff: 1.2);
@@ -1023,8 +1310,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _extendStroke(PointerMoveEvent e) {
     final s = _active;
     if (s == null) return;
-    // Commit and stop the stroke if the pointer crosses into a gap.
-    if (_inPersonalGap(e.localPosition)) {
+    // Commit and stop the stroke if the pointer crosses outside the page.
+    if (_outsidePage(e.localPosition)) {
       _endStroke(commit: true);
       return;
     }
@@ -1042,6 +1329,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _endStroke({required bool commit}) {
     final s = _active;
     if (s == null) return;
+    _trace('[MidStrokeTransform] === STROKE END === commit=$commit points=${s.points.length}');
     final wasEraser = s.tool == _Tool.eraser;
     _active = null;
     if (commit) {
@@ -1071,14 +1359,19 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     if (s <= 0) return;
     final docY = (_viewport.height / 2 - _matrix.getTranslation().y) / s;
     // Walk pages until docY is above the bottom of one — matches how
-    // _inPersonalGap and _pageBand read the same offsets, so all three agree
-    // on where one page ends and the next begins.
+    // _outsidePage and _pageBand read the same offsets, so all three agree
+    // on where one page ends and the next begins. Running sum, not
+    // _personalPageTop(i) per iteration — see _outsidePage for why that
+    // combination is O(n²) in page count.
     var page = widget.personalPageCount - 1;
+    var top = 0.0;
     for (var i = 0; i < widget.personalPageCount; i++) {
-      if (docY < _personalPageTop(i) + _personalPageHeight(i) + _kPageGap) {
+      final bottom = top + _personalPageHeight(i);
+      if (docY < bottom + _kPageGap) {
         page = i;
         break;
       }
+      top = bottom + _kPageGap;
     }
     page = page.clamp(0, widget.personalPageCount - 1);
     if (page == _lastReportedPage) return;
@@ -1087,6 +1380,13 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   }
 
   void _setMatrix(Matrix4 m, {bool showIndicator = false, bool rubber = false}) {
+    // TEMPORARY: catching whether the transform moves WHILE a stroke is in
+    // flight — that would shift the already-drawn part of the stroke on
+    // screen out from under a physical pen tip that hasn't moved, which is
+    // exactly what "ink jumps / doesn't stick" looks like.
+    if (_active != null) {
+      _trace('[MidStrokeTransform] _setMatrix isPersonal=${widget.isPersonal} tool=$_tool rubber=$rubber');
+    }
     _matrix = _clamp(m, rubber: rubber);
     _reportVisiblePage();
     _invMatrix = Matrix4.inverted(_matrix);
@@ -1195,7 +1495,13 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final s = m.storage[0];
     final t = m.getTranslation();
     final viewW = _viewport.width, viewH = _viewport.height;
-    final contentW = viewW * s; // content width == viewport width, scaled
+    // Content's own (frozen, rotation-proof) width, scaled — NOT the live
+    // viewport width. They coincide until you rotate, at which point viewW
+    // legitimately tracks the new screen size (it's what pan bounds/centring
+    // below are computed against) while contentW must keep reflecting the
+    // page's actual, unchanged rendered width, or the page would silently
+    // resize to fill the new orientation instead of just recentring in it.
+    final contentW = _pageWidth * s;
     final contentH = _contentH * s;
     const vMargin = 0.0;
 
@@ -1331,6 +1637,33 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _scheduleSaveInk();
   }
 
+  /// A page's own paper (size/orientation) changed, so its height did too —
+  /// shift every page after it to match, the same as inserting/deleting a
+  /// page. Ink already on page [i] itself is left where it is: a page made
+  /// shorter can leave ink sitting past its new bottom edge (into the gap or
+  /// the next page's band) rather than being cropped or lost — same
+  /// trade-off GoodNotes-style apps make.
+  void _resizePage(int i, PagePaper newPaper) {
+    final oldHeight = _personalPageHeight(i);
+    final newHeight = _heightForPaper(newPaper);
+    final delta = newHeight - oldHeight;
+    if (delta == 0) return;
+    final cut = _personalPageTop(i + 1);
+    var changed = false;
+    for (var k = 0; k < _strokes.length; k++) {
+      final st = _strokes[k];
+      if (st.points.isEmpty || st.points.first.dy < cut) continue;
+      changed = true;
+      for (var j = 0; j < st.points.length; j++) {
+        st.points[j] = st.points[j].translate(0, delta);
+      }
+    }
+    if (!changed) return;
+    _inkGen.value++;
+    setState(() {});
+    _scheduleSaveInk();
+  }
+
   /// Same as [_insertPage], but for several pages inserted together —
   /// importing every page of a PDF at once. Takes [newPages] rather than
   /// reading `widget.paper[i]`, deliberately: this runs *before* the caller
@@ -1400,6 +1733,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final settled = _clamp(_matrix);
     final a = _matrix.getTranslation(), b = settled.getTranslation();
     if ((a.x - b.x).abs() < 0.5 && (a.y - b.y).abs() < 0.5) return;
+    // TEMPORARY: same diagnostic as _setMatrix/didChangeMetrics.
+    if (_active != null) {
+      _trace('[MidStrokeTransform] _settleOverscroll animating isPersonal=${widget.isPersonal} tool=$_tool');
+    }
     _settling = true;
     _zoomFrom = _matrix.clone();
     _zoomTo = settled;
@@ -1409,21 +1746,53 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _zoomAnim!.start();
   }
 
-  // Spring back to 90% if the user rubber-banded below the minimum.
+  // Spring all the way back to 100% if the user rubber-banded below the
+  // minimum. Resting anywhere below 100% (it used to settle at 90%) meant
+  // every subsequent stroke on that page got rasterized at a non-integer
+  // zoom scale — nominal width is compensated correctly, but anti-aliasing
+  // a stroke at a fractional scale reads subtly softer than at Lessons'
+  // pinned 100% floor, which was the actual cause of ink "feeling
+  // different" between My Notes and Lessons. The live rubber-band
+  // resistance on the way down (in _applyTransform, still allowed to 85%)
+  // is untouched — that's just pinch feel, and nobody is writing ink with
+  // two fingers actively pinching — only the rest state changes here, so
+  // writing is always at the same 100%-or-above floor Lessons has.
   void _springBackIfNeeded() {
     _settleOverscroll();
     if (!widget.isPersonal) return;
-    if (_matrix.storage[0] >= 0.9) return;
+    if (_matrix.storage[0] >= 1.0) return;
+    // TEMPORARY: same diagnostic as _setMatrix/didChangeMetrics.
+    if (_active != null) {
+      _trace('[MidStrokeTransform] _springBackIfNeeded animating tool=$_tool');
+    }
     _settling = false;
     _zoomFrom = _matrix.clone();
-    _zoomTo   = _clamp(_scaleAboutCentre(0.9));
+    _zoomTo   = _clamp(_scaleAboutCentre(1.0));
     _zoomStart = null;
     _zoomAnim ??= createTicker(_onZoomTick);
     if (_zoomAnim!.isActive) _zoomAnim!.stop();
     _zoomAnim!.start();
   }
 
+  // Stop an in-flight settle/spring-back/zoom-fit animation and jump straight
+  // to wherever it was headed, instead of letting it keep animating. Called
+  // right before a stroke starts recording points — see the call site.
+  void _finishTransformAnim() {
+    if (!(_zoomAnim?.isActive ?? false)) return;
+    _zoomAnim!.stop();
+    _settling = false;
+    _setMatrix(_zoomTo);
+  }
+
   void _onZoomTick(Duration elapsed) {
+    // Belt-and-suspenders: a stroke starting in the same frame as a tick
+    // (raced past the stop() in _finishTransformAnim) should still never let
+    // the matrix move again once writing has begun.
+    if (_active != null) {
+      _trace('[MidStrokeTransform] _onZoomTick first-frame while stroke active isPersonal=${widget.isPersonal} tool=$_tool settling=$_settling');
+      _finishTransformAnim();
+      return;
+    }
     _zoomStart ??= elapsed;
     final duration = _settling ? _settleDuration : _zoomDuration;
     final t = ((elapsed - _zoomStart!).inMicroseconds / duration.inMicroseconds)
@@ -1505,7 +1874,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         child: Column(
           children: [
             _header(c, noteAsync.asData?.value),
-            _toolStrip(c),
+            if (!_reelsMode) _toolStrip(c),
             Expanded(
               child: noteAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -1527,7 +1896,9 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                           )
                         : note.isEmpty
                             ? _emptyNote(c)
-                            : _canvas(c, dark, note),
+                            : (_reelsMode
+                                ? _ReelsView(note: note, dark: dark)
+                                : _canvas(c, dark, note)),
               ),
             ),
           ],
@@ -1580,6 +1951,19 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                       fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
             ),
             if (widget.isPersonal && widget.pageNav != null) widget.pageNav!,
+            if (!widget.isPersonal && note != null && !note.locked &&
+                note.pdfUrl.isEmpty && !note.isEmpty)
+              IconButton(
+                tooltip: _reelsMode ? 'Read mode' : 'Review mode',
+                onPressed: () => setState(() => _reelsMode = !_reelsMode),
+                icon: Icon(
+                  _reelsMode
+                      ? Icons.view_agenda_outlined
+                      : Icons.auto_awesome_motion_outlined,
+                  size: 20,
+                  color: _reelsMode ? c.primary : c.inkMedium,
+                ),
+              ),
             if (!widget.isPersonal && note != null && !note.locked)
               _VideoButton(videoUrl: note.videoUrl, c: c),
             if (!widget.isPersonal && note != null && !note.locked && widget.lessonId.isNotEmpty)
@@ -1875,27 +2259,52 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
     return LayoutBuilder(builder: (ctx, cons) {
       _viewport = cons.biggest;
+      // 85% of the device's PORTRAIT width. Deliberately min(w,h) of the
+      // WINDOW/device size (MediaQuery), NOT of `_viewport` — `_viewport` is
+      // only the space this LayoutBuilder itself was given, i.e. whatever is
+      // left after the toolbar/header around the canvas. If that chrome
+      // claims a different amount of room in each orientation (a header of
+      // fixed height, say), `_viewport`'s own min(w,h) can silently drift
+      // between portrait and landscape even though the physical device
+      // didn't change size — which is exactly what was still moving ink on
+      // rotation. The window size's min(w,h) is the device's true short
+      // edge, unaffected by how the surrounding UI happens to be laid out.
+      final win = MediaQuery.sizeOf(ctx);
+      if (win.width > 0 && win.height > 0) {
+        final shortEdge = math.min(win.width, win.height);
+        _pageRefWidth = shortEdge * _pageWidthFraction(shortEdge);
+      }
       // For personal notes the height is deterministic — set it directly so
       // pan bounds are correct the instant a page is added (no frame delay).
       if (widget.isPersonal && _viewport.width > 0) {
         _contentH = _personalContentHeight(widget.personalPageCount);
-        _measuredAt = _viewport; // suppress the key-based measure
-        // Apply initial zoom-out once so the desk margin is visible around the page.
+        // Establish the initial (clamped, centred) matrix once — no extra
+        // zoom factor here, the margin already comes from _pageRefWidth.
+        // Re-centring after that (a physical rotation, chiefly — _viewport
+        // changing how much room there is either side of the page, which
+        // itself never resizes) is didChangeMetrics' job below, not this
+        // build's: this LayoutBuilder can still rebuild mid-rotation with a
+        // transient, not-yet-final size, and there's no reliable way to
+        // tell that transient rebuild apart from the settled one from here.
         if (!_personalZoomInit) {
           _personalZoomInit = true;
-          const s = 0.88;
-          _matrix = _clamp(Matrix4.diagonal3Values(s, s, 1));
+          _measuredAt = _viewport;
+          _matrix = _clamp(Matrix4.identity());
           _invMatrix = Matrix4.inverted(_matrix);
         }
       } else {
         _maybeMeasure();
       }
-      // Content size in document space (width is fixed; height is the measured
-      // note height, or the viewport until measured). Drives the committed-ink
-      // pictures' bounds and is kept fresh for off-build refreshes.
+      // Content size in document space (width is fixed — _pageRefWidth, frozen
+      // at first measure, NOT the live viewport, so rotating the device never
+      // resizes/re-bakes it; height is the measured note height, or the
+      // viewport until measured). Drives the committed-ink pictures' bounds
+      // and is kept fresh for off-build refreshes.
       final contentSize = Size(
-          _viewport.width, _contentH > 0 ? _contentH : _viewport.height);
+          _pageWidth, _contentH > 0 ? _contentH : _viewport.height);
       _ensurePics(dark, contentSize);
+      final (hlPageHeights, hlPageDark) =
+          _highlighterSpans(dark, contentSize.height);
 
       // Built ONCE per page-build and reused on every pan/zoom tick (passed as
       // the ValueListenableBuilder `child`), so finger gestures only re-evaluate
@@ -1907,7 +2316,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         minHeight: 0,
         maxHeight: double.infinity, // let the note be its full intrinsic height
         child: SizedBox(
-          width: _viewport.width,
+          width: _pageWidth,
           child: Stack(
             children: [
               // PAPER — the lone non-positioned (sizing) child. NO RepaintBoundary:
@@ -1924,6 +2333,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                   painter: _InkPainter(
                       highlighter: true,
                       dark: dark,
+                      pageHeights: hlPageHeights,
+                      pageDark: hlPageDark,
                       strokes: _strokes,
                       active: erasing ? _active : null,
                       getPicture: () => _hlPic,
@@ -1958,7 +2369,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                 child: RepaintBoundary(
                   child: CustomPaint(
                     painter: _LivePainter(() => _active,
-                        dark: dark, repaint: _tick),
+                        isPaperDarkAt: (y) => _isPaperDarkAt(y, dark),
+                        repaint: _tick),
                   ),
                 ),
               ),
@@ -2158,21 +2570,42 @@ void _crSegment(Path path, List<Offset> pts, int i, int n) {
 /// inside one multiply/screen-blended layer, so text keeps its colour and only
 /// the paper tints (the GoodNotes trick). [active] is a non-null in-flight eraser
 /// during a live cut; null when recording the static picture.
-void _paintHighlighterLayer(
-    Canvas canvas, Size size, List<_Stroke> strokes, _Stroke? active, bool dark) {
+///
+/// Blends per PAGE, not once for the whole canvas: [pageHeights] gives each
+/// page's height (in document order, gapped by [_kPageGap] the same way
+/// [_PersonalPaperPainter] lays them out) and [pageDark] whether that page's
+/// OWN paper is dark. A lesson note passes a single span covering the whole
+/// canvas; a My Notes page's paper tint is a per-page user choice independent
+/// of the device theme, so blending the whole document against one theme-
+/// wide flag could pick screen/multiply against the wrong background and
+/// wash the highlighter straight into invisibility on that page.
+void _paintHighlighterLayer(Canvas canvas, Size size, List<_Stroke> strokes,
+    _Stroke? active, List<double> pageHeights, List<bool> pageDark) {
   final all = active == null ? strokes : [...strokes, active];
   if (!all.any((s) => s.tool == _Tool.highlighter)) return;
-  canvas.saveLayer(Offset.zero & size,
-      Paint()..blendMode = dark ? BlendMode.screen : BlendMode.multiply);
-  for (final s in all) {
-    if (s.points.isEmpty) continue;
-    if (s.tool == _Tool.highlighter) {
-      _drawStroke(canvas, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
-    } else if (s.tool == _Tool.eraser) {
-      _drawStroke(canvas, s, _eraserPaint(s.width));
+  var top = 0.0;
+  for (var i = 0; i < pageHeights.length; i++) {
+    final h = pageHeights[i];
+    if (top >= size.height) break;
+    final bottom = math.min(top + h, size.height);
+    final rect = Rect.fromLTWH(0, top, size.width, bottom - top);
+    final dark = i < pageDark.length && pageDark[i];
+    canvas.save();
+    canvas.clipRect(rect);
+    canvas.saveLayer(
+        rect, Paint()..blendMode = dark ? BlendMode.screen : BlendMode.multiply);
+    for (final s in all) {
+      if (s.points.isEmpty) continue;
+      if (s.tool == _Tool.highlighter) {
+        _drawStroke(canvas, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
+      } else if (s.tool == _Tool.eraser) {
+        _drawStroke(canvas, s, _eraserPaint(s.width));
+      }
     }
+    canvas.restore(); // saveLayer
+    canvas.restore(); // clipRect
+    top += h + _kPageGap;
   }
-  canvas.restore();
 }
 
 /// Draws the committed PEN + ERASER ink on its own compositing layer, like the
@@ -2208,12 +2641,18 @@ void _paintPenLayer(
 class _InkPainter extends CustomPainter {
   final bool highlighter;
   final bool dark;
+  // Only used on the highlighter's live-eraser-cut fallback path — see
+  // _highlighterSpans. Null on the pen instance, which never reads them.
+  final List<double>? pageHeights;
+  final List<bool>? pageDark;
   final List<_Stroke> strokes; // for the eraser fallback only
   final _Stroke? active; // in-flight eraser, or null
   final ui.Picture? Function() getPicture;
   _InkPainter({
     required this.highlighter,
     required this.dark,
+    this.pageHeights,
+    this.pageDark,
     required this.strokes,
     required this.active,
     required this.getPicture,
@@ -2233,7 +2672,8 @@ class _InkPainter extends CustomPainter {
     }
     // Live eraser cut: re-run the loop with the in-flight eraser.
     if (highlighter) {
-      _paintHighlighterLayer(canvas, size, strokes, active, dark);
+      _paintHighlighterLayer(canvas, size, strokes, active,
+          pageHeights ?? [size.height], pageDark ?? [dark]);
     } else {
       _paintPenLayer(canvas, size, strokes, active, dark);
     }
@@ -2257,8 +2697,16 @@ class _LivePainter extends CustomPainter {
   // this layer, the closure returns null, and the live stroke clears the same
   // frame the committed layer adopts it — no double-draw, no flash.
   final _Stroke? Function() getActive;
-  final bool dark;
-  _LivePainter(this.getActive, {required this.dark, super.repaint});
+  // Takes the eraser cursor's own document-space y so it can pick a tint
+  // that contrasts with the ACTUAL paper there — see _isPaperDarkAt. Passing
+  // a plain theme-wide `dark` bool (the old signature) was the real bug:
+  // debug-device logs confirmed the ring WAS being drawn every frame with
+  // correct position/radius, just in a colour picked from the device's
+  // theme rather than the page's own paper — device Dark Mode + a My Notes
+  // page still on its default White paper meant a white ring on white
+  // paper, invisible regardless of width or opacity.
+  final bool Function(double y) isPaperDarkAt;
+  _LivePainter(this.getActive, {required this.isPaperDarkAt, super.repaint});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2274,20 +2722,21 @@ class _LivePainter extends CustomPainter {
         _drawLive(
             canvas, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
       case _Tool.eraser:
-        // Brush cursor — a ringed circle at the tip showing the erase size. The
-        // actual cut is done on the committed layers; this is just the indicator.
+        // Brush cursor — a ringed circle at the tip showing the erase size.
+        // The actual cut is done on the committed layers; this is just the
+        // indicator.
         final c = s.points.last;
         final r = s.width / 2;
-        final tint = dark ? Colors.white : Colors.black;
+        final tint = isPaperDarkAt(c.dy) ? Colors.white : Colors.black;
         canvas.drawCircle(
-            c, r, Paint()..color = tint.withValues(alpha: 0.06)); // faint area
+            c, r, Paint()..color = tint.withValues(alpha: 0.08)); // faint area
         canvas.drawCircle(
             c,
             r,
             Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.5
-              ..color = tint.withValues(alpha: 0.55)
+              ..strokeWidth = 2.2
+              ..color = tint.withValues(alpha: 0.85)
               ..isAntiAlias = true); // edge ring
     }
   }
@@ -2392,6 +2841,9 @@ class _NoteContent extends StatelessWidget {
     final dot = dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFECE8DB);
     final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF2E2E33);
     final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6A6A70);
+    // Warm caramel accent for the title header only — echoes the paper's own
+    // warm palette rather than borrowing one of the cooler per-section colours.
+    final titleAccent = dark ? const Color(0xFFE8B989) : const Color(0xFFB8763E);
 
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.12)),
@@ -2400,51 +2852,100 @@ class _NoteContent extends StatelessWidget {
       child: CustomPaint(
       painter: _DotGridPainter(dot),
       child: Container(
+        // Clips the dot layer below to the card's own rounded shape — without
+        // this the dots would paint square-cornered, bleeding past the border.
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: paper,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(_kNoteCardRadius),
           border: Border.all(color: dark ? Colors.white12 : const Color(0xFFECDFC6)),
         ),
-        margin: const EdgeInsets.all(10),
-        padding: const EdgeInsets.fromLTRB(14, 16, 14, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        margin: const EdgeInsets.all(_kNoteCardMargin),
+        child: Stack(
           children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                border: Border.all(color: dark ? Colors.white12 : const Color(0xFFE2D3B4)),
-                borderRadius: BorderRadius.circular(14),
+            // The writable paper itself, not just the gutter around it, now
+            // carries the same subtle dot texture — it used to be a flat fill.
+            Positioned.fill(child: CustomPaint(painter: _DotGridPainter(dot))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          titleAccent.withValues(alpha: dark ? 0.16 : 0.08),
+                          titleAccent.withValues(alpha: 0),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: titleAccent.withValues(alpha: dark ? 0.22 : 0.13),
+                          ),
+                          child: Icon(Icons.menu_book_rounded,
+                              size: 20,
+                              color: dark ? titleAccent : _darken(titleAccent)),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(note.title.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
+                                fontSize: 23,
+                                fontWeight: FontWeight.w800,
+                                color: ink,
+                                height: 1.22,
+                                letterSpacing: 0.3)),
+                        const SizedBox(height: 10),
+                        Container(
+                          width: 46,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            gradient: LinearGradient(colors: [
+                              titleAccent.withValues(alpha: 0),
+                              titleAccent,
+                              titleAccent.withValues(alpha: 0),
+                            ]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (note.subtitle.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(note.subtitle,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14, color: muted)),
+                    ),
+                  const SizedBox(height: 14),
+                  for (var i = 0; i < note.sections.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _SectionCard(
+                          section: note.sections[i],
+                          index: i,
+                          ink: ink,
+                          muted: muted,
+                          dark: dark),
+                    ),
+                  if (note.keyPoints.isNotEmpty) _keyPoints(ink),
+                  if (note.summaryBox.isNotEmpty) _summary(ink),
+                ],
               ),
-              child: Text(note.title.toUpperCase(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: ink,
-                      letterSpacing: 0.4)),
             ),
-            if (note.subtitle.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(note.subtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: muted)),
-              ),
-            const SizedBox(height: 14),
-            for (var i = 0; i < note.sections.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _SectionCard(
-                    section: note.sections[i],
-                    index: i,
-                    ink: ink,
-                    muted: muted,
-                    dark: dark),
-              ),
-            if (note.keyPoints.isNotEmpty) _keyPoints(ink),
-            if (note.summaryBox.isNotEmpty) _summary(ink),
           ],
         ),
       ),
@@ -2573,6 +3074,15 @@ class _NoteContent extends StatelessWidget {
 // input is rejected so a Pencil stroke can't run across a page break (see
 // the `rem >= pageH` test) — that target is now narrower too.
 const _kPageGap = 14.0;
+
+/// The lesson/AI-notes card's own inset + corner rounding (see
+/// `_NoteContent`'s Container below) — the visible paper is THIS rect, inset
+/// from the outer content box `_outsidePage` otherwise measures against, not
+/// the full box. Shared here so the writable-area check can match it exactly
+/// instead of letting a stroke land in the margin gutter or a clipped corner
+/// around the card, which reads as ink drawn "outside" the page.
+const _kNoteCardMargin = 10.0;
+const _kNoteCardRadius = 18.0;
 
 /// Section accent palette (web NoteCanvas `PALETTE`) — cycled by section index
 /// so each card gets a distinct colour, exactly like the web note.
@@ -2760,6 +3270,534 @@ Widget _inlineText(String raw, TextStyle base,
     }
   }
   return RichText(text: TextSpan(style: base, children: children));
+}
+
+// ── Reels review mode — swipe-up-through-cards, one concept per screen ─────
+//
+// A completely separate, simple render path from the pan/zoom/ink canvas
+// above: no Matrix4, no InteractiveViewer, no ink layers — just a vertical
+// PageView. Each page fades + blurs + scales down slightly as it leaves
+// centre, driven directly off the PageController's fractional `page` value
+// (a parallax-style transition, not a hand-rolled gesture detector), which
+// is what gives the "feel good" glide between concepts on drag as well as
+// on a programmatic/animated page change.
+class _ReelsView extends StatefulWidget {
+  final LessonDoc note;
+  final bool dark;
+  const _ReelsView({required this.note, required this.dark});
+
+  @override
+  State<_ReelsView> createState() => _ReelsViewState();
+}
+
+class _ReelsViewState extends State<_ReelsView> {
+  late final PageController _controller;
+  // The settled index we last replayed for — NOT updated on every drag tick,
+  // only once a scroll genuinely comes to rest. `onPageChanged` looked like
+  // the obvious hook for this but fires as soon as the fractional page
+  // crosses the halfway mark, including mid-fling and on any rubber-band
+  // overshoot/settle-back — a single swipe could cross that line twice,
+  // which is exactly what fired the reveal twice in a row.
+  int _lastSettled = 0;
+  // Bumped each time a page *settles* as the current one — used as that
+  // page's content key, so the per-line reveal below replays fresh every
+  // time you land on it, not just the first time.
+  final Map<int, int> _visitGen = {0: 0};
+
+  int get _sectionCount => widget.note.sections.length;
+  bool get _hasClosing =>
+      widget.note.keyPoints.isNotEmpty || widget.note.summaryBox.isNotEmpty;
+  int get _pageCount => 1 + _sectionCount + (_hasClosing ? 1 : 0);
+
+  // The actual bug: ScrollEndNotification is not one-shot the way it sounds.
+  // A released fling on PageView commonly runs as *two* chained scroll
+  // activities — the drag ending, then a separate ballistic/snap animation
+  // to the exact page boundary — each firing its own ScrollEndNotification.
+  // On a fast/energetic swipe that snap can also overshoot and spring back,
+  // which can round to a different page index for an instant before
+  // correcting. Comparing straight off each notification let that
+  // temporary overshoot commit as a real "settle", so the reveal played
+  // once for the bounce and once again for the correction. Debouncing to
+  // the LAST notification in a short quiet window collapses that whole
+  // chain into the one genuine settle.
+  Timer? _settleDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  void _onScrollEndNotification() {
+    _settleDebounce?.cancel();
+    _settleDebounce = Timer(const Duration(milliseconds: 200), _commitSettle);
+  }
+
+  void _commitSettle() {
+    if (!mounted) return;
+    final p = _controller.page;
+    if (p == null) return;
+    final index = p.round().clamp(0, _pageCount - 1);
+    if (index == _lastSettled) return;
+    setState(() {
+      _lastSettled = index;
+      _visitGen[index] = (_visitGen[index] ?? 0) + 1;
+    });
+  }
+
+  @override
+  void dispose() {
+    _settleDebounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final dark = widget.dark;
+    final ink = dark ? const Color(0xFFDCE6FF) : const Color(0xFF2E2E33);
+    final muted = dark ? const Color(0xFF9AA4BF) : const Color(0xFF6A6A70);
+    final bg = dark ? const Color(0xFF0A0A0F) : const Color(0xFFF7F6FB);
+    final pageCount = _pageCount;
+
+    return Container(
+      color: bg,
+      child: Stack(
+        children: [
+          // Settle detection lives on the SCROLL NOTIFICATION, not the
+          // per-frame page value, and is debounced (see _onScrollEndNotification)
+          // since a single swipe can fire more than one of these.
+          NotificationListener<ScrollEndNotification>(
+            onNotification: (n) {
+              _onScrollEndNotification();
+              return false;
+            },
+            child: PageView.builder(
+              controller: _controller,
+              scrollDirection: Axis.vertical,
+              // Tried conditionally switching this to
+              // NeverScrollableScrollPhysics while the current card still had
+              // unscrolled content, to stop a fast swipe from winning the
+              // PageView's own gesture arena outright — but NeverScrollable
+              // on the ANCESTOR PageView turned out to swallow touches for
+              // its entire subtree, not just decline to scroll itself: the
+              // inner SingleChildScrollView went completely dead too, not
+              // just the outer paging. Reverted; always normal physics here,
+              // same as it's always been.
+              physics: const PageScrollPhysics(),
+              itemCount: pageCount,
+              itemBuilder: (context, i) {
+                // AnimatedBuilder's `child` (the actual page content — the
+                // expensive part, section text/tables/images) is built ONCE
+                // here and reused on every tick; only the cheap opacity/
+                // scale/blur wrapper below re-runs per frame. The previous
+                // version rebuilt the whole page tree via setState on every
+                // scroll pixel, which combined with a per-frame blur filter
+                // is exactly what was lagging on a fast swipe.
+                return AnimatedBuilder(
+                  animation: _controller,
+                  child: _pageFor(c, dark, ink, muted, i),
+                  builder: (context, child) {
+                    var page = i.toDouble();
+                    if (_controller.hasClients && _controller.position.haveDimensions) {
+                      page = _controller.page ?? page;
+                    }
+                    final distance = (page - i).clamp(-1.0, 1.0).abs();
+                    // Reaches full opacity a bit before the page actually
+                    // settles at distance 0 (not exactly at 0), so this
+                    // outer fade doesn't still be visibly finishing at the
+                    // exact moment the per-line reveal below starts and the
+                    // two read as one fade firing twice back to back — but
+                    // wide enough (was 0.35, a much snappier fade that
+                    // finished very early in the swipe/transition) that the
+                    // fade itself reads as a slower, more gradual reveal.
+                    const fadeSpan = 0.55;
+                    final opacity = (1 - distance / fadeSpan).clamp(0.0, 1.0);
+                    final scale = 1 - distance * 0.10;
+
+                    Widget content = Transform.scale(scale: scale, child: child);
+                    // Only the page(s) mostly out of view pay for the blur —
+                    // skip it near the centre, where it wouldn't read anyway.
+                    if (distance > fadeSpan) {
+                      final blurSigma = (distance - fadeSpan) * 14;
+                      content = ImageFiltered(
+                        imageFilter:
+                            ui.ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                        child: content,
+                      );
+                    }
+                    return Opacity(opacity: opacity, child: content);
+                  },
+                );
+              },
+            ),
+          ),
+          Positioned(
+            top: 8,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: (dark ? Colors.white : Colors.black)
+                      .withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, _) {
+                    var page = _lastSettled.toDouble();
+                    if (_controller.hasClients && _controller.position.haveDimensions) {
+                      page = _controller.page ?? page;
+                    }
+                    final shown = page.round().clamp(0, pageCount - 1) + 1;
+                    return Text(
+                      '$shown / $pageCount',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700, color: muted),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pageFor(
+      AppColors c, bool dark, Color ink, Color muted, int i) {
+    final note = widget.note;
+    if (i == 0) return _introPage(c, dark, ink, muted, note);
+    final sectionIndex = i - 1;
+    if (sectionIndex < _sectionCount) {
+      // Back to the plain section card for every type — the per-line
+      // reveal experiment is gone; the outer swipe-driven fade/blur/scale
+      // (still active below) is the only entrance effect a section page
+      // gets now.
+      return _reelsFrame(
+        isLast: i >= _pageCount - 1,
+        child: _SectionCard(
+          section: note.sections[sectionIndex],
+          index: sectionIndex,
+          ink: ink,
+          muted: muted,
+          dark: dark,
+        ),
+      );
+    }
+    return _closingPage(c, dark, ink, muted, note, _visitGen[i] ?? 0);
+  }
+
+  Widget _introPage(
+      AppColors c, bool dark, Color ink, Color muted, LessonDoc note) {
+    final titleAccent = dark ? const Color(0xFFE8B989) : const Color(0xFFB8763E);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: titleAccent.withValues(alpha: dark ? 0.22 : 0.13),
+              ),
+              child: Icon(Icons.menu_book_rounded,
+                  size: 26, color: dark ? titleAccent : titleAccent),
+            ),
+            const SizedBox(height: 20),
+            Text(note.title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                    color: ink)),
+            if (note.subtitle.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(note.subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14.5, color: muted)),
+            ],
+            const SizedBox(height: 36),
+            _BouncingChevron(color: muted),
+            const SizedBox(height: 6),
+            Text('Swipe up to begin',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                    color: muted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _closingPage(AppColors c, bool dark, Color ink, Color muted,
+      LessonDoc note, int gen) {
+    final accent = dark ? const Color(0xFF34D399) : const Color(0xFF10B981);
+    final lines = <Widget>[
+      Row(
+        children: [
+          Icon(Icons.check_circle_rounded, color: accent, size: 22),
+          const SizedBox(width: 8),
+          Text('KEY TAKEAWAYS',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                  color: accent)),
+        ],
+      ),
+      for (var i = 0; i < note.keyPoints.length; i++)
+        Padding(
+          padding: EdgeInsets.only(top: i == 0 ? 22 : 18),
+          child: _bullet(note.keyPoints[i], ink, accent, dark: dark),
+        ),
+      if (note.summaryBox.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: Text(note.summaryBox,
+              style: TextStyle(fontSize: 13.5, height: 1.5, color: muted)),
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 28),
+        child: Center(
+          child: Text("That's the whole lesson — swipe down to go again",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
+        ),
+      ),
+    ];
+    return _reelsFrame(
+      isLast: true,
+      child: AnimationLimiter(
+        key: ValueKey('closing-$gen'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: AnimationConfiguration.toStaggeredList(
+            duration: const Duration(milliseconds: 560),
+            delay: const Duration(milliseconds: 110),
+            childAnimationBuilder: (w) => SlideAnimation(
+              curve: Curves.easeOutCubic,
+              verticalOffset: 8,
+              child: FadeInAnimation(
+                curve: Curves.easeOutCubic,
+                child: w,
+              ),
+            ),
+            children: lines,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _advanceReelsPage() {
+    _controller.nextPage(
+      duration: const Duration(milliseconds: 620),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _reelsFrame({required Widget child, required bool isLast}) {
+    return _ReelsFrame(
+      isLast: isLast,
+      onAdvance: _advanceReelsPage,
+      child: child,
+    );
+  }
+}
+
+/// Wraps one reels-mode card's scrollable content. Several rounds of trying
+/// to make a fast swipe on a long card behave (settle debounce, dragDetails
+/// presence, overscroll magnitude, then conditionally disabling the outer
+/// PageView's physics while the card had unscrolled content — see git
+/// history on this file for all of them) each fixed one symptom and broke
+/// another; the physics-toggling attempt in particular turned out to freeze
+/// the whole card (NeverScrollableScrollPhysics on the ancestor PageView
+/// swallowed touches for its entire subtree, not just decline to scroll
+/// itself). Reverted to the simplest thing that reliably works: the outer
+/// PageView always uses its normal, permanent `PageScrollPhysics` — same as
+/// the intro/title page always has — and the only other way to advance is
+/// tapping the `_ContinueButton`, which appears once the card has genuinely
+/// been scrolled to its true bottom (tracked via `ScrollController`). A fast
+/// swipe occasionally winning the gesture arena on a long, freshly-landed-on
+/// card is a real but lesser imperfection than the card going dead entirely.
+class _ReelsFrame extends StatefulWidget {
+  final Widget child;
+  final bool isLast;
+  final VoidCallback onAdvance;
+  const _ReelsFrame({required this.child, required this.isLast, required this.onAdvance});
+
+  @override
+  State<_ReelsFrame> createState() => _ReelsFrameState();
+}
+
+class _ReelsFrameState extends State<_ReelsFrame> {
+  final ScrollController _scrollController = ScrollController();
+  bool _overflows = false;
+  bool _atBottom = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_syncScrollState);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncScrollState());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_syncScrollState);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _syncScrollState() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final overflows = position.maxScrollExtent > 4;
+    final atBottom = position.maxScrollExtent <= 0 ||
+        position.pixels >= position.maxScrollExtent - 12;
+    if (overflows != _overflows || atBottom != _atBottom) {
+      setState(() {
+        _overflows = overflows;
+        _atBottom = atBottom;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final showContinue = !widget.isLast && _overflows && _atBottom;
+    return Stack(
+      children: [
+        // Keeps the platform's normal (bouncy, on iOS) inner scroll feel.
+        //
+        // The scroll view's own box used to be wrapped directly in a
+        // `Center`, which — under Center's loose width constraint —
+        // shrink-wraps SingleChildScrollView to its 520-wide ConstrainedBox
+        // child. On a wide screen (iPad) that left genuine empty (non-
+        // scrollable) margin on each side where a swipe fell straight
+        // through to the outer PageView instead of scrolling the card. On a
+        // phone the 520 cap rarely even applies, so no such margin existed.
+        // Forcing the scroll view itself to full width — and doing the
+        // 520-cap centering *inside* it — makes the whole card one
+        // scrollable hit-test region on any screen size.
+        SingleChildScrollView(
+          controller: _scrollController,
+          child: SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 48),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: widget.child,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (showContinue)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 14,
+            child: Center(child: _ContinueButton(color: c.primary, onTap: widget.onAdvance)),
+          ),
+      ],
+    );
+  }
+}
+
+class _ContinueButton extends StatelessWidget {
+  final Color color;
+  final VoidCallback onTap;
+  const _ContinueButton({required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        decoration: BoxDecoration(
+          color: c.cardElevated,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 12, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Continue',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: color)),
+            const SizedBox(width: 6),
+            Icon(Icons.keyboard_arrow_up_rounded, size: 19, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BouncingChevron extends StatefulWidget {
+  final Color color;
+  const _BouncingChevron({required this.color});
+
+  @override
+  State<_BouncingChevron> createState() => _BouncingChevronState();
+}
+
+class _BouncingChevronState extends State<_BouncingChevron>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, -6 * Curves.easeInOut.transform(_c.value)),
+          child: child,
+        );
+      },
+      child: Icon(Icons.keyboard_arrow_up_rounded,
+          size: 26, color: widget.color),
+    );
+  }
 }
 
 class _SectionCard extends StatelessWidget {
@@ -3140,10 +4178,13 @@ class _SectionCard extends StatelessWidget {
     );
   }
 
-  Color _darken(Color c) {
-    final hsl = HSLColor.fromColor(c);
-    return hsl.withLightness((hsl.lightness * 0.55).clamp(0.0, 1.0)).toColor();
-  }
+}
+
+/// Darkens [c] for legible text/icons on light paper (shared by the note
+/// title header and every _SectionCard heading).
+Color _darken(Color c) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl.withLightness((hsl.lightness * 0.55).clamp(0.0, 1.0)).toColor();
 }
 
 class _DotGridPainter extends CustomPainter {
@@ -3186,18 +4227,31 @@ class _PersonalPaperPainter extends CustomPainter {
   /// actually changes value when that happens.
   final int pdfImageGen;
   final Color gapColor;
-  const _PersonalPaperPainter({
+  _PersonalPaperPainter({
     required this.pageHeights,
     required this.paper,
     required this.pdfImages,
     required this.pdfImageGen,
     required this.gapColor,
+    super.repaint,
   });
 
   static Color paperColor(PaperTint t) => switch (t) {
-        PaperTint.white => Colors.white,
+        // Was literal Colors.white (#FFFFFF) — the one truly harsh extreme
+        // in this whole palette. Pure white maximises screen brightness/
+        // contrast, which is exactly what makes a moving pen stroke's
+        // motion blur most visible — a real, well-documented "harsh on the
+        // eyes" effect for note-taking apps generally, not something
+        // specific to this one. A neutral, barely-tinted off-white keeps
+        // this reading as "white" paper (no warmth, so it stays clearly
+        // distinct from Cream) while dropping that one extreme.
+        PaperTint.white => const Color(0xFFFAFAFA),
         PaperTint.cream => const Color(0xFFFAF4E6),
-        PaperTint.dark => const Color(0xFF1C1C20),
+        // Was #1C1C20 — nearly indistinguishable from true black at a
+        // glance, even though it's technically a soft dark rather than
+        // literal #000000. Lightened to a proper charcoal so it reads as
+        // "dark paper" rather than "black paper".
+        PaperTint.dark => const Color(0xFF26262B),
       };
 
   /// Ruling has to sit on its own page's colour — one fixed light grey was

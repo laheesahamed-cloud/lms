@@ -7,6 +7,7 @@ import '../../widgets/quiz_loading_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../services/tts_service.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import '../../widgets/locked_view.dart';
@@ -14,6 +15,263 @@ import '../dashboard/dashboard_repository.dart';
 import 'quizzes_repository.dart';
 import 'quiz_dialogs.dart';
 import 'submit_transition_overlay.dart';
+
+TextStyle _stemTextStyle(AppColors c) => TextStyle(
+    fontSize: 17, height: 1.45, fontWeight: FontWeight.w600, color: c.inkStrong);
+
+// A pastel straight off the palette reads fine as an underline on a light
+// background, but is too washed-out/low-contrast against a dark one (and a
+// naive darken goes the wrong way in dark mode). Same fix as the lesson
+// canvas's _readableAccent: pull it darker for light mode, push it lighter
+// for dark mode, so the same palette stays legible in both.
+Color _readableAccent(Color color, bool dark) {
+  final hsl = HSLColor.fromColor(color);
+  final lightness = dark
+      ? (hsl.lightness + 0.16).clamp(0.0, 0.92)
+      : (hsl.lightness * 0.62).clamp(0.0, 0.58);
+  return hsl.withLightness(lightness).toColor();
+}
+
+/// Builds spans for [text] with each phrase in [highlights] underlined in a
+/// single consistent [highlightColor] — text colour and weight untouched,
+/// same as the rest of the question — rather than filled with a background
+/// or recoloured. Case-insensitive, exact-substring matching, mirroring the
+/// web's highlightText.js. Longer phrases are matched first so overlapping
+/// AI suggestions don't produce doubled-up marks. [style] should match the
+/// surrounding text's TextStyle.
+List<InlineSpan> buildHighlightedSpans(
+  String text,
+  List<String> highlights, {
+  required Color highlightColor,
+  required TextStyle style,
+}) {
+  final phrases = highlights.map((p) => p.trim()).where((p) => p.isNotEmpty).toList()
+    ..sort((a, b) => b.length.compareTo(a.length));
+  if (text.isEmpty || phrases.isEmpty) return [TextSpan(text: text)];
+
+  final ranges = <List<int>>[]; // [start, end)
+  final lower = text.toLowerCase();
+  for (final phrase in phrases) {
+    final lowerPhrase = phrase.toLowerCase();
+    var fromIndex = 0;
+    while (fromIndex <= lower.length) {
+      final matchIndex = lower.indexOf(lowerPhrase, fromIndex);
+      if (matchIndex == -1) break;
+      final end = matchIndex + phrase.length;
+      final overlaps = ranges.any((r) => matchIndex < r[1] && end > r[0]);
+      if (!overlaps) ranges.add([matchIndex, end]);
+      fromIndex = matchIndex + phrase.length;
+    }
+  }
+  if (ranges.isEmpty) return [TextSpan(text: text)];
+  ranges.sort((a, b) => a[0].compareTo(b[0]));
+
+  final spans = <InlineSpan>[];
+  var cursor = 0;
+  for (final range in ranges) {
+    if (range[0] > cursor) spans.add(TextSpan(text: text.substring(cursor, range[0]), style: style));
+    // Deliberately no text-colour or weight change here — the highlighted
+    // phrase stays the exact same font/colour as the rest of the question,
+    // marked only by a plain underline in one consistent colour (not a
+    // cycling pastel per phrase, unlike the approach block's quoted spans).
+    spans.add(TextSpan(
+      text: text.substring(range[0], range[1]),
+      style: style.copyWith(
+        decoration: TextDecoration.underline,
+        decorationColor: highlightColor,
+        decorationThickness: 1.6,
+      ),
+    ));
+    cursor = range[1];
+  }
+  if (cursor < text.length) spans.add(TextSpan(text: text.substring(cursor), style: style));
+  return spans;
+}
+
+/// Splits an AI-generated "1. ...\n2. ...\n3. ..." approach text into its
+/// individual numbered steps. Falls back to the whole text as one step if it
+/// isn't actually numbered.
+List<String> _splitApproachSteps(String text) {
+  final markers = RegExp(r'(?:^|\n)\s*\d+[.)]\s*').allMatches(text).toList();
+  if (markers.isEmpty) {
+    final trimmed = text.trim();
+    return trimmed.isEmpty ? [] : [trimmed];
+  }
+  final steps = <String>[];
+  for (var i = 0; i < markers.length; i++) {
+    final start = markers[i].end;
+    final end = i + 1 < markers.length ? markers[i + 1].start : text.length;
+    final step = text.substring(start, end).trim();
+    if (step.isNotEmpty) steps.add(step);
+  }
+  return steps;
+}
+
+/// Approach steps often quote the exact stem phrase they're referencing.
+/// The AI isn't told a specific format for that, so it picks its own
+/// emphasis style — most commonly **"phrase"** (bold + double-quoted), but
+/// sometimes just "phrase", 'phrase', or **phrase** with no quotes at all.
+/// Matching only bare 'single quotes' (the original, narrower pattern) left
+/// every **"..."** reference showing its raw asterisks and quote marks on
+/// screen — and worse, let that single-quote pattern accidentally match
+/// between two unrelated stray apostrophes later in the same step (e.g. a
+/// possessive like "patient's"), grabbing everything in between, previous
+/// word included, as a bogus highlighted span. Matching the actual formats
+/// the model uses, in order of how it typically wraps a reference, fixes
+/// both: the markup gets stripped instead of shown, and a real quote/bold
+/// pair is required before anything gets highlighted at all.
+List<InlineSpan> _buildApproachStepSpans(String text, TextStyle base, Color accent) {
+  // The bold-wrapped branch accepts EITHER quote character on EITHER side
+  // (not a matched pair) — the model sometimes mixes them, e.g. **'phrase"**
+  // — which is safe here only because both ends are still anchored to `**`,
+  // making an accidental match against ordinary prose essentially
+  // impossible. Unbolded double quotes are unguarded too, since a stray
+  // double quote pair essentially never happens by accident in ordinary
+  // prose. Unbolded SINGLE quotes are the risky case — a bare pair with no
+  // `**` anchor is indistinguishable from two unrelated possessive/
+  // contraction apostrophes later in the same step (e.g. "patient's ...
+  // doctor's"), which previously matched everything in between, previous
+  // word included, as one bogus highlighted span. A real quote mark isn't
+  // wedged directly between two letters the way a possessive/contraction
+  // apostrophe is, so requiring no letter/digit immediately outside each
+  // quote mark keeps genuine 'quoted phrases' working (this question's most
+  // common style) while still rejecting "patient's"/"doctor's".
+  final re = RegExp(
+    r'\*\*["\x27](.+?)["\x27]\*\*' // **"phrase"**, **'phrase'**, or mismatched **'phrase"**
+    r'|\*\*([^*]+)\*\*' // **phrase**  (no quotes)
+    r'|"(.+?)"' // "phrase"  (double-quote, not bolded)
+    r"|(?<![A-Za-z0-9])'(.+?)'(?![A-Za-z0-9])", // 'phrase'  (single-quote, not bolded, guarded)
+  );
+  final spans = <InlineSpan>[];
+  var cursor = 0;
+  for (final m in re.allMatches(text)) {
+    final phrase = m.group(1) ?? m.group(2) ?? m.group(3) ?? m.group(4);
+    if (phrase == null || phrase.trim().isEmpty) continue;
+    if (m.start > cursor) spans.add(TextSpan(text: text.substring(cursor, m.start), style: base));
+    spans.add(TextSpan(
+      text: phrase,
+      style: base.copyWith(
+        fontWeight: FontWeight.w800,
+        color: accent,
+        decoration: TextDecoration.underline,
+        decorationColor: accent,
+        decorationThickness: 1.4,
+      ),
+    ));
+    cursor = m.end;
+  }
+  if (cursor < text.length) spans.add(TextSpan(text: text.substring(cursor), style: base));
+  return spans;
+}
+
+/// Renders the question-approach text as a numbered flow: each step gets a
+/// pastel-badged number, connected to the next by a down-arrow — the same
+/// arrow-chain look as the lesson canvas's cause→effect flow sections, so the
+/// walkthrough reads as an actual step-by-step "approach mode" rather than
+/// one flat, messy paragraph.
+class _ApproachFlow extends StatelessWidget {
+  final String text;
+  const _ApproachFlow({required this.text});
+
+  static const _pastels = <Color>[
+    Color(0xFFF6D98A), Color(0xFFA9CBEE), Color(0xFFB3DDB0), Color(0xFFEFB6CD),
+    Color(0xFFCDBCE8), Color(0xFFA9DCE0), Color(0xFFF2B39E), Color(0xFFF3CDA0),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final stepStyle = TextStyle(fontSize: 15.5, height: 1.5, color: c.inkMedium);
+    final steps = _splitApproachSteps(text);
+    if (steps.length < 2) {
+      final single = steps.isEmpty ? text : steps.first;
+      return Text.rich(TextSpan(children: _buildApproachStepSpans(single, stepStyle, c.primary)));
+    }
+
+    final children = <Widget>[];
+    for (var i = 0; i < steps.length; i++) {
+      final accent = _pastels[i % _pastels.length];
+      final badgeInk = _readableAccent(accent, dark);
+      children.add(Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.55), shape: BoxShape.circle),
+            child: Text('${i + 1}',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: badgeInk)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: _buildApproachStepSpans(steps[i], stepStyle, badgeInk)),
+            ),
+          ),
+        ],
+      ));
+      if (i < steps.length - 1) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Center(
+            child: Icon(Icons.arrow_downward_rounded, size: 18, color: c.primary.withValues(alpha: 0.75)),
+          ),
+        ));
+      }
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+  }
+}
+
+class _SpeakerButton extends StatefulWidget {
+  final String text;
+  const _SpeakerButton({required this.text});
+
+  @override
+  State<_SpeakerButton> createState() => _SpeakerButtonState();
+}
+
+class _SpeakerButtonState extends State<_SpeakerButton> {
+  bool _speaking = false;
+
+  @override
+  void dispose() {
+    if (_speaking) TtsService.stop();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_speaking) {
+      await TtsService.stop();
+      if (mounted) setState(() => _speaking = false);
+      return;
+    }
+    setState(() => _speaking = true);
+    await TtsService.speak(widget.text);
+    if (mounted) setState(() => _speaking = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!TtsService.supported) return const SizedBox.shrink();
+    final c = context.c;
+    return IconButton(
+      onPressed: _toggle,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      padding: EdgeInsets.zero,
+      icon: Icon(
+        _speaking ? Icons.stop_circle_rounded : Icons.volume_up_rounded,
+        size: 20,
+        color: c.primary,
+      ),
+      tooltip: _speaking ? 'Stop reading' : 'Read aloud',
+    );
+  }
+}
 
 /// Take a quiz. Practice mode: pick an answer, reveal the correct option with
 /// the full explanation. Exam mode: a real timed exam session whose answers are
@@ -60,6 +318,8 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
         text: q.text,
         explanation: q.explanation,
         explanationImageUrl: q.explanationImageUrl,
+        questionApproach: q.questionApproach,
+        questionApproachHighlights: q.questionApproachHighlights,
         options: relabeled,
         correctOptionIds: q.correctOptionIds, // IDs never change
         recap: q.recap,
@@ -780,12 +1040,19 @@ class _QuestionView extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: c.line),
           ),
-          child: Text(question.text,
-              style: TextStyle(
-                  fontSize: 17,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                  color: c.inkStrong)),
+          child: revealed && question.questionApproachHighlights.isNotEmpty
+              ? RichText(
+                  text: TextSpan(
+                    style: _stemTextStyle(c),
+                    children: buildHighlightedSpans(
+                      question.text,
+                      question.questionApproachHighlights,
+                      highlightColor: c.primary,
+                      style: _stemTextStyle(c),
+                    ),
+                  ),
+                )
+              : Text(question.text, style: _stemTextStyle(c)),
         ),
         const SizedBox(height: 14),
         if (_isTrueFalse) ...[
@@ -889,6 +1156,14 @@ class _QuestionView extends StatelessWidget {
                             fontSize: 15.5, height: 1.5, color: c.inkMedium)),
                 ],
               ),
+            ),
+          if (question.questionApproach.isNotEmpty)
+            _RevealBlock(
+              icon: Icons.route_outlined,
+              title: 'How to approach this question',
+              accent: c.primary,
+              trailing: _SpeakerButton(text: question.questionApproach),
+              child: _ApproachFlow(text: question.questionApproach),
             ),
           _whyWrong(c),
           if (question.recap != null) _recapTrigger(context, c, question.recap!),
@@ -1252,6 +1527,12 @@ class _TfStatementTile extends StatelessWidget {
                 ),
               ],
             ),
+            if (option.whyIncorrect.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(option.whyIncorrect,
+                  style: TextStyle(
+                      fontSize: 13, height: 1.45, color: c.inkMedium)),
+            ],
           ],
         ],
       ),
@@ -1391,11 +1672,13 @@ class _RevealBlock extends StatelessWidget {
   final String title;
   final Color accent;
   final Widget child;
+  final Widget? trailing;
   const _RevealBlock({
     required this.icon,
     required this.title,
     required this.accent,
     required this.child,
+    this.trailing,
   });
 
   @override
@@ -1425,6 +1708,7 @@ class _RevealBlock extends StatelessWidget {
                         letterSpacing: 0.2,
                         color: accent)),
               ),
+              ?trailing,
             ],
           ),
           const SizedBox(height: 9),

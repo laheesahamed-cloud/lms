@@ -1,0 +1,467 @@
+<!doctype html>
+<title>Study Tab Redesign</title>
+<style>
+:root{
+  --page:#F7F6FB; --card:#FFFFFF; --ink:#18181F; --soft:#6B6A78; --muted:#9997A6;
+  --line:#E4E2ED; --blue:#2563EB; --violet:#7C3AED; --tint:#EFEDFB;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#0D0D12; --card:#16161D; --ink:#F1F0F7; --soft:#9E9CAE; --muted:#716F80;
+    --line:#232330; --blue:#5B8DEF; --violet:#A78BFA; --tint:#1B1930;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0D0D12; --card:#16161D; --ink:#F1F0F7; --soft:#9E9CAE; --muted:#716F80;
+  --line:#232330; --blue:#5B8DEF; --violet:#A78BFA; --tint:#1B1930;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--page); color:var(--ink);
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+
+/* ── Wrapper chrome ─────────────────────────────────────────────── */
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px;}
+.masthead{max-width:640px;margin-bottom:36px;}
+.eyebrow{
+  font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--violet);margin:0 0 10px;
+}
+h1{font-size:32px;font-weight:800;letter-spacing:-0.02em;line-height:1.15;margin:0 0 12px;text-wrap:balance;}
+.lede{font-size:15.5px;line-height:1.6;color:var(--soft);margin:0;}
+
+.compare{
+  display:grid; grid-template-columns:1fr 1fr; gap:32px;
+  align-items:start;
+}
+.compare.compare-3{grid-template-columns:1fr 1fr 1fr;}
+@media (max-width:900px){ .compare{grid-template-columns:1fr; max-width:420px; margin:0 auto;} }
+@media (max-width:1300px) and (min-width:901px){ .compare.compare-3{grid-template-columns:1fr 1fr;} }
+
+.column-label{
+  display:flex; align-items:baseline; gap:10px; margin-bottom:14px;
+}
+.column-label .tag{
+  font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  padding:4px 10px; border-radius:99px;
+}
+.tag.now{background:var(--tint); color:var(--soft); border:1px solid var(--line);}
+.tag.next{background:linear-gradient(120deg,var(--blue),var(--violet)); color:#fff;}
+.column-label h2{font-size:16px; font-weight:700; margin:0; color:var(--ink);}
+
+.phone-shell{
+  width:100%; max-width:380px; margin:0 auto;
+  border-radius:38px; padding:10px;
+  background:linear-gradient(160deg,#2b2b35,#0e0e13);
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.04) inset;
+}
+.phone-screen{
+  height:740px; overflow-y:auto; border-radius:30px;
+  background:#0A0A0F; position:relative;
+  scrollbar-width:none;
+}
+.phone-screen::-webkit-scrollbar{display:none;}
+.notch{
+  position:sticky; top:0; z-index:5; height:28px; display:flex; justify-content:center;
+  pointer-events:none;
+}
+.notch::after{
+  content:''; width:100px; height:20px; margin-top:6px; border-radius:12px; background:#000;
+}
+.scroll-hint{
+  text-align:center; font-size:11px; color:var(--muted); margin-top:10px;
+}
+
+.callouts{margin-top:20px; display:flex; flex-direction:column; gap:10px;}
+.callout{
+  display:flex; gap:10px; padding:12px 14px; border-radius:14px;
+  background:var(--card); border:1px solid var(--line); font-size:13px; line-height:1.5;
+}
+.callout .dot{
+  flex:none; width:8px; height:8px; border-radius:50%; margin-top:6px;
+}
+.callout.fix .dot{background:var(--blue);}
+.callout b{color:var(--ink);}
+.callout span{color:var(--soft);}
+
+/* ── Shared phone-content basics (both screens use identical layout scaffolding) ── */
+.pad{padding:16px 16px 28px;}
+.px{font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;}
+.h1p{font-size:26px; font-weight:800; letter-spacing:-0.02em; margin:4px 0 0;}
+.topbar{display:flex; justify-content:flex-end; align-items:center; gap:10px; padding:14px 16px 0;}
+.bell{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#8294AE;}
+.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+
+/* ===================== BEFORE (faithful) ===================== */
+.b-card{
+  background:linear-gradient(135deg, rgba(200,210,220,.08), rgba(180,195,210,.04));
+  backdrop-filter:blur(10px);
+  border-radius:20px; padding:16px; margin-bottom:14px;
+  box-shadow:0 14px 34px -26px rgba(0,0,0,.8);
+  color:#F8FAFC;
+}
+.b-row{display:flex; align-items:center; gap:12px;}
+.b-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg, rgba(56,189,248,.22), rgba(96,165,250,.14)); display:flex;align-items:center;justify-content:center; flex:none;}
+.b-title{font-size:15.5px;font-weight:700;color:#F8FAFC;margin:0;}
+.b-sub{font-size:12.5px;color:#94A3B8;margin:2px 0 0;}
+.b-chip{background:rgba(96,165,250,.10); color:#60A5FA; font-size:11px; font-weight:700; padding:4px 8px; border-radius:20px;}
+.b-metrics{display:flex; gap:10px;}
+.b-metrics .b-card{flex:1; text-align:center; margin-bottom:0;}
+.b-num{font-size:20px;font-weight:800;color:#F8FAFC;}
+.b-lbl{font-size:10.5px;color:#8294AE;text-transform:uppercase;letter-spacing:.05em;}
+.b-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.08); overflow:hidden; margin-top:8px;}
+.b-bar > i{display:block;height:100%;background:#60A5FA;}
+.b-grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+.b-heat{display:grid; grid-template-columns:repeat(12,1fr); gap:3px;}
+.b-heat div{aspect-ratio:1; border-radius:3px; background:rgba(255,255,255,.06);}
+.b-list-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06); font-size:13px;}
+.b-list-row:last-child{border:0;}
+
+/* ===================== AFTER (redesign) ===================== */
+.a-page{color:#F1F0F7;}
+.hero{
+  margin:0 0 16px; padding:22px 18px 20px; border-radius:26px; position:relative; overflow:hidden;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(167,139,250,.55), transparent 55%),
+    linear-gradient(135deg,#2B3AC4 0%, #5B3FE0 55%, #7C3AED 100%);
+  box-shadow:0 20px 40px -22px rgba(91,63,224,.65);
+}
+.feature-row{display:flex; flex-direction:column; gap:10px;}
+.feature-card{min-height:196px; display:flex; flex-direction:column; justify-content:space-between;}
+.hero .px{color:rgba(255,255,255,.75);}
+.hero h2{font-size:24px;font-weight:800;color:#fff;margin:4px 0 2px;letter-spacing:-.02em;}
+.hero p{font-size:13px;color:rgba(255,255,255,.82);margin:0 0 16px;max-width:220px;line-height:1.45;}
+.ring-row{display:flex;align-items:center;gap:14px;}
+.ring{flex:none;}
+.hero-cta{
+  font-size:12.5px; font-weight:800; color:#4C2AD1; background:#fff; padding:9px 14px;
+  border-radius:12px; display:inline-flex; align-items:center; gap:6px; margin-top:4px;
+}
+.mascot-badge{
+  position:absolute; right:-6px; bottom:-10px; width:92px; height:92px; border-radius:50%;
+  background:rgba(255,255,255,.14); display:flex; align-items:center; justify-content:center; font-size:40px;
+}
+
+.tool-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.tool-tile{border-radius:18px; padding:14px;}
+.tool-ic{font-size:22px; margin-bottom:8px;}
+.tool-t{font-size:14.5px; font-weight:700; color:#F1F0F7;}
+.tool-s{font-size:11.5px; color:#9E9CAE; margin-top:2px;}
+
+.duo-row{display:flex; gap:10px;}
+.duo-card{
+  flex:1; border-radius:20px; padding:14px; position:relative; overflow:hidden; min-height:118px;
+}
+.duo-card .ic{font-size:22px;}
+.duo-card .t{font-size:14.5px; font-weight:800; color:#fff; margin-top:6px;}
+.duo-card .s{font-size:11px; color:rgba(255,255,255,.82); margin-top:2px; line-height:1.35;}
+.duo-card .cta{
+  margin-top:10px; display:inline-flex; font-size:11px; font-weight:800; color:#fff;
+  background:rgba(255,255,255,.22); padding:5px 10px; border-radius:9px;
+}
+
+.a-section{margin-bottom:18px;}
+.a-kicker{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.a-kicker .swatch{width:8px;height:8px;border-radius:50%;}
+.a-kicker span{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9E9CAE;}
+
+.a-tile{border-radius:18px; padding:14px; position:relative; overflow:hidden;}
+.metric-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.metric-tile{border-radius:16px; padding:12px 14px;}
+.metric-num{font-size:22px;font-weight:800;}
+.metric-lbl{font-size:10.5px;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+
+.progress-tile{
+  border-radius:18px;padding:14px 16px;
+  background:linear-gradient(140deg, rgba(56,189,248,.14), rgba(56,189,248,.03));
+  border:1px solid rgba(56,189,248,.25);
+}
+.progress-tile .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+.progress-tile .top b{font-size:14px;color:#F1F0F7;}
+.progress-tile .top span{font-size:20px;font-weight:800;color:#38BDF8;}
+.pbar{height:8px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;}
+.pbar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#38BDF8,#0EA5E9);}
+.subject-row{display:flex;justify-content:space-between;font-size:11.5px;color:#9E9CAE;margin-top:8px;}
+
+.heat-tile{
+  border-radius:18px; padding:14px 16px;
+  background:linear-gradient(140deg, rgba(251,191,36,.13), rgba(251,191,36,.02));
+  border:1px solid rgba(251,191,36,.22);
+}
+.heat-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
+.heat-head b{font-size:14px;color:#F1F0F7;}
+.heat-head span{font-size:12px;color:#FBBF24;font-weight:700;}
+.a-heat{display:grid; grid-template-columns:repeat(12,1fr); gap:3px;}
+.a-heat div{aspect-ratio:1; border-radius:3px;}
+.legend{display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:8px;}
+.legend div{width:9px;height:9px;border-radius:2px;}
+.legend span{font-size:10px;color:#716F80;margin:0 4px;}
+
+.pill-row{display:flex; gap:8px; overflow-x:auto; padding-bottom:2px;}
+.pill{
+  flex:none; display:flex; flex-direction:column; align-items:center; gap:6px;
+  width:72px; padding:12px 8px; border-radius:16px; text-align:center;
+}
+.pill .ic{font-size:18px;}
+.pill span{font-size:11px;font-weight:700;color:#F1F0F7;}
+
+.plan-tile{border-radius:18px;padding:14px 16px;background:linear-gradient(140deg, rgba(139,92,246,.14), rgba(139,92,246,.02));border:1px solid rgba(139,92,246,.24);}
+.plan-tile b{font-size:14px;color:#F1F0F7;}
+.plan-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12.5px;}
+.plan-row:last-child{border:0;}
+.plan-row .chk{width:18px;height:18px;border-radius:50%;flex:none;border:2px solid rgba(139,92,246,.5);}
+.plan-row .chk.done{background:#8B5CF6;border-color:#8B5CF6;}
+.plan-row .t{flex:1;color:#F1F0F7;}
+.plan-row .d{color:#9E9CAE;font-size:11px;}
+
+.weak-tile{border-radius:18px;padding:14px 16px;background:linear-gradient(140deg, rgba(251,113,133,.14), rgba(251,113,133,.02));border:1px solid rgba(251,113,133,.24);}
+.weak-tile b{font-size:14px;color:#F1F0F7;}
+.weak-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12.5px;color:#F1F0F7;}
+.weak-row:last-child{border:0;}
+.weak-pct{font-size:12px;font-weight:800;color:#FB7185;}
+
+.result-tile{border-radius:18px;padding:14px 16px;background:linear-gradient(140deg, rgba(52,211,153,.13), rgba(52,211,153,.02));border:1px solid rgba(52,211,153,.22);}
+.result-tile b{font-size:14px;color:#F1F0F7;}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12.5px;color:#F1F0F7;}
+.result-row:last-child{border:0;}
+.result-score{font-size:12px;font-weight:800;}
+.result-score.good{color:#34D399;}
+.result-score.bad{color:#FB7185;}
+
+.level-tile{
+  border-radius:20px;padding:18px 16px;text-align:center;position:relative;overflow:hidden;
+  background:linear-gradient(160deg,#3a2a06,#1a1408);
+  border:1px solid rgba(244,183,64,.35);
+}
+.level-tile .medal{font-size:34px;}
+.level-tile .lvl{font-size:20px;font-weight:800;color:#F4B740;margin-top:4px;}
+.level-tile .xp{font-size:11.5px;color:#D9B67A;margin-top:2px;}
+.level-tile .xpbar{height:8px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:12px;}
+.level-tile .xpbar > i{display:block;height:100%;background:linear-gradient(90deg,#F4B740,#D97706);}
+
+footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--line); font-size:12px; color:var(--muted);}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+
+<div class="wrap">
+  <div class="masthead">
+    <p class="eyebrow">Study tab · design review</p>
+    <h1>Same eight tools — a launcher, not a list.</h1>
+    <p class="lede">Nothing below is invented: it's the exact same Drug Randomizer + 7 tools from <span class="mono">study_hub_page.dart</span>. Today every row uses the same blue icon chip and the same shape. Both redesign options feature <b>Drugs</b> and <b>My Notes</b> above the rest — the two tools with the most reason to stand out — and give the remaining six their own <span class="mono">DashAccents</span> color. Option 1 stacks them full-width; Option 2 sits them side by side, more compact.</p>
+  </div>
+
+  <div class="compare compare-3">
+    <!-- ============ BEFORE ============ -->
+    <div>
+      <div class="column-label">
+        <span class="tag now">Now</span>
+        <h2>The Study tab today</h2>
+      </div>
+      <div class="phone-shell">
+        <div class="phone-screen">
+          <div class="notch"></div>
+          <div class="topbar">
+            <div class="bell">🔔</div>
+            <div class="avatar" style="background:linear-gradient(135deg, rgba(56,189,248,.3), rgba(96,165,250,.24)); color:#F8FAFC;">LS</div>
+          </div>
+          <div class="pad" style="padding-top:4px;">
+            <p class="px" style="color:#38BDF8;margin:0;">TOOLS</p>
+            <p class="h1p" style="color:#F8FAFC;">Study</p>
+
+            <div class="b-card" style="margin-top:16px;">
+              <div class="b-row">
+                <div class="b-icon">💊</div>
+                <div style="flex:1;">
+                  <p class="b-title">Drugs</p>
+                  <p class="b-sub">Spin a random drug, answer a quick MCQ</p>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px;">
+                <span class="b-chip">⇄ 0 / 5 spins</span>
+                <span class="b-chip">✓ Ready</span>
+              </div>
+            </div>
+
+            <div class="b-card"><div class="b-row"><div class="b-icon">📖</div><div style="flex:1;"><p class="b-title">Lessons</p><p class="b-sub">Browse by course, subject, then lesson</p></div><span style="color:#8294AE;">›</span></div></div>
+            <div class="b-card"><div class="b-row"><div class="b-icon">🎴</div><div style="flex:1;"><p class="b-title">Flashcards</p><p class="b-sub">Spaced repetition for high-yield recall</p></div><span style="color:#8294AE;">›</span></div></div>
+            <div class="b-card"><div class="b-row"><div class="b-icon">💓</div><div style="flex:1;"><p class="b-title">ECG</p><p class="b-sub">Read ECGs topic by topic, then quiz yourself</p></div><span style="color:#8294AE;">›</span></div></div>
+            <div class="b-card"><div class="b-row"><div class="b-icon">🎧</div><div style="flex:1;"><p class="b-title">Auscultation</p><p class="b-sub">Heart &amp; lung sounds, then quiz yourself</p></div><span style="color:#8294AE;">›</span></div></div>
+            <div class="b-card"><div class="b-row"><div class="b-icon">🗓️</div><div style="flex:1;"><p class="b-title">Planner</p><p class="b-sub">Map your rotations and exam countdown</p></div><span style="color:#8294AE;">›</span></div></div>
+            <div class="b-card"><div class="b-row"><div class="b-icon">🔖</div><div style="flex:1;"><p class="b-title">Saved</p><p class="b-sub">Your bookmarked quizzes, notes and questions</p></div><span style="color:#8294AE;">›</span></div></div>
+            <div class="b-card"><div class="b-row"><div class="b-icon">✏️</div><div style="flex:1;"><p class="b-title">My Notes</p><p class="b-sub">Your own canvas notebooks — write anything</p></div><span style="color:#8294AE;">›</span></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="scroll-hint">↕ scroll inside the phone</p>
+    </div>
+
+    <!-- ============ AFTER ============ -->
+    <div>
+      <div class="column-label">
+        <span class="tag next">Option 1</span>
+        <h2>Two stacked featured cards</h2>
+      </div>
+      <div class="phone-shell">
+        <div class="phone-screen a-page">
+          <div class="notch"></div>
+          <div class="topbar">
+            <div class="bell">🔔</div>
+            <div class="avatar" style="background:linear-gradient(135deg,#5B3FE0,#38BDF8); color:#fff;">LS</div>
+          </div>
+          <div class="pad" style="padding-top:4px;">
+            <p class="px" style="color:#38BDF8;margin:0;">TOOLS</p>
+            <p class="h1p" style="color:#F8FAFC;">Study</p>
+
+            <div class="feature-row" style="margin-top:16px;">
+              <div class="hero feature-card" style="margin:0; padding:18px;">
+                <div>
+                  <p class="px">FEATURED</p>
+                  <h2 style="font-size:20px;">💊 Drug Randomizer</h2>
+                  <p style="max-width:none; margin-bottom:14px;">Spin a random drug, answer a quick MCQ</p>
+                  <div style="display:flex; gap:16px; align-items:center;">
+                    <div>
+                      <div style="font-size:11px;color:rgba(255,255,255,.7);">SPINS TODAY</div>
+                      <div class="mono" style="font-size:18px;font-weight:800;color:#fff;">0 / 5</div>
+                    </div>
+                    <div class="pbar" style="flex:1; background:rgba(255,255,255,.22);"><i style="width:0%;background:#fff;"></i></div>
+                  </div>
+                </div>
+                <div class="hero-cta" style="align-self:flex-start;">▶ Spin now</div>
+              </div>
+
+              <div class="hero feature-card" style="margin:0; padding:18px;
+                  background:radial-gradient(120% 140% at 100% 0%, rgba(244,183,64,.55), transparent 55%), linear-gradient(135deg,#8A5A00 0%, #C9820A 55%, #F4B740 100%);
+                  box-shadow:0 20px 40px -22px rgba(217,119,6,.55);">
+                <div>
+                  <p class="px">FEATURED</p>
+                  <h2 style="font-size:20px;">✏️ My Notes</h2>
+                  <p style="max-width:none;">Your own canvas notebooks — write anything</p>
+                </div>
+                <div class="hero-cta" style="color:#8A5A00; align-self:flex-start;">+ New note</div>
+              </div>
+            </div>
+
+            <div class="a-section" style="margin-top:18px;">
+              <div class="a-kicker"><div class="swatch" style="background:#38BDF8;"></div><span>Tools</span></div>
+              <div class="tool-grid">
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(56,189,248,.18), rgba(56,189,248,.04)); border:1px solid rgba(56,189,248,.25);">
+                  <div class="tool-ic" style="color:#38BDF8;">📖</div><div class="tool-t">Lessons</div><div class="tool-s">By course &amp; subject</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(139,92,246,.18), rgba(139,92,246,.04)); border:1px solid rgba(139,92,246,.25);">
+                  <div class="tool-ic" style="color:#A78BFA;">🎴</div><div class="tool-t">Flashcards</div><div class="tool-s mono">128 due</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(251,113,133,.18), rgba(251,113,133,.04)); border:1px solid rgba(251,113,133,.25);">
+                  <div class="tool-ic" style="color:#FB7185;">💓</div><div class="tool-t">ECG</div><div class="tool-s">Topic by topic</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(52,211,153,.18), rgba(52,211,153,.04)); border:1px solid rgba(52,211,153,.25);">
+                  <div class="tool-ic" style="color:#34D399;">🎧</div><div class="tool-t">Auscultation</div><div class="tool-s">Heart &amp; lung sounds</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(251,191,36,.18), rgba(251,191,36,.04)); border:1px solid rgba(251,191,36,.25);">
+                  <div class="tool-ic" style="color:#FBBF24;">🗓️</div><div class="tool-t">Planner</div><div class="tool-s">Rotations &amp; exams</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(96,165,250,.18), rgba(96,165,250,.04)); border:1px solid rgba(96,165,250,.25);">
+                  <div class="tool-ic" style="color:#60A5FA;">🔖</div><div class="tool-t">Saved</div><div class="tool-s">Bookmarks</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="scroll-hint">↕ scroll inside the phone</p>
+    </div>
+
+    <!-- ============ AFTER — OPTION 2 ============ -->
+    <div>
+      <div class="column-label">
+        <span class="tag next">Option 2</span>
+        <h2>Side-by-side featured duo</h2>
+      </div>
+      <div class="phone-shell">
+        <div class="phone-screen a-page">
+          <div class="notch"></div>
+          <div class="topbar">
+            <div class="bell">🔔</div>
+            <div class="avatar" style="background:linear-gradient(135deg,#5B3FE0,#38BDF8); color:#fff;">LS</div>
+          </div>
+          <div class="pad" style="padding-top:4px;">
+            <p class="px" style="color:#38BDF8;margin:0;">TOOLS</p>
+            <p class="h1p" style="color:#F8FAFC;">Study</p>
+
+            <div class="a-section" style="margin-top:16px;">
+              <div class="a-kicker"><div class="swatch" style="background:#F4B740;"></div><span>Featured</span></div>
+              <div class="duo-row">
+                <div class="duo-card" style="background:linear-gradient(160deg,#5B3FE0,#38BDF8);">
+                  <div class="ic">💊</div>
+                  <div class="t">Drugs</div>
+                  <div class="s mono">0/5 spins today</div>
+                  <div class="cta">▶ Spin</div>
+                </div>
+                <div class="duo-card" style="background:linear-gradient(160deg,#C9820A,#F4B740);">
+                  <div class="ic">✏️</div>
+                  <div class="t">My Notes</div>
+                  <div class="s">Write anything</div>
+                  <div class="cta">+ New</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="a-section">
+              <div class="a-kicker"><div class="swatch" style="background:#38BDF8;"></div><span>Tools</span></div>
+              <div class="tool-grid">
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(56,189,248,.18), rgba(56,189,248,.04)); border:1px solid rgba(56,189,248,.25);">
+                  <div class="tool-ic" style="color:#38BDF8;">📖</div><div class="tool-t">Lessons</div><div class="tool-s">By course &amp; subject</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(139,92,246,.18), rgba(139,92,246,.04)); border:1px solid rgba(139,92,246,.25);">
+                  <div class="tool-ic" style="color:#A78BFA;">🎴</div><div class="tool-t">Flashcards</div><div class="tool-s mono">128 due</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(251,113,133,.18), rgba(251,113,133,.04)); border:1px solid rgba(251,113,133,.25);">
+                  <div class="tool-ic" style="color:#FB7185;">💓</div><div class="tool-t">ECG</div><div class="tool-s">Topic by topic</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(52,211,153,.18), rgba(52,211,153,.04)); border:1px solid rgba(52,211,153,.25);">
+                  <div class="tool-ic" style="color:#34D399;">🎧</div><div class="tool-t">Auscultation</div><div class="tool-s">Heart &amp; lung sounds</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(251,191,36,.18), rgba(251,191,36,.04)); border:1px solid rgba(251,191,36,.25);">
+                  <div class="tool-ic" style="color:#FBBF24;">🗓️</div><div class="tool-t">Planner</div><div class="tool-s">Rotations &amp; exams</div>
+                </div>
+                <div class="tool-tile" style="background:linear-gradient(160deg, rgba(96,165,250,.18), rgba(96,165,250,.04)); border:1px solid rgba(96,165,250,.25);">
+                  <div class="tool-ic" style="color:#60A5FA;">🔖</div><div class="tool-t">Saved</div><div class="tool-s">Bookmarks</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="scroll-hint">↕ scroll inside the phone</p>
+    </div>
+  </div>
+
+  <div class="compare" style="margin-top:32px;">
+    <div>
+      <div class="callouts">
+        <div class="callout"><div class="dot" style="background:#8294AE"></div><div><b>Every tool looks identical.</b> <span>Lessons, ECG, Auscultation, Planner — 7 rows in a row, every icon the same blue chip on the same dark card. Nothing tells you these are different tools until you read the text.</span></div></div>
+        <div class="callout"><div class="dot" style="background:#8294AE"></div><div><b>It's a settings list, not a launcher.</b> <span>Icon → title → subtitle → chevron, repeated 7 times top to bottom — the same pattern iOS uses for "Settings," not for the screen students open most.</span></div></div>
+        <div class="callout"><div class="dot" style="background:#8294AE"></div><div><b>The one tool with real stats (Drugs) still looks like the rest.</b> <span>It already tracks spins and readiness — that data just sits inside the same plain card as everything else, so it doesn't stand out as the featured tool it is.</span></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="callouts">
+        <div class="callout fix"><div class="dot"></div><div><b>Drugs and My Notes both get featured treatment.</b> <span>Drugs already had live stats; My Notes is where students create their own content — both earn top billing instead of blending into row 4 and row 7 of a list.</span></div></div>
+        <div class="callout fix"><div class="dot"></div><div><b>One color per remaining tool, from the seven DashAccents already in your tokens.</b> <span>Lessons=cyan, Flashcards=violet, ECG=rose, Auscultation=green, Planner=amber, Saved=blue — you can tell tools apart at a glance, before reading a word.</span></div></div>
+        <div class="callout"><div class="dot" style="background:#8294AE"></div><div><b>Option 1 vs Option 2 is a height/density trade-off.</b> <span>Stacked (1) gives each featured tool more room and a live stat bar; side-by-side (2) is more compact but each card can show less.</span></div></div>
+        <div class="callout fix"><div class="dot"></div><div><b>List becomes a 2-up grid.</b> <span>7 tall rows become a compact grid that fits in less than one screen of scrolling — it reads like a launcher, not a settings menu.</span></div></div>
+        <div class="callout fix"><div class="dot"></div><div><b>Drugs becomes the actual featured hero.</b> <span>Same spin-count and ready-state data, now in a bold gradient card above the grid — the one tool with live stats finally looks like the featured one.</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Mockup only — built from the real tools and colors already in <span class="mono">study_hub_page.dart</span> and <span class="mono">theme/tokens.dart</span>. Nothing here is implemented yet; say the word and it gets built into the actual Flutter screen.
+  </footer>
+</div>

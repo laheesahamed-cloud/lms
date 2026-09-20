@@ -209,11 +209,29 @@ class _BottomNav extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
-            children: [
-              for (var i = 0; i < kDests.length; i++)
-                _NavItem(dest: kDests[i], active: i == index),
-            ],
+          // LayoutBuilder (not Expanded/flex) so each tab's width is a real
+          // animatable number — flex changes on Expanded snap instantly with
+          // no way to tween them, which is what made switching tabs feel
+          // like a jump cut instead of a slide.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const activeShare = 5;
+              const inactiveShare = 2;
+              final totalShare =
+                  activeShare + inactiveShare * (kDests.length - 1);
+              final unit = constraints.maxWidth / totalShare;
+
+              return Row(
+                children: [
+                  for (var i = 0; i < kDests.length; i++)
+                    _NavItem(
+                      dest: kDests[i],
+                      active: i == index,
+                      width: unit * (i == index ? activeShare : inactiveShare),
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -224,45 +242,51 @@ class _BottomNav extends StatelessWidget {
 class _NavItem extends StatelessWidget {
   final NavDest dest;
   final bool active;
-  const _NavItem({required this.dest, required this.active});
+  final double width;
+  const _NavItem({required this.dest, required this.active, required this.width});
+
+  // Slow enough to read as a slide rather than a jump, still snappy enough
+  // not to lag behind a tap.
+  static const _navDur = Duration(milliseconds: 680);
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    return Expanded(
-      flex: active ? 5 : 2,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () { HapticFeedback.selectionClick(); context.go(dest.route); },
-        child: Center(
-          child: AnimatedContainer(
-            duration: AppDur.hover,
-            curve: AppCurves.easeOut,
-            padding: EdgeInsets.symmetric(horizontal: active ? 14 : 0, vertical: 9),
-            decoration: BoxDecoration(
-              color: active ? c.primaryTint : Colors.transparent,
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(dest.icon,
-                    size: 22, color: active ? c.primary : c.inkSoft),
-                if (active) ...[
-                  const SizedBox(width: 7),
-                  Flexible(
-                    child: Text(dest.label,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: c.primary)),
-                  ),
-                ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () { HapticFeedback.selectionClick(); context.go(dest.route); },
+      child: AnimatedContainer(
+        duration: _navDur,
+        curve: AppCurves.easeOut,
+        width: width,
+        alignment: Alignment.center,
+        child: AnimatedContainer(
+          duration: _navDur,
+          curve: AppCurves.easeOut,
+          padding: EdgeInsets.symmetric(horizontal: active ? 14 : 0, vertical: 9),
+          decoration: BoxDecoration(
+            color: active ? c.primaryTint : Colors.transparent,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(dest.icon,
+                  size: 22, color: active ? c.primary : c.inkSoft),
+              if (active) ...[
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(dest.label,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: c.primary)),
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),

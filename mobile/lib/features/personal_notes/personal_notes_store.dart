@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../state/local_scope.dart';
 
@@ -12,17 +13,44 @@ enum PaperStyle { plain, dotted, ruled, grid }
 /// white — a glaring white rectangle in dark mode.
 enum PaperTint { white, cream, dark }
 
+/// Physical paper size, portrait dimensions in mm/inches. Landscape is just
+/// [PaperOrientation.landscape] applied to the same size — the size itself
+/// never encodes orientation.
+enum PaperSize { a4, letter }
+
+enum PaperOrientation { portrait, landscape }
+
+/// width/height for each size's *portrait* orientation. [PagePaper.aspectRatio]
+/// inverts this for landscape.
+const Map<PaperSize, double> _paperPortraitRatio = {
+  PaperSize.a4: 210 / 297,
+  PaperSize.letter: 8.5 / 11,
+};
+
 PaperStyle _styleFrom(String? v) => PaperStyle.values.firstWhere(
     (e) => e.name == v,
     orElse: () => PaperStyle.dotted);
 PaperTint _tintFrom(String? v) =>
     PaperTint.values.firstWhere((e) => e.name == v, orElse: () => PaperTint.white);
+PaperSize _sizeFrom(String? v) => PaperSize.values.firstWhere(
+    (e) => e.name == v,
+    orElse: () => PaperSize.a4);
+PaperOrientation _orientationFrom(String? v) => PaperOrientation.values.firstWhere(
+    (e) => e.name == v,
+    orElse: () => PaperOrientation.portrait);
 
 /// Paper for one page. Per page, not per note: a reader may want page 1 white
 /// and page 2 cream, and switching should not restyle everything behind them.
 class PagePaper {
   final PaperStyle style;
   final PaperTint tint;
+
+  /// Physical size + orientation for a plain (non-PDF) page. Ignored when
+  /// [isPdfBacked] — a scanned page keeps the aspect ratio of its own PDF
+  /// instead (see [pdfAspectRatio]), size/orientation would be meaningless
+  /// there since the picker that sets them is never shown for a PDF page.
+  final PaperSize size;
+  final PaperOrientation orientation;
 
   /// When set, this page's background is a rendered PDF page rather than a
   /// plain paper fill — [pdfPath] + [pdfPageIndex] (0-based) locate it.
@@ -39,6 +67,8 @@ class PagePaper {
   const PagePaper({
     this.style = PaperStyle.dotted,
     this.tint = PaperTint.white,
+    this.size = PaperSize.a4,
+    this.orientation = PaperOrientation.portrait,
     this.pdfPath,
     this.pdfPageIndex,
     this.pdfAspectRatio,
@@ -46,9 +76,24 @@ class PagePaper {
 
   bool get isPdfBacked => pdfPath != null && pdfPageIndex != null;
 
+  /// width/height. A PDF-backed page keeps its own scanned ratio; otherwise
+  /// derived from [size] + [orientation] (landscape just inverts portrait).
+  /// Deliberately ignores [orientation] — switching a page between portrait
+  /// and landscape must never resize it (that's what was causing ink to jump
+  /// relative to the page: changing this page's height shifts every page
+  /// after it). The canvas stays exactly the size it already is either way;
+  /// [orientation] is a label for how you're using the page, not a layout
+  /// input. Seeing it bigger/smaller is what pinch-zoom is for.
+  double get aspectRatio {
+    if (pdfAspectRatio != null && pdfAspectRatio! > 0) return pdfAspectRatio!;
+    return _paperPortraitRatio[size]!;
+  }
+
   Map<String, dynamic> toJson() => {
         'style': style.name,
         'tint': tint.name,
+        'size': size.name,
+        'orientation': orientation.name,
         if (pdfPath != null) 'pdfPath': pdfPath,
         if (pdfPageIndex != null) 'pdfPageIndex': pdfPageIndex,
         if (pdfAspectRatio != null) 'pdfAspectRatio': pdfAspectRatio,
@@ -61,17 +106,21 @@ class PagePaper {
       other is PagePaper &&
       other.style == style &&
       other.tint == tint &&
+      other.size == size &&
+      other.orientation == orientation &&
       other.pdfPath == pdfPath &&
       other.pdfPageIndex == pdfPageIndex &&
       other.pdfAspectRatio == pdfAspectRatio;
 
   @override
-  int get hashCode =>
-      Object.hash(style, tint, pdfPath, pdfPageIndex, pdfAspectRatio);
+  int get hashCode => Object.hash(
+      style, tint, size, orientation, pdfPath, pdfPageIndex, pdfAspectRatio);
 
   factory PagePaper.fromJson(Map<String, dynamic> j) => PagePaper(
         style: _styleFrom(j['style'] as String?),
         tint: _tintFrom(j['tint'] as String?),
+        size: _sizeFrom(j['size'] as String?),
+        orientation: _orientationFrom(j['orientation'] as String?),
         pdfPath: j['pdfPath'] as String?,
         pdfPageIndex: j['pdfPageIndex'] as int?,
         pdfAspectRatio: (j['pdfAspectRatio'] as num?)?.toDouble(),
@@ -307,6 +356,24 @@ class PersonalNotesStore {
     await _save(notes);
   }
 
+  /// Resolves a stored [PagePaper.pdfPath] to a real, currently-valid
+  /// absolute path. New imports (see PdfImportService._copyIntoAppStorage)
+  /// store a path relative to the app's documents directory, not an
+  /// absolute one — that directory's absolute path is NOT stable across app
+  /// installs/updates on iOS (a container's UUID can, and does, change),
+  /// which is exactly what was silently breaking every previously-imported
+  /// PDF: the stored absolute path pointed at a container that no longer
+  /// existed, so the page just showed ink-only forever after, with no error
+  /// (PdfDocument.openFile threw "file not found", caught and swallowed by
+  /// _ensurePdfImage). Old data may still have an absolute path stored from
+  /// before this fix; used as-is — best-effort, since the file it points to
+  /// may genuinely be gone if the container did change in between.
+  static Future<String> resolvePdfPath(String stored) async {
+    if (stored.startsWith('/')) return stored;
+    final dir = await getApplicationDocumentsDirectory();
+    return '${dir.path}/$stored';
+  }
+
   static Future<void> delete(String id) async {
     final notes = await load();
     final removedIdx = notes.indexWhere((n) => n.id == id);
@@ -340,7 +407,7 @@ class PersonalNotesStore {
       for (final path in removedPdfPaths) {
         if (stillReferenced.contains(path)) continue;
         try {
-          final f = File(path);
+          final f = File(await resolvePdfPath(path));
           if (await f.exists()) await f.delete();
         } catch (_) {
           // Best-effort — an orphaned file is no worse than the state before
@@ -401,14 +468,15 @@ class PersonalNotesStore {
   }
 
   /// Restyle a single page. [pageIndex] is 0-based.
-  static Future<void> setPagePaper(
-      String id, int pageIndex, PaperStyle style, PaperTint tint) async {
+  static Future<void> setPagePaper(String id, int pageIndex, PaperStyle style,
+      PaperTint tint, PaperSize size, PaperOrientation orientation) async {
     final notes = await load();
     final idx = notes.indexWhere((n) => n.id == id);
     if (idx == -1) return;
     final pages = notes[idx].pages;
     if (pageIndex < 0 || pageIndex >= pages.length) return;
-    pages[pageIndex] = PagePaper(style: style, tint: tint);
+    pages[pageIndex] =
+        PagePaper(style: style, tint: tint, size: size, orientation: orientation);
     notes[idx] = notes[idx].copyWith(paper: pages);
     await _save(notes);
   }

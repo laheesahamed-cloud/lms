@@ -71,7 +71,8 @@ class PdfImportService {
   /// nothing native-modal about it. Returns null if [picked] could not be
   /// opened as a PDF.
   static Future<PdfImportResult?> process(XFile picked) async {
-    String storedPath;
+    String storedPath; // relative — what gets persisted in PagePaper.pdfPath
+    String absolutePath; // resolved — what's actually usable as a File/openFile path
     try {
       // Was outside this try/catch — a failure copying the picked file (an
       // iOS document from iCloud Drive or another app needs
@@ -79,12 +80,13 @@ class PdfImportService {
       // this does not currently call) would throw straight out of process(),
       // uncaught by any caller, and look like nothing happened at all.
       storedPath = await _copyIntoAppStorage(picked.path);
+      absolutePath = await PersonalNotesStore.resolvePdfPath(storedPath);
     } catch (_) {
       return null;
     }
     PdfDocument? doc;
     try {
-      doc = await PdfDocument.openFile(storedPath);
+      doc = await PdfDocument.openFile(absolutePath);
       final pages = <PagePaper>[
         for (var i = 0; i < doc.pages.length; i++)
           PagePaper(
@@ -95,7 +97,7 @@ class PdfImportService {
           ),
       ];
       if (pages.isEmpty) {
-        await File(storedPath).delete().catchError((_) => File(storedPath));
+        await File(absolutePath).delete().catchError((_) => File(absolutePath));
         return null;
       }
       final name = picked.name;
@@ -105,7 +107,7 @@ class PdfImportService {
     } catch (_) {
       // Not a PDF we could open — clean up the copy rather than leaving a
       // dead file behind with nothing referencing it.
-      await File(storedPath).delete().catchError((_) => File(storedPath));
+      await File(absolutePath).delete().catchError((_) => File(absolutePath));
       return null;
     } finally {
       await doc?.dispose();
@@ -123,13 +125,23 @@ class PdfImportService {
 
   /// Copies the picked file into `<app documents>/personal_pdfs/`, named by a
   /// fresh id so two imports (even of the same source file) never collide.
+  ///
+  /// Returns a path RELATIVE to the app's documents directory, not an
+  /// absolute one — the absolute path `getApplicationDocumentsDirectory()`
+  /// returns embeds the app's container UUID, which is not stable across
+  /// installs/updates on iOS. Storing that absolute path directly (the old
+  /// behaviour) meant a PDF-backed page rendered fine right after import,
+  /// then silently went ink-only forever the next time the app's container
+  /// changed — PdfDocument.openFile just threw "not found" on the stale
+  /// path. Callers must resolve this back to an absolute path with
+  /// PersonalNotesStore.resolvePdfPath before opening it.
   static Future<String> _copyIntoAppStorage(String pickedPath) async {
     final dir = await getApplicationDocumentsDirectory();
-    final pdfDir = Directory('${dir.path}/personal_pdfs/${LocalScope.uid}');
+    final relativeDir = 'personal_pdfs/${LocalScope.uid}';
+    final pdfDir = Directory('${dir.path}/$relativeDir');
     await pdfDir.create(recursive: true);
     final id = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
-    final dest = '${pdfDir.path}/$id.pdf';
-    await File(pickedPath).copy(dest);
-    return dest;
+    await File(pickedPath).copy('${pdfDir.path}/$id.pdf');
+    return '$relativeDir/$id.pdf';
   }
 }
