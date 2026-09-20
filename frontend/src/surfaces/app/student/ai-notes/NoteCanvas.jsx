@@ -46,6 +46,10 @@ const noteCanvasUi = {
   bulletDot: 'mt-[5px] size-[7px] shrink-0 rounded-full dark:shadow-[0_0_6px_currentColor]',
   subPartHeader:
     "mt-2.5 border-t border-transparent pt-2 text-[13px] font-extrabold uppercase tracking-[0.04em] [&_strong]:font-extrabold [&_strong]:text-inherit",
+  // Same divider treatment, layered onto the editable bullet row (which
+  // still needs its flex layout + ↳/+/× buttons) instead of replacing it.
+  subPartHeaderEdit:
+    'mt-2.5 border-t border-transparent pt-2 [&_[data-ncv-rich-editable]]:text-[13px] [&_[data-ncv-rich-editable]]:font-extrabold [&_[data-ncv-rich-editable]]:uppercase [&_[data-ncv-rich-editable]]:tracking-[0.04em]',
   summaryFrags: 'flex flex-wrap items-center gap-2',
   summaryFrag:
     "min-w-0 max-w-full break-words rounded-[10px] border border-black/[0.07] px-3 py-1.5 text-[13px] font-medium leading-[1.5] text-slate-700 dark:border-white/10 dark:text-[rgba(220,230,255,0.92)]",
@@ -274,6 +278,14 @@ function isHexColor(value) {
 
 function colorWithAlpha(color, alpha) {
   return isHexColor(color) ? `${color}${alpha}` : color;
+}
+
+// Low-opacity tints (table borders, dividers) read fine on the light card
+// background but wash out to near-invisible on the dark one — same reason
+// canvasCardBackground/keyChip/highlightMarkStyle roughly double their alpha
+// for dark mode. Picks the theme-appropriate hex-alpha suffix.
+function themedAlpha(theme, light, dark) {
+  return theme === 'dark' ? dark : light;
 }
 
 function getHighlightPalette(colors, accentColor) {
@@ -1123,10 +1135,10 @@ function EArea({ value, onChange, placeholder, className, style, minRows = 2, on
 }
 
 /* ── Checkable bullets: click to mark as studied (read mode) ── */
-function CheckableBullet({ bulletKey, text, isSub, isParent, isSubPartHeader, showDivider, accentColor, highlightColors, highlightIndex = 0, done, onToggle }) {
+function CheckableBullet({ bulletKey, text, isSub, isParent, isSubPartHeader, showDivider, accentColor, highlightColors, highlightIndex = 0, done, onToggle, theme }) {
   if (isSubPartHeader) {
     return (
-      <li className={noteCanvasUi.subPartHeader} style={showDivider ? { borderTopColor: colorWithAlpha(accentColor, '2a') } : undefined}>
+      <li className={noteCanvasUi.subPartHeader} style={showDivider ? { borderTopColor: colorWithAlpha(accentColor, themedAlpha(theme, '2a', '48')) } : undefined}>
         <span style={{ color: accentColor }}>
           <RichText text={text} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={highlightIndex}/>
         </span>
@@ -1158,7 +1170,7 @@ function CheckableBullet({ bulletKey, text, isSub, isParent, isSubPartHeader, sh
   );
 }
 
-function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey }) {
+function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey, theme }) {
   const [doneSet, setDoneSet] = useState(() => new Set());
   function toggle(key) {
     setDoneSet(prev => {
@@ -1209,6 +1221,7 @@ function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey
               highlightIndex={i}
               done={doneSet.has(key)}
               onToggle={toggle}
+              theme={theme}
             />
           );
         })}
@@ -1217,7 +1230,7 @@ function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey
   );
 }
 
-function BulletEditor({ bullets = [], accentColor, onChange }) {
+function BulletEditor({ bullets = [], accentColor, onChange, theme }) {
   const rows = bullets.length ? bullets : [''];
 
   function updateRow(index, value) {
@@ -1241,16 +1254,22 @@ function BulletEditor({ bullets = [], accentColor, onChange }) {
     <ul className={noteCanvasUi.bullets}>
       {rows.map((b, i) => {
         const sub = b.startsWith('→ ') || b.startsWith('→');
+        // Same detection as the read-mode CheckableBulletList — lets an
+        // admin see the sub-part divider while editing too, not just after
+        // saving. See groupSectionFamilies on the backend for where these
+        // "**Label**:" bullets come from.
+        const isSubPartHeader = !sub && /^\*\*[^*]+\*\*:?\s*$/.test(b.trim());
         return (
-          <li key={i} className={cx(noteCanvasUi.bullet, sub && noteCanvasUi.subBullet)}>
-            {sub
+          <li key={i} className={cx(noteCanvasUi.bullet, sub && noteCanvasUi.subBullet, isSubPartHeader && noteCanvasUi.subPartHeaderEdit)}
+            style={isSubPartHeader && i > 0 ? { borderTopColor: colorWithAlpha(accentColor, themedAlpha(theme, '2a', '48')) } : undefined}>
+            {isSubPartHeader ? null : sub
               ? <span className={noteCanvasUi.subArrow} style={{ color: accentColor }}>↳</span>
               : <span className={noteCanvasUi.bulletDot} style={{ background: accentColor }}/>}
             <EField
               value={sub ? b.replace(/^→\s*/, '') : b}
               onChange={value => updateRow(i, sub ? `→ ${value}` : value)}
               placeholder="Add note..."
-              style={{ width:'100%' }}
+              style={{ width:'100%', color: isSubPartHeader ? accentColor : undefined }}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -1813,7 +1832,7 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
         background: canvasCardBackground('#2563eb', theme),
       }}
     >
-      {!editable && <MedicalMiniIcon index={index} color="#60A5FA" theme={theme} />}
+      {!editable && <MedicalMiniIcon index={index} heading={section.caption} color="#60A5FA" theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -1932,7 +1951,7 @@ function ImageExplainedSectionCard({ section, index, totalSections, editable, on
       }}
     >
 
-      {!editable && <MedicalMiniIcon index={index + 2} color={accentColor} theme={theme} />}
+      {!editable && <MedicalMiniIcon index={index + 2} heading={section.caption} color={accentColor} theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -2214,7 +2233,7 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, d
 /* A small table embedded WITHIN a regular text card (as opposed to
    TableSectionCard, which is a whole dedicated full-width table card) — same
    add/remove row/col behavior, styled to sit under a card's bullets. */
-function EmbeddedTable({ table, accentColor, editable, onChange }) {
+function EmbeddedTable({ table, accentColor, editable, onChange, theme }) {
   const headers = Array.isArray(table?.headers) ? table.headers : ['Column 1', 'Column 2'];
   const rows = Array.isArray(table?.rows) ? table.rows : [];
 
@@ -2237,10 +2256,10 @@ function EmbeddedTable({ table, accentColor, editable, onChange }) {
         <>
           <table className={noteCanvasUi.table}>
             <thead className={noteCanvasUi.thead}>
-              <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+              <tr style={{ borderBottom: `1.5px solid ${accentColor}${themedAlpha(theme, '44', '70')}` }}>
                 {headers.map((h, ci) => (
                   <th key={ci} className={noteCanvasUi.th}
-                    style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>
+                    style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                       <EField value={h} onChange={v => updateHeader(ci, v)}
                         placeholder={`Col ${ci + 1}`} style={{ fontSize: 11, fontWeight: 800, width: '100%' }}/>
@@ -2256,9 +2275,9 @@ function EmbeddedTable({ table, accentColor, editable, onChange }) {
             </thead>
             <tbody className={noteCanvasUi.tbody}>
               {rows.map((row, ri) => (
-                <tr key={ri} className={noteCanvasUi.tr} style={{ borderBottomColor: accentColor + '1f' }}>
+                <tr key={ri} className={noteCanvasUi.tr} style={{ borderBottomColor: accentColor + themedAlpha(theme, '1f', '38') }}>
                   {headers.map((_, ci) => (
-                    <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}>
+                    <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '16', '2c')}` : 'none' }}>
                       <EField value={row[ci] || ''} onChange={v => updateCell(ri, ci, v)}
                         placeholder="—" style={{ width: '100%', fontSize: 13 }}/>
                     </td>
@@ -2280,18 +2299,18 @@ function EmbeddedTable({ table, accentColor, editable, onChange }) {
       ) : (
         <table className={noteCanvasUi.table}>
           <thead className={noteCanvasUi.thead}>
-            <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+            <tr style={{ borderBottom: `1.5px solid ${accentColor}${themedAlpha(theme, '44', '70')}` }}>
               {headers.map((h, ci) => (
                 <th key={ci} className={noteCanvasUi.th}
-                  style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>{h}</th>
+                  style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className={noteCanvasUi.tbody}>
             {rows.map((row, ri) => (
-              <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)} style={{ borderBottomColor: accentColor + '1f' }}>
+              <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)} style={{ borderBottomColor: accentColor + themedAlpha(theme, '1f', '38') }}>
                 {headers.map((_, ci) => (
-                  <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}><RichText text={row[ci] || ''} accentColor={accentColor}/></td>
+                  <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '16', '2c')}` : 'none' }}><RichText text={row[ci] || ''} accentColor={accentColor}/></td>
                 ))}
               </tr>
             ))}
@@ -2429,9 +2448,10 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
                 bullets={section.bullets}
                 accentColor={accentColor}
                 onChange={next => onSectionChange('bullets', next)}
+                theme={theme}
               />
             ) : (
-              section.bullets?.length > 0 && <CheckableBulletList bullets={section.bullets} accentColor={accentColor} highlightColors={richColors} sectionKey={colorIndex}/>
+              section.bullets?.length > 0 && <CheckableBulletList bullets={section.bullets} accentColor={accentColor} highlightColors={richColors} sectionKey={colorIndex} theme={theme}/>
             )}
             <div className={noteCanvasUi.sectionExtras}>
               {section.callout && (
@@ -2466,7 +2486,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
               )}
             </div>
             {section.embeddedTable && (
-              <EmbeddedTable table={section.embeddedTable} accentColor={accentColor} editable={editable}
+              <EmbeddedTable table={section.embeddedTable} accentColor={accentColor} editable={editable} theme={theme}
                 onChange={next => onSectionChange('embeddedTable', next)}/>
             )}
           </div>
@@ -2574,10 +2594,10 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
           <>
             <table className={noteCanvasUi.table}>
               <thead className={noteCanvasUi.thead}>
-                <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+                <tr style={{ borderBottom: `1.5px solid ${accentColor}${themedAlpha(theme, '44', '70')}` }}>
                   {headers.map((h, ci) => (
                     <th key={ci} className={noteCanvasUi.th}
-                      style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>
+                      style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:3 }}>
                         <EField value={h} onChange={v => updateHeader(ci, v)}
                           placeholder={`Col ${ci + 1}`} style={{ fontSize:11, fontWeight:800, width:'100%' }}/>
@@ -2593,9 +2613,9 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
               </thead>
               <tbody className={noteCanvasUi.tbody}>
                 {rows.map((row, ri) => (
-                  <tr key={ri} className={noteCanvasUi.tr} style={{ borderBottomColor: accentColor + '1f' }}>
+                  <tr key={ri} className={noteCanvasUi.tr} style={{ borderBottomColor: accentColor + themedAlpha(theme, '1f', '38') }}>
                     {headers.map((_, ci) => (
-                      <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}>
+                      <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '16', '2c')}` : 'none' }}>
                         <EField value={row[ci] || ''} onChange={v => updateCell(ri, ci, v)}
                           placeholder="—" style={{ width:'100%', fontSize:13 }}/>
                       </td>
@@ -2616,18 +2636,18 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
         ) : (
           <table className={noteCanvasUi.table}>
             <thead className={noteCanvasUi.thead}>
-              <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+              <tr style={{ borderBottom: `1.5px solid ${accentColor}${themedAlpha(theme, '44', '70')}` }}>
                 {headers.map((h, ci) => (
                   <th key={ci} className={noteCanvasUi.th}
-                    style={{ color: accentColor, background: accentColor + '14', borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}2a` : 'none' }}>{h}</th>
+                    style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className={noteCanvasUi.tbody}>
               {rows.map((row, ri) => (
-                <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)} style={{ borderBottomColor: accentColor + '1f' }}>
+                <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)} style={{ borderBottomColor: accentColor + themedAlpha(theme, '1f', '38') }}>
                   {headers.map((_, ci) => (
-                    <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}16` : 'none' }}><RichText text={row[ci] || ''} accentColor={accentColor} /></td>
+                    <td key={ci} className={noteCanvasUi.td} style={{ borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '16', '2c')}` : 'none' }}><RichText text={row[ci] || ''} accentColor={accentColor} /></td>
                   ))}
                 </tr>
               ))}
