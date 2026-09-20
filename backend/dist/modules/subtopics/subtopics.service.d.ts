@@ -16,6 +16,7 @@ export declare class SubtopicsService {
         topicId: number;
         subtopicName: string;
         status: "active" | "inactive";
+        sortOrder: number;
         createdAt: string | null;
     }[]>;
     create(createSubtopicDto: CreateSubtopicDto, actor?: ContentActorInput): Promise<{
@@ -76,6 +77,9 @@ export declare class SubtopicsService {
     private assertCanSaveStatus;
     private assertCanModifyExistingStatus;
     private validateSubtopicPayload;
+    reorder(orderedIds: number[]): Promise<{
+        ok: boolean;
+    }>;
     private findById;
     private ensureTopicExists;
     private mapSubtopic;

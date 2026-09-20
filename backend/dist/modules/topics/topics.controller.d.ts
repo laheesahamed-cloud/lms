@@ -12,6 +12,7 @@ export declare class TopicsController {
         topicName: string;
         topicDescription: string;
         status: "active" | "inactive";
+        sortOrder: number;
         createdAt: string | null;
         courseTitle?: string;
         subtopicCount?: number;
@@ -23,6 +24,7 @@ export declare class TopicsController {
         topicName: string;
         topicDescription: string;
         status: "active" | "inactive";
+        sortOrder: number;
         createdAt: string | null;
         courseTitle?: string;
         subtopicCount?: number;
@@ -30,6 +32,9 @@ export declare class TopicsController {
     create(authorization: string | undefined, createTopicDto: CreateTopicDto): Promise<{
         ok: boolean;
         id: number;
+    }>;
+    reorder(orderedIds: number[]): Promise<{
+        ok: boolean;
     }>;
     update(authorization: string | undefined, id: number, updateTopicDto: UpdateTopicDto): Promise<{
         ok: boolean;

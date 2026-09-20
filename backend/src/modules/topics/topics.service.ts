@@ -10,6 +10,7 @@ type TopicRow = RowDataPacket & {
   topic_name: string;
   topic_description: string | null;
   status: 'active' | 'inactive';
+  sort_order?: number | null;
   created_at?: string | null;
   course_title?: string;
   subtopic_count?: number;
@@ -21,6 +22,7 @@ type TopicEntity = {
   topicName: string;
   topicDescription: string;
   status: 'active' | 'inactive';
+  sortOrder: number;
   createdAt: string | null;
   courseTitle?: string;
   subtopicCount?: number;
@@ -54,6 +56,7 @@ export class TopicsService {
         t.topic_name,
         t.topic_description,
         t.status,
+        t.sort_order,
         t.created_at,
         c.course_title,
         COUNT(s.id) AS subtopic_count
@@ -69,8 +72,8 @@ export class TopicsService {
     }
 
     sql += `
-      GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.created_at, c.course_title
-      ORDER BY t.topic_name ASC
+      GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.sort_order, t.created_at, c.course_title
+      ORDER BY t.sort_order ASC, t.id ASC
     `;
 
     const [rows] = await this.db.execute<TopicRow[]>(sql, params);
@@ -86,6 +89,7 @@ export class TopicsService {
           t.topic_name,
           t.topic_description,
           t.status,
+          t.sort_order,
           t.created_at,
           c.course_title,
           COUNT(s.id) AS subtopic_count
@@ -93,7 +97,7 @@ export class TopicsService {
         INNER JOIN courses c ON c.id = t.course_id
         LEFT JOIN subtopics s ON s.topic_id = t.id
         WHERE t.id = ?
-        GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.created_at, c.course_title
+        GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.sort_order, t.created_at, c.course_title
         LIMIT 1
       `,
       [id]
@@ -106,7 +110,7 @@ export class TopicsService {
 
     const topic = this.mapTopic(row);
     const [subtopicRows] = await this.db.execute<RowDataPacket[]>(
-      'SELECT subtopic_name FROM subtopics WHERE topic_id = ? ORDER BY subtopic_name ASC',
+      'SELECT subtopic_name FROM subtopics WHERE topic_id = ? ORDER BY sort_order ASC, id ASC',
       [id]
     );
 
@@ -126,13 +130,22 @@ export class TopicsService {
     try {
       await connection.beginTransaction();
 
+      // New subjects land at the end of their course — admin then drags it
+      // into position (e.g. moves "Introduction" up to #1) from the list.
+      const [orderRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM topics WHERE course_id = ?`,
+        [snapshot.courseId]
+      );
+      const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
+
       const [result] = await connection.execute<ResultSetHeader>(
-        'INSERT INTO topics (course_id, topic_name, topic_description, status) VALUES (?, ?, ?, ?)',
+        'INSERT INTO topics (course_id, topic_name, topic_description, status, sort_order) VALUES (?, ?, ?, ?, ?)',
         [
           snapshot.courseId,
           snapshot.topicName,
           snapshot.topicDescription,
           snapshot.status,
+          nextSortOrder,
         ]
       );
 
@@ -246,6 +259,19 @@ export class TopicsService {
     } finally {
       connection.release();
     }
+  }
+
+  /** Bulk-set topics.sort_order from an admin-reordered list of subjects
+   * within one course — each id gets (its index + 1) * 10. */
+  async reorder(orderedIds: number[]) {
+    const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
+    if (!ids.length) return { ok: true };
+    await Promise.all(
+      ids.map((id, index) =>
+        this.db.execute(`UPDATE topics SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])
+      )
+    );
+    return { ok: true };
   }
 
   async listVersions(id: number) {
@@ -607,6 +633,7 @@ export class TopicsService {
       topicName: row.topic_name,
       topicDescription: row.topic_description || '',
       status: row.status,
+      sortOrder: Number(row.sort_order ?? 0),
       createdAt: row.created_at || null,
       courseTitle: row.course_title,
       subtopicCount: Number(row.subtopic_count || 0),

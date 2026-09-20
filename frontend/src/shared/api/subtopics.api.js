@@ -21,3 +21,8 @@ export async function deleteSubtopic(id) {
   const response = await apiClient.delete(`/admin/subtopics/${id}`);
   return response.data;
 }
+
+export async function reorderSubtopics(orderedIds) {
+  const response = await apiClient.patch('/admin/subtopics/reorder', { orderedIds });
+  return response.data;
+}

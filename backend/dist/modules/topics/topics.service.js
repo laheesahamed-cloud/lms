@@ -27,6 +27,7 @@ let TopicsService = class TopicsService {
         t.topic_name,
         t.topic_description,
         t.status,
+        t.sort_order,
         t.created_at,
         c.course_title,
         COUNT(s.id) AS subtopic_count
@@ -40,8 +41,8 @@ let TopicsService = class TopicsService {
             params.push(courseId);
         }
         sql += `
-      GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.created_at, c.course_title
-      ORDER BY t.topic_name ASC
+      GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.sort_order, t.created_at, c.course_title
+      ORDER BY t.sort_order ASC, t.id ASC
     `;
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapTopic(row));
@@ -54,6 +55,7 @@ let TopicsService = class TopicsService {
           t.topic_name,
           t.topic_description,
           t.status,
+          t.sort_order,
           t.created_at,
           c.course_title,
           COUNT(s.id) AS subtopic_count
@@ -61,7 +63,7 @@ let TopicsService = class TopicsService {
         INNER JOIN courses c ON c.id = t.course_id
         LEFT JOIN subtopics s ON s.topic_id = t.id
         WHERE t.id = ?
-        GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.created_at, c.course_title
+        GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.sort_order, t.created_at, c.course_title
         LIMIT 1
       `, [id]);
         const row = rows[0];
@@ -69,7 +71,7 @@ let TopicsService = class TopicsService {
             throw new common_1.NotFoundException('Topic not found');
         }
         const topic = this.mapTopic(row);
-        const [subtopicRows] = await this.db.execute('SELECT subtopic_name FROM subtopics WHERE topic_id = ? ORDER BY subtopic_name ASC', [id]);
+        const [subtopicRows] = await this.db.execute('SELECT subtopic_name FROM subtopics WHERE topic_id = ? ORDER BY sort_order ASC, id ASC', [id]);
         return {
             ...topic,
             subtopics: subtopicRows.map((item) => item.subtopic_name),
@@ -83,11 +85,14 @@ let TopicsService = class TopicsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            const [result] = await connection.execute('INSERT INTO topics (course_id, topic_name, topic_description, status) VALUES (?, ?, ?, ?)', [
+            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM topics WHERE course_id = ?`, [snapshot.courseId]);
+            const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
+            const [result] = await connection.execute('INSERT INTO topics (course_id, topic_name, topic_description, status, sort_order) VALUES (?, ?, ?, ?, ?)', [
                 snapshot.courseId,
                 snapshot.topicName,
                 snapshot.topicDescription,
                 snapshot.status,
+                nextSortOrder,
             ]);
             await this.replaceSubtopics(connection, result.insertId, snapshot.subtopics);
             await this.recordContentVersion(connection, 'topic', result.insertId, snapshot, this.getActorId(actor));
@@ -194,6 +199,13 @@ let TopicsService = class TopicsService {
         finally {
             connection.release();
         }
+    }
+    async reorder(orderedIds) {
+        const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
+        if (!ids.length)
+            return { ok: true };
+        await Promise.all(ids.map((id, index) => this.db.execute(`UPDATE topics SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])));
+        return { ok: true };
     }
     async listVersions(id) {
         await this.findOne(id);
@@ -461,6 +473,7 @@ let TopicsService = class TopicsService {
             topicName: row.topic_name,
             topicDescription: row.topic_description || '',
             status: row.status,
+            sortOrder: Number(row.sort_order ?? 0),
             createdAt: row.created_at || null,
             courseTitle: row.course_title,
             subtopicCount: Number(row.subtopic_count || 0),

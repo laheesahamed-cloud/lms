@@ -54,6 +54,7 @@ export declare class SchemaSyncService implements OnModuleInit {
     private slugify;
     private ensureColumn;
     private backfillLessonSortOrder;
+    private backfillSortOrder;
     private ensureFreePlanPaymentStatus;
     private ensureUnlimitedFreePlanDates;
     private ensureIndex;

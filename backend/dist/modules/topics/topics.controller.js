@@ -35,6 +35,9 @@ let TopicsController = class TopicsController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.topicsService.create(createTopicDto, actor);
     }
+    reorder(orderedIds) {
+        return this.topicsService.reorder(Array.isArray(orderedIds) ? orderedIds.map(Number) : []);
+    }
     async update(authorization, id, updateTopicDto) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.topicsService.update(id, updateTopicDto, actor);
@@ -86,6 +89,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, create_topic_dto_1.CreateTopicDto]),
     __metadata("design:returntype", Promise)
 ], TopicsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Patch)('reorder'),
+    __param(0, (0, common_1.Body)('orderedIds')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array]),
+    __metadata("design:returntype", void 0)
+], TopicsController.prototype, "reorder", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Headers)('authorization')),

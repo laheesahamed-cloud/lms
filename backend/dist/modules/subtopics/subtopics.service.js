@@ -21,7 +21,7 @@ let SubtopicsService = class SubtopicsService {
     }
     async findAll(topicId) {
         let sql = `
-      SELECT id, topic_id, subtopic_name, status, created_at
+      SELECT id, topic_id, subtopic_name, status, sort_order, created_at
       FROM subtopics
     `;
         const params = [];
@@ -29,7 +29,7 @@ let SubtopicsService = class SubtopicsService {
             sql += ' WHERE topic_id = ?';
             params.push(topicId);
         }
-        sql += ' ORDER BY subtopic_name ASC';
+        sql += ' ORDER BY sort_order ASC, id ASC';
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapSubtopic(row));
     }
@@ -41,7 +41,9 @@ let SubtopicsService = class SubtopicsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            const [result] = await connection.execute('INSERT INTO subtopics (topic_id, subtopic_name, status) VALUES (?, ?, ?)', [snapshot.topicId, snapshot.subtopicName, snapshot.status]);
+            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM subtopics WHERE topic_id = ?`, [snapshot.topicId]);
+            const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
+            const [result] = await connection.execute('INSERT INTO subtopics (topic_id, subtopic_name, status, sort_order) VALUES (?, ?, ?, ?)', [snapshot.topicId, snapshot.subtopicName, snapshot.status, nextSortOrder]);
             await this.recordContentVersion(connection, 'subtopic', result.insertId, snapshot, this.getActorId(actor));
             await this.setWorkflowState(connection, 'subtopic', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
             await this.recordContentAudit(connection, {
@@ -367,8 +369,15 @@ let SubtopicsService = class SubtopicsService {
             throw new common_1.BadRequestException('Subtopic name is required');
         }
     }
+    async reorder(orderedIds) {
+        const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
+        if (!ids.length)
+            return { ok: true };
+        await Promise.all(ids.map((id, index) => this.db.execute(`UPDATE subtopics SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])));
+        return { ok: true };
+    }
     async findById(id) {
-        const [rows] = await this.db.execute('SELECT id, topic_id, subtopic_name, status, created_at FROM subtopics WHERE id = ? LIMIT 1', [id]);
+        const [rows] = await this.db.execute('SELECT id, topic_id, subtopic_name, status, sort_order, created_at FROM subtopics WHERE id = ? LIMIT 1', [id]);
         const row = rows[0];
         if (!row) {
             throw new common_1.NotFoundException('Subtopic not found');
@@ -387,6 +396,7 @@ let SubtopicsService = class SubtopicsService {
             topicId: row.topic_id,
             subtopicName: row.subtopic_name,
             status: row.status,
+            sortOrder: Number(row.sort_order ?? 0),
             createdAt: row.created_at || null,
         };
     }

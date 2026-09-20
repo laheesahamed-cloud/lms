@@ -974,7 +974,7 @@ let LessonsService = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND l.engine_key = ?
-      ORDER BY c.course_title ASC, t.topic_name ASC, s.subtopic_name ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
+      ORDER BY c.course_title ASC, t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
         return rows.map(r => this.deserializeCanvas(r));
     }
     async canvasReorderLessons(orderedIds, token) {
@@ -1271,7 +1271,7 @@ let LessonsService = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, t.topic_name ASC, s.subtopic_name ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
+      ORDER BY c.course_title ASC, t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
         return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
     }
     async canvasStudentFindNote(id, token, engineKey = 'gemini', appClient) {
@@ -1322,14 +1322,14 @@ let LessonsService = class LessonsService {
     }
     async getTopics(courseId, token) {
         await this.requireAdminToken(token);
-        const [rows] = await this.db.execute(courseId ? "SELECT id, topic_name AS name FROM topics WHERE course_id = ? AND status = 'active' ORDER BY topic_name ASC"
-            : "SELECT id, topic_name AS name FROM topics WHERE status = 'active' ORDER BY topic_name ASC", courseId ? [courseId] : []);
+        const [rows] = await this.db.execute(courseId ? "SELECT id, topic_name AS name FROM topics WHERE course_id = ? AND status = 'active' ORDER BY sort_order ASC, id ASC"
+            : "SELECT id, topic_name AS name FROM topics WHERE status = 'active' ORDER BY sort_order ASC, id ASC", courseId ? [courseId] : []);
         return rows;
     }
     async getSubtopics(topicId, token) {
         await this.requireAdminToken(token);
-        const [rows] = await this.db.execute(topicId ? "SELECT id, subtopic_name AS name FROM subtopics WHERE topic_id = ? AND status = 'active' ORDER BY subtopic_name ASC"
-            : "SELECT id, subtopic_name AS name FROM subtopics WHERE status = 'active' ORDER BY subtopic_name ASC", topicId ? [topicId] : []);
+        const [rows] = await this.db.execute(topicId ? "SELECT id, subtopic_name AS name FROM subtopics WHERE topic_id = ? AND status = 'active' ORDER BY sort_order ASC, id ASC"
+            : "SELECT id, subtopic_name AS name FROM subtopics WHERE status = 'active' ORDER BY sort_order ASC, id ASC", topicId ? [topicId] : []);
         return rows;
     }
     async ensureDefaultLessonHierarchy(courseId) {

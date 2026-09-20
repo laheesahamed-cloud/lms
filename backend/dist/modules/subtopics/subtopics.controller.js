@@ -32,6 +32,9 @@ let SubtopicsController = class SubtopicsController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.subtopicsService.create(createSubtopicDto, actor);
     }
+    reorder(orderedIds) {
+        return this.subtopicsService.reorder(Array.isArray(orderedIds) ? orderedIds.map(Number) : []);
+    }
     async update(authorization, id, updateSubtopicDto) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.subtopicsService.update(id, updateSubtopicDto, actor);
@@ -76,6 +79,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, create_subtopic_dto_1.CreateSubtopicDto]),
     __metadata("design:returntype", Promise)
 ], SubtopicsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Patch)('reorder'),
+    __param(0, (0, common_1.Body)('orderedIds')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array]),
+    __metadata("design:returntype", void 0)
+], SubtopicsController.prototype, "reorder", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Headers)('authorization')),

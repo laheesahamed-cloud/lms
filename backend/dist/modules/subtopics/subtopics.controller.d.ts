@@ -11,11 +11,15 @@ export declare class SubtopicsController {
         topicId: number;
         subtopicName: string;
         status: "active" | "inactive";
+        sortOrder: number;
         createdAt: string | null;
     }[]>;
     create(authorization: string | undefined, createSubtopicDto: CreateSubtopicDto): Promise<{
         ok: boolean;
         id: number;
+    }>;
+    reorder(orderedIds: number[]): Promise<{
+        ok: boolean;
     }>;
     update(authorization: string | undefined, id: number, updateSubtopicDto: UpdateSubtopicDto): Promise<{
         ok: boolean;

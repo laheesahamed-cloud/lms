@@ -511,12 +511,12 @@ let CoursesService = class CoursesService {
         const [subjectRows] = await this.db.execute(`SELECT id, course_id, topic_name, status
        FROM topics
        WHERE status = 'active' AND course_id IN (${placeholders})
-       ORDER BY topic_name ASC`, courseIds);
+       ORDER BY sort_order ASC, id ASC`, courseIds);
         const [topicRows] = await this.db.execute(`SELECT s.id, s.topic_id, s.subtopic_name, s.status
        FROM subtopics s
        INNER JOIN topics t ON t.id = s.topic_id
        WHERE s.status = 'active' AND t.course_id IN (${placeholders})
-       ORDER BY s.subtopic_name ASC`, courseIds);
+       ORDER BY s.sort_order ASC, s.id ASC`, courseIds);
         const [lessonRows] = await this.db.execute(`SELECT id, course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status
        FROM lessons
        WHERE status = 'active' AND is_public = 1 AND (note_data IS NOT NULL OR pdf_url IS NOT NULL)

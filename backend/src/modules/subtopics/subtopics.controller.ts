@@ -26,6 +26,11 @@ export class SubtopicsController {
     return this.subtopicsService.create(createSubtopicDto, actor);
   }
 
+  @Patch('reorder')
+  reorder(@Body('orderedIds') orderedIds: number[]) {
+    return this.subtopicsService.reorder(Array.isArray(orderedIds) ? orderedIds.map(Number) : []);
+  }
+
   @Patch(':id')
   async update(
     @Headers('authorization') authorization: string | undefined,

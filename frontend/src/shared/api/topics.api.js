@@ -26,3 +26,8 @@ export async function deleteTopic(id) {
   const response = await apiClient.delete(`/admin/topics/${id}`);
   return response.data;
 }
+
+export async function reorderTopics(orderedIds) {
+  const response = await apiClient.patch('/admin/topics/reorder', { orderedIds });
+  return response.data;
+}

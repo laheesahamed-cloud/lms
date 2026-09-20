@@ -7,6 +7,7 @@ type TopicEntity = {
     topicName: string;
     topicDescription: string;
     status: 'active' | 'inactive';
+    sortOrder: number;
     createdAt: string | null;
     courseTitle?: string;
     subtopicCount?: number;
@@ -29,6 +30,7 @@ export declare class TopicsService {
         topicName: string;
         topicDescription: string;
         status: "active" | "inactive";
+        sortOrder: number;
         createdAt: string | null;
         courseTitle?: string;
         subtopicCount?: number;
@@ -44,6 +46,9 @@ export declare class TopicsService {
     remove(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
+    }>;
+    reorder(orderedIds: number[]): Promise<{
+        ok: boolean;
     }>;
     listVersions(id: number): Promise<{
         id: number;

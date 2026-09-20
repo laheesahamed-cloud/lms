@@ -9,6 +9,7 @@ type SubtopicRow = RowDataPacket & {
   topic_id: number;
   subtopic_name: string;
   status: 'active' | 'inactive';
+  sort_order?: number | null;
   created_at?: string | null;
 };
 
@@ -32,7 +33,7 @@ export class SubtopicsService {
 
   async findAll(topicId?: number) {
     let sql = `
-      SELECT id, topic_id, subtopic_name, status, created_at
+      SELECT id, topic_id, subtopic_name, status, sort_order, created_at
       FROM subtopics
     `;
     const params: Array<number> = [];
@@ -42,7 +43,7 @@ export class SubtopicsService {
       params.push(topicId);
     }
 
-    sql += ' ORDER BY subtopic_name ASC';
+    sql += ' ORDER BY sort_order ASC, id ASC';
 
     const [rows] = await this.db.execute<SubtopicRow[]>(sql, params);
     return rows.map((row) => this.mapSubtopic(row));
@@ -57,9 +58,18 @@ export class SubtopicsService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
+
+      // New topics land at the end of their subject — admin then drags it
+      // into position (e.g. moves "Introduction" up to #1) from the list.
+      const [orderRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM subtopics WHERE topic_id = ?`,
+        [snapshot.topicId]
+      );
+      const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
+
       const [result] = await connection.execute<ResultSetHeader>(
-        'INSERT INTO subtopics (topic_id, subtopic_name, status) VALUES (?, ?, ?)',
-        [snapshot.topicId, snapshot.subtopicName, snapshot.status]
+        'INSERT INTO subtopics (topic_id, subtopic_name, status, sort_order) VALUES (?, ?, ?, ?)',
+        [snapshot.topicId, snapshot.subtopicName, snapshot.status, nextSortOrder]
       );
       await this.recordContentVersion(connection, 'subtopic', result.insertId, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'subtopic', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -469,9 +479,22 @@ export class SubtopicsService {
     }
   }
 
+  /** Bulk-set subtopics.sort_order from an admin-reordered list of topics
+   * within one subject — each id gets (its index + 1) * 10. */
+  async reorder(orderedIds: number[]) {
+    const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
+    if (!ids.length) return { ok: true };
+    await Promise.all(
+      ids.map((id, index) =>
+        this.db.execute(`UPDATE subtopics SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])
+      )
+    );
+    return { ok: true };
+  }
+
   private async findById(id: number) {
     const [rows] = await this.db.execute<SubtopicRow[]>(
-      'SELECT id, topic_id, subtopic_name, status, created_at FROM subtopics WHERE id = ? LIMIT 1',
+      'SELECT id, topic_id, subtopic_name, status, sort_order, created_at FROM subtopics WHERE id = ? LIMIT 1',
       [id]
     );
     const row = rows[0];
@@ -494,6 +517,7 @@ export class SubtopicsService {
       topicId: row.topic_id,
       subtopicName: row.subtopic_name,
       status: row.status,
+      sortOrder: Number(row.sort_order ?? 0),
       createdAt: row.created_at || null,
     };
   }

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createCourse, deleteCourse, fetchCourses, updateCourse } from '../../../../shared/api/courses.api.js';
-import { createTopic, deleteTopic, fetchTopic, fetchTopics, updateTopic } from '../../../../shared/api/topics.api.js';
-import { createSubtopic, deleteSubtopic, fetchSubtopics, updateSubtopic } from '../../../../shared/api/subtopics.api.js';
+import { createTopic, deleteTopic, fetchTopic, fetchTopics, reorderTopics, updateTopic } from '../../../../shared/api/topics.api.js';
+import { createSubtopic, deleteSubtopic, fetchSubtopics, reorderSubtopics, updateSubtopic } from '../../../../shared/api/subtopics.api.js';
 import { adminDeleteAiNote, adminListAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -218,6 +218,22 @@ function FolderIcon() {
   );
 }
 
+function UpIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M3 8.5 7 4.5 11 8.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DownIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M3 5.5 7 9.5 11 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ChevronIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -368,7 +384,21 @@ function LoadingGrid() {
   );
 }
 
-function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, onDelete, extraAction }) {
+function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, onDelete, extraAction, onMoveUp, onMoveDown }) {
+  const canReorder = typeof onMoveUp === 'function' || typeof onMoveDown === 'function';
+  const moveButtons = canReorder ? (
+    <span className="flex items-center gap-0.5">
+      <button type="button" className={ui.squareIconButton} disabled={!onMoveUp}
+              aria-label={`Move ${title} up`} onClick={(event) => stopAndRun(event, onMoveUp)}>
+        <UpIcon />
+      </button>
+      <button type="button" className={ui.squareIconButton} disabled={!onMoveDown}
+              aria-label={`Move ${title} down`} onClick={(event) => stopAndRun(event, onMoveDown)}>
+        <DownIcon />
+      </button>
+    </span>
+  ) : null;
+
   return (
     <article className={structureUi.rowShell}>
       <button type="button" className={structureUi.folderRow} onClick={onOpen}>
@@ -385,7 +415,7 @@ function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, 
           </span>
         </span>
       </button>
-      <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} extraAction={extraAction} className={structureUi.inlineActions} />
+      <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} extraAction={moveButtons || extraAction} className={structureUi.inlineActions} />
     </article>
   );
 }
@@ -568,6 +598,34 @@ export function StructurePage() {
       setFeedback({ error: getErrorMessage(error, 'Unable to load topics'), success: '' });
     } finally {
       setLoading((current) => ({ ...current, topics: false }));
+    }
+  }
+
+  async function moveSubject(index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= subjects.length) return;
+    const reordered = [...subjects];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setSubjects(reordered);
+    try {
+      await reorderTopics(reordered.map((subject) => subject.id));
+    } catch (error) {
+      flashMessage({ error: getErrorMessage(error, 'Unable to save the new order'), success: '' });
+      loadSubjects(selectedCourseId);
+    }
+  }
+
+  async function moveTopic(index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= topics.length) return;
+    const reordered = [...topics];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setTopics(reordered);
+    try {
+      await reorderSubtopics(reordered.map((topic) => topic.id));
+    } catch (error) {
+      flashMessage({ error: getErrorMessage(error, 'Unable to save the new order'), success: '' });
+      loadTopics(selectedSubjectId);
     }
   }
 
@@ -968,6 +1026,8 @@ export function StructurePage() {
                         onOpen={() => openSubjectFolder(subject)}
                         onEdit={(event) => stopAndRun(event, () => openSubjectEdit(subject, event))}
                         onDelete={(event) => stopAndRun(event, () => handleSubjectDelete(subject, event))}
+                        onMoveUp={index > 0 ? () => moveSubject(index, -1) : null}
+                        onMoveDown={index < subjects.length - 1 ? () => moveSubject(index, 1) : null}
                       />
                     );
                   })}
@@ -1009,6 +1069,8 @@ export function StructurePage() {
                         onOpen={() => openTopicFolder(topic)}
                         onEdit={(event) => stopAndRun(event, () => openTopicEdit(topic, event))}
                         onDelete={(event) => stopAndRun(event, () => handleTopicDelete(topic, event))}
+                        onMoveUp={index > 0 ? () => moveTopic(index, -1) : null}
+                        onMoveDown={index < topics.length - 1 ? () => moveTopic(index, 1) : null}
                       />
                     );
                   })}

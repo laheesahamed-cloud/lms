@@ -710,7 +710,7 @@ export class CoursesService {
       `SELECT id, course_id, topic_name, status
        FROM topics
        WHERE status = 'active' AND course_id IN (${placeholders})
-       ORDER BY topic_name ASC`,
+       ORDER BY sort_order ASC, id ASC`,
       courseIds
     );
     const [topicRows] = await this.db.execute<TopicRow[]>(
@@ -718,7 +718,7 @@ export class CoursesService {
        FROM subtopics s
        INNER JOIN topics t ON t.id = s.topic_id
        WHERE s.status = 'active' AND t.course_id IN (${placeholders})
-       ORDER BY s.subtopic_name ASC`,
+       ORDER BY s.sort_order ASC, s.id ASC`,
       courseIds
     );
     // Same "actually ready to study" filter as the Study/Lessons canvas list

@@ -755,6 +755,19 @@ export class SchemaSyncService implements OnModuleInit {
       if (addedLessonSortOrder) {
         await this.backfillLessonSortOrder(connection);
       }
+      // Same as above, one level up the hierarchy — subjects (topics) within a
+      // course, and topics (subtopics) within a subject, also need an
+      // admin-editable order (e.g. "Introduction" pinned first).
+      const addedTopicSortOrder = await this.ensureColumn(connection, 'topics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER course_id');
+      await this.ensureIndex(connection, 'topics', 'idx_topics_sort', 'course_id, sort_order');
+      if (addedTopicSortOrder) {
+        await this.backfillSortOrder(connection, 'topics', 'topic_name', 'course_id');
+      }
+      const addedSubtopicSortOrder = await this.ensureColumn(connection, 'subtopics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER topic_id');
+      await this.ensureIndex(connection, 'subtopics', 'idx_subtopics_sort', 'topic_id, sort_order');
+      if (addedSubtopicSortOrder) {
+        await this.backfillSortOrder(connection, 'subtopics', 'subtopic_name', 'topic_id');
+      }
     } catch (error) {
       this.logger.error('Failed to ensure critical governance tables on boot', error as Error);
     } finally {
@@ -1505,6 +1518,27 @@ export class SchemaSyncService implements OnModuleInit {
       await connection.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [next, row.id]);
     }
     if (rows.length) this.logger.log(`Backfilled sort_order for ${rows.length} lesson(s)`);
+  }
+
+  /** One-time: seed <table>.sort_order from the alphabetical order students were
+   * already seeing (<nameColumn> ASC), scoped per <scopeColumn> — same idea as
+   * backfillLessonSortOrder, generalized for topics (Subjects) and subtopics
+   * (Topics), which only have a single scope column instead of two. */
+  private async backfillSortOrder(connection: PoolConnection, table: string, nameColumn: string, scopeColumn: string) {
+    const tableIdent = sqlIdentifier(table, undefined, 'schema table');
+    const nameIdent = sqlIdentifier(nameColumn, undefined, 'schema column');
+    const scopeIdent = sqlIdentifier(scopeColumn, undefined, 'schema column');
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, ${scopeIdent} AS scope_value FROM ${tableIdent} ORDER BY ${scopeIdent} ASC, ${nameIdent} ASC, id ASC`
+    );
+    const counters = new Map<string, number>();
+    for (const row of rows as { id: number; scope_value: number | null }[]) {
+      const key = String(row.scope_value ?? 0);
+      const next = (counters.get(key) ?? 0) + 10;
+      counters.set(key, next);
+      await connection.execute(`UPDATE ${tableIdent} SET sort_order = ? WHERE id = ?`, [next, row.id]);
+    }
+    if (rows.length) this.logger.log(`Backfilled sort_order for ${rows.length} row(s) in ${table}`);
   }
 
   private async ensureFreePlanPaymentStatus(connection: PoolConnection) {

@@ -683,6 +683,16 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             if (addedLessonSortOrder) {
                 await this.backfillLessonSortOrder(connection);
             }
+            const addedTopicSortOrder = await this.ensureColumn(connection, 'topics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER course_id');
+            await this.ensureIndex(connection, 'topics', 'idx_topics_sort', 'course_id, sort_order');
+            if (addedTopicSortOrder) {
+                await this.backfillSortOrder(connection, 'topics', 'topic_name', 'course_id');
+            }
+            const addedSubtopicSortOrder = await this.ensureColumn(connection, 'subtopics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER topic_id');
+            await this.ensureIndex(connection, 'subtopics', 'idx_subtopics_sort', 'topic_id, sort_order');
+            if (addedSubtopicSortOrder) {
+                await this.backfillSortOrder(connection, 'subtopics', 'subtopic_name', 'topic_id');
+            }
         }
         catch (error) {
             this.logger.error('Failed to ensure critical governance tables on boot', error);
@@ -1300,6 +1310,21 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         }
         if (rows.length)
             this.logger.log(`Backfilled sort_order for ${rows.length} lesson(s)`);
+    }
+    async backfillSortOrder(connection, table, nameColumn, scopeColumn) {
+        const tableIdent = (0, sql_safety_1.sqlIdentifier)(table, undefined, 'schema table');
+        const nameIdent = (0, sql_safety_1.sqlIdentifier)(nameColumn, undefined, 'schema column');
+        const scopeIdent = (0, sql_safety_1.sqlIdentifier)(scopeColumn, undefined, 'schema column');
+        const [rows] = await connection.execute(`SELECT id, ${scopeIdent} AS scope_value FROM ${tableIdent} ORDER BY ${scopeIdent} ASC, ${nameIdent} ASC, id ASC`);
+        const counters = new Map();
+        for (const row of rows) {
+            const key = String(row.scope_value ?? 0);
+            const next = (counters.get(key) ?? 0) + 10;
+            counters.set(key, next);
+            await connection.execute(`UPDATE ${tableIdent} SET sort_order = ? WHERE id = ?`, [next, row.id]);
+        }
+        if (rows.length)
+            this.logger.log(`Backfilled sort_order for ${rows.length} row(s) in ${table}`);
     }
     async ensureFreePlanPaymentStatus(connection) {
         const [rows] = await connection.execute(`
