@@ -1274,7 +1274,38 @@ let LessonsService = LessonsService_1 = class LessonsService {
     }
     isAsideHeading(heading) {
         const h = this.normalizeTopicKey(heading);
-        return /^(short|extra|additional|side|other|general|misc)?\s*-?\s*notes?$/.test(h) || h === 'miscellaneous';
+        if (!h)
+            return false;
+        return LessonsService_1.ASIDE_PATTERNS.some((re) => re.test(h));
+    }
+    mergeAsideFields(target, aside) {
+        const append = (...items) => { target.bullets = [...(target.bullets || []), ...items.filter(Boolean)]; };
+        if (aside.callout) {
+            if (target.callout)
+                append(aside.callout);
+            else
+                target.callout = aside.callout;
+        }
+        if (aside.sticky_note) {
+            if (target.sticky_note)
+                append(aside.sticky_note);
+            else
+                target.sticky_note = aside.sticky_note;
+        }
+        if (aside.mnemonic) {
+            if (target.mnemonic)
+                append(`**Mnemonic**: ${aside.mnemonic}`);
+            else
+                target.mnemonic = aside.mnemonic;
+        }
+    }
+    foldAsideInto(target, aside) {
+        const bullets = (aside.bullets || []).filter(Boolean);
+        if (!target.callout && bullets.length === 1)
+            target.callout = bullets[0];
+        else if (bullets.length)
+            target.bullets = [...(target.bullets || []), '**Note**:', ...bullets];
+        this.mergeAsideFields(target, aside);
     }
     renumberSections(canvas) {
         let n = 1;
@@ -1296,33 +1327,19 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const append = (target, ...items) => {
             target.bullets = [...(target.bullets || []), ...items.filter(Boolean)];
         };
+        let pendingAside = null;
         for (const section of flat) {
             const heading = this.stripHeadingNumber(section.heading || '');
             const isText = !section.type || section.type === 'text';
-            if (isText && heading && this.isAsideHeading(heading) && out.length) {
-                const prev = out[out.length - 1];
-                const bullets = (section.bullets || []).filter(Boolean);
-                if (!prev.callout && bullets.length === 1)
-                    prev.callout = bullets[0];
-                else if (bullets.length)
-                    append(prev, '**Note**:', ...bullets);
-                if (section.callout) {
-                    if (prev.callout)
-                        append(prev, section.callout);
-                    else
-                        prev.callout = section.callout;
+            if (isText && heading && this.isAsideHeading(heading)) {
+                if (out.length) {
+                    this.foldAsideInto(out[out.length - 1], section);
                 }
-                if (section.sticky_note) {
-                    if (prev.sticky_note)
-                        append(prev, section.sticky_note);
-                    else
-                        prev.sticky_note = section.sticky_note;
+                else if (pendingAside) {
+                    this.foldAsideInto(pendingAside, section);
                 }
-                if (section.mnemonic) {
-                    if (prev.mnemonic)
-                        append(prev, `**Mnemonic**: ${section.mnemonic}`);
-                    else
-                        prev.mnemonic = section.mnemonic;
+                else {
+                    pendingAside = { ...section, heading: '' };
                 }
                 continue;
             }
@@ -1341,30 +1358,20 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 if (!sameLabel)
                     append(target, `**${heading}**:`);
                 append(target, ...(section.bullets || []));
-                if (section.callout) {
-                    if (target.callout)
-                        append(target, section.callout);
-                    else
-                        target.callout = section.callout;
-                }
-                if (section.sticky_note) {
-                    if (target.sticky_note)
-                        append(target, section.sticky_note);
-                    else
-                        target.sticky_note = section.sticky_note;
-                }
-                if (section.mnemonic) {
-                    if (target.mnemonic)
-                        append(target, `**Mnemonic**: ${section.mnemonic}`);
-                    else
-                        target.mnemonic = section.mnemonic;
-                }
+                this.mergeAsideFields(target, section);
                 continue;
             }
-            out.push({ ...section, heading });
+            const clone = { ...section, heading };
+            if (pendingAside && out.length === 0) {
+                this.foldAsideInto(clone, pendingAside);
+                pendingAside = null;
+            }
+            out.push(clone);
             if (isText && familyKey)
                 anchorByFamily.set(familyKey, out.length - 1);
         }
+        if (pendingAside)
+            out.push({ ...pendingAside, heading: this.stripHeadingNumber(pendingAside.heading || '') || 'Notes' });
         const isImage = (s) => s.type === 'image' || s.type === 'image-explained';
         const indexOf = new Map();
         out.forEach((s, i) => indexOf.set(s, i));
@@ -2126,6 +2133,16 @@ LessonsService.TOPIC_FAMILIES = [
     { key: 'prevention', title: 'Prevention & screening', test: /prevention|prophylax|screening/ },
     { key: 'prognosis', title: 'Prognosis', test: /prognos|outcome/ },
     { key: 'definition', title: 'Definition', test: /definition|\bdefined\b/ },
+];
+LessonsService.ASIDE_PATTERNS = [
+    /^(short|extra|additional|side|other|general|misc)?\s*-?\s*notes?$/,
+    /^miscellaneous$/,
+    /^(clinical\s+)?pearls?$/,
+    /^tips?(\s+(&|and)\s+tricks?)?$/,
+    /^(key|quick|high[- ]?yield|important)\s+(facts?|points?)$/,
+    /^(summary|revision)\s+points?$/,
+    /^points?\s+to\s+remember$/,
+    /^faqs?$/,
 ];
 exports.LessonsService = LessonsService = LessonsService_1 = __decorate([
     (0, common_1.Injectable)(),

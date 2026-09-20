@@ -479,7 +479,10 @@ export declare class LessonsService {
     private normalizeTopicKey;
     private static readonly TOPIC_FAMILIES;
     private topicFamily;
+    private static readonly ASIDE_PATTERNS;
     private isAsideHeading;
+    private mergeAsideFields;
+    private foldAsideInto;
     private renumberSections;
     private groupSectionFamilies;
     private mergeCanvases;

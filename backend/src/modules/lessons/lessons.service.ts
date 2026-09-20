@@ -1730,11 +1730,42 @@ export class LessonsService {
     return LessonsService.TOPIC_FAMILIES.find((f) => f.test.test(h)) || null;
   }
 
-  // A stray "Short notes" between two topics should be a box inside the card
-  // before it, not its own numbered section breaking the run of topics.
+  // A stray "Short notes" (or "Clinical pearls", "Key points", "Tips"…)
+  // between two topics should be a box inside the card before it, not its
+  // own numbered section breaking the run of topics.
+  private static readonly ASIDE_PATTERNS: RegExp[] = [
+    /^(short|extra|additional|side|other|general|misc)?\s*-?\s*notes?$/,
+    /^miscellaneous$/,
+    /^(clinical\s+)?pearls?$/,
+    /^tips?(\s+(&|and)\s+tricks?)?$/,
+    /^(key|quick|high[- ]?yield|important)\s+(facts?|points?)$/,
+    /^(summary|revision)\s+points?$/,
+    /^points?\s+to\s+remember$/,
+    /^faqs?$/,
+  ];
+
   private isAsideHeading(heading: string): boolean {
     const h = this.normalizeTopicKey(heading);
-    return /^(short|extra|additional|side|other|general|misc)?\s*-?\s*notes?$/.test(h) || h === 'miscellaneous';
+    if (!h) return false;
+    return LessonsService.ASIDE_PATTERNS.some((re) => re.test(h));
+  }
+
+  // Merges an aside's callout/sticky_note/mnemonic into `target` (its bullets
+  // are handled by the caller, since a lone bullet becomes a callout while
+  // several become a labelled "**Note**:" group — two different call sites,
+  // same tail fields).
+  private mergeAsideFields(target: NoteSection, aside: NoteSection) {
+    const append = (...items: string[]) => { target.bullets = [...(target.bullets || []), ...items.filter(Boolean)]; };
+    if (aside.callout) { if (target.callout) append(aside.callout); else target.callout = aside.callout; }
+    if (aside.sticky_note) { if (target.sticky_note) append(aside.sticky_note); else target.sticky_note = aside.sticky_note; }
+    if (aside.mnemonic) { if (target.mnemonic) append(`**Mnemonic**: ${aside.mnemonic}`); else target.mnemonic = aside.mnemonic; }
+  }
+
+  private foldAsideInto(target: NoteSection, aside: NoteSection) {
+    const bullets = (aside.bullets || []).filter(Boolean);
+    if (!target.callout && bullets.length === 1) target.callout = bullets[0];
+    else if (bullets.length) target.bullets = [...(target.bullets || []), '**Note**:', ...bullets];
+    this.mergeAsideFields(target, aside);
   }
 
   // Flat, sequential numbering — "1. ", "2. ", "3. "… — applied in final card
@@ -1770,19 +1801,25 @@ export class LessonsService {
     const append = (target: NoteSection, ...items: string[]) => {
       target.bullets = [...(target.bullets || []), ...items.filter(Boolean)];
     };
+    // An aside that shows up before ANY real card yet exists has nothing to
+    // attach to — instead of falling through and becoming its own numbered
+    // card (the exact bug this whole pass exists to prevent), hold it here
+    // and fold it forward onto the first real card once one is pushed.
+    // Several leading asides in a row just keep merging into this same slot.
+    let pendingAside: NoteSection | null = null;
 
     for (const section of flat) {
       const heading = this.stripHeadingNumber(section.heading || '');
       const isText = !section.type || section.type === 'text';
 
-      if (isText && heading && this.isAsideHeading(heading) && out.length) {
-        const prev = out[out.length - 1];
-        const bullets = (section.bullets || []).filter(Boolean);
-        if (!prev.callout && bullets.length === 1) prev.callout = bullets[0];
-        else if (bullets.length) append(prev, '**Note**:', ...bullets);
-        if (section.callout) { if (prev.callout) append(prev, section.callout); else prev.callout = section.callout; }
-        if (section.sticky_note) { if (prev.sticky_note) append(prev, section.sticky_note); else prev.sticky_note = section.sticky_note; }
-        if (section.mnemonic) { if (prev.mnemonic) append(prev, `**Mnemonic**: ${section.mnemonic}`); else prev.mnemonic = section.mnemonic; }
+      if (isText && heading && this.isAsideHeading(heading)) {
+        if (out.length) {
+          this.foldAsideInto(out[out.length - 1], section);
+        } else if (pendingAside) {
+          this.foldAsideInto(pendingAside, section);
+        } else {
+          pendingAside = { ...section, heading: '' };
+        }
         continue;
       }
 
@@ -1804,15 +1841,23 @@ export class LessonsService {
         }
         if (!sameLabel) append(target, `**${heading}**:`);
         append(target, ...(section.bullets || []));
-        if (section.callout) { if (target.callout) append(target, section.callout); else target.callout = section.callout; }
-        if (section.sticky_note) { if (target.sticky_note) append(target, section.sticky_note); else target.sticky_note = section.sticky_note; }
-        if (section.mnemonic) { if (target.mnemonic) append(target, `**Mnemonic**: ${section.mnemonic}`); else target.mnemonic = section.mnemonic; }
+        this.mergeAsideFields(target, section);
         continue;
       }
 
-      out.push({ ...section, heading });
+      const clone: NoteSection = { ...section, heading };
+      if (pendingAside && out.length === 0) {
+        this.foldAsideInto(clone, pendingAside);
+        pendingAside = null;
+      }
+      out.push(clone);
       if (isText && familyKey) anchorByFamily.set(familyKey, out.length - 1);
     }
+
+    // Extremely rare (the whole lesson was nothing but asides — no real
+    // topic ever appeared): surface it as its own card rather than silently
+    // dropping content that never found anywhere to fold into.
+    if (pendingAside) out.push({ ...pendingAside, heading: this.stripHeadingNumber(pendingAside.heading || '') || 'Notes' });
 
     // Tables and flows can't fold into a bullet list, so instead keep them
     // adjacent to the topic they belong to (stable — a topic keeps the
