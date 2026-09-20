@@ -2544,22 +2544,15 @@ export class LessonsService {
 
   // \u2500\u2500 Canvas JSON builder \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
+  // Previously chunked into multiple "pages" every 5 sections — now kept as
+  // ONE continuous page, so a topic (and everything grouped under it — see
+  // groupSectionFamilies) always reads as one unbroken flow, never
+  // interrupted by an arbitrary "Page 2 of 3" cut. The admin editor and
+  // NoteCanvas both already handle a single-page (or genuinely multi-page,
+  // if an admin manually adds one) canvas the same way — this only removes
+  // the automatic splitting.
   private splitIntoPages(result: NoteResult): NoteCanvas {
-    const sections = result.sections;
-    if (sections.length <= 5) return { pages: [result] };
-    const pageGroups: NoteSection[][] = [];
-    for (let i = 0; i < sections.length; i += 5) pageGroups.push(sections.slice(i, i + 5));
-    const kp = result.key_points; const n = pageGroups.length;
-    return { pages: pageGroups.map((group, i) => ({ title: i === 0 ? result.title : this.derivePageTitle(group, i), subtitle: i === 0 ? result.subtitle : '', sections: group, summary_box: i === n - 1 ? result.summary_box : '', key_points: kp.slice(Math.floor(i * kp.length / n), i === n - 1 ? kp.length : Math.floor((i + 1) * kp.length / n)), ...(i === 0 ? { visual_style: result.visual_style } : {}) })) };
-  }
-
-  private derivePageTitle(sections: NoteSection[], idx: number): string {
-    const h = sections[0]?.heading?.toLowerCase() || '';
-    if (/clinical|feature|sign|symptom|presentation/.test(h)) return 'CLINICAL APPROACH';
-    if (/investig|diagnos|lab|imaging|test/.test(h)) return 'INVESTIGATIONS';
-    if (/manag|treat|therap|drug|rx|medic|surg/.test(h)) return 'MANAGEMENT';
-    if (/complic|prognos|outcome|special|follow/.test(h)) return 'COMPLICATIONS & CONTEXT';
-    return `PART ${idx + 1}`;
+    return { pages: [result] };
   }
 
   private validate(d: unknown): NoteResult {

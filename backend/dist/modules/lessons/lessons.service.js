@@ -2110,27 +2110,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         return `${this.cleanFlashcardText(question, 500)}::${this.cleanFlashcardText(answer, 1000)}`.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     }
     splitIntoPages(result) {
-        const sections = result.sections;
-        if (sections.length <= 5)
-            return { pages: [result] };
-        const pageGroups = [];
-        for (let i = 0; i < sections.length; i += 5)
-            pageGroups.push(sections.slice(i, i + 5));
-        const kp = result.key_points;
-        const n = pageGroups.length;
-        return { pages: pageGroups.map((group, i) => ({ title: i === 0 ? result.title : this.derivePageTitle(group, i), subtitle: i === 0 ? result.subtitle : '', sections: group, summary_box: i === n - 1 ? result.summary_box : '', key_points: kp.slice(Math.floor(i * kp.length / n), i === n - 1 ? kp.length : Math.floor((i + 1) * kp.length / n)), ...(i === 0 ? { visual_style: result.visual_style } : {}) })) };
-    }
-    derivePageTitle(sections, idx) {
-        const h = sections[0]?.heading?.toLowerCase() || '';
-        if (/clinical|feature|sign|symptom|presentation/.test(h))
-            return 'CLINICAL APPROACH';
-        if (/investig|diagnos|lab|imaging|test/.test(h))
-            return 'INVESTIGATIONS';
-        if (/manag|treat|therap|drug|rx|medic|surg/.test(h))
-            return 'MANAGEMENT';
-        if (/complic|prognos|outcome|special|follow/.test(h))
-            return 'COMPLICATIONS & CONTEXT';
-        return `PART ${idx + 1}`;
+        return { pages: [result] };
     }
     validate(d) {
         const data = (d ?? {});
