@@ -1272,6 +1272,51 @@ let LessonsService = LessonsService_1 = class LessonsService {
             return null;
         return LessonsService_1.TOPIC_FAMILIES.find((f) => f.test.test(h)) || null;
     }
+    reorderByCanonicalTopic(keys) {
+        const known = keys.map((k) => {
+            const idx = LessonsService_1.TOPIC_ORDER.indexOf(k);
+            return idx === -1 ? null : idx;
+        });
+        const rank = new Array(keys.length);
+        for (let i = 0; i < keys.length; i += 1) {
+            if (known[i] !== null) {
+                rank[i] = known[i];
+                continue;
+            }
+            let leftRank = null, leftDist = 0;
+            for (let j = i - 1; j >= 0; j -= 1) {
+                if (known[j] !== null) {
+                    leftRank = known[j];
+                    leftDist = i - j;
+                    break;
+                }
+            }
+            let rightRank = null, rightDist = 0;
+            for (let j = i + 1; j < keys.length; j += 1) {
+                if (known[j] !== null) {
+                    rightRank = known[j];
+                    rightDist = j - i;
+                    break;
+                }
+            }
+            if (leftRank !== null && rightRank !== null) {
+                rank[i] = leftRank + (rightRank - leftRank) * (leftDist / (leftDist + rightDist));
+            }
+            else if (leftRank !== null) {
+                rank[i] = leftRank + 0.5;
+            }
+            else if (rightRank !== null) {
+                rank[i] = rightRank - 0.5;
+            }
+            else {
+                rank[i] = 1000 + i;
+            }
+        }
+        return keys
+            .map((key, i) => ({ key, i, rank: rank[i] }))
+            .sort((a, b) => a.rank - b.rank || a.i - b.i)
+            .map((x) => x.key);
+    }
     isAsideHeading(heading) {
         const h = this.normalizeTopicKey(heading);
         if (!h)
@@ -1400,8 +1445,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             buckets.get(key).push(section);
         }
+        const canonicalOrder = this.reorderByCanonicalTopic(order);
         const grouped = [...(imagesAfter.get(-1) || [])];
-        for (const key of order) {
+        for (const key of canonicalOrder) {
             for (const section of buckets.get(key)) {
                 grouped.push(section);
                 grouped.push(...(imagesAfter.get(indexOf.get(section)) || []));
@@ -2121,6 +2167,12 @@ exports.LessonsService = LessonsService;
 LessonsService.TOPIC_FAMILIES = [
     { key: 'differential', title: 'Differential diagnosis', test: /differential|\bddx\b/ },
     { key: 'red-flags', title: 'Red flags', test: /red flag/ },
+    { key: 'mechanism-of-action', title: 'Mechanism of action', test: /mechanism of action|\bmoa\b/ },
+    { key: 'risk-stratification', title: 'Risk stratification', test: /risk (stratification|score|assessment)/ },
+    { key: 'adverse-effects', title: 'Side effects', test: /adverse (effect|reaction|event)|side[- ]?effect/ },
+    { key: 'contraindications', title: 'Contraindications', test: /contraindicat/ },
+    { key: 'dosing', title: 'Dosing', test: /\bdos(e|ing|age)\b/ },
+    { key: 'follow-up', title: 'Follow-up & monitoring', test: /follow[- ]?up|monitoring/ },
     { key: 'management', title: 'Management', test: /manage|treat|therap/ },
     { key: 'investigations', title: 'Investigations', test: /investigat|work[- ]?up/ },
     { key: 'pathophysiology', title: 'Pathophysiology', test: /pathophysiolog|pathogenes|mechanism/ },
@@ -2133,6 +2185,13 @@ LessonsService.TOPIC_FAMILIES = [
     { key: 'prevention', title: 'Prevention & screening', test: /prevention|prophylax|screening/ },
     { key: 'prognosis', title: 'Prognosis', test: /prognos|outcome/ },
     { key: 'definition', title: 'Definition', test: /definition|\bdefined\b/ },
+];
+LessonsService.TOPIC_ORDER = [
+    'definition', 'epidemiology', 'aetiology', 'risk-stratification', 'classification',
+    'pathophysiology', 'mechanism-of-action', 'clinical-features', 'red-flags',
+    'differential', 'investigations', 'diagnosis', 'management', 'dosing',
+    'adverse-effects', 'contraindications', 'complications', 'follow-up',
+    'prognosis', 'prevention',
 ];
 LessonsService.ASIDE_PATTERNS = [
     /^(short|extra|additional|side|other|general|misc)?\s*-?\s*notes?$/,

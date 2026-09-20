@@ -478,7 +478,9 @@ export declare class LessonsService {
     private stripHeadingNumber;
     private normalizeTopicKey;
     private static readonly TOPIC_FAMILIES;
+    private static readonly TOPIC_ORDER;
     private topicFamily;
+    private reorderByCanonicalTopic;
     private static readonly ASIDE_PATTERNS;
     private isAsideHeading;
     private mergeAsideFields;

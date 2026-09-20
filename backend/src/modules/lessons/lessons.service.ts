@@ -1707,27 +1707,88 @@ export class LessonsService {
   // 15 and 17 with something unrelated in between. Order matters here: the
   // first match wins, so narrower families are listed before broader ones
   // ("differential diagnosis" before "diagnosis").
+  // Order here is match PRIORITY (first regex that matches wins) — narrower
+  // families go before broader ones they'd otherwise get swallowed by, e.g.
+  // "Mechanism of action" (a drug's MOA) must match before the bare
+  // "mechanism" in pathophysiology's pattern, or a lesson with both a
+  // "Pathophysiology" and a "Mechanism of action" card would wrongly merge
+  // disease mechanism and drug MOA into one card.
   private static readonly TOPIC_FAMILIES: Array<{ key: string; title: string; test: RegExp }> = [
-    { key: 'differential',      title: 'Differential diagnosis',  test: /differential|\bddx\b/ },
-    { key: 'red-flags',         title: 'Red flags',               test: /red flag/ },
-    { key: 'management',        title: 'Management',              test: /manage|treat|therap/ },
-    { key: 'investigations',    title: 'Investigations',          test: /investigat|work[- ]?up/ },
-    { key: 'pathophysiology',   title: 'Pathophysiology',         test: /pathophysiolog|pathogenes|mechanism/ },
-    { key: 'clinical-features', title: 'Clinical features',       test: /clinical feature|symptom|\bsigns?\b|presentation/ },
-    { key: 'complications',     title: 'Complications',           test: /complication/ },
-    { key: 'aetiology',         title: 'Causes & risk factors',   test: /aetiolog|etiolog|\bcauses?\b|risk factor/ },
-    { key: 'classification',    title: 'Classification',          test: /classification|staging|\bgrades?\b/ },
-    { key: 'diagnosis',         title: 'Diagnosis',               test: /diagnos/ },
-    { key: 'epidemiology',      title: 'Epidemiology',            test: /epidemiolog|incidence|prevalence/ },
-    { key: 'prevention',        title: 'Prevention & screening',  test: /prevention|prophylax|screening/ },
-    { key: 'prognosis',         title: 'Prognosis',               test: /prognos|outcome/ },
-    { key: 'definition',        title: 'Definition',              test: /definition|\bdefined\b/ },
+    { key: 'differential',        title: 'Differential diagnosis',   test: /differential|\bddx\b/ },
+    { key: 'red-flags',           title: 'Red flags',                test: /red flag/ },
+    { key: 'mechanism-of-action', title: 'Mechanism of action',      test: /mechanism of action|\bmoa\b/ },
+    { key: 'risk-stratification', title: 'Risk stratification',      test: /risk (stratification|score|assessment)/ },
+    { key: 'adverse-effects',     title: 'Side effects',             test: /adverse (effect|reaction|event)|side[- ]?effect/ },
+    { key: 'contraindications',   title: 'Contraindications',        test: /contraindicat/ },
+    { key: 'dosing',              title: 'Dosing',                   test: /\bdos(e|ing|age)\b/ },
+    { key: 'follow-up',           title: 'Follow-up & monitoring',   test: /follow[- ]?up|monitoring/ },
+    { key: 'management',          title: 'Management',               test: /manage|treat|therap/ },
+    { key: 'investigations',      title: 'Investigations',           test: /investigat|work[- ]?up/ },
+    { key: 'pathophysiology',     title: 'Pathophysiology',          test: /pathophysiolog|pathogenes|mechanism/ },
+    { key: 'clinical-features',   title: 'Clinical features',        test: /clinical feature|symptom|\bsigns?\b|presentation/ },
+    { key: 'complications',       title: 'Complications',            test: /complication/ },
+    { key: 'aetiology',           title: 'Causes & risk factors',    test: /aetiolog|etiolog|\bcauses?\b|risk factor/ },
+    { key: 'classification',      title: 'Classification',           test: /classification|staging|\bgrades?\b/ },
+    { key: 'diagnosis',           title: 'Diagnosis',                test: /diagnos/ },
+    { key: 'epidemiology',        title: 'Epidemiology',             test: /epidemiolog|incidence|prevalence/ },
+    { key: 'prevention',          title: 'Prevention & screening',   test: /prevention|prophylax|screening/ },
+    { key: 'prognosis',           title: 'Prognosis',                test: /prognos|outcome/ },
+    { key: 'definition',          title: 'Definition',               test: /definition|\bdefined\b/ },
+  ];
+
+  // Standard clinical-teaching sequence, used to REORDER cards after
+  // grouping — independent of TOPIC_FAMILIES' match-priority order above.
+  // Anything not in this list (a real, unrecognized topic) is never forced
+  // to the end — see reorderByCanonicalTopic, which interpolates it between
+  // whichever recognized topics it originally sat next to.
+  private static readonly TOPIC_ORDER: string[] = [
+    'definition', 'epidemiology', 'aetiology', 'risk-stratification', 'classification',
+    'pathophysiology', 'mechanism-of-action', 'clinical-features', 'red-flags',
+    'differential', 'investigations', 'diagnosis', 'management', 'dosing',
+    'adverse-effects', 'contraindications', 'complications', 'follow-up',
+    'prognosis', 'prevention',
   ];
 
   private topicFamily(heading: string): { key: string; title: string } | null {
     const h = this.normalizeTopicKey(heading);
     if (!h) return null;
     return LessonsService.TOPIC_FAMILIES.find((f) => f.test.test(h)) || null;
+  }
+
+  // Sorts a list of bucket keys (in original first-appearance order) into
+  // the standard teaching sequence. A key TOPIC_ORDER doesn't recognize
+  // keeps its original neighbors: its rank is interpolated between the
+  // nearest recognized key before it and after it (proportional to how far
+  // it originally sat from each), so it stays sitting where it belongs
+  // relative to the topics around it instead of being yanked elsewhere.
+  private reorderByCanonicalTopic(keys: string[]): string[] {
+    const known = keys.map((k) => {
+      const idx = LessonsService.TOPIC_ORDER.indexOf(k);
+      return idx === -1 ? null : idx;
+    });
+
+    const rank = new Array<number>(keys.length);
+    for (let i = 0; i < keys.length; i += 1) {
+      if (known[i] !== null) { rank[i] = known[i]!; continue; }
+      let leftRank: number | null = null, leftDist = 0;
+      for (let j = i - 1; j >= 0; j -= 1) { if (known[j] !== null) { leftRank = known[j]!; leftDist = i - j; break; } }
+      let rightRank: number | null = null, rightDist = 0;
+      for (let j = i + 1; j < keys.length; j += 1) { if (known[j] !== null) { rightRank = known[j]!; rightDist = j - i; break; } }
+      if (leftRank !== null && rightRank !== null) {
+        rank[i] = leftRank + (rightRank - leftRank) * (leftDist / (leftDist + rightDist));
+      } else if (leftRank !== null) {
+        rank[i] = leftRank + 0.5;
+      } else if (rightRank !== null) {
+        rank[i] = rightRank - 0.5;
+      } else {
+        rank[i] = 1000 + i; // no recognized topics anywhere — keep original order
+      }
+    }
+
+    return keys
+      .map((key, i) => ({ key, i, rank: rank[i] }))
+      .sort((a, b) => a.rank - b.rank || a.i - b.i) // stable: ties keep original order
+      .map((x) => x.key);
   }
 
   // A stray "Short notes" (or "Clinical pearls", "Key points", "Tips"…)
@@ -1890,8 +1951,9 @@ export class LessonsService {
       buckets.get(key)!.push(section);
     }
 
+    const canonicalOrder = this.reorderByCanonicalTopic(order);
     const grouped: NoteSection[] = [...(imagesAfter.get(-1) || [])];
-    for (const key of order) {
+    for (const key of canonicalOrder) {
       for (const section of buckets.get(key)!) {
         grouped.push(section);
         grouped.push(...(imagesAfter.get(indexOf.get(section)!) || []));
