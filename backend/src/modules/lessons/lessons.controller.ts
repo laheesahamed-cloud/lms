@@ -237,6 +237,11 @@ export class LessonsController {
     return this.lessonsService.canvasAdminList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
   }
 
+  @Patch('canvas/admin/reorder')
+  canvasReorderLessons(@Headers('authorization') auth: string, @Body('orderedIds') orderedIds: number[]) {
+    return this.lessonsService.canvasReorderLessons(Array.isArray(orderedIds) ? orderedIds.map(Number) : [], this.bearerToken(auth));
+  }
+
   @Get('canvas/hierarchy/courses')
   canvasGetCourses(@Headers('authorization') auth: string) {
     return this.lessonsService.getCourses(this.bearerToken(auth));

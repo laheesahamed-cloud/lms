@@ -678,6 +678,11 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureAdminAuditEventsTable(connection);
             await this.ensureAiProviderConfigsTable(connection);
             await this.ensureIapTables(connection);
+            const addedLessonSortOrder = await this.ensureColumn(connection, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
+            await this.ensureIndex(connection, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
+            if (addedLessonSortOrder) {
+                await this.backfillLessonSortOrder(connection);
+            }
         }
         catch (error) {
             this.logger.error('Failed to ensure critical governance tables on boot', error);
@@ -1278,10 +1283,23 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         LIMIT 1
       `, [tableName, columnName]);
         if (rows.length > 0) {
-            return;
+            return false;
         }
         await connection.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
         this.logger.log(`Added ${tableName}.${columnName}`);
+        return true;
+    }
+    async backfillLessonSortOrder(connection) {
+        const [rows] = await connection.execute(`SELECT id, topic_id, subtopic_id FROM lessons ORDER BY topic_id ASC, subtopic_id ASC, lesson_title ASC, id ASC`);
+        const counters = new Map();
+        for (const row of rows) {
+            const key = `${row.topic_id ?? 0}|${row.subtopic_id ?? 0}`;
+            const next = (counters.get(key) ?? 0) + 10;
+            counters.set(key, next);
+            await connection.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [next, row.id]);
+        }
+        if (rows.length)
+            this.logger.log(`Backfilled sort_order for ${rows.length} lesson(s)`);
     }
     async ensureFreePlanPaymentStatus(connection) {
         const [rows] = await connection.execute(`

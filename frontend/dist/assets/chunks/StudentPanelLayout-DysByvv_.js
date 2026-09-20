@@ -1,0 +1,1 @@
+import{ro as e}from"./app-shared-C22_mxg3.js";/* empty css                        */import{PanelLayout as t}from"./PanelLayout-H3cV3Vpy.js";var n=e();function r(){return(0,n.jsx)(t,{})}export{r as StudentPanelLayout};

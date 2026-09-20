@@ -285,6 +285,7 @@ export declare class LessonsService {
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
+        sortOrder: number;
         lessonId: number;
         videoUrl: string;
         pdfUrl: string;
@@ -296,7 +297,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "not_started" | "completed" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -304,6 +305,9 @@ export declare class LessonsService {
         createdAt: string;
         updatedAt: string;
     }[]>;
+    canvasReorderLessons(orderedIds: number[], token: string): Promise<{
+        ok: boolean;
+    }>;
     canvasAdminFindOne(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
         id: number;
         title: string;
@@ -314,6 +318,7 @@ export declare class LessonsService {
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
+        sortOrder: number;
         lessonId: number;
         videoUrl: string;
         pdfUrl: string;
@@ -325,7 +330,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "not_started" | "completed" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -427,7 +432,7 @@ export declare class LessonsService {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -470,6 +475,7 @@ export declare class LessonsService {
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
+        sortOrder: number;
         lessonId: number;
         videoUrl: string;
         pdfUrl: string;
@@ -481,7 +487,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "not_started" | "completed" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -505,6 +511,7 @@ export declare class LessonsService {
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
+        sortOrder: number;
         lessonId: number;
         videoUrl: string;
         pdfUrl: string;
@@ -516,7 +523,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "not_started" | "completed" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

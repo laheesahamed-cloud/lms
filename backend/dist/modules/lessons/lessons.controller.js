@@ -128,6 +128,9 @@ let LessonsController = class LessonsController {
     canvasAdminList(auth, engineKey) {
         return this.lessonsService.canvasAdminList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
     }
+    canvasReorderLessons(auth, orderedIds) {
+        return this.lessonsService.canvasReorderLessons(Array.isArray(orderedIds) ? orderedIds.map(Number) : [], this.bearerToken(auth));
+    }
     canvasGetCourses(auth) {
         return this.lessonsService.getCourses(this.bearerToken(auth));
     }
@@ -409,6 +412,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasAdminList", null);
+__decorate([
+    (0, common_1.Patch)('canvas/admin/reorder'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)('orderedIds')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Array]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasReorderLessons", null);
 __decorate([
     (0, common_1.Get)('canvas/hierarchy/courses'),
     __param(0, (0, common_1.Headers)('authorization')),

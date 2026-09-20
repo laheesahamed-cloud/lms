@@ -1,0 +1,1 @@
+import{$a as e,Ga as t,ro as n}from"./app-shared-C22_mxg3.js";import{t as r}from"./LaunchModePage-2JsEIAg5.js";/* empty css                        */var i=n();function a(){let{mode:n}=e();return n!==`maintenance`&&n!==`coming-soon`?(0,i.jsx)(t,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:n,preview:!0})}export{a as LaunchModePreviewPage};

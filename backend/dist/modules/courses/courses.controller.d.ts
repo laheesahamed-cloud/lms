@@ -52,7 +52,7 @@ export declare class CoursesController {
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
         ok: boolean;
         lessonId: number;
-        status: "not_started" | "in_progress" | "completed";
+        status: "not_started" | "completed" | "in_progress";
         progressPercent: number;
         actionLabel: string;
     }>;

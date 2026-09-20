@@ -57,6 +57,12 @@ export const adminDeleteAiNote = (id, options = {}) =>
     return r.data;
   });
 
+export const adminReorderLessons = (orderedIds) =>
+  apiClient.patch('/admin/ai-notes/reorder', { orderedIds }).then((r) => {
+    clearStudentAiNotesCache();
+    return r.data;
+  });
+
 export const adminGetCourses = () => apiClient.get('/admin/ai-notes/hierarchy/courses').then((r) => r.data);
 export const adminGetTopics = (courseId) =>
   apiClient.get(`/admin/ai-notes/hierarchy/topics${courseId ? `?courseId=${courseId}` : ''}`).then((r) => r.data);

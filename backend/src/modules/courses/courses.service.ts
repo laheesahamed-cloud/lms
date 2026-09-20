@@ -731,7 +731,7 @@ export class CoursesService {
        FROM lessons
        WHERE status = 'active' AND is_public = 1 AND (note_data IS NOT NULL OR pdf_url IS NOT NULL)
          AND course_id IN (${placeholders})
-       ORDER BY lesson_title ASC, id ASC`,
+       ORDER BY sort_order ASC, id ASC`,
       courseIds
     );
     const [progressRows] = await this.db.execute<ProgressRow[]>(

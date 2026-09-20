@@ -94,6 +94,8 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'lessons', 'engine_key', "VARCHAR(32) NOT NULL DEFAULT 'gemini'");
       await this.ensureColumn(connection, 'lessons', 'is_public',  'TINYINT NOT NULL DEFAULT 1');
       await this.ensureColumn(connection, 'lessons', 'pdf_url',    'VARCHAR(500) NULL');
+      // lessons.sort_order is ensured unconditionally in ensureCriticalTables()
+      // (runs before this, on every boot) since every lesson query depends on it.
       await this.ensureColumn(connection, 'lesson_flashcards', 'image_url', 'LONGTEXT NULL AFTER source_hint');
       await this.ensureColumn(connection, 'lesson_flashcards', 'image_fit', "ENUM('contain','cover') NOT NULL DEFAULT 'contain' AFTER image_url");
       await this.ensureColumn(connection, 'questions', 'subtopic_id', 'INT NULL AFTER topic_id');
@@ -745,6 +747,14 @@ export class SchemaSyncService implements OnModuleInit {
       // IAP redemption is a write path that runs on prod, where the full sync is
       // skipped (SCHEMA_SYNC=0) — so these must not depend on it.
       await this.ensureIapTables(connection);
+      // Every lesson list query (admin + student + course detail) now ORDER BYs
+      // this column — missing on prod (SCHEMA_SYNC=0) would 500 every one of them,
+      // not just the reorder feature, so it can't wait behind the full sync either.
+      const addedLessonSortOrder = await this.ensureColumn(connection, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
+      await this.ensureIndex(connection, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
+      if (addedLessonSortOrder) {
+        await this.backfillLessonSortOrder(connection);
+      }
     } catch (error) {
       this.logger.error('Failed to ensure critical governance tables on boot', error as Error);
     } finally {
@@ -1458,7 +1468,7 @@ export class SchemaSyncService implements OnModuleInit {
       .replace(/^-+|-+$/g, '') || 'item';
   }
 
-  private async ensureColumn(connection: PoolConnection, tableName: string, columnName: string, definition: string) {
+  private async ensureColumn(connection: PoolConnection, tableName: string, columnName: string, definition: string): Promise<boolean> {
     const table = sqlIdentifier(tableName, undefined, 'schema table');
     const column = sqlIdentifier(columnName, undefined, 'schema column');
     const [rows] = await connection.execute<RowDataPacket[]>(
@@ -1472,11 +1482,29 @@ export class SchemaSyncService implements OnModuleInit {
     );
 
     if (rows.length > 0) {
-      return;
+      return false;
     }
 
     await connection.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
     this.logger.log(`Added ${tableName}.${columnName}`);
+    return true;
+  }
+
+  /** One-time: seed lessons.sort_order from the alphabetical order students were
+   * already seeing (title ASC), scoped per topic/subtopic, so existing lessons
+   * keep their current position the moment ordering becomes admin-editable. */
+  private async backfillLessonSortOrder(connection: PoolConnection) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, topic_id, subtopic_id FROM lessons ORDER BY topic_id ASC, subtopic_id ASC, lesson_title ASC, id ASC`
+    );
+    const counters = new Map<string, number>();
+    for (const row of rows as { id: number; topic_id: number | null; subtopic_id: number | null }[]) {
+      const key = `${row.topic_id ?? 0}|${row.subtopic_id ?? 0}`;
+      const next = (counters.get(key) ?? 0) + 10;
+      counters.set(key, next);
+      await connection.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [next, row.id]);
+    }
+    if (rows.length) this.logger.log(`Backfilled sort_order for ${rows.length} lesson(s)`);
   }
 
   private async ensureFreePlanPaymentStatus(connection: PoolConnection) {

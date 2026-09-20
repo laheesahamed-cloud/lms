@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminListAiNotes, adminCreateAiNote, adminDeleteAiNote, adminUpdateAiNote, adminGetCourses, adminGetTopics, adminGetSubtopics } from '../../../../shared/api/aiNotes.api.js';
+import { adminListAiNotes, adminCreateAiNote, adminDeleteAiNote, adminUpdateAiNote, adminGetCourses, adminGetTopics, adminGetSubtopics, adminReorderLessons } from '../../../../shared/api/aiNotes.api.js';
 import { createLesson } from '../../../../shared/api/lessons.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 function PlusIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>; }
+function ReorderIcon() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 3.5h6M4 7h6M4 10.5h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M2 3.5l-.7.7M2 10.5l-.7-.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>; }
+function UpIcon()      { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 8.5L7 4.5L11 8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+function DownIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+
+const GENERAL_GROUP = '__general__';
 
 function formatDate(iso) {
   if (!iso) return '-';
@@ -72,6 +77,15 @@ export function AdminAiNotesListPage({
   const [deletingId,   setDeletingId]   = useState(null);
   const [togglingId,   setTogglingId]   = useState(null);
 
+  // Reorder panel — pick a course + subject, then arrange its lessons
+  // (grouped by topic, since order only makes sense within one subject/topic
+  // at a time — e.g. "Introduction" moved up to #1 within its own subject).
+  const [showReorder,  setShowReorder]  = useState(false);
+  const [roCourse,     setRoCourse]     = useState('');
+  const [roTopic,      setRoTopic]      = useState('');
+  const [roTopics,     setRoTopics]     = useState([]);
+  const [reordering,   setReordering]   = useState(false);
+
   const load = useCallback(async () => {
     try {
       setLoading(true); setError('');
@@ -84,9 +98,9 @@ export function AdminAiNotesListPage({
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!showCreate) return;
+    if (!showCreate && !showReorder) return;
     adminGetCourses().then(setCourses).catch(() => {});
-  }, [showCreate]);
+  }, [showCreate, showReorder]);
 
   useEffect(() => {
     setSelTopic(''); setSelSubtopic(''); setTopics([]); setSubtopics([]);
@@ -99,6 +113,61 @@ export function AdminAiNotesListPage({
     if (!selTopic) return;
     adminGetSubtopics(Number(selTopic)).then(setSubtopics).catch(() => {});
   }, [selTopic]);
+
+  useEffect(() => {
+    setRoTopic(''); setRoTopics([]);
+    if (!roCourse) return;
+    adminGetTopics(Number(roCourse)).then(setRoTopics).catch(() => {});
+  }, [roCourse]);
+
+  // Lessons for the picked subject, grouped by topic (subtopic) the same way
+  // students see them — a "General" bucket for lessons with no topic, then
+  // each named topic — each group its own independently-ordered scope.
+  const reorderGroups = useMemo(() => {
+    if (!roTopic) return [];
+    const topicId = Number(roTopic);
+    const inScope = notes.filter((n) => Number(n.topicId) === topicId);
+    const groups = new Map();
+    for (const note of inScope) {
+      const key = note.subtopicId == null ? GENERAL_GROUP : String(note.subtopicId);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          label: note.subtopicId == null ? 'General (no topic)' : (note.subtopicName || 'Topic'),
+          items: [],
+        });
+      }
+      groups.get(key).items.push(note);
+    }
+    for (const group of groups.values()) {
+      group.items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+    }
+    return Array.from(groups.values()).sort((a, b) => (a.key === GENERAL_GROUP ? -1 : b.key === GENERAL_GROUP ? 1 : a.label.localeCompare(b.label)));
+  }, [notes, roTopic]);
+
+  async function moveLesson(group, index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= group.items.length) return;
+    const reordered = [...group.items];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    const orderedIds = reordered.map((n) => n.id);
+
+    // Optimistic local update so the arrow feels instant.
+    setNotes((prev) => {
+      const orderById = new Map(orderedIds.map((id, i) => [id, (i + 1) * 10]));
+      return prev.map((n) => (orderById.has(n.id) ? { ...n, sortOrder: orderById.get(n.id) } : n));
+    });
+
+    setReordering(true);
+    try {
+      await adminReorderLessons(orderedIds);
+    } catch {
+      setError('Failed to save the new order.');
+      load();
+    } finally {
+      setReordering(false);
+    }
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -188,7 +257,13 @@ export function AdminAiNotesListPage({
         />
 
         <div className={adminCanvasUi.page}>
-          <div className={adminCanvasUi.actions}>
+          <div className={cx(adminCanvasUi.actions, 'gap-2')}>
+            <button className={cx(ui.secondaryAction, 'gap-[7px]')}
+              type="button"
+              onClick={() => setShowReorder(v => !v)}
+            >
+              <ReorderIcon/> Reorder lessons
+            </button>
             <button className={cx(ui.primaryAction, 'gap-[7px]')}
               type="button"
               onClick={() => setShowCreate(v => !v)}
@@ -242,6 +317,53 @@ export function AdminAiNotesListPage({
                     onClick={() => { setShowCreate(false); setNewTitle(''); setSelCourse(''); setSelTopic(''); setSelSubtopic(''); setIsFree(false); }}>Cancel</button>
           </div>
         </form>
+      )}
+
+      {showReorder && (
+        <section className={adminCanvasUi.createForm}>
+          <h3>Reorder lessons</h3>
+          <p className="mb-3 text-[13px] text-ink-soft">Pick a course and subject, then move a lesson up or down — e.g. bring "Introduction" to #1.</p>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <select className={cx(ui.input, 'min-w-0 flex-[1_1_200px]')} value={roCourse} onChange={e => setRoCourse(e.target.value)} aria-label="Reorder course">
+              <option value="">— Course —</option>
+              {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select className={cx(ui.input, 'min-w-0 flex-[1_1_200px]')} value={roTopic} onChange={e => setRoTopic(e.target.value)}
+                    disabled={!roCourse} aria-label="Reorder subject">
+              <option value="">— Subject —</option>
+              {roTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+
+          {roTopic && reorderGroups.length === 0 && (
+            <p className="mt-3 text-[13px] text-ink-muted">No lessons in this subject yet.</p>
+          )}
+
+          {reorderGroups.map((group) => (
+            <div key={group.key} className="mt-4">
+              <div className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-ink-soft">{group.label}</div>
+              <ol className="grid gap-1.5">
+                {group.items.map((note, index) => (
+                  <li key={note.id}
+                      className="flex items-center gap-2.5 rounded-lg border border-line-soft bg-surface-card px-3 py-2">
+                    <span className="w-5 shrink-0 text-center text-xs font-bold text-ink-muted">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-strong">{note.title || 'Untitled Lesson'}</span>
+                    <button type="button" className={ui.iconButton} disabled={reordering || index === 0}
+                            aria-label={`Move ${note.title} up`}
+                            onClick={() => moveLesson(group, index, -1)}>
+                      <UpIcon/>
+                    </button>
+                    <button type="button" className={ui.iconButton} disabled={reordering || index === group.items.length - 1}
+                            aria-label={`Move ${note.title} down`}
+                            onClick={() => moveLesson(group, index, 1)}>
+                      <DownIcon/>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </section>
       )}
 
       <div className={adminCanvasUi.content}>

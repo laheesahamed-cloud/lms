@@ -521,7 +521,7 @@ let CoursesService = class CoursesService {
        FROM lessons
        WHERE status = 'active' AND is_public = 1 AND (note_data IS NOT NULL OR pdf_url IS NOT NULL)
          AND course_id IN (${placeholders})
-       ORDER BY lesson_title ASC, id ASC`, courseIds);
+       ORDER BY sort_order ASC, id ASC`, courseIds);
         const [progressRows] = await this.db.execute(`SELECT lesson_id, status, progress_percent, started_at, completed_at
        FROM student_lesson_progress
        WHERE user_id = ? AND course_id IN (${placeholders})`, [userId, ...courseIds]);

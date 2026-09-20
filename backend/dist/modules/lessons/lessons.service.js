@@ -107,7 +107,7 @@ let LessonsService = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       ${whereClause}
-      ORDER BY l.created_at DESC, l.id DESC
+      ORDER BY l.topic_id ASC, l.subtopic_id ASC, l.sort_order ASC, l.id ASC
       LIMIT ? OFFSET ?`, [...params, limit, offset]);
         return rows.map((row) => this.mapLesson(row));
     }
@@ -133,7 +133,7 @@ let LessonsService = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.status = 'active'
-      ORDER BY l.created_at DESC, l.id DESC`);
+      ORDER BY l.topic_id ASC, l.subtopic_id ASC, l.sort_order ASC, l.id ASC`);
         return rows.map((row) => this.mapStudentLesson(row, accessProfile));
     }
     async findStudentLesson(id, authorization, appClient) {
@@ -227,9 +227,11 @@ let LessonsService = class LessonsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`, [snapshot.topicId, snapshot.subtopicId || null]);
+            const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
             const [result] = await connection.execute(`INSERT INTO lessons
-          (course_id, topic_id, subtopic_id, lesson_title, lesson_content, video_url, is_free, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+          (course_id, topic_id, subtopic_id, lesson_title, lesson_content, video_url, is_free, status, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
                 snapshot.courseId,
                 snapshot.topicId,
                 snapshot.subtopicId || null,
@@ -238,6 +240,7 @@ let LessonsService = class LessonsService {
                 snapshot.videoUrl,
                 snapshot.isFree,
                 snapshot.status,
+                nextSortOrder,
             ]);
             await this.recordContentVersion(connection, 'lesson', result.insertId, snapshot, this.getActorId(actor));
             await this.setWorkflowState(connection, 'lesson', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -955,7 +958,7 @@ let LessonsService = class LessonsService {
     canvasLessonSelect(includeNoteData) {
         return `
       l.id, l.lesson_title, l.engine_key, l.is_free, l.status, l.is_public,
-      l.course_id, l.topic_id, l.subtopic_id, l.video_url, l.pdf_url,
+      l.course_id, l.topic_id, l.subtopic_id, l.sort_order, l.video_url, l.pdf_url,
       l.created_at, l.updated_at,
       ${includeNoteData ? 'l.note_data, l.raw_text,' : 'NULL AS note_data, NULL AS raw_text,'}
       c.course_title, c.exam_type, t.topic_name, s.subtopic_name
@@ -971,8 +974,16 @@ let LessonsService = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND l.engine_key = ?
-      ORDER BY l.updated_at DESC`, [engineKey]);
+      ORDER BY c.course_title ASC, t.topic_name ASC, s.subtopic_name ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
         return rows.map(r => this.deserializeCanvas(r));
+    }
+    async canvasReorderLessons(orderedIds, token) {
+        await this.requireAdminToken(token);
+        const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
+        if (!ids.length)
+            return { ok: true };
+        await Promise.all(ids.map((id, index) => this.db.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])));
+        return { ok: true };
     }
     async canvasAdminFindOne(id, token, engineKey = 'gemini') {
         await this.requireAdminToken(token);
@@ -1260,7 +1271,7 @@ let LessonsService = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, t.topic_name ASC, l.updated_at DESC`, [student.id, engineKey]);
+      ORDER BY c.course_title ASC, t.topic_name ASC, s.subtopic_name ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
         return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
     }
     async canvasStudentFindNote(id, token, engineKey = 'gemini', appClient) {
@@ -1397,6 +1408,7 @@ let LessonsService = class LessonsService {
             id: row.id, title: row.lesson_title, lessonTitle: row.lesson_title,
             rawText: row.raw_text, noteData, engineKey: row.engine_key || 'gemini',
             courseId: row.course_id ?? null, topicId: row.topic_id ?? null, subtopicId: row.subtopic_id ?? null,
+            sortOrder: Number(row.sort_order ?? 0),
             lessonId: row.id, videoUrl: row.video_url || '', pdfUrl: row.pdf_url || '',
             isFree: Number(row.is_free) === 1,
             status: row.status ?? 'active', isPublic: Number(row.is_public) === 1,
