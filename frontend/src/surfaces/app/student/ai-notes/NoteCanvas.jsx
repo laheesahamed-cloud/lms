@@ -44,6 +44,8 @@ const noteCanvasUi = {
   subBullet: 'pl-[18px] text-[15.5px] opacity-90 dark:opacity-100 dark:text-[#b8caf0] max-[520px]:text-[16px]',
   subArrow: 'mt-0.5 shrink-0 text-xs opacity-75 dark:opacity-100',
   bulletDot: 'mt-[5px] size-[7px] shrink-0 rounded-full dark:shadow-[0_0_6px_currentColor]',
+  subPartHeader:
+    "mt-2.5 border-t border-transparent pt-2 text-[13px] font-extrabold uppercase tracking-[0.04em] [&_strong]:font-extrabold [&_strong]:text-inherit",
   summaryFrags: 'flex flex-wrap items-center gap-2',
   summaryFrag:
     "min-w-0 max-w-full break-words rounded-[10px] border border-black/[0.07] px-3 py-1.5 text-[13px] font-medium leading-[1.5] text-slate-700 dark:border-white/10 dark:text-[rgba(220,230,255,0.92)]",
@@ -321,6 +323,201 @@ function CalloutContent({ text, accentColor, highlightColors, highlightIndex }) 
   );
 }
 
+// Mirrors the backend's TOPIC_FAMILIES (lessons.service.ts) closely enough
+// to pick a sensible icon per card — a purely visual heuristic, not the
+// source of truth for grouping, so it doesn't need to be byte-identical.
+const TOPIC_FAMILY_PATTERNS = [
+  { key: 'differential',        test: /differential|\bddx\b/ },
+  { key: 'red-flags',           test: /red flag/ },
+  { key: 'mechanism-of-action', test: /mechanism of action|\bmoa\b/ },
+  { key: 'risk-stratification', test: /risk (stratification|score|assessment)/ },
+  { key: 'adverse-effects',     test: /adverse (effect|reaction|event)|side[- ]?effect/ },
+  { key: 'contraindications',   test: /contraindicat/ },
+  { key: 'dosing',              test: /\bdos(e|ing|age)\b/ },
+  { key: 'follow-up',           test: /follow[- ]?up|monitoring/ },
+  { key: 'management',          test: /manage|treat|therap/ },
+  { key: 'investigations',      test: /investigat|work[- ]?up/ },
+  { key: 'pathophysiology',     test: /pathophysiolog|pathogenes|mechanism/ },
+  { key: 'clinical-features',   test: /clinical feature|symptom|\bsigns?\b|presentation/ },
+  { key: 'complications',       test: /complication/ },
+  { key: 'aetiology',           test: /aetiolog|etiolog|\bcauses?\b|risk factor/ },
+  { key: 'classification',      test: /classification|staging|\bgrades?\b/ },
+  { key: 'diagnosis',           test: /diagnos/ },
+  { key: 'epidemiology',        test: /epidemiolog|incidence|prevalence/ },
+  { key: 'prevention',          test: /prevention|prophylax|screening/ },
+  { key: 'prognosis',           test: /prognos|outcome/ },
+  { key: 'definition',          test: /definition|\bdefined\b/ },
+];
+
+function guessTopicFamily(heading) {
+  const h = String(heading || '').replace(/^\s*\d+(?:\.\d+)*[.)]?\s*/, '').trim().toLowerCase();
+  if (!h) return null;
+  const hit = TOPIC_FAMILY_PATTERNS.find((f) => f.test.test(h));
+  return hit ? hit.key : null;
+}
+
+// One clean, purpose-drawn line icon per recognized topic — same visual
+// language as MedicalIconSvg below (24x24, currentColor stroke, rounded
+// caps/joins) but each shape is chosen to actually mean something, so a
+// student scanning the lesson can tell what a card is about before reading
+// its heading.
+function TopicFamilyIconSvg({ family }) {
+  switch (family) {
+    case 'definition':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5.6c-1.9-1.4-4.4-1.8-7.3-1.3v13.2c2.9-.5 5.4-.1 7.3 1.3 1.9-1.4 4.4-1.8 7.3-1.3V4.3c-2.9-.5-5.4-.1-7.3 1.3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+          <path d="M12 5.6v13.2" stroke="currentColor" strokeWidth="1.3" opacity="0.5"/>
+        </svg>
+      );
+    case 'epidemiology':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 19v-6M12 19V8M19 19v-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M4 19h16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5"/>
+        </svg>
+      );
+    case 'aetiology':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="10.3" cy="10.3" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
+          <path d="M14.4 14.4L19 19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M10.3 7.8v2.6M10.3 13v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.65"/>
+        </svg>
+      );
+    case 'risk-stratification':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.5l8.5 15.5h-17L12 3.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+          <path d="M7.8 14h8.4M9.2 17.5h5.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.55"/>
+        </svg>
+      );
+    case 'classification':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
+          <rect x="12.8" y="4" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5" opacity="0.55"/>
+          <rect x="4" y="12.8" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5" opacity="0.55"/>
+          <rect x="12.8" y="12.8" width="7.2" height="7.2" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
+        </svg>
+      );
+    case 'pathophysiology':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="7.8" stroke="currentColor" strokeWidth="1.6"/>
+          <path d="M7 12h2.3l1.4-3.3 2 6.6 1.4-3.3H17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    case 'mechanism-of-action':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="7.5" cy="16.5" r="3.1" stroke="currentColor" strokeWidth="1.6"/>
+          <path d="M9.7 14.3l7-7M15 8.3l2 2M12.8 10.5l1.6 1.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    case 'clinical-features':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.5 4v6.2a5 5 0 0 0 10 0V4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+          <path d="M5.3 4h2.2M14.7 4h2.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+          <circle cx="18.3" cy="15.7" r="2.4" stroke="currentColor" strokeWidth="1.6"/>
+          <path d="M16.5 10.5v2.3a2.4 2.4 0 0 0 2.4 2.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'red-flags':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 3v18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+          <path d="M6 4.6c2.8-1.4 4.7 1.4 7.5 0v6.6c-2.8 1.4-4.7-1.4-7.5 0V4.6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        </svg>
+      );
+    case 'differential':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.5 5.5v5.2a4 4 0 0 0 4 4h3a4 4 0 0 1 4 4v1.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="6.5" cy="5.2" r="1.9" stroke="currentColor" strokeWidth="1.4"/>
+          <circle cx="6.5" cy="19.2" r="1.9" stroke="currentColor" strokeWidth="1.4" opacity="0.6"/>
+          <circle cx="17.5" cy="19.2" r="1.9" stroke="currentColor" strokeWidth="1.4"/>
+        </svg>
+      );
+    case 'investigations':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9.5 3h5M10.3 3v9.3L6.7 17.8a2 2 0 0 0 1.7 3.1h7.2a2 2 0 0 0 1.7-3.1l-3.6-5.5V3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M8.6 15h6.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.55"/>
+        </svg>
+      );
+    case 'diagnosis':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="5" y="4.2" width="14" height="16.8" rx="2" stroke="currentColor" strokeWidth="1.6"/>
+          <path d="M9 3.6h6a1 1 0 0 1 1 1V6.3H8V4.6a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M8.4 13l2.1 2.1L15.6 10.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    case 'management':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.3l7 2.9v4.9c0 5-3 8.4-7 9.8-4-1.4-7-4.8-7-9.8V6.2l7-2.9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+          <path d="M12 8.6v6.6M8.7 11.9h6.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'dosing':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 8h12l-1.5 10.6a2 2 0 0 1-2 1.7H9.5a2 2 0 0 1-2-1.7L6 8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+          <path d="M5 8h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          <path d="M8.5 11.3h7M9 14.7h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5"/>
+        </svg>
+      );
+    case 'adverse-effects':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.8l9.2 15.8H2.8L12 3.8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+          <path d="M12 10v3.6M12 16.7v.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'contraindications':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7"/>
+          <path d="M6.7 17.3L17.3 6.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'complications':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8.3 3h7.4L20.5 8v7.4L15.7 21H8.3L3.5 15.4V8L8.3 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+          <path d="M12 8v5M12 16v.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'follow-up':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6"/>
+          <path d="M4 9.5h16M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          <path d="M8.5 14.4l2 2 4.5-4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    case 'prognosis':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 16l5-5 4 3 7-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M15 6h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    case 'prevention':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.3l7 2.9v4.9c0 5-3 8.4-7 9.8-4-1.4-7-4.8-7-9.8V6.2l7-2.9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+          <path d="M8.8 12.1l2.2 2.2L15.5 9.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 function MedicalIconSvg({ type = 0 }) {
   const variant = Math.abs(Number(type) || 0) % 6;
   if (variant === 0) {
@@ -372,7 +569,8 @@ function MedicalIconSvg({ type = 0 }) {
   );
 }
 
-function MedicalMiniIcon({ index = 0, color = '#60A5FA', theme }) {
+function MedicalMiniIcon({ index = 0, heading = '', color = '#60A5FA', theme }) {
+  const family = guessTopicFamily(heading);
   return (
     <span
       className={noteCanvasUi.cardMedicalIcon}
@@ -382,7 +580,7 @@ function MedicalMiniIcon({ index = 0, color = '#60A5FA', theme }) {
         background: theme === 'dark' ? colorWithAlpha(color, '16') : colorWithAlpha(color, '12'),
       }}
     >
-      <MedicalIconSvg type={index} />
+      {family ? <TopicFamilyIconSvg family={family} /> : <MedicalIconSvg type={index} />}
     </span>
   );
 }
@@ -955,7 +1153,16 @@ function EArea({ value, onChange, placeholder, className, style, minRows = 2, on
 }
 
 /* ── Checkable bullets: click to mark as studied (read mode) ── */
-function CheckableBullet({ bulletKey, text, isSub, isParent, accentColor, highlightColors, highlightIndex = 0, done, onToggle }) {
+function CheckableBullet({ bulletKey, text, isSub, isParent, isSubPartHeader, showDivider, accentColor, highlightColors, highlightIndex = 0, done, onToggle }) {
+  if (isSubPartHeader) {
+    return (
+      <li className={noteCanvasUi.subPartHeader} style={showDivider ? { borderTopColor: colorWithAlpha(accentColor, '2a') } : undefined}>
+        <span style={{ color: accentColor }}>
+          <RichText text={text} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={highlightIndex}/>
+        </span>
+      </li>
+    );
+  }
   return (
     <li
       className={cx(noteCanvasUi.bullet, isSub && noteCanvasUi.subBullet)}
@@ -1008,7 +1215,14 @@ function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey
       <ul className={noteCanvasUi.bullets}>
         {bullets.map((b, i) => {
           const isSub = b.startsWith('→ ') || b.startsWith('→');
-          const isParent = !isSub && b.trimEnd().endsWith(':');
+          // A bullet that's ENTIRELY "**Label**:" (nothing else) marks a
+          // sub-part boundary inside a merged card (see the backend's
+          // groupSectionFamilies — "Medical management:" / "Surgical
+          // management:") — rendered as a divider + header, not a bullet.
+          // A plain "Blood tests:" list intro (no bold) stays a normal
+          // bullet with just extra top spacing, as before.
+          const isSubPartHeader = !isSub && /^\*\*[^*]+\*\*:?\s*$/.test(b.trim());
+          const isParent = !isSub && !isSubPartHeader && b.trimEnd().endsWith(':');
           const text  = isSub ? b.replace(/^→\s*/, '') : b;
           const key   = `${sectionKey}-${i}`;
           return (
@@ -1018,6 +1232,8 @@ function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey
               text={text}
               isSub={isSub}
               isParent={isParent}
+              isSubPartHeader={isSubPartHeader}
+              showDivider={isSubPartHeader && i > 0}
               accentColor={accentColor}
               highlightColors={highlightColors}
               highlightIndex={i}
@@ -2154,7 +2370,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
         background: canvasCardBackground(accentColor, theme),
       }}
     >
-      {!editable && <MedicalMiniIcon index={colorIndex + 1} color={accentColor} theme={theme} />}
+      {!editable && <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -2353,6 +2569,7 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
       className={noteCanvasUi.section}
       style={{ background: canvasCardBackground(accentColor, theme) }}
     >
+      {!editable && <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -2468,7 +2685,7 @@ function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChang
 
   return (
     <div data-canvas-card className={noteCanvasUi.section} style={{ background: canvasCardBackground(accentColor, theme) }}>
-      {!editable && <MedicalMiniIcon index={colorIndex + 1} color={accentColor} theme={theme} />}
+      {!editable && <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
