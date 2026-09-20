@@ -832,6 +832,28 @@ export function AdminAiNotesEditorPage({
     });
   }
 
+  // Lessons generate as a single page now (see backend splitIntoPages), so
+  // "move card to another page" has nothing to move to unless an admin adds
+  // one manually — this is that manual add.
+  function handleAddPage() {
+    setNoteData(prev => ({
+      ...prev,
+      pages: [...(prev?.pages || []), { title: '', subtitle: '', sections: [], summary_box: '', key_points: [] }],
+    }));
+  }
+
+  // Only removes a page that's actually empty — moving cards off it first
+  // (via the move-to-page menu) is what makes it safe to delete; never
+  // silently discards content.
+  function handleDeletePage(idx) {
+    setNoteData(prev => {
+      const pages = prev?.pages || [];
+      const page = pages[idx];
+      if (!page || (page.sections || []).length > 0 || pages.length <= 1) return prev;
+      return { ...prev, pages: pages.filter((_, i) => i !== idx) };
+    });
+  }
+
   function handleVideoUrlChange(e) {
     const next = e.target.value;
     setVideoUrl(next);
@@ -1375,6 +1397,12 @@ export function AdminAiNotesEditorPage({
                         Page {i + 1} of {pages.length}
                         {pageData.title ? ` · ${pageData.title}` : ''}
                       </div>
+                      {editMode && !(pageData.sections || []).length && (
+                        <button className={cx(ui.secondaryAction, editorUi.smallAction)}
+                          onClick={() => handleDeletePage(i)} title="Delete this empty page">
+                          Delete empty page
+                        </button>
+                      )}
                       <div className={editorUi.pageTurnLine}/>
                     </div>
                   )}
@@ -1392,6 +1420,15 @@ export function AdminAiNotesEditorPage({
                   />
                 </div>
               ))}
+              {editMode && (
+                <div className={editorUi.pageTurn}>
+                  <div className={editorUi.pageTurnLine}/>
+                  <button className={cx(ui.secondaryAction, editorUi.smallAction)} onClick={handleAddPage}>
+                    + Add page
+                  </button>
+                  <div className={editorUi.pageTurnLine}/>
+                </div>
+              )}
             </div>
           )}
         </div>
