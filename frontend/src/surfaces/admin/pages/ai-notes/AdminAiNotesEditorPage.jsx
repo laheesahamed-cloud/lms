@@ -783,6 +783,31 @@ export function AdminAiNotesEditorPage({
     }));
   }
 
+  // Relocates one card from one page to another — e.g. content that landed
+  // on the wrong page (a "surgery" card sitting under a different subject's
+  // page) gets moved to the page it actually belongs on, instead of being
+  // stuck wherever it was first generated.
+  function handleMoveSectionToPage(fromPageIndex, sectionIndex, toPageIndex) {
+    setNoteData(prev => {
+      const pages = prev.pages || [];
+      const fromPage = pages[fromPageIndex];
+      const toPage = pages[toPageIndex];
+      if (!fromPage || !toPage || fromPageIndex === toPageIndex) return prev;
+      const fromSections = [...(fromPage.sections || [])];
+      const [moved] = fromSections.splice(sectionIndex, 1);
+      if (!moved) return prev;
+      const toSections = [...(toPage.sections || []), moved];
+      return {
+        ...prev,
+        pages: pages.map((p, i) => {
+          if (i === fromPageIndex) return { ...fromPage, sections: fromSections };
+          if (i === toPageIndex) return { ...toPage, sections: toSections };
+          return p;
+        }),
+      };
+    });
+  }
+
   function handleVideoUrlChange(e) {
     const next = e.target.value;
     setVideoUrl(next);
@@ -1326,6 +1351,10 @@ export function AdminAiNotesEditorPage({
                     }}
                     editable={editMode}
                     onDataChange={newData => handlePageDataChange(i, newData)}
+                    pageIndex={i}
+                    pageCount={pages.length}
+                    onMoveSectionToPage={(fromPageIndex, sectionIndex, toPageIndex) =>
+                      handleMoveSectionToPage(fromPageIndex, sectionIndex, toPageIndex)}
                   />
                 </div>
               ))}

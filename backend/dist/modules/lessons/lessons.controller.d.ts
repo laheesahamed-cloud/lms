@@ -37,7 +37,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -58,7 +58,7 @@ export declare class LessonsController {
         lessonTitle: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -76,7 +76,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -166,26 +166,26 @@ export declare class LessonsController {
     markDraft(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: "draft" | "published";
     }>;
     canvasGenerate(auth: string, text: string): Promise<import("./lessons.service").NoteCanvas>;
@@ -204,14 +204,14 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -240,14 +240,14 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -365,14 +365,14 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -401,14 +401,14 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

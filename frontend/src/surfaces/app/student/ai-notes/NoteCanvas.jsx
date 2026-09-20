@@ -1078,6 +1078,14 @@ function BulletEditor({ bullets = [], accentColor, onChange }) {
                 }
               }}
             />
+            <button className={cx(noteCanvasUi.sectionButton, sub && noteCanvasUi.sectionButtonOn)}
+              type="button"
+              onClick={() => updateRow(i, sub ? b.replace(/^→\s*/, '') : `→ ${b}`)}
+              title={sub ? 'Un-indent (remove ↳)' : 'Make sub-point (↳ indented)'}
+              style={{ opacity: sub ? 1 : 0.42, width:20, height:20, flexShrink:0, fontSize:11 }}
+            >
+              ↳
+            </button>
             <button className={noteCanvasUi.sectionButton}
               type="button"
               onClick={() => addRow(i)}
@@ -1544,10 +1552,44 @@ function ColorPickerPopup({ current, onSelect, onClose }) {
   );
 }
 
+/* Relocate a card to a different page of the same note (only rendered when
+   the note has more than one page). */
+function MovePageMenu({ pageIndex, pageCount, onMove }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  if (!pageCount || pageCount < 2) return null;
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button className={noteCanvasUi.sectionButton} onClick={() => setOpen(v => !v)}
+        title="Move this card to another page" style={{ fontSize: 10, width: 30 }}>
+        →pg
+      </button>
+      {open && (
+        <div className={noteCanvasUi.popup} style={{ minWidth: 108, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className={noteCanvasUi.toolbarLabel} style={{ padding: '0 4px 2px' }}>Move to page</div>
+          {Array.from({ length: pageCount }, (_, i) => i).filter(i => i !== pageIndex).map(i => (
+            <button key={i} type="button"
+              className={noteCanvasUi.sectionButton}
+              style={{ width: '100%', height: 26, fontSize: 12, justifyContent: 'flex-start', paddingLeft: 8 }}
+              onClick={() => { onMove(i); setOpen(false); }}>
+              Page {i + 1}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════
    IMAGE SECTION CARD  (plain image — lives in the grid)
 ══════════════════════════════════════════════════════════════ */
-function ImageSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, onOpenImage, theme }) {
+function ImageSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, onOpenImage, theme, pageIndex, pageCount, onMoveToPage }) {
   const resizeDrag = useRef(null);
   const [cardRef, cardWidth] = useElementWidth();
 
@@ -1602,6 +1644,7 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
             <button className={noteCanvasUi.sectionButton} style={{ fontSize:11, width:32 }}
               onClick={() => onReplaceRequest(index)} title="Replace image">↺</button>
           </div>
+          <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
           <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete} title="Delete">✕</button>
         </div>
       )}
@@ -1662,7 +1705,7 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
    IMAGE + EXPLANATION SECTION CARD
    Full-width block: image on top, detailed explanation below.
 ══════════════════════════════════════════════════════════════ */
-function ImageExplainedSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, onOpenImage, theme }) {
+function ImageExplainedSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, onOpenImage, theme, pageIndex, pageCount, onMoveToPage }) {
   const resizeDrag  = useRef(null);
   const [colorOpen, setColorOpen] = useState(false);
   const [cardRef, cardWidth] = useElementWidth();
@@ -1728,6 +1771,7 @@ function ImageExplainedSectionCard({ section, index, totalSections, editable, on
               )}
             </div>
           </div>
+          <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
           <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete} title="Delete">✕</button>
         </div>
       )}
@@ -1981,7 +2025,96 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, d
 /* ══════════════════════════════════════════════════════════════
    TEXT SECTION CARD
 ══════════════════════════════════════════════════════════════ */
-function SectionCard({ section, colorIndex, totalSections, colors, highlightColors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onAddImageRequest, onOpenImage, theme }) {
+/* A small table embedded WITHIN a regular text card (as opposed to
+   TableSectionCard, which is a whole dedicated full-width table card) — same
+   add/remove row/col behavior, styled to sit under a card's bullets. */
+function EmbeddedTable({ table, accentColor, editable, onChange }) {
+  const headers = Array.isArray(table?.headers) ? table.headers : ['Column 1', 'Column 2'];
+  const rows = Array.isArray(table?.rows) ? table.rows : [];
+
+  function patch(next) { onChange({ headers, rows, ...next }); }
+  function updateHeader(ci, val) { const next = [...headers]; next[ci] = val; patch({ headers: next }); }
+  function updateCell(ri, ci, val) { const next = rows.map((r, i) => i === ri ? r.map((c, j) => j === ci ? val : c) : r); patch({ rows: next }); }
+  function addRow() { patch({ rows: [...rows, headers.map(() => '')] }); }
+  function removeRow(ri) { patch({ rows: rows.filter((_, i) => i !== ri) }); }
+  function addCol() { patch({ headers: [...headers, `Col ${headers.length + 1}`], rows: rows.map(r => [...r, '']) }); }
+  function removeCol(ci) {
+    if (headers.length <= 1) return;
+    patch({ headers: headers.filter((_, i) => i !== ci), rows: rows.map(r => r.filter((_, i) => i !== ci)) });
+  }
+
+  if (!editable && rows.length === 0) return null;
+
+  return (
+    <div className={noteCanvasUi.tableWrap} style={{ marginTop: 6 }}>
+      {editable ? (
+        <>
+          <table className={noteCanvasUi.table}>
+            <thead className={noteCanvasUi.thead}>
+              <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+                {headers.map((h, ci) => (
+                  <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <EField value={h} onChange={v => updateHeader(ci, v)}
+                        placeholder={`Col ${ci + 1}`} style={{ fontSize: 11, fontWeight: 800, width: '100%' }}/>
+                      {headers.length > 1 && (
+                        <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)}
+                          type="button" onClick={() => removeCol(ci)}
+                          style={{ flexShrink: 0, width: 16, height: 16, fontSize: 9 }}>✕</button>
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className={noteCanvasUi.tbody}>
+              {rows.map((row, ri) => (
+                <tr key={ri} className={noteCanvasUi.tr}>
+                  {headers.map((_, ci) => (
+                    <td key={ci} className={noteCanvasUi.td}>
+                      <EField value={row[ci] || ''} onChange={v => updateCell(ri, ci, v)}
+                        placeholder="—" style={{ width: '100%', fontSize: 13 }}/>
+                    </td>
+                  ))}
+                  <td style={{ width: 20, paddingLeft: 4 }}>
+                    <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)}
+                      type="button" onClick={() => removeRow(ri)}
+                      style={{ width: 16, height: 16, fontSize: 9 }}>✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <button className={noteCanvasUi.tableAddRowBtn} type="button" onClick={addRow}>+ Add row</button>
+            <button className={noteCanvasUi.tableAddRowBtn} type="button" onClick={addCol}>+ Add column</button>
+          </div>
+        </>
+      ) : (
+        <table className={noteCanvasUi.table}>
+          <thead className={noteCanvasUi.thead}>
+            <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+              {headers.map((h, ci) => (
+                <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className={noteCanvasUi.tbody}>
+            {rows.map((row, ri) => (
+              <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)}>
+                {headers.map((_, ci) => (
+                  <td key={ci} className={noteCanvasUi.td}><RichText text={row[ci] || ''} accentColor={accentColor}/></td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function SectionCard({ section, colorIndex, totalSections, colors, highlightColors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onAddImageRequest, onOpenImage, theme, pageIndex, pageCount, onMoveToPage }) {
   const [colorOpen, setColorOpen] = useState(false);
   const resizeDrag = useRef(null);
   const baseColor    = colors[colorIndex % colors.length] || '#A7D8FF';
@@ -2053,6 +2186,12 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
             title={section.sectionImage?.src ? 'Replace section image' : 'Add image to this block'}
             style={{ fontSize:13 }}
           >📷</button>
+          <button className={cx(noteCanvasUi.sectionButton, section.embeddedTable && noteCanvasUi.sectionButtonOn)}
+            onClick={() => onSectionChange('embeddedTable', section.embeddedTable ? null : { headers: ['Column 1', 'Column 2'], rows: [['', '']] })}
+            title={section.embeddedTable ? 'Remove table from this card' : 'Add a small table to this card'}
+            style={{ fontSize: 11, width: 30 }}
+          >▦</button>
+          <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
           <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
         </div>
       )}
@@ -2138,6 +2277,10 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
                 </div>
               )}
             </div>
+            {section.embeddedTable && (
+              <EmbeddedTable table={section.embeddedTable} accentColor={accentColor} editable={editable}
+                onChange={next => onSectionChange('embeddedTable', next)}/>
+            )}
           </div>
         );
 
@@ -2168,7 +2311,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
 /* ══════════════════════════════════════════════════════════════
    TABLE SECTION CARD
 ══════════════════════════════════════════════════════════════ */
-function TableSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme }) {
+function TableSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme, pageIndex, pageCount, onMoveToPage }) {
   const baseColor   = colors[colorIndex % colors.length] || '#A7D8FF';
   const accentColor = section.accentColor || baseColor;
   const span        = section.span === 'single' ? 'full' : section.span || 'full';
@@ -2220,6 +2363,7 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
               style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'full')} title="Full width">⬛</button>
             <button className={cx(noteCanvasUi.sectionButton, span === 'wide' && noteCanvasUi.sectionButtonOn)}
               style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'wide')} title="Wide card">⅔</button>
+            <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
             <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
           </div>
         </div>
@@ -2307,7 +2451,7 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
 /* ══════════════════════════════════════════════════════════════
    FLOW SECTION CARD — cause → effect reasoning chain (vertical arrows)
 ══════════════════════════════════════════════════════════════ */
-function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme }) {
+function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme, pageIndex, pageCount, onMoveToPage }) {
   const baseColor   = colors[colorIndex % colors.length] || '#A7D8FF';
   const accentColor = section.accentColor || baseColor;
   const steps       = Array.isArray(section.steps) ? section.steps : [];
@@ -2333,6 +2477,7 @@ function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChang
               style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'full')} title="Full width">⬛</button>
             <button className={cx(noteCanvasUi.sectionButton, span === 'wide' && noteCanvasUi.sectionButtonOn)}
               style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'wide')} title="Wide card">⅔</button>
+            <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
             <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
           </div>
         </div>
@@ -2541,7 +2686,7 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onA
 /* ══════════════════════════════════════════════════════════════
    MAIN CANVAS
 ══════════════════════════════════════════════════════════════ */
-export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable = false, onDataChange }, ref) {
+export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable = false, onDataChange, pageIndex = 0, pageCount = 1, onMoveSectionToPage }, ref) {
   const theme    = useThemeStore(s => s.theme);
   const colors   = theme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   const highlightColors = normalizeVisualStyleColors(data?.visual_style?.colors);
@@ -2638,6 +2783,15 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     patch({ sections: next });
+  }
+
+  // Relocates a card to a different PAGE (not just a position within this
+  // page). This canvas instance only owns one page's data, so the parent
+  // (which owns the whole multi-page note) does the actual cross-page splice
+  // in one atomic update — we just report which section + target page.
+  function moveSectionToPage(idx, targetPageIndex) {
+    if (targetPageIndex == null || targetPageIndex === pageIndex) return;
+    onMoveSectionToPage?.(pageIndex, idx, targetPageIndex);
   }
 
   function applyLayoutPattern(patternId) {
@@ -2943,6 +3097,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       onReplaceRequest={requestReplace}
                       onOpenImage={openImageLightbox}
                       theme={theme}
+                      pageIndex={pageIndex}
+                      pageCount={pageCount}
+                      onMoveToPage={pg => moveSectionToPage(i, pg)}
                     />
                   </MasonryItem>
                 );
@@ -2974,6 +3131,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       onReplaceRequest={requestReplace}
                       onOpenImage={openImageLightbox}
                       theme={theme}
+                      pageIndex={pageIndex}
+                      pageCount={pageCount}
+                      onMoveToPage={pg => moveSectionToPage(i, pg)}
                     />
                   </MasonryItem>
                 );
@@ -3003,6 +3163,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       onMoveDown={() => moveSection(i, 1)}
                       onDelete={() => deleteSection(i)}
                       theme={theme}
+                      pageIndex={pageIndex}
+                      pageCount={pageCount}
+                      onMoveToPage={pg => moveSectionToPage(i, pg)}
                     />
                   </MasonryItem>
                 );
@@ -3032,6 +3195,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       onMoveDown={() => moveSection(i, 1)}
                       onDelete={() => deleteSection(i)}
                       theme={theme}
+                      pageIndex={pageIndex}
+                      pageCount={pageCount}
+                      onMoveToPage={pg => moveSectionToPage(i, pg)}
                     />
                   </MasonryItem>
                 );
@@ -3064,6 +3230,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     onAddImageRequest={() => requestSectionImage(i)}
                     onOpenImage={openImageLightbox}
                     theme={theme}
+                    pageIndex={pageIndex}
+                    pageCount={pageCount}
+                    onMoveToPage={pg => moveSectionToPage(i, pg)}
                   />
                 </MasonryItem>
               );

@@ -84,7 +84,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -105,7 +105,7 @@ export declare class LessonsService {
         lessonTitle: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -123,7 +123,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -195,26 +195,26 @@ export declare class LessonsService {
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     submitForReview(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     publish(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: "draft" | "published";
     }>;
     uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
@@ -290,14 +290,14 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -323,14 +323,14 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -456,6 +456,9 @@ export declare class LessonsService {
     }>;
     canvasGenerate(text: string, token: string): Promise<NoteCanvas>;
     private splitSourceIntoChunks;
+    private stripHeadingNumber;
+    private normalizeTopicKey;
+    private renumberSections;
     private mergeCanvases;
     private ensureCompleteness;
     private buildCompletenessPrompt;
@@ -480,14 +483,14 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -516,14 +519,14 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "completed" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
