@@ -1779,6 +1779,13 @@ export class LessonsService {
   // "Pathophysiology" and a "Mechanism of action" card would wrongly merge
   // disease mechanism and drug MOA into one card.
   private static readonly TOPIC_FAMILIES: Array<{ key: string; title: string; test: RegExp }> = [
+    // 'definition' goes FIRST: a combined heading like "Definition &
+    // Pathophysiology" contains both words, and without this it matched
+    // 'pathophysiology' below (rank 5 in TOPIC_ORDER) instead of 'definition'
+    // (rank 0), pushing the lesson's opening card to 3rd/4th place instead
+    // of first. 'definition''s pattern is narrow enough it won't swallow
+    // anything else the way a broad pattern could.
+    { key: 'definition',          title: 'Definition',               test: /definition|\bdefined\b/ },
     { key: 'differential',        title: 'Differential diagnosis',   test: /differential|\bddx\b/ },
     { key: 'red-flags',           title: 'Red flags',                test: /red flag/ },
     { key: 'mechanism-of-action', title: 'Mechanism of action',      test: /mechanism of action|\bmoa\b/ },
@@ -1798,7 +1805,6 @@ export class LessonsService {
     { key: 'epidemiology',        title: 'Epidemiology',             test: /epidemiolog|incidence|prevalence/ },
     { key: 'prevention',          title: 'Prevention & screening',   test: /prevention|prophylax|screening/ },
     { key: 'prognosis',           title: 'Prognosis',                test: /prognos|outcome/ },
-    { key: 'definition',          title: 'Definition',               test: /definition|\bdefined\b/ },
   ];
 
   // Standard clinical-teaching sequence, used to REORDER cards after

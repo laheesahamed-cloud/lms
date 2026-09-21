@@ -358,6 +358,10 @@ function CalloutContent({ text, accentColor, highlightColors, highlightIndex }) 
 // to pick a sensible icon per card — a purely visual heuristic, not the
 // source of truth for grouping, so it doesn't need to be byte-identical.
 const TOPIC_FAMILY_PATTERNS = [
+  // 'definition' goes FIRST: a combined heading like "Definition &
+  // Pathophysiology" contains both words, and without this it matched
+  // 'pathophysiology' below instead — showing the wrong icon.
+  { key: 'definition',          test: /definition|\bdefined\b/ },
   { key: 'differential',        test: /differential|\bddx\b/ },
   { key: 'red-flags',           test: /red flag/ },
   { key: 'mechanism-of-action', test: /mechanism of action|\bmoa\b/ },
@@ -377,7 +381,6 @@ const TOPIC_FAMILY_PATTERNS = [
   { key: 'epidemiology',        test: /epidemiolog|incidence|prevalence/ },
   { key: 'prevention',          test: /prevention|prophylax|screening/ },
   { key: 'prognosis',           test: /prognos|outcome/ },
-  { key: 'definition',          test: /definition|\bdefined\b/ },
 ];
 
 function guessTopicFamily(heading) {

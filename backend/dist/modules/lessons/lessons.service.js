@@ -2268,6 +2268,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
 };
 exports.LessonsService = LessonsService;
 LessonsService.TOPIC_FAMILIES = [
+    { key: 'definition', title: 'Definition', test: /definition|\bdefined\b/ },
     { key: 'differential', title: 'Differential diagnosis', test: /differential|\bddx\b/ },
     { key: 'red-flags', title: 'Red flags', test: /red flag/ },
     { key: 'mechanism-of-action', title: 'Mechanism of action', test: /mechanism of action|\bmoa\b/ },
@@ -2287,7 +2288,6 @@ LessonsService.TOPIC_FAMILIES = [
     { key: 'epidemiology', title: 'Epidemiology', test: /epidemiolog|incidence|prevalence/ },
     { key: 'prevention', title: 'Prevention & screening', test: /prevention|prophylax|screening/ },
     { key: 'prognosis', title: 'Prognosis', test: /prognos|outcome/ },
-    { key: 'definition', title: 'Definition', test: /definition|\bdefined\b/ },
 ];
 LessonsService.TOPIC_ORDER = [
     'definition', 'epidemiology', 'aetiology', 'risk-stratification', 'classification',

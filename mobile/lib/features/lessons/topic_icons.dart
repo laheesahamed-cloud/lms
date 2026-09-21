@@ -17,6 +17,10 @@ class _FamilyPattern {
 // Same order/patterns as TOPIC_FAMILY_PATTERNS in NoteCanvas.jsx — kept in
 // sync by hand since it's a small, stable list on both sides.
 final List<_FamilyPattern> _familyPatterns = [
+  // 'definition' goes FIRST: a combined heading like "Definition &
+  // Pathophysiology" contains both words, and without this it matched
+  // 'pathophysiology' below instead — showing the wrong icon.
+  _FamilyPattern('definition', RegExp(r'definition|\bdefined\b')),
   _FamilyPattern('differential', RegExp(r'differential|\bddx\b')),
   _FamilyPattern('red-flags', RegExp(r'red flag')),
   _FamilyPattern('mechanism-of-action', RegExp(r'mechanism of action|\bmoa\b')),
@@ -36,7 +40,6 @@ final List<_FamilyPattern> _familyPatterns = [
   _FamilyPattern('epidemiology', RegExp(r'epidemiolog|incidence|prevalence')),
   _FamilyPattern('prevention', RegExp(r'prevention|prophylax|screening')),
   _FamilyPattern('prognosis', RegExp(r'prognos|outcome')),
-  _FamilyPattern('definition', RegExp(r'definition|\bdefined\b')),
 ];
 
 final RegExp _leadingNumber = RegExp(r'^\s*\d+(?:\.\d+)*[.)]?\s*');
