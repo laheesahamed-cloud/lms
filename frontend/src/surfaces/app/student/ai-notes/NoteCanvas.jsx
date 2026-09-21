@@ -196,6 +196,20 @@ const noteCanvasUi = {
     'mb-1.5 inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.08em] opacity-55',
   noteBoxHeading:
     'm-0 mb-1.5 font-[var(--type-font-body)] text-[13px] font-extrabold leading-[1.35]',
+  // Branch diagram: root box on the left, a vertical trunk line (stretched
+  // by flex to the height of the branch list), each branch row ticked off
+  // the trunk with its own short horizontal connector.
+  branchDiagram: 'flex items-stretch gap-3 px-3.5 pb-3 pt-1 max-[520px]:px-2.5 max-[520px]:flex-col max-[520px]:gap-2',
+  branchRoot:
+    'flex shrink-0 items-center self-center rounded-[10px] px-3 py-2.5 text-center font-[var(--type-font-body)] text-[13px] font-extrabold leading-[1.3] max-[520px]:self-stretch max-[520px]:justify-center',
+  branchTrunk: 'w-[2px] shrink-0 rounded-full max-[520px]:hidden',
+  branchList: 'flex min-w-0 flex-1 flex-col gap-[7px]',
+  branchRow: 'relative flex min-w-0 items-center gap-2.5 pl-[14px] max-[520px]:pl-0',
+  branchTick: 'absolute left-0 top-1/2 h-[2px] w-[14px] -translate-y-1/2 max-[520px]:hidden',
+  branchBox:
+    'min-w-0 flex-1 rounded-[9px] px-2.5 py-[7px]',
+  branchLabel: 'text-[13px] font-extrabold leading-[1.3]',
+  branchDetail: 'mt-0.5 text-[12.5px] leading-[1.4] opacity-85',
   keyPoints:
     'relative mx-5 mb-3 mt-1 overflow-hidden rounded-[14px] border border-[#f3c77f]/70 px-4 py-3.5 dark:border-white/[0.12] max-[520px]:mx-2 max-[520px]:px-3',
   keyPointsLabel:
@@ -1440,6 +1454,7 @@ function estimateSectionWeight(section) {
   if (section.type === 'image') return section.src ? 7 : 4;
   if (section.type === 'table') return 8;
   if (section.type === 'flow') return 8;
+  if (section.type === 'branch') return 8;
   if (section.type === 'note') return 3;
 
   const heading = String(section.heading || '').toLowerCase();
@@ -1463,6 +1478,10 @@ function estimateSectionHeight(section) {
   if (section.type === 'table') {
     const rows = Array.isArray(section.rows) ? section.rows.length : 0;
     return 58 + rows * 30;
+  }
+  if (section.type === 'branch') {
+    const branches = Array.isArray(section.branches) ? section.branches : [];
+    return 62 + branches.length * 42;
   }
   if (section.type === 'flow') {
     const steps = Array.isArray(section.steps) ? section.steps.filter(Boolean) : [];
@@ -2836,6 +2855,87 @@ function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChang
 }
 
 /* ══════════════════════════════════════════════════════════════
+   BRANCH SECTION CARD — one main topic splitting into named
+   sub-types, drawn as a horizontal root → branches diagram.
+══════════════════════════════════════════════════════════════ */
+function BranchSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme, pageIndex, pageCount, onMoveToPage }) {
+  const baseColor   = colors[colorIndex % colors.length] || '#A7D8FF';
+  const accentColor = section.accentColor || baseColor;
+  const branches     = Array.isArray(section.branches) ? section.branches : [];
+  const span         = section.span === 'single' ? 'full' : section.span || 'full';
+  const lineColor    = theme === 'dark' ? 'rgba(255,255,255,0.28)' : accentColor + '80';
+
+  const updateBranch = (idx, field, val) =>
+    onSectionChange('branches', branches.map((b, i) => i === idx ? { ...b, [field]: val } : b));
+  const addBranch    = () => onSectionChange('branches', [...branches, { label: 'New type', detail: '' }]);
+  const deleteBranch = (idx) => onSectionChange('branches', branches.filter((_, i) => i !== idx));
+
+  return (
+    <div data-canvas-card className={noteCanvasUi.section} style={{ background: canvasCardBackground(accentColor, theme) }}>
+      <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} editable={editable} />
+      {editable && (
+        <div className={noteCanvasUi.sectionActions}>
+          <div style={{ display:'flex', gap:3 }}>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveUp}>↑</button>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveDown}>↓</button>
+          </div>
+          <div style={{ display:'flex', gap:3 }}>
+            <button className={noteCanvasUi.sectionButton} onClick={addBranch} title="Add branch" style={{ fontSize:11 }}>+Branch</button>
+            <button className={cx(noteCanvasUi.sectionButton, span === 'full' && noteCanvasUi.sectionButtonOn)}
+              style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'full')} title="Full width">⬛</button>
+            <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
+            <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
+          </div>
+        </div>
+      )}
+
+      <div className={noteCanvasUi.sectionHeading}>
+        {editable
+          ? <EField value={section.heading} onChange={v => onSectionChange('heading', v)}
+              placeholder="Classification heading" className={noteCanvasUi.headingText}
+              style={{ color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}38` }}/>
+          : <h3 className={noteCanvasUi.headingText}
+              style={{ color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}38` }}>
+              {section.heading}
+            </h3>}
+      </div>
+
+      <div className={noteCanvasUi.branchDiagram}>
+        <div className={noteCanvasUi.branchRoot} style={{ background: accentColor, color: '#fff' }}>
+          {editable
+            ? <EField value={section.root || ''} onChange={v => onSectionChange('root', v)} placeholder="Main topic" style={{ color:'#fff', textAlign:'center' }}/>
+            : (section.root || section.heading)}
+        </div>
+        {branches.length > 0 && <div className={noteCanvasUi.branchTrunk} style={{ background: lineColor }}/>}
+        <div className={noteCanvasUi.branchList}>
+          {branches.map((b, i) => (
+            <div key={i} className={noteCanvasUi.branchRow}>
+              <div className={noteCanvasUi.branchTick} style={{ background: lineColor }}/>
+              <div className={noteCanvasUi.branchBox} style={{ background: accentColor + themedAlpha(theme, '14', '28'), border: `1px solid ${accentColor}38` }}>
+                {editable ? (
+                  <>
+                    <EField value={b.label} onChange={v => updateBranch(i, 'label', v)} placeholder="Sub-type" className={noteCanvasUi.branchLabel} style={{ color: accentColor }}/>
+                    <EField value={b.detail || ''} onChange={v => updateBranch(i, 'detail', v)} placeholder="Short description…" className={noteCanvasUi.branchDetail}/>
+                  </>
+                ) : (
+                  <>
+                    <div className={noteCanvasUi.branchLabel} style={{ color: accentColor }}>{b.label}</div>
+                    {b.detail && <div className={noteCanvasUi.branchDetail}><RichText text={b.detail} accentColor={accentColor} highlightColors={colors} highlightIndex={colorIndex + i}/></div>}
+                  </>
+                )}
+              </div>
+              {editable && (
+                <button className={noteCanvasUi.sectionButton} onClick={() => deleteBranch(i)} title="Delete branch" style={{ flexShrink:0, width:18, height:18, fontSize:9 }}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    STICKER PICKER POPUP
 ══════════════════════════════════════════════════════════════ */
 function StickerPicker({ onAdd, onClose }) {
@@ -3500,6 +3600,38 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     onDragEnd={() => setDraggingIndex(null)}
                   >
                     <FlowSectionCard
+                      section={section}
+                      colorIndex={i}
+                      colors={colors}
+                      editable={editable}
+                      onSectionChange={(field, val) => patchSection(i, field, val)}
+                      onMoveUp={() => moveSection(i, -1)}
+                      onMoveDown={() => moveSection(i, 1)}
+                      onDelete={() => deleteSection(i)}
+                      theme={theme}
+                      pageIndex={pageIndex}
+                      pageCount={pageCount}
+                      onMoveToPage={pg => moveSectionToPage(i, pg)}
+                    />
+                  </MasonryItem>
+                );
+              }
+              if (section.type === 'branch') {
+                return (
+                  <MasonryItem
+                    key={i}
+                    span={section.span || 'full'}
+                    columns={columnCount}
+                    editable={editable}
+                    dragEnabled={editable && !isMobileCanvas}
+                    index={i}
+                    draggingIndex={draggingIndex}
+                    onDragStart={handleCardDragStart}
+                    onDragOver={handleCardDragOver}
+                    onDrop={handleCardDrop}
+                    onDragEnd={() => setDraggingIndex(null)}
+                  >
+                    <BranchSectionCard
                       section={section}
                       colorIndex={i}
                       colors={colors}

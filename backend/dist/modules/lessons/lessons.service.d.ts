@@ -34,6 +34,11 @@ export interface NoteSection {
     };
     embedded_label?: string;
     anchor_topic?: string;
+    root?: string;
+    branches?: Array<{
+        label: string;
+        detail?: string;
+    }>;
 }
 export interface NoteResult {
     title: string;
