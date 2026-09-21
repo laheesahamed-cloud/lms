@@ -1953,6 +1953,15 @@ export class LessonsService {
       }
 
       const clone: NoteSection = { ...section, heading };
+      // A table/flow can't fold into a text card's bullets, so it stays its own
+      // card — but if a text card for this SAME topic already exists (e.g. the
+      // completeness pass added "Medical management options" as a flow while a
+      // "Management" text card is already out), give it that same family title
+      // instead of its own near-duplicate wording, so the two cards visually
+      // read as one topic continuing, not two competing topics.
+      if (!isText && familyKey && anchorByFamily.has(familyKey) && family) {
+        clone.heading = family.title;
+      }
       if (pendingAside && out.length === 0) {
         this.foldAsideInto(clone, pendingAside);
         pendingAside = null;

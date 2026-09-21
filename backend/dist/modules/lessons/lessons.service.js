@@ -1420,6 +1420,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 continue;
             }
             const clone = { ...section, heading };
+            if (!isText && familyKey && anchorByFamily.has(familyKey) && family) {
+                clone.heading = family.title;
+            }
             if (pendingAside && out.length === 0) {
                 this.foldAsideInto(clone, pendingAside);
                 pendingAside = null;
