@@ -2330,7 +2330,7 @@ function EmbeddedTable({ table, accentColor, editable, onChange, theme }) {
             <tr style={{ borderBottom: `1.5px solid ${accentColor}${themedAlpha(theme, '44', '70')}` }}>
               {headers.map((h, ci) => (
                 <th key={ci} className={noteCanvasUi.th}
-                  style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}>{h}</th>
+                  style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}><RichText text={h} accentColor={accentColor}/></th>
               ))}
             </tr>
           </thead>
@@ -2742,7 +2742,7 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
               <tr style={{ borderBottom: `1.5px solid ${accentColor}${themedAlpha(theme, '44', '70')}` }}>
                 {headers.map((h, ci) => (
                   <th key={ci} className={noteCanvasUi.th}
-                    style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}>{h}</th>
+                    style={{ color: accentColor, background: accentColor + themedAlpha(theme, '14', '28'), borderRight: ci < headers.length - 1 ? `1px solid ${accentColor}${themedAlpha(theme, '2a', '48')}` : 'none' }}><RichText text={h} accentColor={accentColor}/></th>
                 ))}
               </tr>
             </thead>
