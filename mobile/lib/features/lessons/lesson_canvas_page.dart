@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +24,7 @@ import '../bookmarks/bookmark_button.dart';
 import 'lesson_models.dart';
 import 'lessons_repository.dart';
 import 'pdf_lesson_page.dart';
+import 'topic_icons.dart';
 import 'watch_video_modal.dart';
 import '../personal_notes/personal_notes_store.dart';
 
@@ -3872,13 +3874,32 @@ class _SectionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: accent.withValues(alpha: 0.22)),
               ),
-              child: Text(section.heading.toUpperCase(),
-                  style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent))),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_topicIconSvg(section.heading) != null) ...[
+                    SvgPicture.string(
+                      _topicIconSvg(section.heading)!,
+                      width: 13,
+                      height: 13,
+                      colorFilter: ColorFilter.mode(
+                        dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent),
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                  ],
+                  Flexible(
+                    child: Text(section.heading.toUpperCase(),
+                        style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent))),
+                  ),
+                ],
+              ),
             ),
           // Image / image-explained section: render the image (figure body below).
           if (section.isImage && section.imageSrc != null) ...[
@@ -3910,6 +3931,12 @@ class _SectionCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String? _topicIconSvg(String heading) {
+    final family = guessTopicFamily(heading);
+    if (family == null) return null;
+    return kTopicIconSvgs[family];
   }
 
   // Flow block: cause → effect chain rendered as full-sentence steps stacked

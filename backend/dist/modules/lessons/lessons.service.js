@@ -1187,8 +1187,12 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             canvas = this.mergeCanvases(canvases);
         }
-        onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
-        const completed = await this.ensureCompleteness(trimmed, canvas, provider);
+        const COMPLETENESS_CHECK_MIN_LENGTH = 2000;
+        let completed = canvas;
+        if (trimmed.length >= COMPLETENESS_CHECK_MIN_LENGTH) {
+            onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
+            completed = await this.ensureCompleteness(trimmed, canvas, provider);
+        }
         onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
         const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
         onProgress?.('done', 'Lesson ready!');

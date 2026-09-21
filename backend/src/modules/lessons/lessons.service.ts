@@ -1609,9 +1609,16 @@ export class LessonsService {
       canvas = this.mergeCanvases(canvases);
     }
 
-    // Item 2 — completeness self-check: ask the model what it left out and append it (best effort).
-    onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
-    const completed = await this.ensureCompleteness(trimmed, canvas, provider);
+    // Item 2 — completeness self-check: ask the model what it left out and append it
+    // (best effort). This is a SECOND full AI call, so skip it for short pastes where
+    // truncation/omission risk is negligible — keeps typical short-lesson generation
+    // down to one AI call instead of doubling the wait every time.
+    const COMPLETENESS_CHECK_MIN_LENGTH = 2000;
+    let completed = canvas;
+    if (trimmed.length >= COMPLETENESS_CHECK_MIN_LENGTH) {
+      onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
+      completed = await this.ensureCompleteness(trimmed, canvas, provider);
+    }
     // Always renumber last — guarantees flat "1., 2., 3." card numbers no matter
     // which path above produced the canvas, or whether the model followed the
     // numbering instruction exactly.
