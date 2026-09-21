@@ -2556,7 +2556,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
             {section.embedded_table?.headers?.length > 0 && (
               <>
                 <div className={noteCanvasUi.embeddedFlowDivider} style={{ borderTopColor: accentColor + themedAlpha(theme, '22', '3a') }}>
-                  <span className={noteCanvasUi.embeddedFlowLabel} style={{ color: accentColor }}>Comparison</span>
+                  <span className={noteCanvasUi.embeddedFlowLabel} style={{ color: accentColor }}>{section.embedded_label || 'Comparison'}</span>
                 </div>
                 <EmbeddedTable table={section.embedded_table} accentColor={accentColor} editable={editable} theme={theme}
                   onChange={next => onSectionChange('embedded_table', next)}/>
@@ -2565,7 +2565,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
             {section.embedded_flow?.length > 0 && (
               <>
                 <div className={noteCanvasUi.embeddedFlowDivider} style={{ borderTopColor: accentColor + themedAlpha(theme, '22', '3a') }}>
-                  <span className={noteCanvasUi.embeddedFlowLabel} style={{ color: accentColor }}>Mechanism</span>
+                  <span className={noteCanvasUi.embeddedFlowLabel} style={{ color: accentColor }}>{section.embedded_label || 'Mechanism'}</span>
                 </div>
                 <div className={noteCanvasUi.embeddedFlowSteps}>
                   {section.embedded_flow.map((step, i) => (

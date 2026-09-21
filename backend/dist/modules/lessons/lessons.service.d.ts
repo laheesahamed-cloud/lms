@@ -32,6 +32,7 @@ export interface NoteSection {
         headers: string[];
         rows: string[][];
     };
+    embedded_label?: string;
     anchor_topic?: string;
 }
 export interface NoteResult {
