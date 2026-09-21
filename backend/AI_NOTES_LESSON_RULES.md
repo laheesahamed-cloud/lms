@@ -90,11 +90,23 @@ family merges into it:
 | Later section is → | Anchor is text | Anchor is table/flow/branch |
 |---|---|---|
 | **text** | Bullets merge into anchor's `bullets` (labelled sub-part if headings differ) | Bullets fold into anchor's `bullets` as supplementary content (`SupplementaryBullets` on the frontend) |
-| **table/flow/branch** | Gets RELABELLED to the anchor's family title (kept as its own adjacent card — can't merge rows/steps into bullets), NOT merged in | Same treatment — relabelled to the shared family title |
+| **table/flow/branch** | Relabelled to the anchor's family title, marked `unnumbered: true`, kept as its own adjacent card (can't merge rows/steps into bullets) — NOT merged in, but does NOT get its own number either | Same treatment — relabelled to the shared family title, unnumbered |
 
-If you ever see two cards with the **same or near-identical heading**
-sitting next to each other, this table is where to look first — it means
-one of these four cells stopped working.
+**Rule of thumb: only ONE numbered card per topic family.** Anything else
+for that same topic ends up either merged INSIDE the main card (text →
+bullets, or `embedded_flow`/`embedded_table` with a divider) or sitting
+OUTSIDE it without a number (a genuinely un-mergeable table/flow/branch
+duplicate, or a `note` box). `renumberSections` skips anything with
+`type === 'note'`, `type === 'image'`, or `unnumbered === true`. This
+needs no frontend change — numbering is just a string prefix
+(`renumberSections` prepends `"N. "` to the heading), so an unnumbered
+card renders through the exact same `TableSectionCard`/`FlowSectionCard`/
+`BranchSectionCard` component as a numbered one.
+
+If you ever see two cards with the **same or near-identical heading AND
+both numbered** sitting next to each other, this table is where to look
+first — it means one of these four cells (or the `unnumbered` marking)
+stopped working.
 
 `note`-type sections are excluded from this table entirely — they never
 register as an anchor and are never relabelled; they get pulled out and
