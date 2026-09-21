@@ -1168,18 +1168,22 @@ let LessonsService = LessonsService_1 = class LessonsService {
             throw new common_1.BadRequestException('Text must be at least 10 characters');
         onProgress?.('provider', 'Connecting to your AI provider…');
         const provider = await this.resolveActiveCanvasProvider();
+        const deadline = Date.now() + 6 * 60 * 1000;
         const CHUNK_LIMIT = 9000;
         let canvas;
         if (trimmed.length <= CHUNK_LIMIT) {
             onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
-            canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress);
+            canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline);
         }
         else {
             const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
             const canvases = [];
             for (let i = 0; i < chunks.length; i += 1) {
+                if (Date.now() > deadline) {
+                    throw new common_1.ServiceUnavailableException(`Generation is taking too long (source is very long — ${chunks.length} parts). Try a shorter paste, or generate it in smaller sections.`);
+                }
                 onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
-                canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress));
+                canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline));
             }
             canvas = this.mergeCanvases(canvases);
         }
@@ -1190,12 +1194,15 @@ let LessonsService = LessonsService_1 = class LessonsService {
         onProgress?.('done', 'Lesson ready!');
         return finalCanvas;
     }
-    async generateChunkResilient(chunkText, provider, depth = 0, onProgress) {
+    async generateChunkResilient(chunkText, provider, depth = 0, onProgress, deadline = Infinity) {
         try {
             return await this.generateWithProvider(this.buildPrompt(chunkText), provider);
         }
         catch (err) {
-            if (!(err instanceof LessonJsonTruncatedError) || depth >= 2 || chunkText.length < 800)
+            if (!(err instanceof LessonJsonTruncatedError)
+                || depth >= 2
+                || chunkText.length < 800
+                || Date.now() > deadline)
                 throw err;
             const half = Math.ceil(chunkText.length / 2);
             const pieces = this.splitSourceIntoChunks(chunkText, half);
@@ -1204,8 +1211,10 @@ let LessonsService = LessonsService_1 = class LessonsService {
             onProgress?.('split', 'That part was too dense for one pass — splitting it into smaller pieces so nothing gets cut off…');
             const results = [];
             for (let i = 0; i < pieces.length; i += 1) {
+                if (Date.now() > deadline)
+                    throw err;
                 onProgress?.('split', `Writing piece ${i + 1} of ${pieces.length}…`);
-                results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress));
+                results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress, deadline));
             }
             return this.mergeCanvases(results);
         }

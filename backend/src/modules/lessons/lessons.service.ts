@@ -1579,19 +1579,32 @@ export class LessonsService {
     if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
     onProgress?.('provider', 'Connecting to your AI provider…');
     const provider = await this.resolveActiveCanvasProvider();
+    // Hard overall budget for the WHOLE generation (all chunks, all split
+    // retries combined) — generateChunkResilient's split-retry can otherwise
+    // compound with the per-model retry loop inside generateWithProvider
+    // (up to 3 models, each up to AI_NOTES_REQUEST_TIMEOUT_MS/4min) across up
+    // to 3 split levels, so an adverse/flaky provider could keep this
+    // running far longer than anyone would wait, looking exactly like
+    // "stuck loading, never generating" instead of a clear failure.
+    const deadline = Date.now() + 6 * 60 * 1000;
 
     // Item 3 — chunk very long pastes so the AI's output limit never truncates the tail.
     const CHUNK_LIMIT = 9000;
     let canvas: NoteCanvas;
     if (trimmed.length <= CHUNK_LIMIT) {
       onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
-      canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress);
+      canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline);
     } else {
       const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
       const canvases: NoteCanvas[] = [];
       for (let i = 0; i < chunks.length; i += 1) {
+        if (Date.now() > deadline) {
+          throw new ServiceUnavailableException(
+            `Generation is taking too long (source is very long — ${chunks.length} parts). Try a shorter paste, or generate it in smaller sections.`,
+          );
+        }
         onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
-        canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress));
+        canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline));
       }
       canvas = this.mergeCanvases(canvases);
     }
@@ -1612,26 +1625,36 @@ export class LessonsService {
   // back truncated (too dense for its output limit) — automatically splits
   // that SAME chunk in half and generates each half separately instead of
   // losing content, merging the results back together (grouped + numbered
-  // later by the caller). Caps at 2 split levels (up to 4 pieces) so a
-  // genuinely broken provider can't loop forever.
+  // later by the caller). Caps at 2 split levels (up to 4 pieces) AND at the
+  // shared `deadline` (see canvasGenerate) so a genuinely broken/slow
+  // provider can't loop — or simply take — far longer than anyone would
+  // wait; once the deadline passes we give up with the real underlying
+  // error instead of continuing to retry silently.
   private async generateChunkResilient(
     chunkText: string,
     provider: RuntimeCanvasProvider,
     depth = 0,
     onProgress?: LessonGenerationProgress,
+    deadline = Infinity,
   ): Promise<NoteCanvas> {
     try {
       return await this.generateWithProvider(this.buildPrompt(chunkText), provider);
     } catch (err) {
-      if (!(err instanceof LessonJsonTruncatedError) || depth >= 2 || chunkText.length < 800) throw err;
+      if (
+        !(err instanceof LessonJsonTruncatedError)
+        || depth >= 2
+        || chunkText.length < 800
+        || Date.now() > deadline
+      ) throw err;
       const half = Math.ceil(chunkText.length / 2);
       const pieces = this.splitSourceIntoChunks(chunkText, half);
       if (pieces.length < 2) throw err;
       onProgress?.('split', 'That part was too dense for one pass — splitting it into smaller pieces so nothing gets cut off…');
       const results: NoteCanvas[] = [];
       for (let i = 0; i < pieces.length; i += 1) {
+        if (Date.now() > deadline) throw err; // give up cleanly rather than start another slow attempt
         onProgress?.('split', `Writing piece ${i + 1} of ${pieces.length}…`);
-        results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress));
+        results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress, deadline));
       }
       return this.mergeCanvases(results);
     }
