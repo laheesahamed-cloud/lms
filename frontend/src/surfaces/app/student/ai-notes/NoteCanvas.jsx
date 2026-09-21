@@ -182,6 +182,20 @@ const noteCanvasUi = {
     'absolute left-1/2 top-[-5px] size-2.5 -translate-x-1/2 rounded-full bg-white/30 shadow-[0_0_6px_rgba(255,255,255,0.2)]',
   stickyText:
     "m-0 text-[14.5px] font-semibold leading-[1.52] text-slate-700 dark:font-semibold dark:text-[#c8d8ff] max-[520px]:text-[15px]",
+  embeddedFlowDivider:
+    'mx-3.5 mt-2 mb-1.5 flex items-center gap-2 border-t border-black/[0.06] pt-2.5 dark:border-white/[0.10] max-[520px]:mx-2.5',
+  embeddedFlowLabel:
+    'shrink-0 text-[10.5px] font-extrabold uppercase tracking-[0.08em] opacity-55',
+  embeddedFlowSteps: 'px-3.5 pb-2 max-[520px]:px-2.5',
+  // The unnumbered floating box — a "note" type card. Dashed border + no
+  // number badge visually mark it as related-but-separate from the numbered
+  // topic cards, unlike `section`'s solid border.
+  noteBox:
+    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-dashed border-[#d8cdb2]/80 bg-[#fffdf8]/30 px-3.5 py-3 transition-colors duration-200 hover:border-[#c9b98c] dark:border-dashed dark:border-white/[0.16] dark:bg-white/[0.025] dark:hover:border-white/[0.26] max-[520px]:px-2.5',
+  noteBoxLabel:
+    'mb-1.5 inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.08em] opacity-55',
+  noteBoxHeading:
+    'm-0 mb-1.5 font-[var(--type-font-body)] text-[13px] font-extrabold leading-[1.35]',
   keyPoints:
     'relative mx-5 mb-3 mt-1 overflow-hidden rounded-[14px] border border-[#f3c77f]/70 px-4 py-3.5 dark:border-white/[0.12] max-[520px]:mx-2 max-[520px]:px-3',
   keyPointsLabel:
@@ -1423,6 +1437,7 @@ function estimateSectionWeight(section) {
   if (section.type === 'image') return section.src ? 7 : 4;
   if (section.type === 'table') return 8;
   if (section.type === 'flow') return 8;
+  if (section.type === 'note') return 3;
 
   const heading = String(section.heading || '').toLowerCase();
   const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
@@ -1450,6 +1465,11 @@ function estimateSectionHeight(section) {
     const steps = Array.isArray(section.steps) ? section.steps.filter(Boolean) : [];
     const stepLines = steps.reduce((sum, s) => sum + Math.max(1, Math.ceil(String(s).length / 46)), 0);
     return 58 + stepLines * 26 + steps.length * 30;
+  }
+  if (section.type === 'note') {
+    const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
+    const bulletLines = bullets.reduce((sum, line) => sum + Math.max(1, Math.ceil(String(line).length / 42)), 0);
+    return 44 + bulletLines * 22;
   }
 
   const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
@@ -2326,6 +2346,42 @@ function EmbeddedTable({ table, accentColor, editable, onChange, theme }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════
+   NOTE BOX — unnumbered floating box for content that doesn't fit
+   any existing topic card, pinned near the topic it's closest to.
+══════════════════════════════════════════════════════════════ */
+const NOTE_BOX_ACCENT = '#9c8a5e';
+function NoteBoxCard({ section, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, pageIndex, pageCount, onMoveToPage, theme }) {
+  return (
+    <div data-canvas-card className={noteCanvasUi.noteBox}>
+      {editable && (
+        <div className={noteCanvasUi.sectionActions}>
+          <div style={{ display:'flex', gap:3 }}>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveUp}>↑</button>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveDown}>↓</button>
+          </div>
+          <div style={{ display:'flex', gap:3 }}>
+            <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
+            <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
+          </div>
+        </div>
+      )}
+      <div className={noteCanvasUi.noteBoxLabel}>
+        <span aria-hidden="true">📎</span>
+        {section.anchor_topic ? `Related to ${section.anchor_topic}` : 'Note'}
+      </div>
+      {editable
+        ? <EField value={section.heading} onChange={v => onSectionChange('heading', v)} placeholder="Note heading" className={noteCanvasUi.noteBoxHeading}/>
+        : section.heading && <h4 className={noteCanvasUi.noteBoxHeading}>{section.heading}</h4>}
+      {editable ? (
+        <BulletEditor bullets={section.bullets} accentColor={NOTE_BOX_ACCENT} onChange={next => onSectionChange('bullets', next)} theme={theme}/>
+      ) : (
+        section.bullets?.length > 0 && <CheckableBulletList bullets={section.bullets} accentColor={NOTE_BOX_ACCENT} highlightColors={[NOTE_BOX_ACCENT]} sectionKey={0} theme={theme}/>
+      )}
+    </div>
+  );
+}
+
 function SectionCard({ section, colorIndex, totalSections, colors, highlightColors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onAddImageRequest, onOpenImage, theme, pageIndex, pageCount, onMoveToPage }) {
   const [colorOpen, setColorOpen] = useState(false);
   const resizeDrag = useRef(null);
@@ -2493,6 +2549,45 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
             {section.embeddedTable && (
               <EmbeddedTable table={section.embeddedTable} accentColor={accentColor} editable={editable} theme={theme}
                 onChange={next => onSectionChange('embeddedTable', next)}/>
+            )}
+            {/* AI-added table/flow for a sub-part of THIS topic (e.g. a drug's
+                mechanism inside "Management") — same card, divided from the
+                bullets above instead of becoming its own numbered card. */}
+            {section.embedded_table?.headers?.length > 0 && (
+              <>
+                <div className={noteCanvasUi.embeddedFlowDivider} style={{ borderTopColor: accentColor + themedAlpha(theme, '22', '3a') }}>
+                  <span className={noteCanvasUi.embeddedFlowLabel} style={{ color: accentColor }}>Comparison</span>
+                </div>
+                <EmbeddedTable table={section.embedded_table} accentColor={accentColor} editable={editable} theme={theme}
+                  onChange={next => onSectionChange('embedded_table', next)}/>
+              </>
+            )}
+            {section.embedded_flow?.length > 0 && (
+              <>
+                <div className={noteCanvasUi.embeddedFlowDivider} style={{ borderTopColor: accentColor + themedAlpha(theme, '22', '3a') }}>
+                  <span className={noteCanvasUi.embeddedFlowLabel} style={{ color: accentColor }}>Mechanism</span>
+                </div>
+                <div className={noteCanvasUi.embeddedFlowSteps}>
+                  {section.embedded_flow.map((step, i) => (
+                    <div key={i}>
+                      {i > 0 && (
+                        <div style={{ display:'flex', justifyContent:'center', padding:'4px 0' }} aria-hidden="true">
+                          <svg width="16" height="18" viewBox="0 0 18 20" fill="none">
+                            <path d="M9 1 L9 16 M3 10 L9 18 L15 10" stroke={theme === 'dark' ? 'rgba(255,255,255,0.5)' : accentColor + 'cc'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      )}
+                      {editable ? (
+                        <EField value={step} onChange={v => onSectionChange('embedded_flow', section.embedded_flow.map((s, si) => si === i ? v : s))} placeholder="Step…" style={{ width: '100%' }}/>
+                      ) : (
+                        <div style={{ lineHeight: 1.55, fontSize: 14.5 }}>
+                          <RichText text={step} accentColor={accentColor} highlightColors={richColors} highlightIndex={colorIndex}/>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         );
@@ -3405,6 +3500,36 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       section={section}
                       colorIndex={i}
                       colors={colors}
+                      editable={editable}
+                      onSectionChange={(field, val) => patchSection(i, field, val)}
+                      onMoveUp={() => moveSection(i, -1)}
+                      onMoveDown={() => moveSection(i, 1)}
+                      onDelete={() => deleteSection(i)}
+                      theme={theme}
+                      pageIndex={pageIndex}
+                      pageCount={pageCount}
+                      onMoveToPage={pg => moveSectionToPage(i, pg)}
+                    />
+                  </MasonryItem>
+                );
+              }
+              if (section.type === 'note') {
+                return (
+                  <MasonryItem
+                    key={i}
+                    span={section.span || 'half'}
+                    columns={columnCount}
+                    editable={editable}
+                    dragEnabled={editable && !isMobileCanvas}
+                    index={i}
+                    draggingIndex={draggingIndex}
+                    onDragStart={handleCardDragStart}
+                    onDragOver={handleCardDragOver}
+                    onDrop={handleCardDrop}
+                    onDragEnd={() => setDraggingIndex(null)}
+                  >
+                    <NoteBoxCard
+                      section={section}
                       editable={editable}
                       onSectionChange={(field, val) => patchSection(i, field, val)}
                       onMoveUp={() => moveSection(i, -1)}

@@ -27,6 +27,12 @@ export interface NoteSection {
     rows?: string[][];
     span?: string;
     steps?: string[];
+    embedded_flow?: string[];
+    embedded_table?: {
+        headers: string[];
+        rows: string[][];
+    };
+    anchor_topic?: string;
 }
 export interface NoteResult {
     title: string;
