@@ -530,8 +530,15 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         error_text TEXT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_lesson_generation_jobs_created (created_at)
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+        try {
+            await connection.execute(`
+        ALTER TABLE lesson_generation_jobs CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+      `);
+        }
+        catch {
+        }
     }
     async ensureLessonAnnotationsTable(connection) {
         await connection.execute(`

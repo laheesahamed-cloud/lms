@@ -584,8 +584,21 @@ export class SchemaSyncService implements OnModuleInit {
         error_text TEXT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_lesson_generation_jobs_created (created_at)
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+    // The table above was originally created without an explicit charset, so on
+    // any environment where it already exists it inherited the DB's default
+    // charset (utf8, 3-byte) instead of utf8mb4 — result_json can contain a
+    // generated lesson's real content, including emoji like the "🚨 Red flags"
+    // section heading, which needs 4-byte utf8mb4 or the INSERT throws
+    // "Incorrect string value". CONVERT TO is a no-op (fast) if already utf8mb4.
+    try {
+      await connection.execute(`
+        ALTER TABLE lesson_generation_jobs CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+      `);
+    } catch {
+      // best-effort — table may be mid-use or already correct; never block boot on this
+    }
   }
 
   private async ensureLessonAnnotationsTable(connection: PoolConnection) {
