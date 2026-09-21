@@ -635,6 +635,7 @@ export declare class LessonsService {
     private assertValidFlashcard;
     private flashcardSignature;
     private splitIntoPages;
+    private degluedBullets;
     private validate;
     private normalizePalette;
     private buildPrompt;

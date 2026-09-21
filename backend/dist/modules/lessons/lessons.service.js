@@ -2191,6 +2191,18 @@ let LessonsService = LessonsService_1 = class LessonsService {
     splitIntoPages(result) {
         return { pages: [result] };
     }
+    degluedBullets(bullets) {
+        const out = [];
+        for (const raw of bullets) {
+            const text = String(raw || '');
+            const parts = text.split(/(?<=[a-z0-9,)\/])(?=[A-Z][a-z])/g).map((p) => p.trim()).filter(Boolean);
+            if (parts.length > 1)
+                out.push(...parts);
+            else if (text.trim())
+                out.push(text.trim());
+        }
+        return out;
+    }
     validate(d) {
         const data = (d ?? {});
         return {
@@ -2211,14 +2223,14 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     return {
                         type: 'note',
                         heading: String(sec?.heading || '').trim().slice(0, 160),
-                        bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 20),
+                        bullets: this.degluedBullets((Array.isArray(sec?.bullets) ? sec.bullets : []).map(String)).slice(0, 20),
                         anchor_topic: String(sec?.anchor_topic || '').trim().slice(0, 160),
                         callout: '', sticky_note: '', mnemonic: '',
                     };
                 }
                 const embeddedFlowRaw = Array.isArray(sec?.embedded_flow) ? sec.embedded_flow : [];
                 const embedded_flow = embeddedFlowRaw.length
-                    ? embeddedFlowRaw.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 12).map((t) => t.slice(0, 500))
+                    ? this.degluedBullets(embeddedFlowRaw.map(String)).filter(Boolean).slice(0, 12).map((t) => t.slice(0, 500))
                     : undefined;
                 const embeddedTableRaw = sec?.embedded_table;
                 const embedded_table = embeddedTableRaw && Array.isArray(embeddedTableRaw.headers)
@@ -2232,7 +2244,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     : undefined;
                 return {
                     heading: String(sec?.heading || '').trim(),
-                    bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 60),
+                    bullets: this.degluedBullets((Array.isArray(sec?.bullets) ? sec.bullets : []).map(String)).slice(0, 60),
                     callout: String(sec?.callout || '').trim().slice(0, 500),
                     sticky_note: String(sec?.sticky_note || '').trim().slice(0, 300),
                     mnemonic: String(sec?.mnemonic || '').trim().slice(0, 500),

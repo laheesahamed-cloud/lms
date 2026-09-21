@@ -2704,6 +2704,26 @@ export class LessonsService {
     return { pages: [result] };
   }
 
+  // Safety net for an AI formatting failure that's inconsistent (sometimes
+  // it writes each fact as its own bullet, sometimes it jams several facts
+  // into one string with no separator) — e.g. a table's cells glued into
+  // "...hysteroscopic resectionIntramural (within the myometrial wall)...".
+  // A lowercase letter directly followed by an uppercase letter with no
+  // space/punctuation between them essentially never happens in normal
+  // English prose, so it's a safe, narrow signature of "two distinct items
+  // got glued together" — split there instead of showing one run-on wall
+  // of text. Doesn't touch content that's already well-formatted.
+  private degluedBullets(bullets: string[]): string[] {
+    const out: string[] = [];
+    for (const raw of bullets) {
+      const text = String(raw || '');
+      const parts = text.split(/(?<=[a-z0-9,)\/])(?=[A-Z][a-z])/g).map((p) => p.trim()).filter(Boolean);
+      if (parts.length > 1) out.push(...parts);
+      else if (text.trim()) out.push(text.trim());
+    }
+    return out;
+  }
+
   private validate(d: unknown): NoteResult {
     const data = (d ?? {}) as Record<string, unknown>;
     return {
@@ -2726,14 +2746,14 @@ export class LessonsService {
           return {
             type: 'note',
             heading: String(sec?.heading || '').trim().slice(0, 160),
-            bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 20),
+            bullets: this.degluedBullets((Array.isArray(sec?.bullets) ? sec.bullets : []).map(String)).slice(0, 20),
             anchor_topic: String(sec?.anchor_topic || '').trim().slice(0, 160),
             callout: '', sticky_note: '', mnemonic: '',
           };
         }
         const embeddedFlowRaw = Array.isArray(sec?.embedded_flow) ? sec.embedded_flow : [];
         const embedded_flow = embeddedFlowRaw.length
-          ? embeddedFlowRaw.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 12).map((t) => t.slice(0, 500))
+          ? this.degluedBullets(embeddedFlowRaw.map(String)).filter(Boolean).slice(0, 12).map((t) => t.slice(0, 500))
           : undefined;
         const embeddedTableRaw = sec?.embedded_table as Record<string, unknown> | undefined;
         const embedded_table = embeddedTableRaw && Array.isArray(embeddedTableRaw.headers)
@@ -2749,7 +2769,7 @@ export class LessonsService {
           : undefined;
         return {
           heading: String(sec?.heading || '').trim(),
-          bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 60),
+          bullets: this.degluedBullets((Array.isArray(sec?.bullets) ? sec.bullets : []).map(String)).slice(0, 60),
           callout: String(sec?.callout || '').trim().slice(0, 500),
           sticky_note: String(sec?.sticky_note || '').trim().slice(0, 300),
           mnemonic: String(sec?.mnemonic || '').trim().slice(0, 500),
