@@ -1369,7 +1369,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         let n = 1;
         for (const page of canvas.pages) {
             for (const section of page.sections) {
-                if (section.type === 'image' || section.type === 'note' || !section.heading)
+                if (section.type === 'image' || section.type === 'note' || section.unnumbered || !section.heading)
                     continue;
                 section.heading = `${n}. ${this.stripHeadingNumber(section.heading)}`;
                 n += 1;
@@ -1441,6 +1441,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             const clone = { ...section, heading };
             if (!isText && section.type !== 'note' && familyKey && anchorByFamily.has(familyKey) && family) {
                 clone.heading = family.title;
+                clone.unnumbered = true;
             }
             if (pendingAside && out.length === 0) {
                 this.foldAsideInto(clone, pendingAside);

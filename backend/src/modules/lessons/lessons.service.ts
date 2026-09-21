@@ -166,6 +166,14 @@ export interface NoteSection {
   // (which needs per-type ATTRIBUTES/columns) or a flat bullet list.
   root?: string;
   branches?: Array<{ label: string; detail?: string }>;
+  // Internal only (never sent to/from the AI) — a table/flow/branch that
+  // duplicates an EXISTING card's topic (e.g. a second "Classification"
+  // table) can't merge its rows/steps into that card, but it also should
+  // not become a second NUMBERED card for the same topic. Marking it here
+  // makes renumberSections skip it, same as an image or a note box — it
+  // still renders with its own full type-specific card (table/flow/branch),
+  // just without a leading number, sitting adjacent to its topic.
+  unnumbered?: boolean;
 }
 export interface NoteResult { title: string; subtitle: string; sections: NoteSection[]; summary_box: string; key_points: string[]; visual_style?: { theme: string; look: string; colors: string[] }; }
 export interface NoteCanvas { pages: NoteResult[]; }
@@ -1914,7 +1922,7 @@ export class LessonsService {
     let n = 1;
     for (const page of canvas.pages) {
       for (const section of page.sections) {
-        if (section.type === 'image' || section.type === 'note' || !section.heading) continue; // unnumbered
+        if (section.type === 'image' || section.type === 'note' || section.unnumbered || !section.heading) continue; // unnumbered
         section.heading = `${n}. ${this.stripHeadingNumber(section.heading)}`;
         n += 1;
       }
@@ -2018,14 +2026,17 @@ export class LessonsService {
       }
 
       const clone: NoteSection = { ...section, heading };
-      // A table/flow can't fold into a text card's bullets, so it stays its own
-      // card — but if a card for this SAME topic already exists (whether text
-      // or another table/flow), give it that same family title instead of its
-      // own near-duplicate wording, so the cards visually read as one topic
-      // continuing, not competing topics. Never relabel a "note" box this way
-      // — it keeps its own distinct heading.
+      // A table/flow/branch can't fold its rows/steps into an existing card's
+      // bullets, so it stays its own card — but if a card for this SAME topic
+      // already exists (whether text or another table/flow/branch), give it
+      // that same family title instead of its own near-duplicate wording, AND
+      // mark it unnumbered: only ONE numbered card per topic — a duplicate
+      // stays adjacent to its topic but without competing for its own number.
+      // Never relabel/unnumber a "note" box this way — it keeps its own
+      // distinct heading and is already unnumbered via its own type.
       if (!isText && section.type !== 'note' && familyKey && anchorByFamily.has(familyKey) && family) {
         clone.heading = family.title;
+        clone.unnumbered = true;
       }
       if (pendingAside && out.length === 0) {
         this.foldAsideInto(clone, pendingAside);

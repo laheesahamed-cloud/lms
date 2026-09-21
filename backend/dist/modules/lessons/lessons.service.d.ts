@@ -39,6 +39,7 @@ export interface NoteSection {
         label: string;
         detail?: string;
     }>;
+    unnumbered?: boolean;
 }
 export interface NoteResult {
     title: string;
