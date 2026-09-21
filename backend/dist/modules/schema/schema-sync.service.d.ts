@@ -20,6 +20,7 @@ export declare class SchemaSyncService implements OnModuleInit {
     private ensureStudyActivityEventTypes;
     private ensureQuestionReportsTable;
     private ensureExamSessionsTable;
+    private ensureLessonGenerationJobsTable;
     private ensureLessonAnnotationsTable;
     private ensureStudentLessonProgressTable;
     private ensureAnnouncementsTable;

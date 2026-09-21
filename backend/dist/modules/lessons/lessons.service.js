@@ -38,7 +38,6 @@ let LessonsService = LessonsService_1 = class LessonsService {
         this.db = db;
         this.config = config;
         this.pushNotificationsService = pushNotificationsService;
-        this.generationJobs = new Map();
     }
     isAppOnlyBlocked(appClient) {
         return !(0, mobile_client_util_1.isMobileAppClient)(appClient);
@@ -1216,30 +1215,35 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const trimmed = String(text || '').trim();
         if (trimmed.length < 10)
             throw new common_1.BadRequestException('Text must be at least 10 characters');
-        this.pruneOldGenerationJobs();
+        await this.pruneOldGenerationJobs();
         const jobId = (0, crypto_1.randomUUID)();
-        const job = { status: 'running', stages: [], createdAt: Date.now() };
-        this.generationJobs.set(jobId, job);
+        await this.db.execute(`INSERT INTO lesson_generation_jobs (id, status, stages_json) VALUES (?, 'running', '[]')`, [jobId]);
+        const stages = [];
         void this.canvasGenerate(text, token, (stage, message) => {
-            job.stages.push({ stage, message, at: Date.now() });
+            stages.push({ stage, message, at: Date.now() });
+            this.db.execute(`UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`, [JSON.stringify(stages), jobId]).catch(() => { });
         })
-            .then((result) => { job.status = 'done'; job.result = result; })
-            .catch((err) => { job.status = 'error'; job.error = err instanceof Error ? err.message : String(err); });
+            .then((result) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`, [JSON.stringify(result), jobId]))
+            .catch((err) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [err instanceof Error ? err.message : String(err), jobId]).catch(() => { }));
         return { jobId };
     }
     async getCanvasGenerateJob(jobId, token) {
         await this.requireAdminToken(token);
-        const job = this.generationJobs.get(jobId);
-        if (!job)
+        const [rows] = await this.db.execute(`SELECT status, stages_json, result_json, error_text, UNIX_TIMESTAMP(created_at) * 1000 AS created_at
+       FROM lesson_generation_jobs WHERE id = ? LIMIT 1`, [jobId]);
+        const row = rows[0];
+        if (!row)
             throw new common_1.NotFoundException('Generation job not found — it may have expired.');
-        return job;
+        return {
+            status: row.status,
+            stages: JSON.parse(row.stages_json || '[]'),
+            result: row.result_json ? JSON.parse(row.result_json) : undefined,
+            error: row.error_text || undefined,
+            createdAt: Number(row.created_at),
+        };
     }
-    pruneOldGenerationJobs() {
-        const cutoff = Date.now() - 30 * 60 * 1000;
-        for (const [id, job] of this.generationJobs) {
-            if (job.createdAt < cutoff)
-                this.generationJobs.delete(id);
-        }
+    async pruneOldGenerationJobs() {
+        await this.db.execute(`DELETE FROM lesson_generation_jobs WHERE created_at < (NOW() - INTERVAL 30 MINUTE)`);
     }
     splitSourceIntoChunks(text, limit) {
         const paras = text.split(/\n\s*\n/);

@@ -574,6 +574,20 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
+  private async ensureLessonGenerationJobsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_generation_jobs (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        status ENUM('running', 'done', 'error') NOT NULL DEFAULT 'running',
+        stages_json LONGTEXT NOT NULL,
+        result_json LONGTEXT NULL,
+        error_text TEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_lesson_generation_jobs_created (created_at)
+      )
+    `);
+  }
+
   private async ensureLessonAnnotationsTable(connection: PoolConnection) {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS lesson_annotations (
@@ -744,6 +758,9 @@ export class SchemaSyncService implements OnModuleInit {
       // Read directly (no try/catch) by resolveActiveCanvasProvider() on every
       // "Generate Lesson" call — missing on prod would throw a raw, unhandled 500.
       await this.ensureAiProviderConfigsTable(connection);
+      // Generation-progress job tracking is a write path hit on every "Generate
+      // Lesson" click — must not depend on the full sync being enabled either.
+      await this.ensureLessonGenerationJobsTable(connection);
       // IAP redemption is a write path that runs on prod, where the full sync is
       // skipped (SCHEMA_SYNC=0) — so these must not depend on it.
       await this.ensureIapTables(connection);

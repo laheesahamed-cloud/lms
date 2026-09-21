@@ -170,11 +170,6 @@ export class LessonsService {
     private readonly pushNotificationsService: PushNotificationsService,
   ) {}
 
-  // In-memory progress log for the "Generate lesson" flow — one admin at a
-  // time, low traffic, single Node process, so a Map is enough (no Redis/DB
-  // needed). Jobs older than 30 minutes are pruned lazily on next access.
-  private readonly generationJobs = new Map<string, LessonGenerationJob>();
-
   // Premium (non-free) lessons/flashcards are app-only, permanently,
   // regardless of subscription — see common/utils/mobile-client.util.ts +
   // AppOnlyContentException.
@@ -1644,38 +1639,66 @@ export class LessonsService {
 
   // Starts generation in the background and returns immediately with a job id
   // to poll — lets the admin UI show a running progress log instead of one
-  // long blocking wait with no visibility.
+  // long blocking wait with no visibility. Job state lives in the DB, not an
+  // in-memory Map: production runs multiple Node worker processes, and a
+  // poll request can land on a different worker than the one that started
+  // the job — an in-memory Map on one worker is invisible to the others,
+  // which is exactly what caused "Generation job not found" for real jobs
+  // that were still running just fine on a different worker.
   async startCanvasGenerate(text: string, token: string): Promise<{ jobId: string }> {
     await this.requireAdminToken(token); // fail fast on bad auth/input before returning a job id
     const trimmed = String(text || '').trim();
     if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
 
-    this.pruneOldGenerationJobs();
+    await this.pruneOldGenerationJobs();
     const jobId = randomUUID();
-    const job: LessonGenerationJob = { status: 'running', stages: [], createdAt: Date.now() };
-    this.generationJobs.set(jobId, job);
+    await this.db.execute(
+      `INSERT INTO lesson_generation_jobs (id, status, stages_json) VALUES (?, 'running', '[]')`,
+      [jobId],
+    );
 
+    const stages: Array<{ stage: string; message: string; at: number }> = [];
     void this.canvasGenerate(text, token, (stage, message) => {
-      job.stages.push({ stage, message, at: Date.now() });
+      stages.push({ stage, message, at: Date.now() });
+      // Best-effort progress write — a slow/failed write here should never
+      // abort generation itself, only cost the client one stale poll.
+      this.db.execute(
+        `UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`,
+        [JSON.stringify(stages), jobId],
+      ).catch(() => {});
     })
-      .then((result) => { job.status = 'done'; job.result = result; })
-      .catch((err) => { job.status = 'error'; job.error = err instanceof Error ? err.message : String(err); });
+      .then((result) => this.db.execute(
+        `UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`,
+        [JSON.stringify(result), jobId],
+      ))
+      .catch((err) => this.db.execute(
+        `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`,
+        [err instanceof Error ? err.message : String(err), jobId],
+      ).catch(() => {}));
 
     return { jobId };
   }
 
   async getCanvasGenerateJob(jobId: string, token: string): Promise<LessonGenerationJob> {
     await this.requireAdminToken(token);
-    const job = this.generationJobs.get(jobId);
-    if (!job) throw new NotFoundException('Generation job not found — it may have expired.');
-    return job;
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT status, stages_json, result_json, error_text, UNIX_TIMESTAMP(created_at) * 1000 AS created_at
+       FROM lesson_generation_jobs WHERE id = ? LIMIT 1`,
+      [jobId],
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundException('Generation job not found — it may have expired.');
+    return {
+      status: row.status as LessonGenerationJob['status'],
+      stages: JSON.parse(row.stages_json || '[]'),
+      result: row.result_json ? JSON.parse(row.result_json) : undefined,
+      error: row.error_text || undefined,
+      createdAt: Number(row.created_at),
+    };
   }
 
-  private pruneOldGenerationJobs() {
-    const cutoff = Date.now() - 30 * 60 * 1000;
-    for (const [id, job] of this.generationJobs) {
-      if (job.createdAt < cutoff) this.generationJobs.delete(id);
-    }
+  private async pruneOldGenerationJobs() {
+    await this.db.execute(`DELETE FROM lesson_generation_jobs WHERE created_at < (NOW() - INTERVAL 30 MINUTE)`);
   }
 
   // Split long source text on paragraph boundaries so no chunk exceeds `limit` chars.

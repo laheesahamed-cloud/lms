@@ -60,7 +60,6 @@ export declare class LessonsService {
     private readonly config;
     private readonly pushNotificationsService;
     constructor(db: Pool, config: ConfigService, pushNotificationsService: PushNotificationsService);
-    private readonly generationJobs;
     private isAppOnlyBlocked;
     getMeta(): Promise<{
         courses: {

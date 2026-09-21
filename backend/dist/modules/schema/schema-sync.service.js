@@ -520,6 +520,19 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
       )
     `);
     }
+    async ensureLessonGenerationJobsTable(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_generation_jobs (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        status ENUM('running', 'done', 'error') NOT NULL DEFAULT 'running',
+        stages_json LONGTEXT NOT NULL,
+        result_json LONGTEXT NULL,
+        error_text TEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_lesson_generation_jobs_created (created_at)
+      )
+    `);
+    }
     async ensureLessonAnnotationsTable(connection) {
         await connection.execute(`
       CREATE TABLE IF NOT EXISTS lesson_annotations (
@@ -677,6 +690,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureContentGovernanceTables(connection);
             await this.ensureAdminAuditEventsTable(connection);
             await this.ensureAiProviderConfigsTable(connection);
+            await this.ensureLessonGenerationJobsTable(connection);
             await this.ensureIapTables(connection);
             const addedLessonSortOrder = await this.ensureColumn(connection, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
             await this.ensureIndex(connection, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
