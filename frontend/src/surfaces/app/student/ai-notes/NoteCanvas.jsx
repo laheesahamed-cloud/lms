@@ -88,6 +88,11 @@ const noteCanvasUi = {
     'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#e3e3e7]/65 bg-[#fffdf8]/45 transition-colors duration-200 hover:border-[#e2d4bd]/80 hover:bg-[#fffdf8]/70 dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.065]',
   cardMedicalIcon:
     'pointer-events-none absolute right-2.5 top-2.5 z-[4] flex size-7 items-center justify-center rounded-full border bg-white/42 opacity-65 shadow-[0_4px_12px_rgba(15,23,42,0.08)] dark:bg-slate-950/20 max-[520px]:right-2 max-[520px]:top-2 max-[520px]:size-6 [&_svg]:size-[16px] max-[520px]:[&_svg]:size-[14px]',
+  // While editing, the section-actions toolbar (↑↓, color, delete…) occupies
+  // the same top-right corner — the icon moves to top-left so admins can see
+  // it too (e.g. right after generating, reviewing in edit mode) without it
+  // colliding with those controls on hover.
+  cardMedicalIconEditable: '!right-auto !left-2.5 max-[520px]:!left-2',
   imageSection: '',
   imageFull: 'col-span-full',
   imageExplained: 'overflow-visible',
@@ -551,11 +556,11 @@ function MedicalIconSvg({ type = 0 }) {
   );
 }
 
-function MedicalMiniIcon({ index = 0, heading = '', color = '#60A5FA', theme }) {
+function MedicalMiniIcon({ index = 0, heading = '', color = '#60A5FA', theme, editable = false }) {
   const family = guessTopicFamily(heading);
   return (
     <span
-      className={noteCanvasUi.cardMedicalIcon}
+      className={cx(noteCanvasUi.cardMedicalIcon, editable && noteCanvasUi.cardMedicalIconEditable)}
       style={{
         color,
         borderColor: colorWithAlpha(color, '55'),
@@ -1832,7 +1837,7 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
         background: canvasCardBackground('#2563eb', theme),
       }}
     >
-      {!editable && <MedicalMiniIcon index={index} heading={section.caption} color="#60A5FA" theme={theme} />}
+      <MedicalMiniIcon index={index} heading={section.caption} color="#60A5FA" theme={theme} editable={editable} />
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -1951,7 +1956,7 @@ function ImageExplainedSectionCard({ section, index, totalSections, editable, on
       }}
     >
 
-      {!editable && <MedicalMiniIcon index={index + 2} heading={section.caption} color={accentColor} theme={theme} />}
+      <MedicalMiniIcon index={index + 2} heading={section.caption} color={accentColor} theme={theme} editable={editable} />
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -2359,7 +2364,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
         background: canvasCardBackground(accentColor, theme),
       }}
     >
-      {!editable && <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} />}
+      <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} editable={editable} />
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -2559,7 +2564,7 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
       className={noteCanvasUi.section}
       style={{ background: canvasCardBackground(accentColor, theme) }}
     >
-      {!editable && <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} />}
+      <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} editable={editable} />
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -2675,7 +2680,7 @@ function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChang
 
   return (
     <div data-canvas-card className={noteCanvasUi.section} style={{ background: canvasCardBackground(accentColor, theme) }}>
-      {!editable && <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} />}
+      <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} editable={editable} />
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
