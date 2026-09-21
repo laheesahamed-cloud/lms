@@ -1403,9 +1403,10 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             const family = this.topicFamily(heading);
             const familyKey = heading ? (family?.key || this.normalizeTopicKey(heading)) : '';
-            const anchorIndex = isText && familyKey ? anchorByFamily.get(familyKey) : undefined;
-            if (anchorIndex !== undefined) {
-                const target = out[anchorIndex];
+            const anchorIndex = familyKey ? anchorByFamily.get(familyKey) : undefined;
+            const target = anchorIndex !== undefined ? out[anchorIndex] : undefined;
+            const targetIsText = target ? (!target.type || target.type === 'text') : false;
+            if (target && isText && targetIsText) {
                 const sameLabel = this.normalizeTopicKey(target.heading) === this.normalizeTopicKey(heading);
                 if (!sameLabel && !labelledFamilies.has(familyKey)) {
                     target.bullets = [`**${target.heading}**:`, ...(target.bullets || [])];
@@ -1429,6 +1430,14 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 this.mergeAsideFields(target, section);
                 continue;
             }
+            if (target && isText && !targetIsText) {
+                const sameLabel = this.normalizeTopicKey(target.heading) === this.normalizeTopicKey(heading);
+                if (!sameLabel)
+                    append(target, `**${heading}**:`);
+                append(target, ...(section.bullets || []));
+                this.mergeAsideFields(target, section);
+                continue;
+            }
             const clone = { ...section, heading };
             if (!isText && section.type !== 'note' && familyKey && anchorByFamily.has(familyKey) && family) {
                 clone.heading = family.title;
@@ -1438,7 +1447,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 pendingAside = null;
             }
             out.push(clone);
-            if (isText && familyKey)
+            if (section.type !== 'note' && familyKey)
                 anchorByFamily.set(familyKey, out.length - 1);
         }
         if (pendingAside)

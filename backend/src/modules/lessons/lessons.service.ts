@@ -1963,10 +1963,17 @@ export class LessonsService {
 
       const family = this.topicFamily(heading);
       const familyKey = heading ? (family?.key || this.normalizeTopicKey(heading)) : '';
-      const anchorIndex = isText && familyKey ? anchorByFamily.get(familyKey) : undefined;
+      // Look up an anchor for ANY section type now, not just text — a table
+      // (or flow/branch) that comes FIRST must still be findable as the
+      // anchor when a text section with the same topic arrives later (the
+      // exact bug this fixes: a table card plus a same-titled text card
+      // right after it, never merged, because only text sections used to
+      // register as anchors at all).
+      const anchorIndex = familyKey ? anchorByFamily.get(familyKey) : undefined;
+      const target = anchorIndex !== undefined ? out[anchorIndex] : undefined;
+      const targetIsText = target ? (!target.type || target.type === 'text') : false;
 
-      if (anchorIndex !== undefined) {
-        const target = out[anchorIndex];
+      if (target && isText && targetIsText) {
         const sameLabel = this.normalizeTopicKey(target.heading) === this.normalizeTopicKey(heading);
         // Different wording for the same topic ("Medical" vs "Surgical
         // management") becomes labelled sub-parts under the family name;
@@ -1998,14 +2005,25 @@ export class LessonsService {
         continue;
       }
 
+      if (target && isText && !targetIsText) {
+        // Text content for a topic that already has a table/flow/branch card
+        // (e.g. "Hybrid lesions get two numbers…" for a FIGO classification
+        // table) — fold it in as supplementary bullets on that same card
+        // instead of becoming a second card with the identical heading.
+        const sameLabel = this.normalizeTopicKey(target.heading) === this.normalizeTopicKey(heading);
+        if (!sameLabel) append(target, `**${heading}**:`);
+        append(target, ...(section.bullets || []));
+        this.mergeAsideFields(target, section);
+        continue;
+      }
+
       const clone: NoteSection = { ...section, heading };
       // A table/flow can't fold into a text card's bullets, so it stays its own
-      // card — but if a text card for this SAME topic already exists (e.g. the
-      // completeness pass added "Medical management options" as a flow while a
-      // "Management" text card is already out), give it that same family title
-      // instead of its own near-duplicate wording, so the two cards visually
-      // read as one topic continuing, not two competing topics. Never relabel
-      // a "note" box this way — it keeps its own distinct heading.
+      // card — but if a card for this SAME topic already exists (whether text
+      // or another table/flow), give it that same family title instead of its
+      // own near-duplicate wording, so the cards visually read as one topic
+      // continuing, not competing topics. Never relabel a "note" box this way
+      // — it keeps its own distinct heading.
       if (!isText && section.type !== 'note' && familyKey && anchorByFamily.has(familyKey) && family) {
         clone.heading = family.title;
       }
@@ -2014,7 +2032,7 @@ export class LessonsService {
         pendingAside = null;
       }
       out.push(clone);
-      if (isText && familyKey) anchorByFamily.set(familyKey, out.length - 1);
+      if (section.type !== 'note' && familyKey) anchorByFamily.set(familyKey, out.length - 1);
     }
 
     // Extremely rare (the whole lesson was nothing but asides — no real

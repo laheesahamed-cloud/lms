@@ -2638,6 +2638,31 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
   );
 }
 
+// Extra plain-text points that belong to a table/flow/branch card's topic
+// but aren't part of the table/flow/branch itself (e.g. "Hybrid lesions get
+// two numbers" alongside a FIGO classification table) — folded here by
+// groupSectionFamilies instead of becoming a second card with the same
+// heading. Shown below the main content, divided, same pattern as the
+// embedded_table/embedded_flow block on a text card.
+function SupplementaryBullets({ section, accentColor, editable, onSectionChange, colors, colorIndex, theme }) {
+  const bullets = Array.isArray(section.bullets) ? section.bullets : [];
+  if (!editable && bullets.length === 0) return null;
+  return (
+    <>
+      <div className={noteCanvasUi.embeddedFlowDivider} style={{ borderTopColor: accentColor + themedAlpha(theme, '22', '3a') }}>
+        <span className={noteCanvasUi.embeddedFlowLabel} style={{ color: accentColor }}>Notes</span>
+      </div>
+      <div className={noteCanvasUi.embeddedFlowSteps}>
+        {editable ? (
+          <BulletEditor bullets={bullets} accentColor={accentColor} onChange={next => onSectionChange('bullets', next)} theme={theme}/>
+        ) : (
+          bullets.length > 0 && <CheckableBulletList bullets={bullets} accentColor={accentColor} highlightColors={colors} sectionKey={colorIndex} theme={theme}/>
+        )}
+      </div>
+    </>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════
    TABLE SECTION CARD
 ══════════════════════════════════════════════════════════════ */
@@ -2777,6 +2802,7 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
           </table>
         )}
       </div>
+      <SupplementaryBullets section={section} accentColor={accentColor} editable={editable} onSectionChange={onSectionChange} colors={colors} colorIndex={colorIndex} theme={theme}/>
     </div>
   );
 }
@@ -2850,6 +2876,7 @@ function FlowSectionCard({ section, colorIndex, colors, editable, onSectionChang
           </div>
         ))}
       </div>
+      <SupplementaryBullets section={section} accentColor={accentColor} editable={editable} onSectionChange={onSectionChange} colors={colors} colorIndex={colorIndex} theme={theme}/>
     </div>
   );
 }
@@ -2931,6 +2958,7 @@ function BranchSectionCard({ section, colorIndex, colors, editable, onSectionCha
           ))}
         </div>
       </div>
+      <SupplementaryBullets section={section} accentColor={accentColor} editable={editable} onSectionChange={onSectionChange} colors={colors} colorIndex={colorIndex} theme={theme}/>
     </div>
   );
 }
