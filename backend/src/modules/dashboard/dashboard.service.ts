@@ -892,6 +892,11 @@ export class DashboardService {
       totalCourses: courseProgress.length,
       totalAttempts,
       quizDayStreak,
+      // Whether the streak has already been extended today (a quiz was
+      // submitted today) — the mobile app uses this to decide whether to
+      // fire a "your streak ends tonight" local reminder: only when the
+      // streak is active but NOT yet extended today.
+      quizDoneToday: todayQuizRows.length >= 1,
       recentActiveDays,
       avgScore: Number(averagePercentage.toFixed(2)),
       totalPassed,

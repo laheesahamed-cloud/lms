@@ -96,6 +96,7 @@ export declare class DashboardService {
         totalCourses: number;
         totalAttempts: number;
         quizDayStreak: number;
+        quizDoneToday: boolean;
         recentActiveDays: string[];
         avgScore: number;
         totalPassed: number;

@@ -630,6 +630,7 @@ let DashboardService = class DashboardService {
             totalCourses: courseProgress.length,
             totalAttempts,
             quizDayStreak,
+            quizDoneToday: todayQuizRows.length >= 1,
             recentActiveDays,
             avgScore: Number(averagePercentage.toFixed(2)),
             totalPassed,
