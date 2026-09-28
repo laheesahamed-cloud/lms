@@ -39,7 +39,7 @@ export class EcgService {
   // ── Student: list active topics with card counts ──
   async listTopics() {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT t.id, t.title, t.description, t.position,
+      `SELECT t.id, t.title, t.description, t.category, t.position,
               (SELECT COUNT(*) FROM ecg_cards c
                 WHERE c.topic_id = t.id AND c.is_active = 1) AS card_count
          FROM ecg_topics t
@@ -50,6 +50,7 @@ export class EcgService {
       id: r.id,
       title: r.title,
       description: r.description,
+      category: r.category,
       position: r.position,
       cardCount: Number(r.card_count ?? 0),
     }));
@@ -59,11 +60,11 @@ export class EcgService {
   async getTopicWithCards(topicId: number) {
     const [[topicRows], [cardRows]] = await Promise.all([
       this.db.execute<RowDataPacket[]>(
-        `SELECT id, title, description, position FROM ecg_topics WHERE id = ? AND is_active = 1`,
+        `SELECT id, title, description, category, position FROM ecg_topics WHERE id = ? AND is_active = 1`,
         [topicId],
       ),
       this.db.execute<RowDataPacket[]>(
-        `SELECT id, topic_id, title, image_url, explanation, position
+        `SELECT id, topic_id, title, image_url, explanation, annotations_json, source_credit, position
            FROM ecg_cards
           WHERE topic_id = ? AND is_active = 1
           ORDER BY position ASC, id ASC`,
@@ -71,7 +72,25 @@ export class EcgService {
       ),
     ]);
     if (!topicRows.length) return null;
-    return { topic: topicRows[0], cards: cardRows };
+    const cards = cardRows.map((r) => ({
+      id: r.id,
+      topic_id: r.topic_id,
+      title: r.title,
+      image_url: r.image_url,
+      explanation: r.explanation,
+      annotations: this.parseAnnotations(r.annotations_json),
+      source_credit: r.source_credit,
+      position: r.position,
+    }));
+    return { topic: topicRows[0], cards };
+  }
+
+  private parseAnnotations(raw: any): any {
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    return raw;
   }
 
   // ── Student: quiz batch — admin-authored questions ──

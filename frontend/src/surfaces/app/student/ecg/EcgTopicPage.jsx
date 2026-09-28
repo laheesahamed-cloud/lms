@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { fetchEcgTopic } from '../../../../shared/api/ecg.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { EcgInteractiveStrip } from './EcgInteractiveStrip.jsx';
 import './EcgTopicPage.css';
 
 export function EcgTopicPage() {
@@ -47,14 +48,7 @@ export function EcgTopicPage() {
                   <span className="ecg-card-num">{idx + 1}</span>
                   <h2 className="ecg-card-title">{c.title}</h2>
                 </div>
-                {c.image_url && (
-                  <div className="ecg-card-image">
-                    <img src={c.image_url} alt={c.title} loading="lazy" />
-                  </div>
-                )}
-                {c.explanation && (
-                  <p className="ecg-card-explanation">{c.explanation}</p>
-                )}
+                <EcgInteractiveStrip card={c} />
               </article>
             ))}
           </div>

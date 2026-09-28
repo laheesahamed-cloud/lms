@@ -26,9 +26,38 @@
 .ecg-quiz-banner__copy span { font-size: 13px; color: var(--ink-soft); }
 .ecg-quiz-banner__arrow { font-size: 26px; color: var(--ink-muted); font-weight: 300; }
 
+.ecg-category { margin-bottom: 6px; }
+.ecg-category > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+}
+.ecg-category > summary::-webkit-details-marker { display: none; }
+.ecg-category-chevron {
+  font-size: 15px;
+  color: var(--ink-muted);
+  transition: transform 0.15s ease;
+  width: 14px;
+  flex-shrink: 0;
+}
+.ecg-category[open] .ecg-category-chevron { transform: rotate(90deg); }
+.ecg-category-name {
+  font-size: 12.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  flex: 1;
+}
+.ecg-category-count { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+
 .ecg-topic-list {
   display: grid;
   gap: 12px;
+  padding-bottom: 8px;
 }
 
 .ecg-topic-card {
