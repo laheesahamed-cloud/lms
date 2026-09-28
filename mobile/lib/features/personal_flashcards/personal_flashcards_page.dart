@@ -3,28 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
-import '../../widgets/glass_card.dart';
 import 'personal_flashcards_store.dart';
 
-/// Accent palette for deck tiles — hashed per deck id (same technique as My
-/// Notes' cover colours) so decks read as distinct at a glance instead of
-/// every tile sharing one generic icon/colour, which was a big part of why
-/// this screen read as a flat, interchangeable list.
-const _kDeckPalette = <Color>[
-  Color(0xFF5E7CA6), Color(0xFFB0685F), Color(0xFF5B93A5), Color(0xFFA8895A),
-  Color(0xFF8878A8), Color(0xFF7E9BC2), Color(0xFFB0728F), Color(0xFFBE7E5A),
-  Color(0xFF6C9B77), Color(0xFF9E9057),
-];
-
-Color _deckColorFor(String id) {
-  var hash = 0;
-  for (final unit in id.codeUnits) {
-    hash = (hash * 31 + unit) & 0x7fffffff;
-  }
-  return _kDeckPalette[hash % _kDeckPalette.length];
-}
-
-/// My Flashcards — list of user-created local decks.
+/// My Flashcards — an Anki-style deck browser. Decks are still stored flat
+/// (one PersonalDeck per id/title), but a title containing "::" — e.g.
+/// "Cardiology::1" — is treated as a nested deck the same way real Anki
+/// parses deck names, so the list renders as an expandable/collapsible tree
+/// instead of one row per deck.
 class PersonalFlashcardsPage extends StatefulWidget {
   const PersonalFlashcardsPage({super.key});
 
@@ -34,7 +19,8 @@ class PersonalFlashcardsPage extends StatefulWidget {
 }
 
 class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
-  List<_DeckEntry> _entries = [];
+  List<_DeckNode> _tree = [];
+  final Set<String> _expanded = {};
   bool _loading = true;
 
   @override
@@ -51,11 +37,16 @@ class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
         return _DeckEntry(deck: d, stats: stats);
       }),
     );
-    if (mounted) setState(() { _entries = entries; _loading = false; });
+    if (!mounted) return;
+    setState(() {
+      _tree = _buildTree(entries);
+      _loading = false;
+    });
   }
 
   Future<void> _createDeck() async {
-    final title = await _promptTitle(context, 'New Deck', '');
+    final title = await _promptTitle(context, 'New Deck', '',
+        helperText: 'Use "::" to nest, e.g. "Cardiology::1"');
     if (title == null) return;
     HapticFeedback.mediumImpact();
     await PersonalFlashcardsStore.createDeck(title);
@@ -90,6 +81,22 @@ class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
     if (ok != true) return;
     HapticFeedback.mediumImpact();
     await PersonalFlashcardsStore.deleteDeck(e.deck.id);
+    _load();
+  }
+
+  void _toggle(String key) {
+    setState(() {
+      if (_expanded.contains(key)) {
+        _expanded.remove(key);
+      } else {
+        _expanded.add(key);
+      }
+    });
+  }
+
+  Future<void> _openDeck(_DeckEntry e) async {
+    await context.push(
+        '/app/my-flashcards/${e.deck.id}?title=${Uri.encodeComponent(e.deck.title)}');
     _load();
   }
 
@@ -130,7 +137,7 @@ class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  if (_entries.isEmpty)
+                  if (_tree.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 40),
                       child: Column(
@@ -150,30 +157,113 @@ class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
                         ],
                       ),
                     )
-                  else
-                    for (final e in _entries)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _DeckTile(
-                          entry: e,
-                          onTap: () async {
-                            await context.push(
-                                '/app/my-flashcards/${e.deck.id}?title=${Uri.encodeComponent(e.deck.title)}');
-                            _load();
-                          },
-                          onRename: () => _renameDeck(e),
-                          onDelete: () => _deleteDeck(e),
-                        ),
+                  else ...[
+                    _DeckTableHead(c: c),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: c.card,
+                        borderRadius: BorderRadius.circular(AppRadius.inner),
+                        border: Border.all(color: c.line),
                       ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: _renderNodes(_tree, depth: 0),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
     );
   }
+
+  List<Widget> _renderNodes(List<_DeckNode> nodes, {required int depth}) {
+    final widgets = <Widget>[];
+    for (final node in nodes) {
+      widgets.add(_DeckRow(
+        node: node,
+        depth: depth,
+        open: _expanded.contains(node.key),
+        onToggle: () => _toggle(node.key),
+        onOpen: node.entry != null ? () => _openDeck(node.entry!) : null,
+        onRename: node.entry != null ? () => _renameDeck(node.entry!) : null,
+        onDelete: node.entry != null ? () => _deleteDeck(node.entry!) : null,
+      ));
+      if (node.children.isNotEmpty && _expanded.contains(node.key)) {
+        widgets.addAll(_renderNodes(node.children, depth: depth + 1));
+      }
+    }
+    return widgets;
+  }
+}
+
+/// Builds an Anki-style deck tree from flat deck titles by splitting on
+/// "::" — "Cardiology::1" becomes a "1" leaf under a "Cardiology" branch.
+/// A branch segment that isn't itself a real deck (no matching title) is
+/// still shown as a plain expandable grouping row with aggregated counts.
+List<_DeckNode> _buildTree(List<_DeckEntry> entries) {
+  final byKey = <String, _DeckNode>{};
+  final roots = <_DeckNode>[];
+
+  _DeckNode nodeFor(List<String> parts) {
+    final key = parts.join('::');
+    final existing = byKey[key];
+    if (existing != null) return existing;
+    final created = _DeckNode(key: key, label: parts.last);
+    byKey[key] = created;
+    if (parts.length == 1) {
+      roots.add(created);
+    } else {
+      final parent = nodeFor(parts.sublist(0, parts.length - 1));
+      parent.children.add(created);
+    }
+    return created;
+  }
+
+  for (final e in entries) {
+    final parts = e.deck.title
+        .split('::')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+    nodeFor(parts.isEmpty ? [e.deck.title] : parts).entry = e;
+  }
+
+  void sortRec(List<_DeckNode> list) {
+    list.sort(
+        (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    for (final n in list) {
+      sortRec(n.children);
+    }
+  }
+
+  sortRec(roots);
+  return roots;
+}
+
+/// Aggregated new/due/total across a node and every descendant — so a
+/// collapsed "Cardiology" branch shows the combined counts of "1", "4", "5".
+DeckStats _aggregateStats(_DeckNode node) {
+  var total = 0, newCount = 0, dueCount = 0;
+  void visit(_DeckNode n) {
+    final entry = n.entry;
+    if (entry != null) {
+      total += entry.stats.total;
+      newCount += entry.stats.newCount;
+      dueCount += entry.stats.dueCount;
+    }
+    for (final child in n.children) {
+      visit(child);
+    }
+  }
+
+  visit(node);
+  return DeckStats(total: total, newCount: newCount, dueCount: dueCount);
 }
 
 Future<String?> _promptTitle(
-    BuildContext context, String dialogTitle, String initial) async {
+    BuildContext context, String dialogTitle, String initial,
+    {String? helperText}) async {
   final ctrl = TextEditingController(text: initial);
   return showDialog<String>(
     context: context,
@@ -182,7 +272,8 @@ Future<String?> _promptTitle(
       content: TextField(
         controller: ctrl,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'Deck name'),
+        decoration: InputDecoration(
+            hintText: 'Deck name', helperText: helperText),
         textCapitalization: TextCapitalization.sentences,
         // Dismiss the keyboard when tapping anywhere outside the field —
         // inside a dialog the app-level tap-to-unfocus never fires.
@@ -205,6 +296,17 @@ class _DeckEntry {
   final PersonalDeck deck;
   final DeckStats stats;
   const _DeckEntry({required this.deck, required this.stats});
+}
+
+/// One point in the deck tree. [entry] is non-null only when this exact path
+/// is a real created deck (as opposed to a pure grouping segment implied by
+/// a child's "::" name, e.g. "Cardiology" when only "Cardiology::1" exists).
+class _DeckNode {
+  final String key;
+  final String label;
+  _DeckEntry? entry;
+  final List<_DeckNode> children = [];
+  _DeckNode({required this.key, required this.label});
 }
 
 class _AddButton extends StatelessWidget {
@@ -244,106 +346,166 @@ class _AddButton extends StatelessWidget {
   }
 }
 
-class _DeckTile extends StatelessWidget {
-  final _DeckEntry entry;
-  final VoidCallback onTap;
-  final VoidCallback onRename;
-  final VoidCallback onDelete;
-  const _DeckTile({
-    required this.entry,
-    required this.onTap,
-    required this.onRename,
-    required this.onDelete,
-  });
+/// Column header above the deck table (Deck / New / Due), matching a real
+/// Anki deck browser's column layout.
+class _DeckTableHead extends StatelessWidget {
+  final AppColors c;
+  const _DeckTableHead({required this.c});
 
   @override
   Widget build(BuildContext context) {
-    final c = context.c;
-    final s = entry.stats;
-    final accent = _deckColorFor(entry.deck.id);
-    return GlassCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    final headStyle = TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.4,
+        color: c.inkMuted);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 10, 6),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.style_rounded, size: 20, color: accent),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(entry.deck.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        color: c.inkStrong)),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    if (s.newCount > 0)
-                      _Chip('${s.newCount} new', const Color(0xFF2563EB)),
-                    if (s.newCount > 0 && s.dueCount > 0)
-                      const SizedBox(width: 6),
-                    if (s.dueCount > 0)
-                      _Chip('${s.dueCount} due', const Color(0xFFDC2626)),
-                    if (s.newCount == 0 && s.dueCount == 0)
-                      Text('${s.total} card${s.total == 1 ? '' : 's'}',
-                          style: TextStyle(fontSize: 12, color: c.inkSoft)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert_rounded, size: 20, color: c.inkMuted),
-            onSelected: (v) {
-              if (v == 'rename') onRename();
-              if (v == 'delete') onDelete();
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'rename', child: Text('Rename')),
-              const PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Delete',
-                      style: TextStyle(color: Colors.red))),
-            ],
-          ),
+          Expanded(child: Text('DECK', style: headStyle)),
+          SizedBox(
+              width: 44,
+              child: Text('NEW', textAlign: TextAlign.center, style: headStyle)),
+          SizedBox(
+              width: 44,
+              child: Text('DUE', textAlign: TextAlign.center, style: headStyle)),
+          const SizedBox(width: 30),
         ],
       ),
     );
   }
 }
 
-class _Chip extends StatelessWidget {
-  final String label;
-  final Color color;
-  const _Chip(this.label, this.color);
+class _DeckRow extends StatelessWidget {
+  final _DeckNode node;
+  final int depth;
+  final bool open;
+  final VoidCallback onToggle;
+  final VoidCallback? onOpen;
+  final VoidCallback? onRename;
+  final VoidCallback? onDelete;
+
+  const _DeckRow({
+    required this.node,
+    required this.depth,
+    required this.open,
+    required this.onToggle,
+    this.onOpen,
+    this.onRename,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Same tint/border alpha as the main Flashcards screen's summary pills
-    // (flashcards_page.dart's _summary) — 0.10/0.22, not the heavier 0.12/0.3
-    // this used before.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-      ),
-      child: Text(label,
+    final c = context.c;
+    final hasChildren = node.children.isNotEmpty;
+    final stats = _aggregateStats(node);
+    final isBold = depth == 0;
+
+    return Column(
+      children: [
+        if (depth > 0)
+          Divider(height: 1, thickness: 1, color: c.line, indent: 12),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: hasChildren ? onToggle : onOpen,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                  12 + depth * 18, 11, 6, 11),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    child: hasChildren
+                        ? Icon(
+                            open
+                                ? Icons.keyboard_arrow_down_rounded
+                                : Icons.keyboard_arrow_right_rounded,
+                            size: 18,
+                            color: c.inkMuted,
+                          )
+                        : null,
+                  ),
+                  Expanded(
+                    child: Text(
+                      node.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+                        color: c.inkStrong,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 44,
+                    child: _CountBadge(
+                        value: stats.newCount, color: const Color(0xFF2563EB)),
+                  ),
+                  SizedBox(
+                    width: 44,
+                    child: _CountBadge(
+                        value: stats.dueCount, color: const Color(0xFFDC2626)),
+                  ),
+                  SizedBox(
+                    width: 30,
+                    child: onOpen == null
+                        ? null
+                        : PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(Icons.more_vert_rounded,
+                                size: 18, color: c.inkMuted),
+                            onSelected: (v) {
+                              if (v == 'study') onOpen?.call();
+                              if (v == 'rename') onRename?.call();
+                              if (v == 'delete') onDelete?.call();
+                            },
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(
+                                  value: 'study', child: Text('Study')),
+                              const PopupMenuItem(
+                                  value: 'rename', child: Text('Rename')),
+                              const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete',
+                                      style: TextStyle(color: Colors.red))),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  final int value;
+  final Color color;
+  const _CountBadge({required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    if (value <= 0) {
+      final c = context.c;
+      return Center(
+        child: Text('0',
+            style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: c.inkMuted.withValues(alpha: 0.55))),
+      );
+    }
+    return Center(
+      child: Text('$value',
           style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+              fontSize: 12.5, fontWeight: FontWeight.w800, color: color)),
     );
   }
 }

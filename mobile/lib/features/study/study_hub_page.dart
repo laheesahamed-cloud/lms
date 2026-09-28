@@ -50,6 +50,13 @@ class StudyHubPage extends ConsumerWidget {
       accent: DashAccents.green,
     ),
     _ToolEntry(
+      icon: Icons.medical_information_outlined,
+      title: 'OSCE Clinical',
+      subtitle: 'Walk a station head to toe, then practise the checklist',
+      route: '/app/osce',
+      accent: DashAccents.violet,
+    ),
+    _ToolEntry(
       icon: Icons.event_note_outlined,
       title: 'Planner',
       subtitle: 'Map your rotations and exam countdown',

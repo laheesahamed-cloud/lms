@@ -42,6 +42,10 @@ import '../features/ecg/ecg_page.dart';
 import '../features/ecg/ecg_topic_page.dart';
 import '../features/ecg/ecg_quiz_page.dart';
 import '../features/auscultation/auscultation_page.dart';
+import '../features/osce/osce_page.dart';
+import '../features/osce/osce_case_page.dart';
+import '../features/osce/osce_long_case_page.dart';
+import '../features/osce/osce_body_map_page.dart';
 import '../features/auscultation/auscultation_topic_page.dart';
 import '../features/auscultation/auscultation_quiz_page.dart';
 import '../features/personal_notes/personal_notes_page.dart';
@@ -162,6 +166,43 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             title: s.uri.queryParameters['title'] ?? 'Review',
           ),
         ),
+      ),
+      GoRoute(
+        path: '/app/osce/body-map',
+        pageBuilder: (c, s) => slidePage(key: s.pageKey, child: const OsceBodyMapPage()),
+      ),
+      GoRoute(
+        path: '/app/osce/course/:courseId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: OsceSubjectsPage(
+            courseId: int.tryParse(s.pathParameters['courseId'] ?? '') ?? 0,
+            courseTitle: s.extra is String ? s.extra as String : '',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/app/osce/subject/:topicId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: OsceStationsPage(
+            topicId: int.tryParse(s.pathParameters['topicId'] ?? '') ?? 0,
+            subjectTitle: s.extra is String ? s.extra as String : '',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/app/osce/:slug',
+        pageBuilder: (c, s) {
+          // Short = examination-led, long = history-led. The list passes the
+          // type so we don't have to fetch the case twice to find out.
+          final isLong = s.extra == 'long' || s.uri.queryParameters['type'] == 'long';
+          final slug = s.pathParameters['slug']!;
+          return slidePage(
+            key: s.pageKey,
+            child: isLong ? OsceLongCasePage(slug: slug) : OsceCasePage(slug: slug),
+          );
+        },
       ),
       GoRoute(
         path: '/app/my-flashcards/:deckId',
@@ -350,6 +391,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 key: s.pageKey, child: const AuscultationPage()),
           ),
           GoRoute(
+            path: '/app/osce',
+            pageBuilder: (c, s) =>
+                studyToolPage(c, key: s.pageKey, child: const OscePage()),
+          ),
+          GoRoute(
             path: '/app/lessons',
             pageBuilder: (c, s) =>
                 studyToolPage(c, key: s.pageKey, child: const LessonsListPage()),
@@ -409,8 +455,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/app/my-flashcards',
-            pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const PersonalFlashcardsPage()),
+            pageBuilder: (c, s) => studyToolPage(c,
+                key: s.pageKey, child: const PersonalFlashcardsPage()),
           ),
         ],
       ),
