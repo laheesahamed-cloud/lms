@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminListAiNotes, adminCreateAiNote, adminDeleteAiNote, adminUpdateAiNote, adminGetCourses, adminGetTopics, adminGetSubtopics, adminReorderLessons } from '../../../../shared/api/aiNotes.api.js';
+import { reorderSubtopics } from '../../../../shared/api/subtopics.api.js';
 import { createLesson } from '../../../../shared/api/lessons.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
@@ -84,6 +85,9 @@ export function AdminAiNotesListPage({
   const [roCourse,     setRoCourse]     = useState('');
   const [roTopic,      setRoTopic]      = useState('');
   const [roTopics,     setRoTopics]     = useState([]);
+  // The subject's topics in their saved order — this is what makes the group
+  // headings reorderable rather than stuck alphabetically.
+  const [roSubtopics,  setRoSubtopics]  = useState([]);
   const [reordering,   setReordering]   = useState(false);
 
   const load = useCallback(async () => {
@@ -120,6 +124,13 @@ export function AdminAiNotesListPage({
     adminGetTopics(Number(roCourse)).then(setRoTopics).catch(() => {});
   }, [roCourse]);
 
+  const loadRoSubtopics = useCallback(() => {
+    if (!roTopic) { setRoSubtopics([]); return; }
+    adminGetSubtopics(Number(roTopic)).then(setRoSubtopics).catch(() => setRoSubtopics([]));
+  }, [roTopic]);
+
+  useEffect(() => { loadRoSubtopics(); }, [loadRoSubtopics]);
+
   // Lessons for the picked subject, grouped by topic (subtopic) the same way
   // students see them — a "General" bucket for lessons with no topic, then
   // each named topic — each group its own independently-ordered scope.
@@ -142,8 +153,41 @@ export function AdminAiNotesListPage({
     for (const group of groups.values()) {
       group.items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
     }
-    return Array.from(groups.values()).sort((a, b) => (a.key === GENERAL_GROUP ? -1 : b.key === GENERAL_GROUP ? 1 : a.label.localeCompare(b.label)));
-  }, [notes, roTopic]);
+    // Follow the subject's saved topic order (roSubtopics arrives already
+    // sorted by sort_order), not the alphabet. "General" has no subtopic row
+    // to order, so it stays pinned first.
+    const rank = new Map(roSubtopics.map((s, i) => [String(s.id), i]));
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.key === GENERAL_GROUP) return -1;
+      if (b.key === GENERAL_GROUP) return 1;
+      const ra = rank.has(a.key) ? rank.get(a.key) : Number.MAX_SAFE_INTEGER;
+      const rb = rank.has(b.key) ? rank.get(b.key) : Number.MAX_SAFE_INTEGER;
+      return ra - rb || a.label.localeCompare(b.label);
+    });
+  }, [notes, roTopic, roSubtopics]);
+
+  // Moving a group heading reorders the subtopics themselves, so the new order
+  // shows up for students too — same rows the course hierarchy reads.
+  async function moveTopicGroup(index, direction) {
+    const ordered = reorderGroups.filter((g) => g.key !== GENERAL_GROUP).map((g) => Number(g.key));
+    const target = index + direction;
+    if (target < 0 || target >= ordered.length) return;
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+
+    // Optimistic: reflect the swap before the round trip so the arrow feels instant.
+    const byId = new Map(roSubtopics.map((s) => [Number(s.id), s]));
+    setRoSubtopics(ordered.map((id) => byId.get(id)).filter(Boolean));
+
+    setReordering(true);
+    try {
+      await reorderSubtopics(ordered);
+    } catch {
+      setError('Failed to save the new topic order.');
+      loadRoSubtopics();
+    } finally {
+      setReordering(false);
+    }
+  }
 
   async function moveLesson(group, index, direction) {
     const target = index + direction;
@@ -321,8 +365,8 @@ export function AdminAiNotesListPage({
 
       {showReorder && (
         <section className={adminCanvasUi.createForm}>
-          <h3>Reorder lessons</h3>
-          <p className="mb-3 text-[13px] text-ink-soft">Pick a course and subject, then move a lesson up or down — e.g. bring "Introduction" to #1.</p>
+          <h3>Reorder lessons and topics</h3>
+          <p className="mb-3 text-[13px] text-ink-soft">Pick a course and subject, then move a lesson up or down within its topic — or move a whole topic heading to reorder the topics themselves. Both orders are what students see.</p>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <select className={cx(ui.input, 'min-w-0 flex-[1_1_200px]')} value={roCourse} onChange={e => setRoCourse(e.target.value)} aria-label="Reorder course">
               <option value="">— Course —</option>
@@ -339,9 +383,31 @@ export function AdminAiNotesListPage({
             <p className="mt-3 text-[13px] text-ink-muted">No lessons in this subject yet.</p>
           )}
 
-          {reorderGroups.map((group) => (
+          {reorderGroups.map((group) => {
+            const movable = group.key !== GENERAL_GROUP;
+            // "General" is pinned first and isn't a real subtopic row, so the
+            // arrow indices count only the movable groups.
+            const movableIndex = reorderGroups.filter((g) => g.key !== GENERAL_GROUP).findIndex((g) => g.key === group.key);
+            const movableCount = reorderGroups.filter((g) => g.key !== GENERAL_GROUP).length;
+            return (
             <div key={group.key} className="mt-4">
-              <div className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-ink-soft">{group.label}</div>
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <span className="min-w-0 flex-1 truncate text-xs font-extrabold uppercase tracking-wide text-ink-soft">{group.label}</span>
+                {movable && movableCount > 1 && (
+                  <>
+                    <button type="button" className={ui.iconButton} disabled={reordering || movableIndex === 0}
+                            aria-label={`Move topic ${group.label} up`}
+                            onClick={() => moveTopicGroup(movableIndex, -1)}>
+                      <UpIcon/>
+                    </button>
+                    <button type="button" className={ui.iconButton} disabled={reordering || movableIndex === movableCount - 1}
+                            aria-label={`Move topic ${group.label} down`}
+                            onClick={() => moveTopicGroup(movableIndex, 1)}>
+                      <DownIcon/>
+                    </button>
+                  </>
+                )}
+              </div>
               <ol className="grid gap-1.5">
                 {group.items.map((note, index) => (
                   <li key={note.id}
@@ -362,7 +428,8 @@ export function AdminAiNotesListPage({
                 ))}
               </ol>
             </div>
-          ))}
+            );
+          })}
         </section>
       )}
 

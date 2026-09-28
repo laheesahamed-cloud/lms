@@ -46,6 +46,7 @@ type LookupRow = RowDataPacket & {
   course_id?: number;
   topic_id?: number;
   status?: string;
+  sort_order?: number | null;
 };
 
 type UserRow = RowDataPacket & {
@@ -214,11 +215,14 @@ export class LessonsService {
     const [courses] = await this.db.execute<LookupRow[]>(
       "SELECT id, course_title, status FROM courses ORDER BY course_title ASC"
     );
+    // Order by the admin's own sort_order, not alphabetically — this is the
+    // same order students get (CoursesService.loadHierarchyForCourses), and
+    // the admin reorder panel can't show or change an order it never sees.
     const [topics] = await this.db.execute<LookupRow[]>(
-      "SELECT id, course_id, topic_name, status FROM topics ORDER BY topic_name ASC"
+      "SELECT id, course_id, topic_name, status, sort_order FROM topics ORDER BY sort_order ASC, id ASC"
     );
     const [subtopics] = await this.db.execute<LookupRow[]>(
-      "SELECT id, topic_id, subtopic_name, status FROM subtopics ORDER BY subtopic_name ASC"
+      "SELECT id, topic_id, subtopic_name, status, sort_order FROM subtopics ORDER BY sort_order ASC, id ASC"
     );
 
     return {
@@ -232,12 +236,14 @@ export class LessonsService {
         courseId: row.course_id || 0,
         topicName: row.topic_name || '',
         status: row.status || 'inactive',
+        sortOrder: Number(row.sort_order ?? 0),
       })),
       subtopics: subtopics.map((row) => ({
         id: row.id,
         topicId: row.topic_id || 0,
         subtopicName: row.subtopic_name || '',
         status: row.status || 'inactive',
+        sortOrder: Number(row.sort_order ?? 0),
       })),
     };
   }
@@ -753,15 +759,26 @@ export class LessonsService {
   }
 
   async uploadVideo(id: number, file: Express.Multer.File, actor?: ContentActorInput) {
-    await this.findById(id);
-
+    // The file is already on disk — multer streamed it there rather than
+    // buffering half a gigabyte in memory. All that's left is to give it its
+    // final name and record the URL. If the lesson turns out not to exist, the
+    // uploaded file is removed rather than left orphaned in uploads/video.
     const uploadsDir = path.join(process.cwd(), 'uploads', 'video');
+    const tempPath = file.path;
+
+    try {
+      await this.findById(id);
+    } catch (error) {
+      if (tempPath && fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      throw error;
+    }
+
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-    const ext = file.originalname.split('.').pop()?.toLowerCase() || 'mp4';
+    const ext = file.originalname.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
     const safeName = `lesson-${id}-${Date.now()}.${ext}`;
     const filePath = path.join(uploadsDir, safeName);
-    fs.writeFileSync(filePath, file.buffer);
+    fs.renameSync(tempPath, filePath);
 
     const videoUrl = `/uploads/video/${safeName}`;
     await this.db.execute('UPDATE lessons SET video_url = ? WHERE id = ?', [videoUrl, id]);

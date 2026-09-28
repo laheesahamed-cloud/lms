@@ -266,6 +266,8 @@ const noteCanvasUi = {
   tableEditRow: 'flex items-center gap-1.5 mt-1',
   tableEditCell: 'min-w-0 flex-1',
   tableAddRowBtn: 'mx-3.5 mb-2.5 mt-1 flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-black/15 bg-transparent px-2.5 py-1 font-sans text-[11.5px] font-semibold text-ink-muted transition-[background] duration-100 hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/[0.04]',
+  embeddedTableTitle:
+    'mb-1 font-[var(--type-font-body)] text-[12.5px] font-extrabold uppercase tracking-[0.05em]',
   compressToast:
     'my-1.5 flex items-center gap-[7px] self-start rounded-full border border-line-soft bg-surface-glass px-3.5 py-1.5 font-sans text-xs text-ink-muted',
   compressSpin: 'animate-[spin_0.9s_linear_infinite]',
@@ -2283,8 +2285,11 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, d
 function EmbeddedTable({ table, accentColor, editable, onChange, theme }) {
   const headers = Array.isArray(table?.headers) ? table.headers : ['Column 1', 'Column 2'];
   const rows = Array.isArray(table?.rows) ? table.rows : [];
+  const title = typeof table?.title === 'string' ? table.title : '';
 
-  function patch(next) { onChange({ headers, rows, ...next }); }
+  // Spread `table` first so fields we don't name here (title, and anything
+  // added later) survive an edit instead of being dropped on every keystroke.
+  function patch(next) { onChange({ ...table, headers, rows, ...next }); }
   function updateHeader(ci, val) { const next = [...headers]; next[ci] = val; patch({ headers: next }); }
   function updateCell(ri, ci, val) { const next = rows.map((r, i) => i === ri ? r.map((c, j) => j === ci ? val : c) : r); patch({ rows: next }); }
   function addRow() { patch({ rows: [...rows, headers.map(() => '')] }); }
@@ -2299,6 +2304,16 @@ function EmbeddedTable({ table, accentColor, editable, onChange, theme }) {
 
   return (
     <div className={noteCanvasUi.tableWrap} style={{ marginTop: 6 }}>
+      {editable ? (
+        <EField value={title} onChange={v => patch({ title: v })}
+          placeholder="Table title (optional)"
+          className={noteCanvasUi.embeddedTableTitle}
+          style={{ color: accentColor, width: '100%' }}/>
+      ) : title ? (
+        <p className={noteCanvasUi.embeddedTableTitle} style={{ color: accentColor }}>
+          <RichText text={title} accentColor={accentColor}/>
+        </p>
+      ) : null}
       {editable ? (
         <>
           <table className={noteCanvasUi.table}>
@@ -2714,7 +2729,6 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
             <button className={noteCanvasUi.sectionButton} onClick={onMoveDown}>↓</button>
           </div>
           <div style={{ display:'flex', gap:3 }}>
-            <button className={noteCanvasUi.sectionButton} onClick={addCol} title="Add column" style={{ fontSize:11 }}>+Col</button>
             <button className={cx(noteCanvasUi.sectionButton, span === 'full' && noteCanvasUi.sectionButtonOn)}
               style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'full')} title="Full width">⬛</button>
             <button className={cx(noteCanvasUi.sectionButton, span === 'wide' && noteCanvasUi.sectionButtonOn)}
@@ -2776,9 +2790,10 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
                 ))}
               </tbody>
             </table>
-            <button className={noteCanvasUi.tableAddRowBtn} type="button" onClick={addRow}>
-              + Add row
-            </button>
+            <div style={{ display:'flex', gap:6, marginTop:4 }}>
+              <button className={noteCanvasUi.tableAddRowBtn} type="button" onClick={addRow}>+ Add row</button>
+              <button className={noteCanvasUi.tableAddRowBtn} type="button" onClick={addCol}>+ Add column</button>
+            </div>
           </>
         ) : (
           <table className={noteCanvasUi.table}>
@@ -3196,7 +3211,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   }
 
   function addTableSection() {
-    patch({ sections: [...sections, { type:'table', heading:'New Table', headers:['Column 1','Column 2','Column 3'], rows:[['','',''],['','',''],['','','']], span:'full' }] });
+    patch({ sections: [...sections, { type:'table', heading:'New Table', headers:['Column 1','Column 2'], rows:[['',''],['','']], span:'full' }] });
   }
 
   function addImageSection(src = '', meta = {}) {
