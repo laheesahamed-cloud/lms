@@ -12,6 +12,7 @@ import 'onboarding.dart';
 import '../services/push.dart';
 import '../services/study_reminders.dart';
 import '../services/flashcard_reminders.dart';
+import '../services/streak_reminders.dart';
 import 'local_scope.dart';
 import 'user_data_reset.dart';
 import '../features/dashboard/dashboard_repository.dart';
@@ -135,6 +136,7 @@ class AuthController extends Notifier<AuthState> {
       final user = await _repo.me();
       StudyReminders.userId = user.id;
       FlashcardReminders.userId = user.id;
+      StreakReminders.userId = user.id;
       LocalScope.uid = user.id;
       state = AuthState(
           isHydrating: false,
@@ -148,6 +150,7 @@ class AuthController extends Notifier<AuthState> {
       _api.setToken(null);
       StudyReminders.userId = 'anon';
       FlashcardReminders.userId = 'anon';
+      StreakReminders.userId = 'anon';
       LocalScope.uid = 'anon';
       resetUserScopedData(ref);
       state = const AuthState(isHydrating: false);
@@ -159,8 +162,10 @@ class AuthController extends Notifier<AuthState> {
     _api.setToken(null);
     StudyReminders.cancelScheduled();
     FlashcardReminders.cancelScheduled();
+    StreakReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
     FlashcardReminders.userId = 'anon';
+    StreakReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false, error: 'Your session expired.');
@@ -296,6 +301,7 @@ class AuthController extends Notifier<AuthState> {
     resetUserScopedData(ref);
     StudyReminders.userId = res.user.id;
     FlashcardReminders.userId = res.user.id;
+    StreakReminders.userId = res.user.id;
     LocalScope.uid = res.user.id;
     state = AuthState(
         isHydrating: false,
@@ -346,8 +352,10 @@ class AuthController extends Notifier<AuthState> {
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
     await FlashcardReminders.cancelScheduled();
+    await StreakReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
     FlashcardReminders.userId = 'anon';
+    StreakReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);
@@ -365,8 +373,10 @@ class AuthController extends Notifier<AuthState> {
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
     await FlashcardReminders.cancelScheduled();
+    await StreakReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
     FlashcardReminders.userId = 'anon';
+    StreakReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);

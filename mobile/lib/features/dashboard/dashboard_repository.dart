@@ -296,6 +296,9 @@ class QuestionOfDay {
 class StudentDashboard {
   final String fullName;
   final int quizDayStreak;
+  // Whether today's quiz has already been submitted — used to decide
+  // whether to fire the "streak ends tonight" local reminder.
+  final bool quizDoneToday;
   final List<String> recentActiveDays; // YYYY-MM-DD strings for last 7 days
   final num avgScore; // 0–100
   final num passRate; // 0–100
@@ -318,6 +321,7 @@ class StudentDashboard {
   StudentDashboard({
     required this.fullName,
     required this.quizDayStreak,
+    required this.quizDoneToday,
     required this.recentActiveDays,
     required this.avgScore,
     required this.passRate,
@@ -368,6 +372,7 @@ class StudentDashboard {
     return StudentDashboard(
       fullName: _s(user['fullName']),
       quizDayStreak: _i(m['quizDayStreak']),
+      quizDoneToday: m['quizDoneToday'] == true,
       recentActiveDays: (m['recentActiveDays'] is List)
           ? List<String>.from(m['recentActiveDays'])
           : <String>[],

@@ -24,6 +24,13 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   // student acts on them — session-only, not persisted.
   final Set<int> _newTaskIds = {};
 
+  // Branch labels (day or subject) the student has collapsed — session-only.
+  final Set<String> _collapsedBranches = {};
+
+  // True while a confirmed "Reset" is playing its staggered exit animation
+  // and clearing tasks server-side — drives the reset button's spinner.
+  bool _resetting = false;
+
   static const _celebrations = [
     'Nice work!',
     'Great job — one step closer!',
@@ -81,9 +88,11 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     final doneCount = tasks.where((t) => t.done).length;
 
     // Tasks with a due date branch by day (chronological); tasks with none
-    // branch by subject (task.description, from the generator) so a
-    // "By subject" generated plan still reads as organized instead of one
-    // flat unsorted pile.
+    // branch by COURSE (the generator encodes "Course · Subject" into
+    // task.description) so Cardiology and Gynaecology quizzes both land
+    // under one "Medicine" branch instead of a separate small branch per
+    // subject — a "By subject" generated plan reads as organized by course,
+    // not fragmented into every individual topic.
     final byDate = <DateTime, List<PlannerTask>>{};
     final bySubject = <String, List<PlannerTask>>{};
     for (final t in tasks) {
@@ -91,7 +100,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       if (d != null) {
         byDate.putIfAbsent(d, () => []).add(t);
       } else {
-        final key = t.description.trim().isEmpty ? 'Someday' : t.description.trim();
+        final key = _courseKey(t.description);
         bySubject.putIfAbsent(key, () => []).add(t);
       }
     }
@@ -134,8 +143,14 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
               if (tasks.isNotEmpty)
                 IconButton(
                   tooltip: 'Reset — clear all tasks',
-                  onPressed: _confirmReset,
-                  icon: const Icon(Icons.refresh_rounded, color: Color(0xFFDC2626)),
+                  onPressed: _resetting ? null : _confirmReset,
+                  icon: _resetting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.4, color: Color(0xFFDC2626)),
+                        )
+                      : const Icon(Icons.refresh_rounded, color: Color(0xFFDC2626)),
                 ),
             ],
           ),
@@ -181,12 +196,36 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
           else ...[
             _hub(c, total, doneCount),
             _stem(c),
-            for (final d in sortedDates) _branch(c, _dayLabel(d), byDate[d]!),
-            for (final s in sortedSubjects) _branch(c, s, bySubject[s]!),
+            ..._buildBranches(c, sortedDates, byDate, sortedSubjects, bySubject),
           ],
         ],
       ),
     );
+  }
+
+  // Threads one running index across every branch so the reset animation's
+  // stagger flows as a single wave down the whole page, not a separate
+  // little wave restarting inside each branch.
+  List<Widget> _buildBranches(
+    AppColors c,
+    List<DateTime> sortedDates,
+    Map<DateTime, List<PlannerTask>> byDate,
+    List<String> sortedSubjects,
+    Map<String, List<PlannerTask>> bySubject,
+  ) {
+    final branches = <Widget>[];
+    var index = 0;
+    for (final d in sortedDates) {
+      final tasks = byDate[d]!;
+      branches.add(_branch(c, _dayLabel(d), tasks, startIndex: index));
+      index += tasks.length;
+    }
+    for (final s in sortedSubjects) {
+      final tasks = bySubject[s]!;
+      branches.add(_branch(c, s, tasks, startIndex: index));
+      index += tasks.length;
+    }
+    return branches;
   }
 
   Widget _emptyState(AppColors c) => Padding(
@@ -260,51 +299,86 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
         child: Container(width: 2, height: 16, color: c.line),
       );
 
-  Widget _branch(AppColors c, String label, List<PlannerTask> tasks) {
+  Widget _branch(AppColors c, String label, List<PlannerTask> tasks, {required int startIndex}) {
     final done = tasks.where((t) => t.done).length;
+    final collapsed = _collapsedBranches.contains(label);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: c.cardElevated,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: c.line),
-            ),
-            child: Column(
-              children: [
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w800, color: c.inkStrong)),
-                Text('$done of ${tasks.length} done',
-                    style: TextStyle(fontSize: 10.5, color: c.inkMuted)),
-              ],
-            ),
-          ),
-          Container(width: 2, height: 12, color: c.line),
-          for (final t in tasks)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 9),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => setState(() {
+              if (collapsed) {
+                _collapsedBranches.remove(label);
+              } else {
+                _collapsedBranches.add(label);
+              }
+            }),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: c.cardElevated,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.line),
+              ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(width: 18, height: 2, color: c.line),
-                  Expanded(
-                    child: _SwipeIdentityCard(
-                      key: ValueKey(t.id),
-                      task: t,
-                      isNew: _newTaskIds.contains(t.id),
-                      onComplete: () => _complete(t),
-                      onDelete: () => _delete(t),
-                    ),
+                  Column(
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w800, color: c.inkStrong)),
+                      Text('$done of ${tasks.length} done',
+                          style: TextStyle(fontSize: 10.5, color: c.inkMuted)),
+                    ],
+                  ),
+                  const SizedBox(width: 6),
+                  AnimatedRotation(
+                    turns: collapsed ? -0.25 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: c.inkMuted),
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 4),
-          Container(width: 2, height: 10, color: Colors.transparent),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: collapsed
+                ? const SizedBox(width: double.infinity)
+                : Column(
+                    children: [
+                      Container(width: 2, height: 12, color: c.line),
+                      // No leading connector tick here — it used to sit before
+                      // the card as a sibling in a Row, which ate 18px of
+                      // width from the LEFT only (nothing matching on the
+                      // right), pushing every card's content visibly off
+                      // center. The card now takes the full row width,
+                      // symmetric with the branch pill above it.
+                      for (var i = 0; i < tasks.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 9),
+                          child: _StaggeredExit(
+                            index: startIndex + i,
+                            exiting: _resetting,
+                            child: _SwipeIdentityCard(
+                              key: ValueKey(tasks[i].id),
+                              task: tasks[i],
+                              isNew: _newTaskIds.contains(tasks[i].id),
+                              onComplete: () => _complete(tasks[i]),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                      Container(width: 2, height: 10, color: Colors.transparent),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
@@ -323,6 +397,17 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     ];
     final prefix = diff < 0 ? 'Overdue · ' : '';
     return '$prefix${months[d.month - 1]} ${d.day}';
+  }
+
+  // The generator encodes "Course · Subject" into task.description — group
+  // by just the course part so a branch reads as one course, not one branch
+  // per individual subject/topic. Older or manually-added tasks with a plain
+  // description (no separator) just group by that whole string, unchanged.
+  String _courseKey(String description) {
+    final trimmed = description.trim();
+    if (trimmed.isEmpty) return 'Someday';
+    final sep = trimmed.indexOf(' · ');
+    return sep == -1 ? trimmed : trimmed.substring(0, sep).trim();
   }
 
   Future<void> _complete(PlannerTask t) async {
@@ -352,7 +437,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🎉', style: TextStyle(fontSize: 40)),
+              const _AnimatedCheckBadge(size: 56),
               const SizedBox(height: 8),
               Text(msg,
                   textAlign: TextAlign.center,
@@ -380,17 +465,6 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     );
   }
 
-  Future<void> _delete(PlannerTask t) async {
-    final api = ref.read(plannerApiProvider);
-    try {
-      await deletePlannerTask(api, t.id);
-      setState(() => _newTaskIds.remove(t.id));
-      ref.invalidate(plannerTasksProvider);
-    } catch (_) {
-      _toast('Could not delete the task.');
-    }
-  }
-
   Future<void> _confirmReset() async {
     final tasks = ref.read(plannerTasksProvider).value ?? const <PlannerTask>[];
     if (tasks.isEmpty) return;
@@ -409,13 +483,30 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
+
+    // Let every card play its staggered swipe-away exit first (see
+    // _StaggeredExit) so clearing the planner feels like watching each task
+    // get swept away, not an instant swap to the empty state. The spinner on
+    // the reset button (driven by _resetting) gives immediate feedback that
+    // the tap registered, before the wave even starts.
+    setState(() => _resetting = true);
+    final waveMs = 260 + (tasks.length.clamp(0, 24) * 45) + 260;
+    await Future.delayed(Duration(milliseconds: waveMs));
+    if (!mounted) return;
+
     final api = ref.read(plannerApiProvider);
     try {
       await Future.wait(tasks.map((t) => deletePlannerTask(api, t.id)));
-      setState(() => _newTaskIds.clear());
+      if (!mounted) return;
+      setState(() {
+        _newTaskIds.clear();
+        _resetting = false;
+      });
       ref.invalidate(plannerTasksProvider);
     } catch (_) {
+      if (!mounted) return;
+      setState(() => _resetting = false);
       _toast('Could not clear the planner.');
     }
   }
@@ -476,6 +567,107 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 }
 
+/// Wraps a task card so a Reset can sweep every card off-screen with the
+/// same slide + fade language as swiping one away by hand, staggered by
+/// [index] so the whole page clears as one wave instead of all at once.
+/// Purely a start-delay + implicit-animation combo (AnimatedSlide/Opacity
+/// flipping once the delay elapses) — no AnimationController needed since
+/// nothing here ever plays in reverse.
+/// A green check that pops in with a bounce — used wherever the app tells
+/// the student "done", instead of an emoji.
+class _AnimatedCheckBadge extends StatelessWidget {
+  final double size;
+  const _AnimatedCheckBadge({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 480),
+      curve: Curves.elasticOut,
+      builder: (_, v, child) => Transform.scale(scale: v, child: child),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFF16A34A).withValues(alpha: 0.14),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.check_rounded, size: size * 0.6, color: const Color(0xFF16A34A)),
+      ),
+    );
+  }
+}
+
+class _StaggeredExit extends StatefulWidget {
+  final int index;
+  final bool exiting;
+  final Widget child;
+  const _StaggeredExit({required this.index, required this.exiting, required this.child});
+
+  @override
+  State<_StaggeredExit> createState() => _StaggeredExitState();
+}
+
+class _StaggeredExitState extends State<_StaggeredExit> {
+  bool _gone = false;
+
+  @override
+  void didUpdateWidget(covariant _StaggeredExit old) {
+    super.didUpdateWidget(old);
+    if (widget.exiting && !old.exiting) {
+      Future.delayed(Duration(milliseconds: (widget.index.clamp(0, 24)) * 45), () {
+        if (mounted) setState(() => _gone = true);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // No clipping wrapper here, matching the existing swipe-to-complete
+    // gesture on the card itself — that also lets the card translate past
+    // its own bounds while flying off, uninterrupted.
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeInCubic,
+      offset: _gone ? const Offset(1.35, 0) : Offset.zero,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeIn,
+        opacity: _gone ? 0 : 1,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            widget.child,
+            if (_gone)
+              Positioned(
+                top: -8,
+                right: 12,
+                child: Transform.rotate(
+                  angle: 0.18,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(7),
+                      border: Border.all(color: const Color(0xFFDC2626), width: 2),
+                      color: const Color(0xFFDC2626).withValues(alpha: 0.14),
+                    ),
+                    child: const Text('REMOVED',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                            color: Color(0xFFDC2626))),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Swipe (either direction) to complete. Content-type is shown through
 /// SHAPE — a book-spine rail, a quiz "?" with option dots, a real stacked-
 /// card look, a class ticket-notch — not a text label, so it reads at a
@@ -484,13 +676,11 @@ class _SwipeIdentityCard extends StatefulWidget {
   final PlannerTask task;
   final bool isNew;
   final VoidCallback onComplete;
-  final VoidCallback onDelete;
   const _SwipeIdentityCard({
     super.key,
     required this.task,
     this.isNew = false,
     required this.onComplete,
-    required this.onDelete,
   });
 
   @override
@@ -541,24 +731,48 @@ class _SwipeIdentityCardState extends State<_SwipeIdentityCard>
     if (task.done) {
       return _card(context, dx: 0, interactive: false);
     }
-    return GestureDetector(
-      onHorizontalDragUpdate: _anim.isAnimating
-          ? null
-          : (d) => setState(() => _dx += d.delta.dx),
-      onHorizontalDragEnd: _anim.isAnimating
-          ? null
-          : (_) {
-              final w = MediaQuery.of(context).size.width;
-              if (_dx.abs() > w * 0.22) {
-                _flyOff(_dx > 0 ? 1 : -1);
-              } else {
-                _springBack();
-              }
-            },
-      child: Transform.translate(
-        offset: Offset(_dx, 0),
-        child: _card(context, dx: _dx, interactive: true),
-      ),
+    final w = MediaQuery.of(context).size.width;
+    final hint = (_dx.abs() / (w * 0.22)).clamp(0.0, 1.0);
+    return Stack(
+      children: [
+        // Revealed track behind the card — a green "complete" background that
+        // shows through on whichever side the card is being dragged away
+        // from (classic swipe-list pattern), growing more solid the closer
+        // the drag gets to the completion threshold.
+        if (_dx.abs() > 2)
+          Positioned.fill(
+            child: Container(
+              alignment: _dx > 0 ? Alignment.centerLeft : Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF16A34A).withValues(alpha: 0.12 + hint * 0.16),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Opacity(
+                opacity: hint,
+                child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 26),
+              ),
+            ),
+          ),
+        GestureDetector(
+          onHorizontalDragUpdate: _anim.isAnimating
+              ? null
+              : (d) => setState(() => _dx += d.delta.dx),
+          onHorizontalDragEnd: _anim.isAnimating
+              ? null
+              : (_) {
+                  if (_dx.abs() > w * 0.22) {
+                    _flyOff(_dx > 0 ? 1 : -1);
+                  } else {
+                    _springBack();
+                  }
+                },
+          child: Transform.translate(
+            offset: Offset(_dx, 0),
+            child: _card(context, dx: _dx, interactive: true),
+          ),
+        ),
+      ],
     );
   }
 
@@ -570,28 +784,29 @@ class _SwipeIdentityCardState extends State<_SwipeIdentityCard>
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        // Swipe progress: a check that grows and fades in, centered ON the
+        // card itself — kept fully within the card's own bounds (no
+        // Positioned overflow above/beside it) so it never visually spills
+        // into the row above while dragging.
         if (interactive && dx.abs() > 4)
-          Positioned(
-            top: -8,
-            left: dx > 0 ? 12 : null,
-            right: dx < 0 ? 12 : null,
-            child: Opacity(
-              opacity: hint,
-              child: Transform.rotate(
-                angle: dx > 0 ? -0.18 : 0.18,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(7),
-                    border: Border.all(color: const Color(0xFF16A34A), width: 2),
-                    color: const Color(0xFF16A34A).withValues(alpha: 0.14),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: Opacity(
+                  opacity: hint,
+                  child: Transform.scale(
+                    scale: 0.7 + hint * 0.5,
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF16A34A), width: 2),
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.16),
+                      ),
+                      child: const Icon(Icons.check_rounded, color: Color(0xFF16A34A), size: 24),
+                    ),
                   ),
-                  child: const Text('DONE',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.6,
-                          color: Color(0xFF16A34A))),
                 ),
               ),
             ),
@@ -613,14 +828,28 @@ class _SwipeIdentityCardState extends State<_SwipeIdentityCard>
                   : null,
             ),
             clipBehavior: Clip.antiAlias,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _CategoryIdentity(category: task.category),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-                    child: Column(
+            // IntrinsicHeight: this card sits inside an Expanded in a
+            // center-aligned Row (bounds width, not height), so the Row
+            // below never receives a bounded height from its ancestors.
+            // crossAxisAlignment.stretch needs one — without this wrapper,
+            // it silently receives an unbounded (infinity) height. In debug
+            // mode that throws a loud "BoxConstraints forces an infinite
+            // height" assertion; in release mode that check is compiled out
+            // (it's an assert()), so instead of erroring it silently
+            // produces garbage layout — the whole card fails to paint while
+            // still reporting a bogus height, which is why the task list
+            // looked empty AND scrolled forever. IntrinsicHeight makes the
+            // Row measure its own children's natural height first, then
+            // stretch within that — no unbounded constraint anywhere.
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _CategoryIdentity(category: task.category),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -680,13 +909,14 @@ class _SwipeIdentityCardState extends State<_SwipeIdentityCard>
                     ),
                   ),
                 ),
-                if (interactive)
-                  IconButton(
-                    icon: Icon(Icons.close_rounded, size: 18, color: c.inkMuted),
-                    onPressed: widget.onDelete,
-                    tooltip: 'Delete',
+                if (task.done)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: Icon(Icons.check_circle_rounded,
+                        size: 18, color: const Color(0xFF16A34A).withValues(alpha: 0.45)),
                   ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -43,17 +43,27 @@ Future<List<int>> generateStudyPlan(
 }) async {
   final queue = <_PlanItem>[];
 
-  // Title is the actual item name; description carries the subject/topic
-  // context (rendered as a subtitle in the Planner list) — a bare "Quiz 4"
-  // or "Lesson" with no surrounding context is meaningless once it's sitting
-  // in a day's task list away from the Q-Bank/Lessons screen it came from.
+  // Title is the actual item name; description carries "Course · Subject"
+  // context (rendered as a subtitle in the Planner list, and used to group
+  // tasks into one branch per COURSE — Cardiology and Gynaecology quizzes
+  // both land under "Medicine" instead of two separate small branches) — a
+  // bare "Quiz 4" with no surrounding context is meaningless once it's
+  // sitting in a day's task list away from the Q-Bank/Lessons screen it
+  // came from.
+  String joinCourseSubject(String courseTitle, String subject) {
+    final c = courseTitle.trim();
+    final s = subject.trim();
+    if (s.isEmpty || s == c) return c;
+    return '$c · $s';
+  }
+
   if (includeLessons) {
     for (final courseId in courseIds) {
       final detail = await ref.read(courseDetailProvider(courseId).future);
       for (final subject in detail.subjects) {
         for (final lesson in subject.lessons) {
           if (lesson.done || lesson.locked) continue;
-          queue.add(_PlanItem(lesson.title, 'lesson', subject.name));
+          queue.add(_PlanItem(lesson.title, 'lesson', joinCourseSubject(detail.title, subject.name)));
         }
       }
     }
@@ -65,9 +75,8 @@ Future<List<int>> generateStudyPlan(
     for (final q in quizzes) {
       if (!courseIds.contains(q.courseId)) continue;
       if (q.isCompleted || q.locked) continue;
-      final context = [q.subjectName, q.lessonTitle]
-          .firstWhere((s) => s.trim().isNotEmpty, orElse: () => q.courseTitle);
-      queue.add(_PlanItem(q.rowLabel(i), 'quiz', context));
+      final subject = [q.subjectName, q.lessonTitle].firstWhere((s) => s.trim().isNotEmpty, orElse: () => '');
+      queue.add(_PlanItem(q.rowLabel(i), 'quiz', joinCourseSubject(q.courseTitle, subject)));
       i++;
     }
   }
@@ -83,25 +92,27 @@ Future<List<int>> generateStudyPlan(
     // Only leaf (lesson-level) nodes — topic/subject/course nodes already
     // aggregate their descendants' counts, so walking every level would
     // schedule the same due cards multiple times over. `parentLabel` tracks
-    // the nearest subject/topic ancestor's name for the subtitle.
-    void walk(DeckNode node, bool insideWanted, String parentLabel) {
+    // the nearest subject/topic ancestor's name for the subtitle; `courseTitle`
+    // tracks the enclosing course's name for grouping.
+    void walk(DeckNode node, bool insideWanted, String parentLabel, String courseTitle) {
       final inside =
           insideWanted || (node.type == 'course' && wantedTitles.contains(node.label));
+      final nextCourseTitle = node.type == 'course' ? node.label : courseTitle;
       if (inside &&
           node.type == 'lesson' &&
           node.cardCount > 0 &&
           (node.newCount + node.dueCount) > 0) {
-        queue.add(_PlanItem(node.label, 'flashcards', parentLabel));
+        queue.add(_PlanItem(node.label, 'flashcards', joinCourseSubject(nextCourseTitle, parentLabel)));
       }
       final nextParent =
           (node.type == 'subject' || node.type == 'topic') ? node.label : parentLabel;
       for (final child in node.children) {
-        walk(child, inside, nextParent);
+        walk(child, inside, nextParent, nextCourseTitle);
       }
     }
 
     for (final root in decksResult.decks) {
-      walk(root, false, '');
+      walk(root, false, '', '');
     }
   }
 

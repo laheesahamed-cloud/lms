@@ -18,6 +18,7 @@ import '../flashcards/flashcards_repository.dart';
 import '../lessons/lessons_repository.dart';
 import '../lessons/lesson_models.dart';
 import 'dashboard_repository.dart';
+import '../../services/streak_reminders.dart';
 
 String _timeAgo(String iso) {
   final dt = DateTime.tryParse(iso)?.toLocal();
@@ -159,6 +160,15 @@ class DashboardPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Whenever fresh dashboard data comes in, reconcile the "streak ends
+    // tonight" reminder against it — a no-op if the streak is 0 or today's
+    // quiz is already done, since reconcile() always cancels-then-reschedules.
+    ref.listen(studentDashboardProvider, (previous, next) {
+      final d = next.maybeWhen(data: (d) => d, orElse: () => null);
+      if (d != null) {
+        StreakReminders.reconcile(streak: d.quizDayStreak, doneToday: d.quizDoneToday);
+      }
+    });
     final c = context.c;
     final user = ref.watch(authControllerProvider).user;
     final name = (user?.fullName.trim().isNotEmpty ?? false)
