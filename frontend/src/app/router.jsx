@@ -74,6 +74,7 @@ const AuscultationPage = lazyNamed(() => import('../surfaces/app/student/auscult
 const AuscTopicPage = lazyNamed(() => import('../surfaces/app/student/auscultation/AuscTopicPage.jsx'), 'AuscTopicPage');
 const AuscQuizPage = lazyNamed(() => import('../surfaces/app/student/auscultation/AuscQuizPage.jsx'), 'AuscQuizPage');
 const AdminAuscultationPage = lazyNamed(() => import('../surfaces/admin/pages/auscultation/AdminAuscultationPage.jsx'), 'AdminAuscultationPage');
+const AdminOscePage = lazyNamed(() => import('../surfaces/admin/pages/osce/AdminOscePage.jsx'), 'AdminOscePage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
 const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
 const AdminAiNotesListPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
@@ -241,6 +242,7 @@ const STUDENT_ROUTE_NAMES = {
   '/app/drugs': 'Drug Randomizer',
   '/app/ecg': 'ECG',
   '/app/auscultation': 'Auscultation',
+  '/admin/osce': 'OSCE Clinical',
   '/app/bookmarks': 'Saved',
   '/app/notifications': 'Notifications',
   '/app/subscriptions': 'Subscriptions',
@@ -577,6 +579,14 @@ const adminPanelRoutes = [
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
         <AdminAuscultationPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'osce',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <AdminOscePage />
       </ProtectedRoute>
     ),
   },

@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-/// Renders an inline content image that may be an http(s) URL or a base64
-/// `data:` URI (the web admin uploader inline-encodes the picture). Image.network
-/// cannot decode data URIs, so we branch on the scheme. `cacheWidth` downsamples
-/// on decode so a heavy image never holds full-resolution bytes in memory on the
-/// device. Renders nothing for a blank or unsupported value.
+import '../config/app_config.dart';
+
+/// Renders an inline content image that may be an http(s) URL, a server-relative
+/// path (`/uploads/...`), or a base64 `data:` URI (the web admin uploader
+/// inline-encodes the picture). Image.network cannot decode data URIs, so we
+/// branch on the scheme. `cacheWidth` downsamples on decode so a heavy image
+/// never holds full-resolution bytes in memory on the device. Renders nothing
+/// for a blank or unsupported value.
 class ContentImage extends StatelessWidget {
   final String url;
   final BoxFit fit;
@@ -39,8 +42,8 @@ class ContentImage extends StatelessWidget {
           img = null;
         }
       }
-    } else if (value.startsWith('http')) {
-      img = Image.network(value,
+    } else if (value.startsWith('http') || value.startsWith('/')) {
+      img = Image.network(_absolute(value),
           fit: fit,
           cacheWidth: decodeWidth,
           errorBuilder: (_, _, _) => const SizedBox.shrink());
@@ -51,5 +54,14 @@ class ContentImage extends StatelessWidget {
       borderRadius: BorderRadius.circular(borderRadius),
       child: img,
     );
+  }
+
+  /// A server-relative path (`/uploads/osce/...`) has no host on a native
+  /// device, so resolve it against the API origin — minus the trailing `/api`,
+  /// since these paths are absolute from the site root.
+  static String _absolute(String value) {
+    if (value.startsWith('http')) return value;
+    final origin = AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    return '$origin$value';
   }
 }

@@ -176,6 +176,13 @@ const Icons = {
       <path d="M2 10.5H5L6.5 6L9 14L11.5 8L13 10.5H18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+  Osce: () => (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="4.2" r="2.2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M6 17.5v-3.8a4 4 0 0 1 8 0v3.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="13.4" cy="10.4" r="1.5" fill="currentColor"/>
+    </svg>
+  ),
   Auscultation: () => (
     <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
       <path d="M5 2.5V7a3.5 3.5 0 0 0 7 0V2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -217,6 +224,7 @@ const adminLinks = [
   { to: '/drugs',         label: 'Drug Randomizer', icon: 'Drugs', requiredPermissions: ['content.manage'] },
   { to: '/ecg',           label: 'ECG Library',   icon: 'Ecg', requiredPermissions: ['content.manage'] },
   { to: '/auscultation',  label: 'Auscultation',  icon: 'Auscultation', requiredPermissions: ['content.manage'] },
+  { to: '/osce',          label: 'OSCE Clinical', icon: 'Osce', requiredPermissions: ['content.manage'] },
   { to: '/users',         label: 'Users',         icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/roles',         label: 'Roles & Access', icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },

@@ -798,11 +798,133 @@ export class SchemaSyncService implements OnModuleInit {
       if (addedSubtopicSortOrder) {
         await this.backfillSortOrder(connection, 'subtopics', 'subtopic_name', 'topic_id');
       }
+      // OSCE Clinical is a write path from both sides — admins save case documents,
+      // students write checklist progress — so it can't sit behind the full sync
+      // either (prod runs SCHEMA_SYNC=0).
+      await this.ensureOsceTables(connection);
     } catch (error) {
       this.logger.error('Failed to ensure critical governance tables on boot', error as Error);
     } finally {
       if (connection) connection.release();
     }
+  }
+
+  private async ensureOsceTables(connection: PoolConnection) {
+    // OSCE categories are the admin's own, not the course's lesson subjects.
+    // A station may be filed under "Thyroid lumps" even when no such lesson
+    // subject exists, and the OSCE order is independent of the teaching order.
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_categories (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        course_id   INT NOT NULL,
+        name        VARCHAR(160) NOT NULL,
+        sort_order  INT NOT NULL DEFAULT 0,
+        is_active   TINYINT(1) NOT NULL DEFAULT 1,
+        created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_osce_categories_course (course_id, sort_order)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Station categories are the course's own SUBJECTS (`topics`), not a
+    // separate list — add "Cardiology" under Medicine and it becomes an OSCE
+    // category automatically. Anchoring to the course also means the existing
+    // subscription scope (user_subscriptions.course_ids_json) gates OSCE for
+    // free, instead of needing its own access rules.
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_cases (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        course_id   INT NOT NULL,
+        topic_id    INT NOT NULL,
+        title       VARCHAR(200) NOT NULL,
+        slug        VARCHAR(200) NOT NULL,
+        summary     TEXT NULL,
+        difficulty  ENUM('core','intermediate','advanced') NOT NULL DEFAULT 'core',
+        case_data   LONGTEXT NULL,
+        status      ENUM('draft','published') NOT NULL DEFAULT 'draft',
+        is_public   TINYINT(1) NOT NULL DEFAULT 1,
+        is_free     TINYINT(1) NOT NULL DEFAULT 0,
+        sort_order  INT NOT NULL DEFAULT 0,
+        created_by  INT NULL,
+        created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_osce_case_slug (slug),
+        INDEX idx_osce_cases_topic (topic_id, sort_order),
+        INDEX idx_osce_cases_course (course_id),
+        INDEX idx_osce_cases_status (status, is_public)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    // Pre-refactor installs keyed cases to a standalone systems table.
+    await this.ensureColumn(connection, 'osce_cases', 'course_id', 'INT NOT NULL DEFAULT 0 AFTER id');
+    await this.ensureColumn(connection, 'osce_cases', 'topic_id', 'INT NOT NULL DEFAULT 0 AFTER course_id');
+    await this.ensureColumn(connection, 'osce_cases', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
+    await this.ensureColumn(connection, 'osce_cases', 'category_id', 'INT UNSIGNED NULL AFTER topic_id');
+    // Short case = examination-led. Long case = history-led, played as a
+    // conversation with the patient.
+    await this.ensureColumn(connection, 'osce_cases', 'station_type',
+      "ENUM('short','long') NOT NULL DEFAULT 'short' AFTER difficulty");
+    await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
+    // Categories moved from a standalone systems table to the course's own
+    // subjects. CREATE TABLE IF NOT EXISTS leaves the old NOT NULL column in
+    // place on installs that ran the earlier shape, which then rejects every
+    // insert — so drop it explicitly.
+    const [staleCols] = await connection.execute<any[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'osce_cases' AND COLUMN_NAME = 'system_id'`
+    );
+    if (staleCols.length) {
+      await connection.execute('ALTER TABLE osce_cases DROP COLUMN system_id').catch(() => undefined);
+    }
+
+    // One row per FILLED image slot. The case document declares which slots exist;
+    // this says which have been supplied — the difference is the shot list.
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_media (
+        id           INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        case_id      INT UNSIGNED NOT NULL,
+        slot_key     VARCHAR(120) NOT NULL,
+        storage_key  VARCHAR(255) NOT NULL,
+        thumb_key    VARCHAR(255) NULL,
+        mime         VARCHAR(80) NOT NULL DEFAULT 'image/webp',
+        source       ENUM('upload','ai') NOT NULL DEFAULT 'upload',
+        bytes        INT UNSIGNED NOT NULL DEFAULT 0,
+        width        INT UNSIGNED NULL,
+        height       INT UNSIGNED NULL,
+        created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_osce_media_slot (case_id, slot_key),
+        INDEX idx_osce_media_case (case_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_progress (
+        id             INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id        INT NOT NULL,
+        case_id        INT UNSIGNED NOT NULL,
+        checklist_json JSON NULL,
+        seen_json      JSON NULL,
+        is_favourite   TINYINT(1) NOT NULL DEFAULT 0,
+        completed_at   DATETIME NULL,
+        updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_osce_progress (user_id, case_id),
+        INDEX idx_osce_progress_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // CREATE TABLE IF NOT EXISTS won't add a column to a table that already
+    // exists, so favourites need this for any install created before them.
+    const [favCol] = await connection.execute<any[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'osce_progress'
+          AND COLUMN_NAME = 'is_favourite'`);
+    if (!favCol.length) {
+      await connection.execute(
+        'ALTER TABLE osce_progress ADD COLUMN is_favourite TINYINT(1) NOT NULL DEFAULT 0 AFTER seen_json'
+      ).catch(() => undefined);
+    }
+
+    await connection.execute('DROP TABLE IF EXISTS osce_systems').catch(() => undefined);
   }
 
   private async ensureContentGovernanceTables(connection: PoolConnection) {
@@ -890,6 +1012,10 @@ export class SchemaSyncService implements OnModuleInit {
         INDEX idx_ecg_topics_position (position)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+    // ecg.service.ts reads t.category on every topic list/detail call — added
+    // after the table above shipped, so existing installs need the migration
+    // too, not just the CREATE TABLE.
+    await this.ensureColumn(connection, 'ecg_topics', 'category', 'VARCHAR(80) NULL AFTER description');
 
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS ecg_cards (
@@ -907,6 +1033,14 @@ export class SchemaSyncService implements OnModuleInit {
         INDEX idx_ecg_cards_position (position)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+    // Same gap as above: ecg.service.ts's getTopicWithCards() selects both of
+    // these on every card fetch. Nothing currently WRITES them (no admin
+    // authoring UI yet — annotations_json is a future interactive-strip
+    // feature), so they'll just be NULL for now; the student-facing
+    // EcgInteractiveStrip component already handles that by falling back to
+    // the plain image. Without these columns the query 500s outright.
+    await this.ensureColumn(connection, 'ecg_cards', 'annotations_json', 'LONGTEXT NULL AFTER explanation');
+    await this.ensureColumn(connection, 'ecg_cards', 'source_credit', 'VARCHAR(255) NULL AFTER annotations_json');
 
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS ecg_quiz_questions (

@@ -309,6 +309,7 @@ function rewriteApiBoundary(path: string, method: string) {
     if (resource === 'drugs') return `/api/admin/drugs${restPath}`;
     if (resource === 'ecg') return `/api/admin/ecg${restPath}`;
     if (resource === 'auscultation') return `/api/admin/auscultation${restPath}`;
+    if (resource === 'osce') return `/api/admin/osce${restPath}`;
     if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'setup', 'papers', 'theory-recap', 'smart-notes', 'ai'].includes(resource)) {
       return `/api/${resource}${restPath}`;
     }
