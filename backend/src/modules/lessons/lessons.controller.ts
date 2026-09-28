@@ -1,6 +1,46 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ArgumentsHost, BadRequestException, Body, Catch, Controller, Delete, ExceptionFilter, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UploadedFile, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { memoryStorage, diskStorage } from 'multer';
+import { existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+
+const VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'];
+const VIDEO_MAX_BYTES = 500 * 1024 * 1024;
+
+/**
+ * Videos stream straight to disk.
+ *
+ * `memoryStorage` held the whole upload in RAM and then wrote it with
+ * `writeFileSync` — half a gigabyte of resident memory, and a synchronous write
+ * that blocked the event loop (so the rest of the API stopped answering) for the
+ * length of the write. Disk storage streams it and never buffers.
+ *
+ * The mime check and size cap live here as multer options rather than in the
+ * handler, so a wrong or oversized file is rejected while it uploads instead of
+ * after the whole thing has arrived.
+ */
+const videoUpload = {
+  storage: diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = join(process.cwd(), 'uploads', 'video');
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = (file.originalname.split('.').pop() || 'mp4')
+        .toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+      cb(null, `lesson-upload-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`);
+    },
+  }),
+  limits: { fileSize: VIDEO_MAX_BYTES },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    if (!VIDEO_MIME.includes(file.mimetype)) {
+      cb(new BadRequestException('Only MP4, WebM, MOV or OGG videos are allowed'), false);
+      return;
+    }
+    cb(null, true);
+  },
+};
 import { AdminGuard } from '../auth/admin.guard';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
@@ -9,6 +49,30 @@ import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
 import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
+
+/**
+ * Multer throws its own error type when a file exceeds `limits.fileSize`, and
+ * without this it reaches the client as an opaque 500. The upload screen shows
+ * whatever message comes back, so it needs to be the real reason.
+ */
+@Catch()
+class UploadErrorFilter implements ExceptionFilter {
+  catch(exception: any, host: ArgumentsHost) {
+    const res = host.switchToHttp().getResponse();
+    if (exception?.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({
+        statusCode: 400,
+        message: 'That video is over the 500 MB limit.',
+      });
+      return;
+    }
+    const status = Number(exception?.status || exception?.getStatus?.() || 500);
+    res.status(status).json({
+      statusCode: status,
+      message: exception?.response?.message || exception?.message || 'Upload failed',
+    });
+  }
+}
 
 @Controller('lessons')
 export class LessonsController {
@@ -157,16 +221,14 @@ export class LessonsController {
   @Post(':id/video')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseFilters(UploadErrorFilter)
+  @UseInterceptors(FileInterceptor('file', videoUpload))
   async uploadVideo(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('No file uploaded');
-    const allowed = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'];
-    if (!allowed.includes(file.mimetype)) throw new BadRequestException('Only MP4, WebM, MOV or OGG videos are allowed');
-    if (file.size > 500 * 1024 * 1024) throw new BadRequestException('Video must be under 500 MB');
     const actor = await this.authService.requireAdmin(authorization);
     return this.lessonsService.uploadVideo(id, file, actor);
   }

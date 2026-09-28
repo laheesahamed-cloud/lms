@@ -258,6 +258,8 @@ export function AdminAiNotesEditorPage({
   const [pdfRemoving,  setPdfRemoving]  = useState(false);
   const [pdfMessage,   setPdfMessage]   = useState('');
   const [videoUploading, setVideoUploading] = useState(false);
+  // null while idle; a 0–100 number, or -1 when the browser won't report a total.
+  const [videoProgress,  setVideoProgress]  = useState(null);
   const [videoRemoving,  setVideoRemoving]  = useState(false);
   const [videoMessage,   setVideoMessage]   = useState('');
 
@@ -1024,20 +1026,46 @@ export function AdminAiNotesEditorPage({
                   {linkedLessonId && (
                     <label className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] border border-dashed border-line-medium bg-surface-1 px-3 py-2 text-[12px] font-semibold text-ink-soft hover:border-brand-primary hover:text-brand-primary transition-colors">
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M4 6l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                      {videoUploading ? 'Uploading…' : 'Or upload an MP4 / WebM video'}
+                      {videoUploading
+                        ? (videoProgress == null || videoProgress < 0
+                            ? 'Uploading…'
+                            : `Uploading… ${videoProgress}%`)
+                        : 'Or upload an MP4 / WebM video'}
                       <input type="file" accept="video/mp4,video/webm,video/quicktime,video/ogg,.mp4,.webm,.mov,.ogg" className="sr-only"
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
+                          e.target.value = '';
                           if (!file) return;
-                          setVideoUploading(true); setVideoMessage('');
+
+                          // Check the size here rather than letting the server
+                          // reject it after the whole file has been sent.
+                          const maxBytes = 500 * 1024 * 1024;
+                          if (file.size > maxBytes) {
+                            setVideoMessage(
+                              `That file is ${(file.size / 1048576).toFixed(0)} MB. The limit is 500 MB.`);
+                            return;
+                          }
+
+                          setVideoUploading(true);
+                          setVideoProgress(0);
+                          setVideoMessage('');
                           try {
-                            const res = await uploadLessonVideo(linkedLessonId, file);
+                            const res = await uploadLessonVideo(
+                              linkedLessonId, file,
+                              ({ percent }) => setVideoProgress(percent ?? -1));
                             const url = res.videoUrl || '';
                             setVideoUrl(url);
                             scheduleSave({ videoUrl: url });
                             setVideoMessage('Video uploaded.');
-                          } catch { setVideoMessage('Upload failed. Max 500 MB.'); }
-                          finally { setVideoUploading(false); e.target.value = ''; }
+                          } catch (err) {
+                            // Say what actually went wrong. This used to always
+                            // blame the 500 MB limit, which sent you looking at
+                            // the file when the real cause was a 30s timeout.
+                            setVideoMessage(getErrorMessage(err) || 'Upload failed.');
+                          } finally {
+                            setVideoUploading(false);
+                            setVideoProgress(null);
+                          }
                         }}
                         disabled={videoUploading}
                       />
