@@ -85,12 +85,14 @@ export declare class LessonsService {
             courseId: number;
             topicName: string;
             status: string;
+            sortOrder: number;
         }[];
         subtopics: {
             id: number;
             topicId: number;
             subtopicName: string;
             status: string;
+            sortOrder: number;
         }[];
     }>;
     findAdminList(filters: {

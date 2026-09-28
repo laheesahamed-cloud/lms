@@ -44,8 +44,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
     }
     async getMeta() {
         const [courses] = await this.db.execute("SELECT id, course_title, status FROM courses ORDER BY course_title ASC");
-        const [topics] = await this.db.execute("SELECT id, course_id, topic_name, status FROM topics ORDER BY topic_name ASC");
-        const [subtopics] = await this.db.execute("SELECT id, topic_id, subtopic_name, status FROM subtopics ORDER BY subtopic_name ASC");
+        const [topics] = await this.db.execute("SELECT id, course_id, topic_name, status, sort_order FROM topics ORDER BY sort_order ASC, id ASC");
+        const [subtopics] = await this.db.execute("SELECT id, topic_id, subtopic_name, status, sort_order FROM subtopics ORDER BY sort_order ASC, id ASC");
         return {
             courses: courses.map((row) => ({
                 id: row.id,
@@ -57,12 +57,14 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 courseId: row.course_id || 0,
                 topicName: row.topic_name || '',
                 status: row.status || 'inactive',
+                sortOrder: Number(row.sort_order ?? 0),
             })),
             subtopics: subtopics.map((row) => ({
                 id: row.id,
                 topicId: row.topic_id || 0,
                 subtopicName: row.subtopic_name || '',
                 status: row.status || 'inactive',
+                sortOrder: Number(row.sort_order ?? 0),
             })),
         };
     }
@@ -480,14 +482,22 @@ let LessonsService = LessonsService_1 = class LessonsService {
         return { ok: true, id };
     }
     async uploadVideo(id, file, actor) {
-        await this.findById(id);
         const uploadsDir = path.join(process.cwd(), 'uploads', 'video');
+        const tempPath = file.path;
+        try {
+            await this.findById(id);
+        }
+        catch (error) {
+            if (tempPath && fs.existsSync(tempPath))
+                fs.unlinkSync(tempPath);
+            throw error;
+        }
         if (!fs.existsSync(uploadsDir))
             fs.mkdirSync(uploadsDir, { recursive: true });
-        const ext = file.originalname.split('.').pop()?.toLowerCase() || 'mp4';
+        const ext = file.originalname.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
         const safeName = `lesson-${id}-${Date.now()}.${ext}`;
         const filePath = path.join(uploadsDir, safeName);
-        fs.writeFileSync(filePath, file.buffer);
+        fs.renameSync(tempPath, filePath);
         const videoUrl = `/uploads/video/${safeName}`;
         await this.db.execute('UPDATE lessons SET video_url = ? WHERE id = ?', [videoUrl, id]);
         await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'video_uploaded', this.getActorId(actor) || null, `Video uploaded for lesson ${id}`]);

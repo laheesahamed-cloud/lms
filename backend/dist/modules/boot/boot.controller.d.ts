@@ -18,6 +18,7 @@ export declare class BootController {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -299,6 +300,7 @@ export declare class BootController {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -580,6 +582,7 @@ export declare class BootController {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -861,6 +864,7 @@ export declare class BootController {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -1142,6 +1146,7 @@ export declare class BootController {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -1423,6 +1428,7 @@ export declare class BootController {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;

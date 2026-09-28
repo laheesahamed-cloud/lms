@@ -19,12 +19,14 @@ export declare class LessonsController {
             courseId: number;
             topicName: string;
             status: string;
+            sortOrder: number;
         }[];
         subtopics: {
             id: number;
             topicId: number;
             subtopicName: string;
             status: string;
+            sortOrder: number;
         }[];
     }>;
     findAdminList(search?: string, courseId?: string, topicId?: string, subtopicId?: string, status?: string, limit?: string, page?: string, offset?: string): Promise<{

@@ -714,6 +714,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             if (addedSubtopicSortOrder) {
                 await this.backfillSortOrder(connection, 'subtopics', 'subtopic_name', 'topic_id');
             }
+            await this.ensureOsceTables(connection);
         }
         catch (error) {
             this.logger.error('Failed to ensure critical governance tables on boot', error);
@@ -722,6 +723,93 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             if (connection)
                 connection.release();
         }
+    }
+    async ensureOsceTables(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_categories (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        course_id   INT NOT NULL,
+        name        VARCHAR(160) NOT NULL,
+        sort_order  INT NOT NULL DEFAULT 0,
+        is_active   TINYINT(1) NOT NULL DEFAULT 1,
+        created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_osce_categories_course (course_id, sort_order)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_cases (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        course_id   INT NOT NULL,
+        topic_id    INT NOT NULL,
+        title       VARCHAR(200) NOT NULL,
+        slug        VARCHAR(200) NOT NULL,
+        summary     TEXT NULL,
+        difficulty  ENUM('core','intermediate','advanced') NOT NULL DEFAULT 'core',
+        case_data   LONGTEXT NULL,
+        status      ENUM('draft','published') NOT NULL DEFAULT 'draft',
+        is_public   TINYINT(1) NOT NULL DEFAULT 1,
+        is_free     TINYINT(1) NOT NULL DEFAULT 0,
+        sort_order  INT NOT NULL DEFAULT 0,
+        created_by  INT NULL,
+        created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_osce_case_slug (slug),
+        INDEX idx_osce_cases_topic (topic_id, sort_order),
+        INDEX idx_osce_cases_course (course_id),
+        INDEX idx_osce_cases_status (status, is_public)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+        await this.ensureColumn(connection, 'osce_cases', 'course_id', 'INT NOT NULL DEFAULT 0 AFTER id');
+        await this.ensureColumn(connection, 'osce_cases', 'topic_id', 'INT NOT NULL DEFAULT 0 AFTER course_id');
+        await this.ensureColumn(connection, 'osce_cases', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
+        await this.ensureColumn(connection, 'osce_cases', 'category_id', 'INT UNSIGNED NULL AFTER topic_id');
+        await this.ensureColumn(connection, 'osce_cases', 'station_type', "ENUM('short','long') NOT NULL DEFAULT 'short' AFTER difficulty");
+        await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
+        const [staleCols] = await connection.execute(`SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'osce_cases' AND COLUMN_NAME = 'system_id'`);
+        if (staleCols.length) {
+            await connection.execute('ALTER TABLE osce_cases DROP COLUMN system_id').catch(() => undefined);
+        }
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_media (
+        id           INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        case_id      INT UNSIGNED NOT NULL,
+        slot_key     VARCHAR(120) NOT NULL,
+        storage_key  VARCHAR(255) NOT NULL,
+        thumb_key    VARCHAR(255) NULL,
+        mime         VARCHAR(80) NOT NULL DEFAULT 'image/webp',
+        source       ENUM('upload','ai') NOT NULL DEFAULT 'upload',
+        bytes        INT UNSIGNED NOT NULL DEFAULT 0,
+        width        INT UNSIGNED NULL,
+        height       INT UNSIGNED NULL,
+        created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_osce_media_slot (case_id, slot_key),
+        INDEX idx_osce_media_case (case_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS osce_progress (
+        id             INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id        INT NOT NULL,
+        case_id        INT UNSIGNED NOT NULL,
+        checklist_json JSON NULL,
+        seen_json      JSON NULL,
+        is_favourite   TINYINT(1) NOT NULL DEFAULT 0,
+        completed_at   DATETIME NULL,
+        updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_osce_progress (user_id, case_id),
+        INDEX idx_osce_progress_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+        const [favCol] = await connection.execute(`SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'osce_progress'
+          AND COLUMN_NAME = 'is_favourite'`);
+        if (!favCol.length) {
+            await connection.execute('ALTER TABLE osce_progress ADD COLUMN is_favourite TINYINT(1) NOT NULL DEFAULT 0 AFTER seen_json').catch(() => undefined);
+        }
+        await connection.execute('DROP TABLE IF EXISTS osce_systems').catch(() => undefined);
     }
     async ensureContentGovernanceTables(connection) {
         await connection.execute(`
@@ -803,6 +891,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_ecg_topics_position (position)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+        await this.ensureColumn(connection, 'ecg_topics', 'category', 'VARCHAR(80) NULL AFTER description');
         await connection.execute(`
       CREATE TABLE IF NOT EXISTS ecg_cards (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -819,6 +908,8 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_ecg_cards_position (position)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+        await this.ensureColumn(connection, 'ecg_cards', 'annotations_json', 'LONGTEXT NULL AFTER explanation');
+        await this.ensureColumn(connection, 'ecg_cards', 'source_credit', 'VARCHAR(255) NULL AFTER annotations_json');
         await connection.execute(`
       CREATE TABLE IF NOT EXISTS ecg_quiz_questions (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

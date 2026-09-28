@@ -28,6 +28,7 @@ export declare class BootService {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -309,6 +310,7 @@ export declare class BootService {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -590,6 +592,7 @@ export declare class BootService {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -871,6 +874,7 @@ export declare class BootService {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -1152,6 +1156,7 @@ export declare class BootService {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;
@@ -1433,6 +1438,7 @@ export declare class BootService {
             totalCourses: number;
             totalAttempts: number;
             quizDayStreak: number;
+            quizDoneToday: boolean;
             recentActiveDays: string[];
             avgScore: number;
             totalPassed: number;

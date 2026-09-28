@@ -20,7 +20,7 @@ let EcgService = class EcgService {
         this.db = db;
     }
     async listTopics() {
-        const [rows] = await this.db.execute(`SELECT t.id, t.title, t.description, t.position,
+        const [rows] = await this.db.execute(`SELECT t.id, t.title, t.description, t.category, t.position,
               (SELECT COUNT(*) FROM ecg_cards c
                 WHERE c.topic_id = t.id AND c.is_active = 1) AS card_count
          FROM ecg_topics t
@@ -30,21 +30,45 @@ let EcgService = class EcgService {
             id: r.id,
             title: r.title,
             description: r.description,
+            category: r.category,
             position: r.position,
             cardCount: Number(r.card_count ?? 0),
         }));
     }
     async getTopicWithCards(topicId) {
         const [[topicRows], [cardRows]] = await Promise.all([
-            this.db.execute(`SELECT id, title, description, position FROM ecg_topics WHERE id = ? AND is_active = 1`, [topicId]),
-            this.db.execute(`SELECT id, topic_id, title, image_url, explanation, position
+            this.db.execute(`SELECT id, title, description, category, position FROM ecg_topics WHERE id = ? AND is_active = 1`, [topicId]),
+            this.db.execute(`SELECT id, topic_id, title, image_url, explanation, annotations_json, source_credit, position
            FROM ecg_cards
           WHERE topic_id = ? AND is_active = 1
           ORDER BY position ASC, id ASC`, [topicId]),
         ]);
         if (!topicRows.length)
             return null;
-        return { topic: topicRows[0], cards: cardRows };
+        const cards = cardRows.map((r) => ({
+            id: r.id,
+            topic_id: r.topic_id,
+            title: r.title,
+            image_url: r.image_url,
+            explanation: r.explanation,
+            annotations: this.parseAnnotations(r.annotations_json),
+            source_credit: r.source_credit,
+            position: r.position,
+        }));
+        return { topic: topicRows[0], cards };
+    }
+    parseAnnotations(raw) {
+        if (!raw)
+            return null;
+        if (typeof raw === 'string') {
+            try {
+                return JSON.parse(raw);
+            }
+            catch {
+                return null;
+            }
+        }
+        return raw;
     }
     async getQuizBatch(count) {
         const safeCount = Math.min(Math.max(1, count), 30);

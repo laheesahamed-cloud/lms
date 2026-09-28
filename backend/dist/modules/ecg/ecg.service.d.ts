@@ -32,13 +32,24 @@ export declare class EcgService {
         id: any;
         title: any;
         description: any;
+        category: any;
         position: any;
         cardCount: number;
     }[]>;
     getTopicWithCards(topicId: number): Promise<{
         topic: RowDataPacket;
-        cards: RowDataPacket[];
+        cards: {
+            id: any;
+            topic_id: any;
+            title: any;
+            image_url: any;
+            explanation: any;
+            annotations: any;
+            source_credit: any;
+            position: any;
+        }[];
     } | null>;
+    private parseAnnotations;
     getQuizBatch(count: number): Promise<{
         questions: {
             id: any;

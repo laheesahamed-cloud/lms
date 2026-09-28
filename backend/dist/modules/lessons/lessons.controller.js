@@ -16,6 +16,33 @@ exports.LessonsController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const multer_1 = require("multer");
+const fs_1 = require("fs");
+const path_1 = require("path");
+const VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'];
+const VIDEO_MAX_BYTES = 500 * 1024 * 1024;
+const videoUpload = {
+    storage: (0, multer_1.diskStorage)({
+        destination: (_req, _file, cb) => {
+            const dir = (0, path_1.join)(process.cwd(), 'uploads', 'video');
+            if (!(0, fs_1.existsSync)(dir))
+                (0, fs_1.mkdirSync)(dir, { recursive: true });
+            cb(null, dir);
+        },
+        filename: (_req, file, cb) => {
+            const ext = (file.originalname.split('.').pop() || 'mp4')
+                .toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+            cb(null, `lesson-upload-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`);
+        },
+    }),
+    limits: { fileSize: VIDEO_MAX_BYTES },
+    fileFilter: (_req, file, cb) => {
+        if (!VIDEO_MIME.includes(file.mimetype)) {
+            cb(new common_1.BadRequestException('Only MP4, WebM, MOV or OGG videos are allowed'), false);
+            return;
+        }
+        cb(null, true);
+    },
+};
 const admin_guard_1 = require("../auth/admin.guard");
 const auth_service_1 = require("../auth/auth.service");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
@@ -24,6 +51,26 @@ const create_lesson_dto_1 = require("./dto/create-lesson.dto");
 const update_lesson_dto_1 = require("./dto/update-lesson.dto");
 const create_lesson_annotation_dto_1 = require("./dto/create-lesson-annotation.dto");
 const update_lesson_annotation_dto_1 = require("./dto/update-lesson-annotation.dto");
+let UploadErrorFilter = class UploadErrorFilter {
+    catch(exception, host) {
+        const res = host.switchToHttp().getResponse();
+        if (exception?.code === 'LIMIT_FILE_SIZE') {
+            res.status(400).json({
+                statusCode: 400,
+                message: 'That video is over the 500 MB limit.',
+            });
+            return;
+        }
+        const status = Number(exception?.status || exception?.getStatus?.() || 500);
+        res.status(status).json({
+            statusCode: status,
+            message: exception?.response?.message || exception?.message || 'Upload failed',
+        });
+    }
+};
+UploadErrorFilter = __decorate([
+    (0, common_1.Catch)()
+], UploadErrorFilter);
 let LessonsController = class LessonsController {
     constructor(lessonsService, authService) {
         this.lessonsService = lessonsService;
@@ -91,11 +138,6 @@ let LessonsController = class LessonsController {
     async uploadVideo(authorization, id, file) {
         if (!file)
             throw new common_1.BadRequestException('No file uploaded');
-        const allowed = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'];
-        if (!allowed.includes(file.mimetype))
-            throw new common_1.BadRequestException('Only MP4, WebM, MOV or OGG videos are allowed');
-        if (file.size > 500 * 1024 * 1024)
-            throw new common_1.BadRequestException('Video must be under 500 MB');
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.uploadVideo(id, file, actor);
     }
@@ -334,7 +376,8 @@ __decorate([
     (0, common_1.Post)(':id/video'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
     (0, permissions_decorator_1.RequirePermissions)('content.manage'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { storage: (0, multer_1.memoryStorage)() })),
+    (0, common_1.UseFilters)(UploadErrorFilter),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', videoUpload)),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(2, (0, common_1.UploadedFile)()),
