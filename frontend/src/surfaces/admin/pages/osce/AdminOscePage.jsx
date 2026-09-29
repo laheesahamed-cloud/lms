@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   adminListOsceSystems, adminListOsceCases, adminGetOsceCase, adminCreateOsceCase,
   adminGenerateOsceCase, adminUpdateOsceCase, adminDeleteOsceCase,
-  adminPublishOsceCase, adminUnpublishOsceCase,
+  adminPublishOsceCase, adminUnpublishOsceCase, adminReorderOsceCases,
 } from '../../../../shared/api/osce.api.js';
 import { API_BASE_URL, getErrorMessage } from '../../../../shared/api/client.js';
 import { SlotGrid } from './SlotGrid.jsx';
@@ -625,6 +625,52 @@ export function AdminOscePage() {
   const [warnings, setWarnings] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [ordering, setOrdering] = useState(false);
+
+  // Stations grouped by the category they're filed under, each group in its
+  // own saved order. Ungrouped ones get their own bucket rather than vanishing.
+  const caseGroups = useMemo(() => {
+    const groups = new Map();
+    for (const c of cases) {
+      const key = c.systemKey || 'none';
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          label: [c.courseTitle, c.systemName].filter(Boolean).join(' · ') || 'No category',
+          items: [],
+        });
+      }
+      groups.get(key).items.push(c);
+    }
+    for (const g of groups.values()) {
+      g.items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+    }
+    return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [cases]);
+
+  const moveCase = useCallback(async (group, index, delta) => {
+    const target = index + delta;
+    if (target < 0 || target >= group.items.length) return;
+    const next = [...group.items];
+    [next[index], next[target]] = [next[target], next[index]];
+    const ids = next.map((c) => c.id);
+
+    // Optimistic, so the arrow feels immediate; the reload below is the truth.
+    setCases((prev) => {
+      const rank = new Map(ids.map((id, i) => [id, (i + 1)]));
+      return prev.map((c) => (rank.has(c.id) ? { ...c, sortOrder: rank.get(c.id) } : c));
+    });
+
+    setOrdering(true);
+    try {
+      await adminReorderOsceCases(ids);
+    } catch (err) {
+      setError(getErrorMessage(err));
+      load();
+    } finally {
+      setOrdering(false);
+    }
+  }, [load]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -690,18 +736,37 @@ export function AdminOscePage() {
         <p className="osce-hint">No stations yet — name a condition above to write your first one.</p>
       ) : null}
 
-      <div className="osce-caselist">
-        {cases.map((c) => (
-          <div key={c.id} className="osce-caserow">
-            <button type="button" className="osce-caserow-main" onClick={() => setOpenId(c.id)}>
-              <b>{c.title}</b>
-              <span>{[c.courseTitle, c.systemName].filter(Boolean).join(' · ')} · {c.summary || 'No summary yet'}</span>
-            </button>
-            <span className={`osce-badge ${c.status === 'published' ? 'is-live' : ''}`}>{c.status}</span>
-            <button type="button" className="osce-btn-danger" onClick={() => remove(c.id, c.title)}>Delete</button>
+      {/* Grouped by category, because an order only means anything within one —
+          students see stations inside a category, never as one flat list. */}
+      {caseGroups.map((group) => (
+        <div key={group.key} className="osce-casegroup">
+          <div className="osce-casegroup-head">
+            <b>{group.label}</b>
+            <span className="osce-hint">
+              {group.items.length} station{group.items.length === 1 ? '' : 's'}
+              {group.items.length > 1 ? ' · drag order with the arrows' : ''}
+            </span>
           </div>
-        ))}
-      </div>
+          <div className="osce-caselist">
+            {group.items.map((c, i) => (
+              <div key={c.id} className="osce-caserow">
+                <div className="osce-catrow-move">
+                  <button type="button" disabled={i === 0 || ordering}
+                          title="Move up" onClick={() => moveCase(group, i, -1)}>↑</button>
+                  <button type="button" disabled={i === group.items.length - 1 || ordering}
+                          title="Move down" onClick={() => moveCase(group, i, 1)}>↓</button>
+                </div>
+                <button type="button" className="osce-caserow-main" onClick={() => setOpenId(c.id)}>
+                  <b>{c.title}</b>
+                  <span>{[c.courseTitle, c.systemName].filter(Boolean).join(' · ')} · {c.summary || 'No summary yet'}</span>
+                </button>
+                <span className={`osce-badge ${c.status === 'published' ? 'is-live' : ''}`}>{c.status}</span>
+                <button type="button" className="osce-btn-danger" onClick={() => remove(c.id, c.title)}>Delete</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,1 +1,0 @@
-import{y as e}from"./vendor-C2lUWIWo.js";export{e as LocalNotifications};
