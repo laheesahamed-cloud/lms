@@ -94,7 +94,6 @@ let OsceService = class OsceService {
         this.db = db;
     }
     async listSystems(publishedOnly = false, userId) {
-        const profile = publishedOnly && userId ? await this.accessProfile(userId) : null;
         const [rows] = await this.db.execute(`SELECT t.id AS topic_id, t.topic_name, t.sort_order,
               co.id AS course_id, co.course_title,
               COUNT(c.id) AS case_count,
@@ -118,9 +117,7 @@ let OsceService = class OsceService {
             sortOrder: Number(r.sort_order),
             isActive: true,
             caseCount: Number(r.case_count || 0),
-            locked: profile
-                ? !this.courseInScope(Number(r.course_id), profile) && Number(r.free_count || 0) === 0
-                : false,
+            locked: false,
         }));
     }
     async listRegions(baseUrl, userId) {
@@ -237,8 +234,6 @@ let OsceService = class OsceService {
         return { slot: slotKey, storageKey: `_global/${fileName}` };
     }
     async listCategories(opts = {}) {
-        const profile = opts.publishedOnly && opts.userId
-            ? await this.accessProfile(opts.userId) : null;
         const [rows] = await this.db.execute(`SELECT cat.id, cat.course_id, cat.name, cat.sort_order, cat.is_active,
               co.course_title,
               COUNT(c.id) AS case_count,
@@ -263,9 +258,7 @@ let OsceService = class OsceService {
             isActive: true,
             iconKey: null,
             caseCount: Number(r.case_count || 0),
-            locked: profile
-                ? !this.courseInScope(Number(r.course_id), profile) && Number(r.free_count || 0) === 0
-                : false,
+            locked: false,
         }));
     }
     async createCategory(courseId, name) {
@@ -338,7 +331,6 @@ let OsceService = class OsceService {
         return rows.length ? String(rows[0].name) : 'General medicine';
     }
     async listStudentCourses(userId) {
-        const profile = await this.accessProfile(userId);
         const [rows] = await this.db.execute(`SELECT co.id, co.course_title,
               COUNT(c.id) AS case_count,
               COUNT(DISTINCT c.topic_id) AS subject_count,
@@ -355,7 +347,7 @@ let OsceService = class OsceService {
             title: String(r.course_title),
             caseCount: Number(r.case_count || 0),
             subjectCount: Number(r.subject_count || 0),
-            locked: !this.courseInScope(Number(r.id), profile) && Number(r.free_count || 0) === 0,
+            locked: false,
         }));
     }
     async listCourses() {

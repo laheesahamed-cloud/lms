@@ -200,8 +200,6 @@ export class OsceService {
    * For students the list is filtered to courses their subscription covers.
    */
   async listSystems(publishedOnly = false, userId?: number) {
-    const profile = publishedOnly && userId ? await this.accessProfile(userId) : null;
-
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `SELECT t.id AS topic_id, t.topic_name, t.sort_order,
               co.id AS course_id, co.course_title,
@@ -236,9 +234,12 @@ export class OsceService {
         caseCount: Number(r.case_count || 0),
         // "Locked" means nothing in here opens — a subject with free stations
         // is still usable even when the course itself is out of scope.
-        locked: profile
-          ? !this.courseInScope(Number(r.course_id), profile) && Number(r.free_count || 0) === 0
-          : false,
+        // Locking is per STATION, never per course or subject. A course can
+        // hold a mix of free and paid stations, so locking the whole row stops
+        // you browsing in to see what's there. You can always open a course or
+        // subject; the padlock lands on the individual stations you can't open,
+        // and hydrateCase still refuses those with a 403.
+        locked: false,
       }));
   }
 
@@ -414,9 +415,6 @@ export class OsceService {
    * order never has to follow the teaching order.
    */
   async listCategories(opts: { courseId?: number; publishedOnly?: boolean; userId?: number } = {}) {
-    const profile = opts.publishedOnly && opts.userId
-      ? await this.accessProfile(opts.userId) : null;
-
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `SELECT cat.id, cat.course_id, cat.name, cat.sort_order, cat.is_active,
               co.course_title,
@@ -451,9 +449,12 @@ export class OsceService {
         isActive: true,
         iconKey: null,
         caseCount: Number(r.case_count || 0),
-        locked: profile
-          ? !this.courseInScope(Number(r.course_id), profile) && Number(r.free_count || 0) === 0
-          : false,
+        // Locking is per STATION, never per course or subject. A course can
+        // hold a mix of free and paid stations, so locking the whole row stops
+        // you browsing in to see what's there. You can always open a course or
+        // subject; the padlock lands on the individual stations you can't open,
+        // and hydrateCase still refuses those with a 403.
+        locked: false,
       }));
   }
 
@@ -573,7 +574,6 @@ export class OsceService {
    * Medicine's subjects with Surgery's in one list.
    */
   async listStudentCourses(userId: number) {
-    const profile = await this.accessProfile(userId);
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `SELECT co.id, co.course_title,
               COUNT(c.id) AS case_count,
@@ -598,7 +598,12 @@ export class OsceService {
         title: String(r.course_title),
         caseCount: Number(r.case_count || 0),
         subjectCount: Number(r.subject_count || 0),
-        locked: !this.courseInScope(Number(r.id), profile) && Number(r.free_count || 0) === 0,
+        // Locking is per STATION, never per course or subject. A course can
+        // hold a mix of free and paid stations, so locking the whole row stops
+        // you browsing in to see what's there. You can always open a course or
+        // subject; the padlock lands on the individual stations you can't open,
+        // and hydrateCase still refuses those with a 403.
+        locked: false,
       }));
   }
 
