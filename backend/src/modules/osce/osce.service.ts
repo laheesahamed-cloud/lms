@@ -446,15 +446,31 @@ export class OsceService {
   async createCategory(courseId: number, name: string) {
     const clean = String(name || '').trim();
     if (!clean) throw new BadRequestException('Give the category a name');
+
+    // The category list INNER JOINs courses, so a row whose course_id matches
+    // no course is written successfully and then never appears again — it looks
+    // like the save silently failed. course_id is INT NOT NULL, so a missing
+    // course arrives here as 0 rather than as an error. Refuse it instead.
+    const course = Number(courseId);
+    if (!Number.isInteger(course) || course <= 0) {
+      throw new BadRequestException('Pick a course before adding a category');
+    }
+    const [courseRows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT id FROM courses WHERE id = ? LIMIT 1', [course]
+    );
+    if (!courseRows.length) {
+      throw new BadRequestException('That course no longer exists');
+    }
+
     const [max] = await this.db.execute<RowDataPacket[]>(
       'SELECT COALESCE(MAX(sort_order), 0) AS n FROM osce_categories WHERE course_id = ?',
-      [courseId]
+      [course]
     );
     const [res] = await this.db.execute<any>(
       'INSERT INTO osce_categories (course_id, name, sort_order) VALUES (?, ?, ?)',
-      [courseId, clean, Number(max?.[0]?.n || 0) + 1]
+      [course, clean, Number(max?.[0]?.n || 0) + 1]
     );
-    return { id: Number(res.insertId), courseId, name: clean };
+    return { id: Number(res.insertId), courseId: course, name: clean };
   }
 
   async updateCategory(id: number, patch: { name?: string; isActive?: boolean }) {

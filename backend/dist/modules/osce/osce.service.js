@@ -281,9 +281,17 @@ let OsceService = class OsceService {
         const clean = String(name || '').trim();
         if (!clean)
             throw new common_1.BadRequestException('Give the category a name');
-        const [max] = await this.db.execute('SELECT COALESCE(MAX(sort_order), 0) AS n FROM osce_categories WHERE course_id = ?', [courseId]);
-        const [res] = await this.db.execute('INSERT INTO osce_categories (course_id, name, sort_order) VALUES (?, ?, ?)', [courseId, clean, Number(max?.[0]?.n || 0) + 1]);
-        return { id: Number(res.insertId), courseId, name: clean };
+        const course = Number(courseId);
+        if (!Number.isInteger(course) || course <= 0) {
+            throw new common_1.BadRequestException('Pick a course before adding a category');
+        }
+        const [courseRows] = await this.db.execute('SELECT id FROM courses WHERE id = ? LIMIT 1', [course]);
+        if (!courseRows.length) {
+            throw new common_1.BadRequestException('That course no longer exists');
+        }
+        const [max] = await this.db.execute('SELECT COALESCE(MAX(sort_order), 0) AS n FROM osce_categories WHERE course_id = ?', [course]);
+        const [res] = await this.db.execute('INSERT INTO osce_categories (course_id, name, sort_order) VALUES (?, ?, ?)', [course, clean, Number(max?.[0]?.n || 0) + 1]);
+        return { id: Number(res.insertId), courseId: course, name: clean };
     }
     async updateCategory(id, patch) {
         const sets = [];

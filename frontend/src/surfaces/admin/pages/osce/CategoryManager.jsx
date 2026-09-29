@@ -65,17 +65,24 @@ export function CategoryManager({ courses, categories, onChanged }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && name.trim()) {
+            if (e.key === 'Enter' && name.trim() && active) {
               run(() => adminCreateOsceCategory({ courseId: active, name: name.trim() }))
                 .then(() => setName(''));
             }
           }}
         />
-        <button type="button" disabled={busy || !name.trim()} onClick={() => {
+        <button type="button" disabled={busy || !name.trim() || !active} onClick={() => {
           run(() => adminCreateOsceCategory({ courseId: active, name: name.trim() }))
             .then(() => setName(''));
         }}>Add</button>
       </div>
+
+      {!active ? (
+        <p className="osce-warn">
+          No course selected, so a category can&rsquo;t be filed anywhere yet. Categories
+          belong to a course — add or activate one first.
+        </p>
+      ) : null}
 
       {error ? <p className="osce-error">{error}</p> : null}
 
