@@ -627,6 +627,23 @@ export function AdminOscePage() {
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false);
 
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [sys, list] = await Promise.all([adminListOsceSystems(), adminListOsceCases()]);
+      setSystems(sys.systems || []);
+      setCourses(sys.courses || []);
+      setCases(list.cases || []);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
   // Stations grouped by the category they're filed under, each group in its
   // own saved order. Ungrouped ones get their own bucket rather than vanishing.
   const caseGroups = useMemo(() => {
@@ -671,22 +688,6 @@ export function AdminOscePage() {
       setOrdering(false);
     }
   }, [load]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [sys, list] = await Promise.all([adminListOsceSystems(), adminListOsceCases()]);
-      setSystems(sys.systems || []);
-      setCourses(sys.courses || []);
-      setCases(list.cases || []);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const remove = async (id, title) => {
     if (!window.confirm(`Delete "${title}" and all of its images?`)) return;
