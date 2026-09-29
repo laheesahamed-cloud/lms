@@ -653,8 +653,11 @@ let OsceService = OsceService_1 = class OsceService {
         if (!file?.buffer?.length)
             throw new common_1.BadRequestException('No file received');
         const ext = this.extForMime(file.mimetype);
-        if (!ext)
-            throw new common_1.BadRequestException('Unsupported file type — images or MP4/WebM video');
+        if (!ext) {
+            throw new common_1.BadRequestException('Unsupported file type. Images: PNG, JPEG or WebP. Clips: MP4 or MOV — '
+                + 'WebM and OGG are rejected because iOS cannot play them, so the clip '
+                + 'would upload fine and then fail for every student.');
+        }
         const isVideo = OsceService_1.isVideoMime(file.mimetype);
         if (isVideo && slotKey.startsWith('scene')) {
             throw new common_1.BadRequestException('A scene holds the still that hotspots are placed on, so it can\'t be a '
@@ -793,7 +796,7 @@ let OsceService = OsceService_1 = class OsceService {
     extForMime(mime) {
         const map = {
             'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
-            'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'video/ogg': 'ogv',
+            'video/mp4': 'mp4', 'video/quicktime': 'mov',
         };
         return map[String(mime).toLowerCase()] || null;
     }

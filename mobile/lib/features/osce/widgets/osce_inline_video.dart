@@ -93,11 +93,27 @@ class _OsceInlineVideoState extends State<OsceInlineVideo> {
       case 3:
         return 'This clip is in a format the player could not decode.';
       case 4:
-        return 'The server did not return a playable clip.';
+        // Two very different causes land on the same code, so name both: iOS
+        // reports an unsupported container (a WebM slot uploaded before those
+        // were rejected) exactly as it reports a non-video response body.
+        return _looksUnplayableOnIos(widget.url)
+            ? 'This clip is a ${_ext(widget.url).toUpperCase()} file, which iOS '
+                'cannot play. Re-upload it as MP4.'
+            : 'The server did not return a playable clip — it may not be '
+                'deployed yet, or the file is missing.';
       default:
         return 'This clip could not be played.';
     }
   }
+
+  static String _ext(String url) {
+    final m = RegExp(r'\.([A-Za-z0-9]+)(?:\?|#|$)').firstMatch(url);
+    return m?.group(1) ?? '';
+  }
+
+  /// Containers iOS WebKit has no decoder for, whatever the server sends.
+  static bool _looksUnplayableOnIos(String url) =>
+      const {'webm', 'ogv', 'ogg', 'mkv', 'avi'}.contains(_ext(url).toLowerCase());
 
   @override
   Widget build(BuildContext context) {

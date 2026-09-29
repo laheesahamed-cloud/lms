@@ -83,7 +83,7 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
             <div className="osce-slot-drop">
               <strong>{slot.ratio}</strong>
               <span>{slot.width}&times;{slot.height}</span>
-              <em>Drop or click — image or clip</em>
+              <em>Drop or click — image, or MP4/MOV clip</em>
             </div>
           )}
         {busy ? (
@@ -121,7 +121,7 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime"
+        accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime"
         hidden
         onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }}
       />

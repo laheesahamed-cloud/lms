@@ -951,7 +951,13 @@ export class OsceService {
     if (!file?.buffer?.length) throw new BadRequestException('No file received');
 
     const ext = this.extForMime(file.mimetype);
-    if (!ext) throw new BadRequestException('Unsupported file type — images or MP4/WebM video');
+    if (!ext) {
+      throw new BadRequestException(
+        'Unsupported file type. Images: PNG, JPEG or WebP. Clips: MP4 or MOV — '
+        + 'WebM and OGG are rejected because iOS cannot play them, so the clip '
+        + 'would upload fine and then fail for every student.'
+      );
+    }
 
     const isVideo = OsceService.isVideoMime(file.mimetype);
 
@@ -1159,7 +1165,12 @@ export class OsceService {
   private extForMime(mime: string) {
     const map: Record<string, string> = {
       'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
-      'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'video/ogg': 'ogv',
+      // MP4 and MOV only. iOS WebKit — which is what plays these in the app —
+      // does not support WebM or OGG in a <video> element, so accepting them
+      // produced a clip that uploaded cleanly, previewed fine in the admin's
+      // desktop browser, and then failed for every student with "the server
+      // did not return a playable clip".
+      'video/mp4': 'mp4', 'video/quicktime': 'mov',
     };
     return map[String(mime).toLowerCase()] || null;
   }
