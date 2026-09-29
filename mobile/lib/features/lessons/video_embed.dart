@@ -1,6 +1,8 @@
 // Dart port of frontend/src/shared/utils/videoEmbed.js
 // Handles YouTube, Vimeo, Google Drive, and direct MP4/WebM/OGG/MOV URLs.
 
+import 'package:webview_flutter/webview_flutter.dart';
+
 import '../../config/app_config.dart';
 
 enum VideoEmbedType { iframe, video, blocked, none }
@@ -153,5 +155,29 @@ String? videoPageBaseUrl(String src) {
     return '${u.scheme}://${u.authority}/';
   } catch (_) {
     return null;
+  }
+}
+
+/// Stop a bare-<video> player page and release its media element.
+///
+/// Disposing the Flutter widget does not stop a WKWebView's playback — the
+/// media element outlives it, so sound carries on over the next screen. Pausing
+/// alone isn't enough either: the element has to lose its source, so the page
+/// is replaced outright.
+Future<void> teardownVideoPage(WebViewController wvc) async {
+  try {
+    await wvc.runJavaScript(
+      "var v=document.getElementById('v');"
+      "if(v){v.pause();v.removeAttribute('src');v.load();}",
+    );
+  } catch (_) {
+    // The controller may already be gone; the blank load below still covers it.
+  }
+  try {
+    await wvc.loadHtmlString(
+      '<!DOCTYPE html><html><body style="margin:0;background:#000"></body></html>',
+    );
+  } catch (_) {
+    // Nothing left to tear down.
   }
 }

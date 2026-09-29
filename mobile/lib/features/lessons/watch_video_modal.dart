@@ -488,6 +488,9 @@ class _DirectVideoBlockState extends State<_DirectVideoBlock>
   @override
   void dispose() {
     disposeAutoHide();
+    // Closing the sheet has to stop playback; the WebView's media element
+    // otherwise keeps going behind whatever the student goes back to.
+    teardownVideoPage(_wvc);
     super.dispose();
   }
 

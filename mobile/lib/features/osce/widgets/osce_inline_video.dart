@@ -6,6 +6,7 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import '../../../theme/tokens.dart';
 import '../../lessons/video_embed.dart';
+import '../../shell/app_shell.dart' show appRouteObserver;
 
 /// A station clip that plays where the picture would have been.
 ///
@@ -25,14 +26,51 @@ class OsceInlineVideo extends StatefulWidget {
   State<OsceInlineVideo> createState() => _OsceInlineVideoState();
 }
 
-class _OsceInlineVideoState extends State<OsceInlineVideo> {
+class _OsceInlineVideoState extends State<OsceInlineVideo>
+    with WidgetsBindingObserver, RouteAware {
   late WebViewController _wvc;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _build();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) appRouteObserver.subscribe(this, route);
+  }
+
+  /// Another screen was pushed over this one. dispose() doesn't fire — the
+  /// widget is still mounted underneath — so without this the clip keeps
+  /// sounding behind the new screen.
+  @override
+  void didPushNext() => _pause();
+
+  void _pause() {
+    _wvc.runJavaScript(
+      "var v=document.getElementById('v'); if(v){v.pause();}",
+    ).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    appRouteObserver.unsubscribe(this);
+    // Fire-and-forget: the widget is going away either way, and playback has
+    // to stop or the clip keeps sounding over whatever screen comes next.
+    teardownVideoPage(_wvc);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Backgrounding the app should pause a clip too — it isn't being watched.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _pause();
   }
 
   @override
