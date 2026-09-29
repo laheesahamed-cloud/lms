@@ -138,3 +138,20 @@ VideoEmbed _ytEmbed(String id, {bool isVertical = false}) => VideoEmbed(
       provider: 'youtube',
       isVertical: isVertical,
     );
+
+/// The origin to load a bare-<video> player page against.
+///
+/// WKWebView gives a page loaded with a nil base URL an opaque origin and
+/// blocks its remote subresource loads, so a `<video src="https://…">` inside
+/// it can fail to fetch whatever the server returns. Handing it the video's own
+/// origin gives the page a real one and makes the media load same-origin.
+String? videoPageBaseUrl(String src) {
+  try {
+    final u = Uri.parse(src);
+    if (u.scheme != 'http' && u.scheme != 'https') return null;
+    if (u.authority.isEmpty) return null;
+    return '${u.scheme}://${u.authority}/';
+  } catch (_) {
+    return null;
+  }
+}

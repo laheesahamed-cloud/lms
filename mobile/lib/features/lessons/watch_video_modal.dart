@@ -434,7 +434,8 @@ class _DirectVideoBlockState extends State<_DirectVideoBlock>
               : 'The video server returned an error.');
         },
       ))
-      ..loadHtmlString(_html(widget.src));
+      ..loadHtmlString(_html(widget.src),
+          baseUrl: videoPageBaseUrl(widget.src));
   }
 
   void _onBridgeMessage(JavaScriptMessage msg) {
@@ -478,7 +479,8 @@ class _DirectVideoBlockState extends State<_DirectVideoBlock>
 
   void _retry() {
     setState(() => _error = null);
-    _wvc.loadHtmlString(_html(widget.src));
+    _wvc.loadHtmlString(_html(widget.src),
+        baseUrl: videoPageBaseUrl(widget.src));
   }
 
   void _run(String js) => _wvc.runJavaScript(js);

@@ -5,6 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import '../../../theme/tokens.dart';
+import '../../lessons/video_embed.dart';
 
 /// A station clip that plays where the picture would have been.
 ///
@@ -82,7 +83,8 @@ class _OsceInlineVideoState extends State<OsceInlineVideo> {
           }
         },
       ))
-      ..loadHtmlString(_html(widget.url));
+      ..loadHtmlString(_html(widget.url),
+          baseUrl: videoPageBaseUrl(widget.url));
   }
 
   /// MediaError codes per the HTML5 spec, said in plain terms.
