@@ -104,7 +104,7 @@ let OsceService = class OsceService {
          LEFT JOIN osce_cases c ON c.topic_id = t.id
               ${publishedOnly ? "AND c.status = 'published' AND c.is_public = 1" : ''}
         WHERE t.status = 'active' AND co.status = 'active'
-        GROUP BY t.id
+        GROUP BY t.id, t.topic_name, t.sort_order, co.id, co.course_title
         ${publishedOnly ? 'HAVING case_count > 0' : ''}
         ORDER BY co.id, t.sort_order, t.topic_name`);
         return rows
@@ -255,7 +255,8 @@ let OsceService = class OsceService {
          LEFT JOIN osce_cases c ON c.category_id = cat.id
               ${opts.publishedOnly ? "AND c.status = 'published' AND c.is_public = 1" : ''}
         WHERE cat.is_active = 1 ${opts.courseId ? 'AND cat.course_id = ?' : ''}
-        GROUP BY cat.id
+        GROUP BY cat.id, cat.course_id, cat.name, cat.sort_order, cat.is_active,
+                 co.course_title
         ${opts.publishedOnly ? 'HAVING case_count > 0' : ''}
         ORDER BY cat.sort_order, cat.name`, opts.courseId ? [opts.courseId] : []);
         return rows
@@ -356,7 +357,7 @@ let OsceService = class OsceService {
          JOIN osce_cases c ON c.course_id = co.id
               AND c.status = 'published' AND c.is_public = 1
         WHERE co.status = 'active'
-        GROUP BY co.id
+        GROUP BY co.id, co.course_title
         ORDER BY co.id`);
         return rows
             .filter((r) => Number(r.free_count || 0) > 0 || this.courseInScope(Number(r.id), profile))
@@ -373,7 +374,7 @@ let OsceService = class OsceService {
          FROM courses co
          LEFT JOIN topics t ON t.course_id = co.id AND t.status = 'active'
         WHERE co.status = 'active'
-        GROUP BY co.id ORDER BY co.id`);
+        GROUP BY co.id, co.course_title ORDER BY co.id`);
         return rows.map((r) => ({
             id: Number(r.id),
             title: String(r.course_title),

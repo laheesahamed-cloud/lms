@@ -178,6 +178,16 @@ export function slotToFileBase(slotKey: string) {
   return slotKey.replace(/:/g, '-').replace(/[^A-Za-z0-9._-]/g, '-');
 }
 
+/*
+ * A note on the GROUP BY clauses below.
+ *
+ * They list every non-aggregated column that is selected, not just the id being
+ * grouped on. That looks redundant — the id is a primary key, so the rest is
+ * functionally dependent — but MySQL/MariaDB with ONLY_FULL_GROUP_BY rejects the
+ * short form outright (ER_WRONG_FIELD_WITH_GROUP, 1055). Production runs with
+ * that mode on and local XAMPP does not, so the short form worked in dev and
+ * 500'd every OSCE list query in production. Don't trim them back.
+ */
 @Injectable()
 export class OsceService {
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
@@ -202,7 +212,7 @@ export class OsceService {
          LEFT JOIN osce_cases c ON c.topic_id = t.id
               ${publishedOnly ? "AND c.status = 'published' AND c.is_public = 1" : ''}
         WHERE t.status = 'active' AND co.status = 'active'
-        GROUP BY t.id
+        GROUP BY t.id, t.topic_name, t.sort_order, co.id, co.course_title
         ${publishedOnly ? 'HAVING case_count > 0' : ''}
         ORDER BY co.id, t.sort_order, t.topic_name`
     );
@@ -417,7 +427,8 @@ export class OsceService {
          LEFT JOIN osce_cases c ON c.category_id = cat.id
               ${opts.publishedOnly ? "AND c.status = 'published' AND c.is_public = 1" : ''}
         WHERE cat.is_active = 1 ${opts.courseId ? 'AND cat.course_id = ?' : ''}
-        GROUP BY cat.id
+        GROUP BY cat.id, cat.course_id, cat.name, cat.sort_order, cat.is_active,
+                 co.course_title
         ${opts.publishedOnly ? 'HAVING case_count > 0' : ''}
         ORDER BY cat.sort_order, cat.name`,
       opts.courseId ? [opts.courseId] : []
@@ -569,7 +580,7 @@ export class OsceService {
          JOIN osce_cases c ON c.course_id = co.id
               AND c.status = 'published' AND c.is_public = 1
         WHERE co.status = 'active'
-        GROUP BY co.id
+        GROUP BY co.id, co.course_title
         ORDER BY co.id`
     );
     return rows
@@ -589,7 +600,7 @@ export class OsceService {
          FROM courses co
          LEFT JOIN topics t ON t.course_id = co.id AND t.status = 'active'
         WHERE co.status = 'active'
-        GROUP BY co.id ORDER BY co.id`
+        GROUP BY co.id, co.course_title ORDER BY co.id`
     );
     return rows.map((r) => ({
       id: Number(r.id),
