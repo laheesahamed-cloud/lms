@@ -779,7 +779,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         await this.ensureColumn(connection, 'osce_cases', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
         await this.ensureColumn(connection, 'osce_cases', 'category_id', 'INT UNSIGNED NULL AFTER topic_id');
         await this.ensureColumn(connection, 'osce_cases', 'station_type', "ENUM('short','long') NOT NULL DEFAULT 'short' AFTER difficulty");
-        await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
         const [staleCols] = await connection.execute(`SELECT COLUMN_NAME FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'osce_cases' AND COLUMN_NAME = 'system_id'`);
         if (staleCols.length) {
@@ -803,6 +802,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_osce_media_case (case_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+        await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
         await connection.execute(`
       CREATE TABLE IF NOT EXISTS osce_progress (
         id             INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

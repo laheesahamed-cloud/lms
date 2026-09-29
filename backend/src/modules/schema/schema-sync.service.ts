@@ -887,7 +887,6 @@ export class SchemaSyncService implements OnModuleInit {
     // conversation with the patient.
     await this.ensureColumn(connection, 'osce_cases', 'station_type',
       "ENUM('short','long') NOT NULL DEFAULT 'short' AFTER difficulty");
-    await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
     // Categories moved from a standalone systems table to the course's own
     // subjects. CREATE TABLE IF NOT EXISTS leaves the old NOT NULL column in
     // place on installs that ran the earlier shape, which then rejects every
@@ -920,6 +919,12 @@ export class SchemaSyncService implements OnModuleInit {
         INDEX idx_osce_media_case (case_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+
+    // Must come AFTER the CREATE above. It used to sit before it, so on a fresh
+    // database the ALTER hit a table that did not exist yet, threw, and aborted
+    // the rest of this method — leaving osce_media and osce_progress uncreated
+    // while the server booted and served OSCE routes against missing tables.
+    await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
 
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS osce_progress (
