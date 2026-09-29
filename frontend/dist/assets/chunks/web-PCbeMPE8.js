@@ -1,1 +1,0 @@
-import{S as e}from"./vendor-DqJTuS-N.js";export{e as AppWeb};

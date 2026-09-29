@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../theme/tokens.dart';
 import '../osce_repository.dart';
-import '../osce_media_cache.dart';
+import 'osce_media_view.dart';
 import 'sound_player_markers.dart';
 
 /// Tapping a finding fills the screen with it, rather than sliding a sheet over
@@ -232,10 +232,12 @@ class _Body extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.inner),
             child: AspectRatio(
               aspectRatio: 4 / 3,
-              child: OsceCachedImage(
-                url: image.full,
+              // A finding can be a clip instead of a still — a JVP pulsation or
+              // a gait only reads as movement.
+              child: OsceMediaView(
+                media: image,
                 fit: BoxFit.cover,
-                placeholder: (_) => Container(color: c.surface2),
+                caption: 'Play ${sign.name}',
               ),
             ),
           ),

@@ -3,10 +3,15 @@ import { adminClearOsceSlot, adminOsceInbox, adminOsceInboxFile, adminOsceArchiv
   adminGenerateOsceSlot, adminOsceSettings, adminSaveOsceSettings,
   adminOsceImageModels } from '../../../../shared/api/osce.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { optimizeAndUploadSlot, optimizeAndUploadDataUrl, ratioWarning } from './osceMedia.js';
+import { optimizeAndUploadSlot, optimizeAndUploadDataUrl, ratioWarning, isVideoFile } from './osceMedia.js';
 
 function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
   const inputRef = useRef(null);
+  const [progress, setProgress] = useState(null);
+  // The server tells us what the slot holds; fall back to the stored filename
+  // for records saved before `kind` existed.
+  const isVideoSlot = slot.media?.kind === 'video'
+    || /\.(mp4|webm|mov|ogv)$/i.test(String(slot.media?.storageKey || ''));
   const [busy, setBusy] = useState(false);
 
   const pick = () => inputRef.current?.click();
@@ -14,13 +19,17 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
   const upload = useCallback(async (file) => {
     if (!file) return;
     setBusy(true);
+    setProgress(isVideoFile(file) ? 0 : null);
     try {
-      await optimizeAndUploadSlot(caseId, slot.slot, file);
+      await optimizeAndUploadSlot(caseId, slot.slot, file, {
+        onProgress: (pct) => setProgress(pct),
+      });
       onDone();
     } catch (error) {
-      onError(getErrorMessage(error));
+      onError(getErrorMessage(error) || String(error?.message || 'Upload failed'));
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }, [caseId, slot.slot, onDone, onError]);
 
@@ -65,15 +74,23 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
       <div className="osce-slot-frame" onClick={pick} role="button" tabIndex={0}
            onKeyDown={(e) => { if (e.key === 'Enter') pick(); }}>
         {slot.filled && mediaUrl
-          ? <img src={mediaUrl} alt="" />
+          ? (isVideoSlot
+              // A clip has no still to show, so preview the clip itself. muted +
+              // playsInline so it can be scrubbed in place without taking over.
+              ? <video src={mediaUrl} muted playsInline controls preload="metadata" />
+              : <img src={mediaUrl} alt="" />)
           : (
             <div className="osce-slot-drop">
               <strong>{slot.ratio}</strong>
               <span>{slot.width}&times;{slot.height}</span>
-              <em>Drop or click</em>
+              <em>Drop or click — image or clip</em>
             </div>
           )}
-        {busy ? <div className="osce-slot-busy">Working…</div> : null}
+        {busy ? (
+          <div className="osce-slot-busy">
+            {progress == null ? 'Working…' : `Uploading… ${progress}%`}
+          </div>
+        ) : null}
         {slot.media?.source === 'ai'
           ? <span className="osce-slot-ai">AI placeholder</span>
           : null}
@@ -104,7 +121,7 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime"
         hidden
         onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }}
       />

@@ -1,1 +1,0 @@
-import{c as e}from"./vendor-DqJTuS-N.js";export{e as SocialLoginWeb};

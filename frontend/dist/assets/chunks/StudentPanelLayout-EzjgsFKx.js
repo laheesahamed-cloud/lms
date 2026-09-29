@@ -1,1 +1,0 @@
-import{Po as e}from"./app-shared-CkkGBQpr.js";/* empty css                        */import{PanelLayout as t}from"./PanelLayout-CBM-4D--.js";var n=e();function r(){return(0,n.jsx)(t,{})}export{r as StudentPanelLayout};

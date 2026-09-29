@@ -10,6 +10,7 @@ import 'widgets/sign_detail_view.dart';
 import 'widgets/sound_player_markers.dart';
 import 'widgets/zoomable_hotspot_image.dart';
 import 'widgets/osce_practice.dart';
+import 'widgets/osce_media_view.dart';
 
 enum _Stop { exam, chain, investigations, summary, practice }
 
@@ -983,10 +984,10 @@ class _ChainStop extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         child: AspectRatio(
                           aspectRatio: 1,
-                          child: OsceCachedImage(
-                              url: kase.chain[i].image!.full,
+                          child: OsceMediaView(
+                              media: kase.chain[i].image!,
                               fit: BoxFit.cover,
-                              placeholder: (_) => Container(color: c.surface2)),
+                              caption: 'Play step ${kase.chain[i].step}'),
                         ),
                       ),
                     ],

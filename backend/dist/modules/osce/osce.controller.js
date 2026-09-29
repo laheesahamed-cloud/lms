@@ -23,6 +23,10 @@ const MEDIA_MIME = {
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
     png: 'image/png',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mov: 'video/quicktime',
+    ogv: 'video/ogg',
 };
 let OsceController = class OsceController {
     constructor(svc, authService) {
@@ -108,7 +112,7 @@ let OsceController = class OsceController {
     async media(caseSlug, fileName, res) {
         if (!/^[A-Za-z0-9._-]{1,200}$/.test(caseSlug))
             throw new common_1.BadRequestException('Invalid case');
-        if (!/^[A-Za-z0-9._@-]+\.(?:webp|jpe?g|png)$/i.test(fileName)) {
+        if (!/^[A-Za-z0-9._@-]+\.(?:webp|jpe?g|png|mp4|webm|mov|ogv)$/i.test(fileName)) {
             throw new common_1.BadRequestException('Invalid media file name');
         }
         const root = (0, path_1.resolve)(process.cwd(), 'uploads', 'osce');
@@ -120,7 +124,6 @@ let OsceController = class OsceController {
             throw new common_1.NotFoundException('Media not found');
         const ext = fileName.split('.').pop()?.toLowerCase() || '';
         res.setHeader('Content-Type', MEDIA_MIME[ext] || 'application/octet-stream');
-        res.setHeader('Content-Length', String(stats.size));
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.sendFile(filePath);

@@ -80,7 +80,9 @@ export const adminUnpublishOsceCase = (id) =>
  * Upload one slot. The caller optimises to WebP first (see optimizeImageFile) —
  * the backend has no image library, so the browser is where resizing happens.
  */
-export const adminUploadOsceSlot = (caseId, slot, { file, width, height, thumb, source }) => {
+export const adminUploadOsceSlot = (
+  caseId, slot, { file, width, height, thumb, source, onProgress },
+) => {
   const form = new FormData();
   form.append('file', file);
   if (width) form.append('width', String(width));
@@ -90,7 +92,19 @@ export const adminUploadOsceSlot = (caseId, slot, { file, width, height, thumb, 
   return apiClient
     .post(`/admin/osce/cases/${caseId}/media/${encodeURIComponent(slot)}`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
+      // No timeout, and no retry. A slot can now hold a 60 MB clip, which will
+      // not finish inside a fixed window on a slow line — and a timed-out write
+      // is retried twice by default, re-sending the whole file each time. Same
+      // trap that made lesson video uploads fail.
+      timeout: 0,
+      __skipTimeoutRetry: true,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      onUploadProgress: (event) => {
+        if (!onProgress) return;
+        const total = event.total || 0;
+        onProgress(total > 0 ? Math.round((event.loaded / total) * 100) : null);
+      },
     })
     .then((r) => r.data);
 };

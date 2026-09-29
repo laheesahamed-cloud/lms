@@ -48,7 +48,36 @@ async function makeThumb(dataUrl, width = 480) {
  * Optimize a picked file for its slot and upload it. Returns the saved record
  * plus the sizes, so the panel can show what the student will actually download.
  */
+/** Max size for a clip — the panel can't shrink video the way it shrinks stills. */
+export const MAX_SLOT_VIDEO_BYTES = 60 * 1024 * 1024;
+
+export function isVideoFile(file) {
+  return String(file?.type || '').toLowerCase().startsWith('video/');
+}
+
+/**
+ * A slot holds a still or a clip.
+ *
+ * A clip skips the optimiser entirely — that pass decodes to a canvas and
+ * re-encodes as WebP, which would turn a video into a single frame. It's sent
+ * as picked, so the size ceiling is checked before anything is uploaded.
+ */
+export async function uploadSlotVideo(caseId, slot, file, options = {}) {
+  if (file.size > MAX_SLOT_VIDEO_BYTES) {
+    throw new Error(
+      `That clip is ${(file.size / 1048576).toFixed(0)} MB. The limit is 60 MB.`
+    );
+  }
+  const saved = await adminUploadOsceSlot(caseId, slot, {
+    file,
+    source: options.source,
+    onProgress: options.onProgress,
+  });
+  return { ...saved, bytes: file.size, kind: 'video' };
+}
+
 export async function optimizeAndUploadSlot(caseId, slot, file, options = {}) {
+  if (isVideoFile(file)) return uploadSlotVideo(caseId, slot, file, options);
   const { maxWidth, targetBytes } = targetsFor(slot);
   const optimized = await optimizeImageFile(file, { maxWidth, targetBytes });
   const thumb = await makeThumb(optimized.src).catch(() => null);

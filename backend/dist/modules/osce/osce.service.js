@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var OsceService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OsceService = exports.GLOBAL_SLOTS = exports.GLOBAL_CASE_ID = exports.SLOT_SPECS = exports.STANDARD_SPEC = exports.BODY_SPEC = void 0;
 exports.specForSlot = specForSlot;
@@ -75,6 +76,7 @@ function normalizeRegion(raw) {
 const MEDIA_ROOT = () => (0, path_1.join)(process.cwd(), 'uploads', 'osce');
 const INBOX_DIR = () => (0, path_1.join)(MEDIA_ROOT(), '_inbox');
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
 const EMPTY_DOC = {
     version: 1,
     scenes: [],
@@ -89,7 +91,7 @@ const EMPTY_DOC = {
 function slotToFileBase(slotKey) {
     return slotKey.replace(/:/g, '-').replace(/[^A-Za-z0-9._-]/g, '-');
 }
-let OsceService = class OsceService {
+let OsceService = OsceService_1 = class OsceService {
     constructor(db) {
         this.db = db;
     }
@@ -650,11 +652,14 @@ let OsceService = class OsceService {
             throw new common_1.BadRequestException('Invalid slot key');
         if (!file?.buffer?.length)
             throw new common_1.BadRequestException('No file received');
-        if (file.buffer.length > MAX_IMAGE_BYTES)
-            throw new common_1.BadRequestException('Image is too large (max 6 MB)');
         const ext = this.extForMime(file.mimetype);
         if (!ext)
-            throw new common_1.BadRequestException('Unsupported image type');
+            throw new common_1.BadRequestException('Unsupported file type — images or MP4/WebM video');
+        const isVideo = OsceService_1.isVideoMime(file.mimetype);
+        const ceiling = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+        if (file.buffer.length > ceiling) {
+            throw new common_1.BadRequestException(isVideo ? 'Video is too large (max 60 MB)' : 'Image is too large (max 6 MB)');
+        }
         const dir = (0, path_1.join)(MEDIA_ROOT(), found.slug);
         await (0, promises_1.mkdir)(dir, { recursive: true });
         const base = slotToFileBase(slotKey);
@@ -783,8 +788,12 @@ let OsceService = class OsceService {
     extForMime(mime) {
         const map = {
             'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
+            'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'video/ogg': 'ogv',
         };
         return map[String(mime).toLowerCase()] || null;
+    }
+    static isVideoMime(mime) {
+        return String(mime || '').toLowerCase().startsWith('video/');
     }
     async publishCase(id) {
         const shots = await this.shotList(id);
@@ -864,10 +873,13 @@ let OsceService = class OsceService {
             if (!hit)
                 return null;
             const stamp = hit.updatedAt ? new Date(hit.updatedAt).getTime() : 0;
+            const video = OsceService_1.isVideoMime(hit.mime);
             return {
                 full: `${root}/api/osce/media/${hit.storageKey}?v=${stamp}`,
                 thumb: hit.thumbKey ? `${root}/api/osce/media/${hit.thumbKey}?v=${stamp}` : null,
                 width: hit.width, height: hit.height,
+                kind: video ? 'video' : 'image',
+                mime: hit.mime || null,
             };
         };
         const doc = found.caseData;
@@ -998,7 +1010,7 @@ let OsceService = class OsceService {
     }
 };
 exports.OsceService = OsceService;
-exports.OsceService = OsceService = __decorate([
+exports.OsceService = OsceService = OsceService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object])

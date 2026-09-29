@@ -431,6 +431,7 @@ export declare class OsceService {
     }>;
     archiveInbox(fileName: string): Promise<void>;
     private extForMime;
+    static isVideoMime(mime?: string | null): boolean;
     publishCase(id: number): Promise<{
         caseData: CaseDocument;
         id: number;
@@ -499,6 +500,8 @@ export declare class OsceService {
                     thumb: string | null;
                     width: number | null;
                     height: number | null;
+                    kind: string;
+                    mime: string | null;
                 } | null;
                 flip: {
                     label: string;
@@ -507,6 +510,8 @@ export declare class OsceService {
                         thumb: string | null;
                         width: number | null;
                         height: number | null;
+                        kind: string;
+                        mime: string | null;
                     } | null;
                 } | null;
                 compare: {
@@ -516,6 +521,8 @@ export declare class OsceService {
                         thumb: string | null;
                         width: number | null;
                         height: number | null;
+                        kind: string;
+                        mime: string | null;
                     } | null;
                 } | null;
                 id: string;
@@ -530,6 +537,8 @@ export declare class OsceService {
                     thumb: string | null;
                     width: number | null;
                     height: number | null;
+                    kind: string;
+                    mime: string | null;
                 } | null;
                 compare: {
                     label: string;
@@ -538,6 +547,8 @@ export declare class OsceService {
                         thumb: string | null;
                         width: number | null;
                         height: number | null;
+                        kind: string;
+                        mime: string | null;
                     } | null;
                 } | null;
                 id: string;
@@ -555,6 +566,8 @@ export declare class OsceService {
                     thumb: string | null;
                     width: number | null;
                     height: number | null;
+                    kind: string;
+                    mime: string | null;
                 } | null;
                 step: number;
                 title: string;
@@ -579,6 +592,8 @@ export declare class OsceService {
                     thumb: string | null;
                     width: number | null;
                     height: number | null;
+                    kind: string;
+                    mime: string | null;
                 } | null;
                 modality: "ecg" | "cxr" | "echo" | "labs" | "other";
                 ref?: ContentRef | null;
@@ -640,6 +655,8 @@ export declare class OsceService {
             thumb: string | null;
             width: number | null;
             height: number | null;
+            kind: string;
+            mime: string | null;
         } | null;
         id: number;
         title: string;

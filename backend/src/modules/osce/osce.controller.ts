@@ -13,6 +13,11 @@ const MEDIA_MIME: Record<string, string> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   png: 'image/png',
+  // A slot can hold a clip instead of a still.
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  ogv: 'video/ogg',
 };
 
 @Controller('osce')
@@ -168,7 +173,7 @@ export class OsceController {
   ) {
     // `_global` is the reserved folder for the shared long-case art.
     if (!/^[A-Za-z0-9._-]{1,200}$/.test(caseSlug)) throw new BadRequestException('Invalid case');
-    if (!/^[A-Za-z0-9._@-]+\.(?:webp|jpe?g|png)$/i.test(fileName)) {
+    if (!/^[A-Za-z0-9._@-]+\.(?:webp|jpe?g|png|mp4|webm|mov|ogv)$/i.test(fileName)) {
       throw new BadRequestException('Invalid media file name');
     }
 
@@ -181,9 +186,11 @@ export class OsceController {
 
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
     res.setHeader('Content-Type', MEDIA_MIME[ext] || 'application/octet-stream');
-    res.setHeader('Content-Length', String(stats.size));
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Content-Length is left to sendFile, which also answers Range requests.
+    // Setting it here would fight the 206 partial responses a <video> element
+    // relies on to seek, so a clip could only be played straight through.
     res.sendFile(filePath);
   }
 }

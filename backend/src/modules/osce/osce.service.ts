@@ -160,6 +160,9 @@ function normalizeRegion(raw?: string | null) {
 const MEDIA_ROOT = () => join(process.cwd(), 'uploads', 'osce');
 const INBOX_DIR = () => join(MEDIA_ROOT(), '_inbox');
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
+// A clip can't be optimised the way a still can — the panel's WebP pass only
+// handles images — so it gets its own, larger ceiling and is stored as sent.
+const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
 
 const EMPTY_DOC: CaseDocument = {
   version: 1,
@@ -946,10 +949,17 @@ export class OsceService {
     if (!found) throw new NotFoundException('Case not found');
     if (!/^[A-Za-z0-9:_-]{1,120}$/.test(slotKey)) throw new BadRequestException('Invalid slot key');
     if (!file?.buffer?.length) throw new BadRequestException('No file received');
-    if (file.buffer.length > MAX_IMAGE_BYTES) throw new BadRequestException('Image is too large (max 6 MB)');
 
     const ext = this.extForMime(file.mimetype);
-    if (!ext) throw new BadRequestException('Unsupported image type');
+    if (!ext) throw new BadRequestException('Unsupported file type — images or MP4/WebM video');
+
+    const isVideo = OsceService.isVideoMime(file.mimetype);
+    const ceiling = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (file.buffer.length > ceiling) {
+      throw new BadRequestException(
+        isVideo ? 'Video is too large (max 60 MB)' : 'Image is too large (max 6 MB)'
+      );
+    }
 
     const dir = join(MEDIA_ROOT(), found.slug);
     await mkdir(dir, { recursive: true });
@@ -1128,11 +1138,22 @@ export class OsceService {
     await rename(join(INBOX_DIR(), fileName), join(doneDir, fileName)).catch(() => undefined);
   }
 
+  /**
+   * A slot holds a picture OR a short clip — same slot, same place in the case.
+   * Some findings only read as movement (a JVP pulsation, a gait, a tremor) and
+   * a still cannot show them.
+   */
   private extForMime(mime: string) {
     const map: Record<string, string> = {
       'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
+      'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'video/ogg': 'ogv',
     };
     return map[String(mime).toLowerCase()] || null;
+  }
+
+  /** Whether a stored slot is a clip rather than a still. */
+  static isVideoMime(mime?: string | null) {
+    return String(mime || '').toLowerCase().startsWith('video/');
   }
 
   /* ──────────────────────── publish ────────────────────────── */
@@ -1241,10 +1262,15 @@ export class OsceService {
       const hit = bySlot.get(slot);
       if (!hit) return null;
       const stamp = hit.updatedAt ? new Date(hit.updatedAt as any).getTime() : 0;
+      const video = OsceService.isVideoMime(hit.mime);
       return {
         full: `${root}/api/osce/media/${hit.storageKey}?v=${stamp}`,
+        // A clip has no still to show in a list, so the thumb falls back to the
+        // clip itself and the client decides what to do with it.
         thumb: hit.thumbKey ? `${root}/api/osce/media/${hit.thumbKey}?v=${stamp}` : null,
         width: hit.width, height: hit.height,
+        kind: video ? 'video' : 'image',
+        mime: hit.mime || null,
       };
     };
 

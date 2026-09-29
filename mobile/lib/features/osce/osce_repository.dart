@@ -116,16 +116,33 @@ class OsceCaseSummary {
   }
 }
 
+/// A slot's media — a still or a short clip. Some findings only read as
+/// movement (a JVP pulsation, a gait, a tremor), so a slot can hold either.
 class OsceImage {
   final String full;
   final String thumb;
-  OsceImage({required this.full, required this.thumb});
+  final String kind; // 'image' | 'video'
+  OsceImage({required this.full, required this.thumb, this.kind = 'image'});
+
+  bool get isVideo => kind == 'video';
+
   static OsceImage? fromJson(dynamic raw) {
     if (raw == null) return null;
     final m = _m(raw);
     final full = _s(m['full']);
     if (full.isEmpty) return null;
-    return OsceImage(full: full, thumb: _s(m['thumb']).isEmpty ? full : _s(m['thumb']));
+    // Fall back to the file extension for records saved before `kind` existed.
+    final declared = _s(m['kind']);
+    final kind = declared.isNotEmpty
+        ? declared
+        : (RegExp(r'\.(mp4|webm|mov|ogv)(\?|$)', caseSensitive: false).hasMatch(full)
+            ? 'video'
+            : 'image');
+    return OsceImage(
+      full: full,
+      thumb: _s(m['thumb']).isEmpty ? full : _s(m['thumb']),
+      kind: kind,
+    );
   }
 }
 
