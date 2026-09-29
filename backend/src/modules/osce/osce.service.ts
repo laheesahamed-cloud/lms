@@ -1429,10 +1429,12 @@ export class OsceService {
 
   private async auscultationAudio(cardId: number, root: string) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      'SELECT id, title FROM auscultation_cards WHERE id = ? AND is_active = 1 LIMIT 1',
+      'SELECT id, title, UNIX_TIMESTAMP(updated_at) AS stamp '
+      + 'FROM auscultation_cards WHERE id = ? AND is_active = 1 LIMIT 1',
       [cardId]
     );
     if (!rows.length) return null;
+    const stamp = Number(rows[0].stamp || 0);
     return {
       title: String(rows[0].title),
       // Our own public route, NOT the Auscultation library's student-only one.
@@ -1440,7 +1442,13 @@ export class OsceService {
       // player — it sends no Authorization header, so a route behind
       // requireStudent answers 401 and the student sees "cannot play audio".
       // Same reasoning as the ECG image route above.
-      url: `${root}/api/osce/sound/${cardId}/audio`,
+      //
+      // ?v= is the card's updated_at, matching how case media is versioned. It
+      // busts a stale copy when the clip is replaced, and it kept the CDN in
+      // front of production from serving a cached range-less 200 in place of
+      // the 206 the player needs — a plain URL there was answered from cache
+      // with the pre-fix response long after the origin was updated.
+      url: `${root}/api/osce/sound/${cardId}/audio?v=${stamp}`,
     };
   }
 

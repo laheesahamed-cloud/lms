@@ -986,12 +986,14 @@ let OsceService = OsceService_1 = class OsceService {
         };
     }
     async auscultationAudio(cardId, root) {
-        const [rows] = await this.db.execute('SELECT id, title FROM auscultation_cards WHERE id = ? AND is_active = 1 LIMIT 1', [cardId]);
+        const [rows] = await this.db.execute('SELECT id, title, UNIX_TIMESTAMP(updated_at) AS stamp '
+            + 'FROM auscultation_cards WHERE id = ? AND is_active = 1 LIMIT 1', [cardId]);
         if (!rows.length)
             return null;
+        const stamp = Number(rows[0].stamp || 0);
         return {
             title: String(rows[0].title),
-            url: `${root}/api/osce/sound/${cardId}/audio`,
+            url: `${root}/api/osce/sound/${cardId}/audio?v=${stamp}`,
         };
     }
     async auscultationAudioBytes(cardId) {
