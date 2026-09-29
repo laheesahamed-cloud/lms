@@ -13,12 +13,10 @@ import '../osce_repository.dart';
 class OsceMediaView extends StatelessWidget {
   final OsceImage media;
   final BoxFit fit;
-  final String? caption;
   const OsceMediaView({
     super.key,
     required this.media,
     this.fit = BoxFit.cover,
-    this.caption,
   });
 
   @override
@@ -26,7 +24,7 @@ class OsceMediaView extends StatelessWidget {
     // Both branches live in OsceCachedImage now, which every OSCE screen uses —
     // this just adds the caption where there's room for one.
     if (media.isVideo) {
-      return OsceVideoTile(url: media.full, label: caption);
+      return OsceVideoTile(url: media.full);
     }
     return OsceCachedImage(url: media.full, fit: fit);
   }

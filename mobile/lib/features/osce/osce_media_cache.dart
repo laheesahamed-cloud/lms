@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../lessons/watch_video_modal.dart';
+import 'widgets/osce_inline_video.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -302,69 +303,64 @@ class _OsceCachedImageState extends ConsumerState<OsceCachedImage> {
   }
 }
 
-/// A clip, shown as a tappable panel that opens the app's video player.
+/// A clip in a slot.
 ///
-/// Scales to whatever box it's given: a 54px sign thumbnail gets the play
-/// badge alone, a full-width panel gets the label too. Kept here rather than
-/// in a separate widget so [OsceCachedImage] — which every OSCE screen already
-/// uses — can fall back to it without each caller knowing about clips.
+/// Given room, it plays inline — a finding is read in place, so a full-screen
+/// popup breaks that. In a thumbnail-sized box it falls back to a play badge
+/// that opens the full player. Lives here so [OsceCachedImage], which every
+/// OSCE screen already uses, can fall back to it without each caller needing
+/// to know a slot might hold a clip.
 class OsceVideoTile extends StatelessWidget {
   final String url;
   final double? width;
   final double? height;
-  final String? label;
   const OsceVideoTile({
     super.key,
     required this.url,
     this.width,
     this.height,
-    this.label,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Big enough to actually watch → play right here. A finding is read
+          // in place, so throwing it into a full-screen popup breaks the flow.
+          // A 54px list thumbnail is too small for a player (and a WebView per
+          // row is wasteful), so that keeps a badge that opens the full player.
+          final tight = box.maxWidth < 120 || box.maxHeight < 90;
+          if (!tight) return OsceInlineVideo(url: url);
+
+          return _badge(context, c);
+        },
+      ),
+    );
+  }
+
+  /// Too small for a player — a 54px list thumbnail, where a WebView per row
+  /// would also be wasteful. Tapping opens the full player instead.
+  Widget _badge(BuildContext context, AppColors c) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
         WatchVideoModal.show(context, url);
       },
       child: Container(
-        width: width,
-        height: height,
         color: c.surface2,
         alignment: Alignment.center,
-        child: LayoutBuilder(
-          builder: (context, box) {
-            // Below roughly a thumbnail's width there's no room for a caption,
-            // so the badge has to carry the meaning on its own.
-            final tight = box.maxWidth < 90 || box.maxHeight < 90;
-            final badge = tight ? 26.0 : 52.0;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: badge,
-                  height: badge,
-                  decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.16),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.play_arrow_rounded,
-                      size: tight ? 16 : 30, color: c.primary),
-                ),
-                if (!tight) ...[
-                  const SizedBox(height: 8),
-                  Text(label?.isNotEmpty == true ? label! : 'Play clip',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: c.inkMedium)),
-                ],
-              ],
-            );
-          },
+        child: Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: c.primary.withValues(alpha: 0.16),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.play_arrow_rounded, size: 16, color: c.primary),
         ),
       ),
     );

@@ -237,7 +237,6 @@ class _Body extends StatelessWidget {
               child: OsceMediaView(
                 media: image,
                 fit: BoxFit.cover,
-                caption: 'Play ${sign.name}',
               ),
             ),
           ),

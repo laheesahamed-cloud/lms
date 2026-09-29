@@ -986,8 +986,7 @@ class _ChainStop extends StatelessWidget {
                           aspectRatio: 1,
                           child: OsceMediaView(
                               media: kase.chain[i].image!,
-                              fit: BoxFit.cover,
-                              caption: 'Play step ${kase.chain[i].step}'),
+                              fit: BoxFit.cover),
                         ),
                       ),
                     ],
