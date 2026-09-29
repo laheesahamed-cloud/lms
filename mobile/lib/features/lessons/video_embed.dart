@@ -1,6 +1,8 @@
 // Dart port of frontend/src/shared/utils/videoEmbed.js
 // Handles YouTube, Vimeo, Google Drive, and direct MP4/WebM/OGG/MOV URLs.
 
+import '../../config/app_config.dart';
+
 enum VideoEmbedType { iframe, video, blocked, none }
 
 class VideoEmbed {
@@ -21,6 +23,16 @@ class VideoEmbed {
 String _normalizeUrl(String raw) {
   final s = raw.trim();
   if (s.isEmpty) return '';
+  // A video uploaded through the panel is stored server-relative
+  // (`/uploads/video/lesson-3-….mp4`). The web app resolves that against its
+  // own origin for free; a native device has no origin, so it arrives here
+  // without a scheme, fails the http/https check below, and classifies as
+  // "no video" — the button looks live and opening it shows nothing.
+  // Same resolution ContentImage already does for pictures.
+  if (s.startsWith('/')) {
+    final origin = AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    return '$origin$s';
+  }
   // Raw 11-char YouTube ID
   if (RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(s)) return 'https://youtu.be/$s';
   // Protocol-relative
