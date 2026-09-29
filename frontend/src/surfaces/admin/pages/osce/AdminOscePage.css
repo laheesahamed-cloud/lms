@@ -971,3 +971,7 @@ textarea.osce-input { resize: vertical; line-height: 1.5; }
 }
 .osce-casegroup-head b { font-size: 13.5px; color: var(--ink-strong); }
 .osce-caserow { align-items: center; }
+.osce-caserow-pos {
+  flex: 0 0 auto; width: 20px; text-align: center;
+  font-size: 12px; font-weight: 800; color: var(--ink-muted);
+}

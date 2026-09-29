@@ -954,6 +954,19 @@ export class OsceService {
     if (!ext) throw new BadRequestException('Unsupported file type — images or MP4/WebM video');
 
     const isVideo = OsceService.isVideoMime(file.mimetype);
+
+    // A scene is the zoom chain, and its hotspots are coordinates on a fixed
+    // frame — there's nowhere to put them on a moving picture. Refusing here
+    // is kinder than accepting the upload and having the station quietly lose
+    // its hotspots, which is only discovered by opening it in the app.
+    if (isVideo && slotKey.startsWith('scene')) {
+      throw new BadRequestException(
+        'A scene holds the still that hotspots are placed on, so it can\'t be a '
+        + 'clip. Put the clip on the finding itself — that\'s where movement '
+        + 'belongs (a JVP pulsation, a gait).'
+      );
+    }
+
     const ceiling = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
     if (file.buffer.length > ceiling) {
       throw new BadRequestException(

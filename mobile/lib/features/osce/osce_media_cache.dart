@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../lessons/watch_video_modal.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -183,6 +185,15 @@ class OsceMediaCache {
   }
 }
 
+/// Whether a media URL points at a clip rather than a still.
+///
+/// Checked on the URL rather than a passed-in flag so EVERY call site gets it
+/// right — a slot can hold a clip, and there are half a dozen places that draw
+/// slot media. Wiring the flag through each of them by hand is how two of them
+/// ended up trying to decode an MP4 as a picture.
+bool isOsceVideoUrl(String url) =>
+    RegExp(r'\.(mp4|webm|mov|ogv|ogg)(\?|#|$)', caseSensitive: false).hasMatch(url);
+
 final osceMediaCacheProvider = Provider<OsceMediaCache>(
   (ref) => OsceMediaCache(ref.read(apiClientProvider).dio),
 );
@@ -232,6 +243,9 @@ class _OsceCachedImageState extends ConsumerState<OsceCachedImage> {
   }
 
   Future<void> _load() async {
+    // Clips are streamed by the player, not pulled into the image cache — a
+    // 60 MB file would blow the cache budget for no benefit.
+    if (isOsceVideoUrl(widget.url)) return;
     final found = await ref.read(osceMediaCacheProvider).file(widget.url);
     if (!mounted) return;
     setState(() {
@@ -242,6 +256,17 @@ class _OsceCachedImageState extends ConsumerState<OsceCachedImage> {
 
   @override
   Widget build(BuildContext context) {
+    // A clip can't be decoded as a picture. Rather than fall through to the
+    // "missing image" placeholder, offer to play it — the app already has a
+    // player for direct video files.
+    if (isOsceVideoUrl(widget.url)) {
+      return OsceVideoTile(
+        url: widget.url,
+        width: widget.width,
+        height: widget.height,
+      );
+    }
+
     final file = _file;
     if (file != null) {
       return Image.file(
@@ -273,6 +298,75 @@ class _OsceCachedImageState extends ConsumerState<OsceCachedImage> {
               child: CircularProgressIndicator(strokeWidth: 2, color: c.inkMuted),
             )
           : Icon(Icons.image_not_supported_outlined, size: 20, color: c.inkMuted),
+    );
+  }
+}
+
+/// A clip, shown as a tappable panel that opens the app's video player.
+///
+/// Scales to whatever box it's given: a 54px sign thumbnail gets the play
+/// badge alone, a full-width panel gets the label too. Kept here rather than
+/// in a separate widget so [OsceCachedImage] — which every OSCE screen already
+/// uses — can fall back to it without each caller knowing about clips.
+class OsceVideoTile extends StatelessWidget {
+  final String url;
+  final double? width;
+  final double? height;
+  final String? label;
+  const OsceVideoTile({
+    super.key,
+    required this.url,
+    this.width,
+    this.height,
+    this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        WatchVideoModal.show(context, url);
+      },
+      child: Container(
+        width: width,
+        height: height,
+        color: c.surface2,
+        alignment: Alignment.center,
+        child: LayoutBuilder(
+          builder: (context, box) {
+            // Below roughly a thumbnail's width there's no room for a caption,
+            // so the badge has to carry the meaning on its own.
+            final tight = box.maxWidth < 90 || box.maxHeight < 90;
+            final badge = tight ? 26.0 : 52.0;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: badge,
+                  height: badge,
+                  decoration: BoxDecoration(
+                    color: c.primary.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.play_arrow_rounded,
+                      size: tight ? 16 : 30, color: c.primary),
+                ),
+                if (!tight) ...[
+                  const SizedBox(height: 8),
+                  Text(label?.isNotEmpty == true ? label! : 'Play clip',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: c.inkMedium)),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

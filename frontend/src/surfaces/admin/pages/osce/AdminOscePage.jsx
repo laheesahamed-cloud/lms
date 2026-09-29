@@ -744,18 +744,30 @@ export function AdminOscePage() {
             <b>{group.label}</b>
             <span className="osce-hint">
               {group.items.length} station{group.items.length === 1 ? '' : 's'}
-              {group.items.length > 1 ? ' · drag order with the arrows' : ''}
+              {group.items.length > 1
+                ? ' · use the arrows to set the order students see'
+                : ' · add another to be able to order them'}
             </span>
           </div>
           <div className="osce-caselist">
             {group.items.map((c, i) => (
               <div key={c.id} className="osce-caserow">
-                <div className="osce-catrow-move">
-                  <button type="button" disabled={i === 0 || ordering}
-                          title="Move up" onClick={() => moveCase(group, i, -1)}>↑</button>
-                  <button type="button" disabled={i === group.items.length - 1 || ordering}
-                          title="Move down" onClick={() => moveCase(group, i, 1)}>↓</button>
-                </div>
+                {/* With one station both arrows would be disabled, which reads
+                    as "no ordering here" rather than "nothing to reorder" — so
+                    show the position instead and drop the controls. */}
+                {group.items.length > 1 ? (
+                  <div className="osce-catrow-move">
+                    <button type="button" disabled={i === 0 || ordering}
+                            title="Move up" onClick={() => moveCase(group, i, -1)}>↑</button>
+                    <button type="button" disabled={i === group.items.length - 1 || ordering}
+                            title="Move down" onClick={() => moveCase(group, i, 1)}>↓</button>
+                  </div>
+                ) : (
+                  <span className="osce-caserow-pos">1</span>
+                )}
+                {group.items.length > 1
+                  ? <span className="osce-caserow-pos">{i + 1}</span>
+                  : null}
                 <button type="button" className="osce-caserow-main" onClick={() => setOpenId(c.id)}>
                   <b>{c.title}</b>
                   <span>{[c.courseTitle, c.systemName].filter(Boolean).join(' · ')} · {c.summary || 'No summary yet'}</span>

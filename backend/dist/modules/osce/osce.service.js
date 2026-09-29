@@ -656,6 +656,11 @@ let OsceService = OsceService_1 = class OsceService {
         if (!ext)
             throw new common_1.BadRequestException('Unsupported file type — images or MP4/WebM video');
         const isVideo = OsceService_1.isVideoMime(file.mimetype);
+        if (isVideo && slotKey.startsWith('scene')) {
+            throw new common_1.BadRequestException('A scene holds the still that hotspots are placed on, so it can\'t be a '
+                + 'clip. Put the clip on the finding itself — that\'s where movement '
+                + 'belongs (a JVP pulsation, a gait).');
+        }
         const ceiling = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
         if (file.buffer.length > ceiling) {
             throw new common_1.BadRequestException(isVideo ? 'Video is too large (max 60 MB)' : 'Image is too large (max 6 MB)');

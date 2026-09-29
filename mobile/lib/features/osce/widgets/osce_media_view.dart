@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../../../theme/tokens.dart';
-import '../../lessons/watch_video_modal.dart';
 import '../osce_media_cache.dart';
 import '../osce_repository.dart';
 
@@ -26,40 +23,11 @@ class OsceMediaView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!media.isVideo) {
-      return OsceCachedImage(url: media.full, fit: fit);
+    // Both branches live in OsceCachedImage now, which every OSCE screen uses —
+    // this just adds the caption where there's room for one.
+    if (media.isVideo) {
+      return OsceVideoTile(url: media.full, label: caption);
     }
-
-    final c = context.c;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        WatchVideoModal.show(context, media.full);
-      },
-      child: Container(
-        color: c.surface2,
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: c.primary.withValues(alpha: 0.16),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.play_arrow_rounded, size: 30, color: c.primary),
-            ),
-            const SizedBox(height: 8),
-            Text(caption?.isNotEmpty == true ? caption! : 'Play clip',
-                style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: c.inkMedium)),
-          ],
-        ),
-      ),
-    );
+    return OsceCachedImage(url: media.full, fit: fit);
   }
 }
