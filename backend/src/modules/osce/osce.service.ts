@@ -217,13 +217,13 @@ export class OsceService {
         ORDER BY co.id, t.sort_order, t.topic_name`
     );
 
+    // Out-of-scope content is shown LOCKED, not hidden. Filtering it out here
+    // made the `locked` flag below unreachable — the only rows that could have
+    // been locked were exactly the rows being dropped — so a paid station
+    // silently vanished instead of showing a padlock, and toggling free or a
+    // subscription made rows appear and disappear. Access is still enforced
+    // server-side in hydrateCase, which refuses a case the student can't open.
     return rows
-      .filter((r) => {
-        if (!profile) return true;
-        // A subject shows when the course is in scope, or it has free stations.
-        if (Number(r.free_count || 0) > 0) return true;
-        return this.courseInScope(Number(r.course_id), profile);
-      })
       .map((r) => ({
         id: Number(r.topic_id),
         key: String(r.topic_id),
@@ -434,10 +434,13 @@ export class OsceService {
       opts.courseId ? [opts.courseId] : []
     );
 
+    // Out-of-scope content is shown LOCKED, not hidden. Filtering it out here
+    // made the `locked` flag below unreachable — the only rows that could have
+    // been locked were exactly the rows being dropped — so a paid station
+    // silently vanished instead of showing a padlock, and toggling free or a
+    // subscription made rows appear and disappear. Access is still enforced
+    // server-side in hydrateCase, which refuses a case the student can't open.
     return rows
-      .filter((r) => !profile
-        || Number(r.free_count || 0) > 0
-        || this.courseInScope(Number(r.course_id), profile))
       .map((r) => ({
         id: Number(r.id),
         key: String(r.id),
@@ -583,8 +586,13 @@ export class OsceService {
         GROUP BY co.id, co.course_title
         ORDER BY co.id`
     );
+    // Out-of-scope content is shown LOCKED, not hidden. Filtering it out here
+    // made the `locked` flag below unreachable — the only rows that could have
+    // been locked were exactly the rows being dropped — so a paid station
+    // silently vanished instead of showing a padlock, and toggling free or a
+    // subscription made rows appear and disappear. Access is still enforced
+    // server-side in hydrateCase, which refuses a case the student can't open.
     return rows
-      .filter((r) => Number(r.free_count || 0) > 0 || this.courseInScope(Number(r.id), profile))
       .map((r) => ({
         id: Number(r.id),
         title: String(r.course_title),

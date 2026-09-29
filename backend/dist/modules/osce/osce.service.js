@@ -108,13 +108,6 @@ let OsceService = class OsceService {
         ${publishedOnly ? 'HAVING case_count > 0' : ''}
         ORDER BY co.id, t.sort_order, t.topic_name`);
         return rows
-            .filter((r) => {
-            if (!profile)
-                return true;
-            if (Number(r.free_count || 0) > 0)
-                return true;
-            return this.courseInScope(Number(r.course_id), profile);
-        })
             .map((r) => ({
             id: Number(r.topic_id),
             key: String(r.topic_id),
@@ -260,9 +253,6 @@ let OsceService = class OsceService {
         ${opts.publishedOnly ? 'HAVING case_count > 0' : ''}
         ORDER BY cat.sort_order, cat.name`, opts.courseId ? [opts.courseId] : []);
         return rows
-            .filter((r) => !profile
-            || Number(r.free_count || 0) > 0
-            || this.courseInScope(Number(r.course_id), profile))
             .map((r) => ({
             id: Number(r.id),
             key: String(r.id),
@@ -360,7 +350,6 @@ let OsceService = class OsceService {
         GROUP BY co.id, co.course_title
         ORDER BY co.id`);
         return rows
-            .filter((r) => Number(r.free_count || 0) > 0 || this.courseInScope(Number(r.id), profile))
             .map((r) => ({
             id: Number(r.id),
             title: String(r.course_title),
