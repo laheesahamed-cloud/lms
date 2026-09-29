@@ -236,11 +236,63 @@ class _SpeakerButton extends StatefulWidget {
 
 class _SpeakerButtonState extends State<_SpeakerButton> {
   bool _speaking = false;
+  String _quality = 'none';
+
+  @override
+  void initState() {
+    super.initState();
+    TtsService.voiceQuality().then((q) {
+      if (mounted) setState(() => _quality = q);
+    });
+  }
 
   @override
   void dispose() {
     if (_speaking) TtsService.stop();
     super.dispose();
+  }
+
+  /// Only the basic voice is installed, so the reading will sound flat however
+  /// it's tuned — the natural voices are a free download the student has to
+  /// make. Said once on a long-press rather than nagged about.
+  void _explainVoice() {
+    final c = context.c;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: c.surface1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Make the reading sound natural',
+                style: TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
+            const SizedBox(height: 10),
+            Text(
+              'Your phone is using its basic built-in voice, which sounds flat. '
+              'iOS offers far more natural ones as a free download:\n\n'
+              'Settings \u2192 Accessibility \u2192 Spoken Content \u2192 Voices '
+              '\u2192 English, then pick one marked Premium or Enhanced.\n\n'
+              'Once it downloads, read-aloud here uses it automatically.',
+              style: TextStyle(fontSize: 14, height: 1.55, color: c.inkMedium),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Got it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _toggle() async {
@@ -258,17 +310,23 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
   Widget build(BuildContext context) {
     if (!TtsService.supported) return const SizedBox.shrink();
     final c = context.c;
-    return IconButton(
-      onPressed: _toggle,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      padding: EdgeInsets.zero,
-      icon: Icon(
-        _speaking ? Icons.stop_circle_rounded : Icons.volume_up_rounded,
-        size: 20,
-        color: c.primary,
+    final basic = _quality == 'compact';
+    return GestureDetector(
+      onLongPress: basic ? _explainVoice : null,
+      child: IconButton(
+        onPressed: _toggle,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        padding: EdgeInsets.zero,
+        icon: Icon(
+          _speaking ? Icons.stop_circle_rounded : Icons.volume_up_rounded,
+          size: 20,
+          color: c.primary,
+        ),
+        tooltip: _speaking
+            ? 'Stop reading'
+            : (basic ? 'Read aloud \u2014 hold for a better voice' : 'Read aloud'),
       ),
-      tooltip: _speaking ? 'Stop reading' : 'Read aloud',
     );
   }
 }

@@ -23,6 +23,26 @@ class TtsService {
     }
   }
 
+  /// Which voice the student will actually hear: `premium`, `enhanced`,
+  /// `compact` or `none`.
+  ///
+  /// Worth surfacing because iOS ships only the compact voice — the flat,
+  /// obviously-synthetic one — and the good voices are a free per-device
+  /// download the student has to make themselves. Without telling them,
+  /// picking the best installed voice changes nothing on most phones.
+  static Future<String> voiceQuality() async {
+    if (!supported) return 'none';
+    try {
+      final q = await _channel.invokeMethod<String>('voiceQuality');
+      return q ?? 'none';
+    } on PlatformException {
+      return 'none';
+    } on MissingPluginException {
+      // An older build of the native side without this method.
+      return 'none';
+    }
+  }
+
   static Future<void> stop() async {
     if (!supported) return;
     try {
