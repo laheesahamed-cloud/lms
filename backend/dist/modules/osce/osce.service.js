@@ -974,7 +974,7 @@ let OsceService = class OsceService {
             return null;
         return {
             title: String(rows[0].title),
-            url: `${root}/api/auscultation/cards/${cardId}/audio`,
+            url: `${root}/api/osce/sound/${cardId}/audio`,
         };
     }
     async auscultationAudioBytes(cardId) {

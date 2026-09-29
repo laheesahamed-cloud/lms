@@ -38,10 +38,9 @@ __decorate([
 ], CreateLessonDto.prototype, "lessonContent", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsUrl)({
-        require_protocol: true,
-        protocols: ['http', 'https'],
-    }, { message: 'Video URL must be a valid URL with http:// or https://' }),
+    (0, class_validator_1.Matches)(/^(?:https?:\/\/\S+|\/uploads\/video\/[A-Za-z0-9._-]+)$/, {
+        message: 'Video must be an http:// or https:// link, or a video uploaded here',
+    }),
     __metadata("design:type", String)
 ], CreateLessonDto.prototype, "videoUrl", void 0);
 __decorate([

@@ -1396,7 +1396,12 @@ export class OsceService {
     if (!rows.length) return null;
     return {
       title: String(rows[0].title),
-      url: `${root}/api/auscultation/cards/${cardId}/audio`,
+      // Our own public route, NOT the Auscultation library's student-only one.
+      // The app plays this with UrlSource, which hands the URL to the OS media
+      // player — it sends no Authorization header, so a route behind
+      // requireStudent answers 401 and the student sees "cannot play audio".
+      // Same reasoning as the ECG image route above.
+      url: `${root}/api/osce/sound/${cardId}/audio`,
     };
   }
 

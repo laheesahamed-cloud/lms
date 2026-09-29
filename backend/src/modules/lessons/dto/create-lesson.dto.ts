@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUrl, Matches } from 'class-validator';
 
 export class CreateLessonDto {
   @IsInt()
@@ -19,14 +19,17 @@ export class CreateLessonDto {
   @IsString()
   lessonContent?: string;
 
+  /**
+   * Either an external link (YouTube, Vimeo) or a video uploaded here.
+   *
+   * An upload returns an app-relative path — `/uploads/video/lesson-3-…mp4` —
+   * which has no protocol, so requiring http(s) rejected the app's own uploads
+   * and every save straight after one failed with "must be a valid URL".
+   */
   @IsOptional()
-  @IsUrl(
-    {
-      require_protocol: true,
-      protocols: ['http', 'https'],
-    },
-    { message: 'Video URL must be a valid URL with http:// or https://' }
-  )
+  @Matches(/^(?:https?:\/\/\S+|\/uploads\/video\/[A-Za-z0-9._-]+)$/, {
+    message: 'Video must be an http:// or https:// link, or a video uploaded here',
+  })
   videoUrl?: string;
 
   @IsOptional()

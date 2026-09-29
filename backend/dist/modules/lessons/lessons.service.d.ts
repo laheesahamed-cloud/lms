@@ -111,7 +111,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -132,7 +132,7 @@ export declare class LessonsService {
         lessonTitle: string;
         pdfUrl: string;
         isFree: number;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -150,7 +150,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -161,7 +161,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -174,7 +174,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -187,7 +187,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -222,26 +222,26 @@ export declare class LessonsService {
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         workflowState: ContentWorkflowState;
     }>;
     submitForReview(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         workflowState: ContentWorkflowState;
     }>;
     publish(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         workflowState: ContentWorkflowState;
     }>;
     rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         workflowState: "draft" | "published";
     }>;
     uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
@@ -317,7 +317,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -350,7 +350,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -390,7 +390,7 @@ export declare class LessonsService {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "contain" | "cover";
+        imageFit: "cover" | "contain";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -415,7 +415,7 @@ export declare class LessonsService {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "contain" | "cover";
+        imageFit: "cover" | "contain";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -441,7 +441,7 @@ export declare class LessonsService {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "contain" | "cover";
+        imageFit: "cover" | "contain";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -472,7 +472,7 @@ export declare class LessonsService {
             sourceHint: string;
             imageUrl: string;
             imageUrls: string[];
-            imageFit: "contain" | "cover";
+            imageFit: "cover" | "contain";
             status: LessonFlashcardStatus;
             sortOrder: number;
             generatedBy: LessonFlashcardGeneratedBy;
@@ -525,7 +525,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -561,7 +561,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -594,7 +594,7 @@ export declare class LessonsService {
             sourceHint: string;
             imageUrl: string;
             imageUrls: string[];
-            imageFit: "contain" | "cover";
+            imageFit: "cover" | "contain";
             status: LessonFlashcardStatus;
             sortOrder: number;
             generatedBy: LessonFlashcardGeneratedBy;
