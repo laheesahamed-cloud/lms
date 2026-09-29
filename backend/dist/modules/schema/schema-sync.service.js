@@ -693,35 +693,49 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         let connection = null;
         try {
             connection = await this.db.getConnection();
-            await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
-            await this.ensureContentGovernanceTables(connection);
-            await this.ensureAdminAuditEventsTable(connection);
-            await this.ensureAiProviderConfigsTable(connection);
-            await this.ensureLessonGenerationJobsTable(connection);
-            await this.ensureIapTables(connection);
-            const addedLessonSortOrder = await this.ensureColumn(connection, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
-            await this.ensureIndex(connection, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
-            if (addedLessonSortOrder) {
-                await this.backfillLessonSortOrder(connection);
-            }
-            const addedTopicSortOrder = await this.ensureColumn(connection, 'topics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER course_id');
-            await this.ensureIndex(connection, 'topics', 'idx_topics_sort', 'course_id, sort_order');
-            if (addedTopicSortOrder) {
-                await this.backfillSortOrder(connection, 'topics', 'topic_name', 'course_id');
-            }
-            const addedSubtopicSortOrder = await this.ensureColumn(connection, 'subtopics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER topic_id');
-            await this.ensureIndex(connection, 'subtopics', 'idx_subtopics_sort', 'topic_id, sort_order');
-            if (addedSubtopicSortOrder) {
-                await this.backfillSortOrder(connection, 'subtopics', 'subtopic_name', 'topic_id');
-            }
-            await this.ensureOsceTables(connection);
         }
         catch (error) {
-            this.logger.error('Failed to ensure critical governance tables on boot', error);
+            this.logger.error('Could not get a connection to ensure critical tables', error);
+            return;
+        }
+        const conn = connection;
+        const step = async (name, run) => {
+            try {
+                await run();
+            }
+            catch (error) {
+                this.logger.error(`Critical schema step failed: ${name}`, error);
+            }
+        };
+        try {
+            await step('users.permissions', () => this.ensureColumn(conn, 'users', 'permissions', 'TEXT NULL AFTER role'));
+            await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
+            await step('admin audit events', () => this.ensureAdminAuditEventsTable(conn));
+            await step('ai provider configs', () => this.ensureAiProviderConfigsTable(conn));
+            await step('lesson generation jobs', () => this.ensureLessonGenerationJobsTable(conn));
+            await step('iap tables', () => this.ensureIapTables(conn));
+            await step('lessons.sort_order', async () => {
+                const added = await this.ensureColumn(conn, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
+                await this.ensureIndex(conn, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
+                if (added)
+                    await this.backfillLessonSortOrder(conn);
+            });
+            await step('topics.sort_order', async () => {
+                const added = await this.ensureColumn(conn, 'topics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER course_id');
+                await this.ensureIndex(conn, 'topics', 'idx_topics_sort', 'course_id, sort_order');
+                if (added)
+                    await this.backfillSortOrder(conn, 'topics', 'topic_name', 'course_id');
+            });
+            await step('subtopics.sort_order', async () => {
+                const added = await this.ensureColumn(conn, 'subtopics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER topic_id');
+                await this.ensureIndex(conn, 'subtopics', 'idx_subtopics_sort', 'topic_id, sort_order');
+                if (added)
+                    await this.backfillSortOrder(conn, 'subtopics', 'subtopic_name', 'topic_id');
+            });
+            await step('osce tables', () => this.ensureOsceTables(conn));
         }
         finally {
-            if (connection)
-                connection.release();
+            connection.release();
         }
     }
     async ensureOsceTables(connection) {
@@ -803,12 +817,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_osce_progress_user (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
-        const [favCol] = await connection.execute(`SELECT COLUMN_NAME FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'osce_progress'
-          AND COLUMN_NAME = 'is_favourite'`);
-        if (!favCol.length) {
-            await connection.execute('ALTER TABLE osce_progress ADD COLUMN is_favourite TINYINT(1) NOT NULL DEFAULT 0 AFTER seen_json').catch(() => undefined);
-        }
+        await this.ensureColumn(connection, 'osce_progress', 'is_favourite', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER seen_json');
         await connection.execute('DROP TABLE IF EXISTS osce_systems').catch(() => undefined);
     }
     async ensureContentGovernanceTables(connection) {

@@ -759,53 +759,77 @@ export class SchemaSyncService implements OnModuleInit {
 
   // Runs on every boot regardless of the SCHEMA_SYNC flag. Keep this limited to
   // the few tables that core write paths depend on, so it stays cheap.
+  /**
+   * Tables and columns that core write paths depend on, ensured on every boot.
+   *
+   * Prod runs SCHEMA_SYNC=0, so the full sync is skipped and these would
+   * otherwise never be created. Each step is guarded on its own: they are
+   * unrelated migrations, and a single shared try meant one failure silently
+   * skipped everything after it — which is exactly how the OSCE tables (last in
+   * the list) ended up missing while the server booted looking healthy.
+   */
   private async ensureCriticalTables() {
     let connection: PoolConnection | null = null;
     try {
       connection = await this.db.getConnection();
+    } catch (error) {
+      this.logger.error('Could not get a connection to ensure critical tables', error as Error);
+      return;
+    }
+
+    const conn = connection;
+    const step = async (name: string, run: () => Promise<unknown>) => {
+      try {
+        await run();
+      } catch (error) {
+        // Named, so the log says which migration failed rather than just that
+        // "something" did.
+        this.logger.error(`Critical schema step failed: ${name}`, error as Error);
+      }
+    };
+
+    try {
       // Read on EVERY authenticated request (session serialization selects it), so a
       // missing column would break all auth — not just the Roles & Access feature.
-      await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
-      await this.ensureContentGovernanceTables(connection);
-      await this.ensureAdminAuditEventsTable(connection);
+      await step('users.permissions', () =>
+        this.ensureColumn(conn, 'users', 'permissions', 'TEXT NULL AFTER role'));
+      await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
+      await step('admin audit events', () => this.ensureAdminAuditEventsTable(conn));
       // Read directly (no try/catch) by resolveActiveCanvasProvider() on every
       // "Generate Lesson" call — missing on prod would throw a raw, unhandled 500.
-      await this.ensureAiProviderConfigsTable(connection);
+      await step('ai provider configs', () => this.ensureAiProviderConfigsTable(conn));
       // Generation-progress job tracking is a write path hit on every "Generate
       // Lesson" click — must not depend on the full sync being enabled either.
-      await this.ensureLessonGenerationJobsTable(connection);
+      await step('lesson generation jobs', () => this.ensureLessonGenerationJobsTable(conn));
       // IAP redemption is a write path that runs on prod, where the full sync is
       // skipped (SCHEMA_SYNC=0) — so these must not depend on it.
-      await this.ensureIapTables(connection);
-      // Every lesson list query (admin + student + course detail) now ORDER BYs
-      // this column — missing on prod (SCHEMA_SYNC=0) would 500 every one of them,
-      // not just the reorder feature, so it can't wait behind the full sync either.
-      const addedLessonSortOrder = await this.ensureColumn(connection, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
-      await this.ensureIndex(connection, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
-      if (addedLessonSortOrder) {
-        await this.backfillLessonSortOrder(connection);
-      }
+      await step('iap tables', () => this.ensureIapTables(conn));
+      // Every lesson list query (admin + student + course detail) ORDER BYs this
+      // column — missing on prod would 500 every one of them.
+      await step('lessons.sort_order', async () => {
+        const added = await this.ensureColumn(conn, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
+        await this.ensureIndex(conn, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
+        if (added) await this.backfillLessonSortOrder(conn);
+      });
       // Same as above, one level up the hierarchy — subjects (topics) within a
       // course, and topics (subtopics) within a subject, also need an
       // admin-editable order (e.g. "Introduction" pinned first).
-      const addedTopicSortOrder = await this.ensureColumn(connection, 'topics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER course_id');
-      await this.ensureIndex(connection, 'topics', 'idx_topics_sort', 'course_id, sort_order');
-      if (addedTopicSortOrder) {
-        await this.backfillSortOrder(connection, 'topics', 'topic_name', 'course_id');
-      }
-      const addedSubtopicSortOrder = await this.ensureColumn(connection, 'subtopics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER topic_id');
-      await this.ensureIndex(connection, 'subtopics', 'idx_subtopics_sort', 'topic_id, sort_order');
-      if (addedSubtopicSortOrder) {
-        await this.backfillSortOrder(connection, 'subtopics', 'subtopic_name', 'topic_id');
-      }
+      await step('topics.sort_order', async () => {
+        const added = await this.ensureColumn(conn, 'topics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER course_id');
+        await this.ensureIndex(conn, 'topics', 'idx_topics_sort', 'course_id, sort_order');
+        if (added) await this.backfillSortOrder(conn, 'topics', 'topic_name', 'course_id');
+      });
+      await step('subtopics.sort_order', async () => {
+        const added = await this.ensureColumn(conn, 'subtopics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER topic_id');
+        await this.ensureIndex(conn, 'subtopics', 'idx_subtopics_sort', 'topic_id, sort_order');
+        if (added) await this.backfillSortOrder(conn, 'subtopics', 'subtopic_name', 'topic_id');
+      });
       // OSCE Clinical is a write path from both sides — admins save case documents,
       // students write checklist progress — so it can't sit behind the full sync
       // either (prod runs SCHEMA_SYNC=0).
-      await this.ensureOsceTables(connection);
-    } catch (error) {
-      this.logger.error('Failed to ensure critical governance tables on boot', error as Error);
+      await step('osce tables', () => this.ensureOsceTables(conn));
     } finally {
-      if (connection) connection.release();
+      connection.release();
     }
   }
 
@@ -914,15 +938,11 @@ export class SchemaSyncService implements OnModuleInit {
 
     // CREATE TABLE IF NOT EXISTS won't add a column to a table that already
     // exists, so favourites need this for any install created before them.
-    const [favCol] = await connection.execute<any[]>(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'osce_progress'
-          AND COLUMN_NAME = 'is_favourite'`);
-    if (!favCol.length) {
-      await connection.execute(
-        'ALTER TABLE osce_progress ADD COLUMN is_favourite TINYINT(1) NOT NULL DEFAULT 0 AFTER seen_json'
-      ).catch(() => undefined);
-    }
+    // Every case-list query selects this column, so a failure here takes out
+    // the whole OSCE section rather than just favourites — it must be loud.
+    await this.ensureColumn(
+      connection, 'osce_progress', 'is_favourite',
+      'TINYINT(1) NOT NULL DEFAULT 0 AFTER seen_json');
 
     await connection.execute('DROP TABLE IF EXISTS osce_systems').catch(() => undefined);
   }
