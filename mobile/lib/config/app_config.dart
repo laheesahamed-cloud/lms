@@ -37,6 +37,30 @@ class AppConfig {
         '660151858831-1d6dphmbff8ia7s285o21g4e1mjjf4u5.apps.googleusercontent.com',
   );
 
+  /// Turn a server-relative upload path into one the device can fetch.
+  ///
+  /// Uploads are mounted twice on the server: at `/uploads` AND at
+  /// `/api/uploads`. In production only `/api` is proxied through to Node, so
+  /// a bare `/uploads/...` URL hits the static site and comes back as a 404
+  /// HTML page — which a <video> element reports as "not a playable video
+  /// file" and an <img> as a broken image. Both mounts answer locally, so this
+  /// only ever fails in production, which is exactly how it got shipped.
+  ///
+  /// Anything already absolute is left alone.
+  static String resolveUpload(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return '';
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    if (!v.startsWith('/')) return v;
+
+    final base = apiBaseUrl.replaceFirst(RegExp(r'/+$'), ''); // https://host/api
+    // An `/api/...` path is already rooted at the origin, not under the API.
+    if (v.startsWith('/api/')) {
+      return base.replaceFirst(RegExp(r'/api$'), '') + v;
+    }
+    return '$base$v';
+  }
+
   static const Duration apiTimeout = Duration(seconds: 10);
   static const int retryCount = 2;
   static const Duration retryDelay = Duration(milliseconds: 500);

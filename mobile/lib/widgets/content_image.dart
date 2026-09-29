@@ -59,9 +59,5 @@ class ContentImage extends StatelessWidget {
   /// A server-relative path (`/uploads/osce/...`) has no host on a native
   /// device, so resolve it against the API origin — minus the trailing `/api`,
   /// since these paths are absolute from the site root.
-  static String _absolute(String value) {
-    if (value.startsWith('http')) return value;
-    final origin = AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
-    return '$origin$value';
-  }
+  static String _absolute(String value) => AppConfig.resolveUpload(value);
 }

@@ -29,10 +29,7 @@ String _normalizeUrl(String raw) {
   // without a scheme, fails the http/https check below, and classifies as
   // "no video" — the button looks live and opening it shows nothing.
   // Same resolution ContentImage already does for pictures.
-  if (s.startsWith('/')) {
-    final origin = AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
-    return '$origin$s';
-  }
+  if (s.startsWith('/')) return AppConfig.resolveUpload(s);
   // Raw 11-char YouTube ID
   if (RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(s)) return 'https://youtu.be/$s';
   // Protocol-relative
