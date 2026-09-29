@@ -98,16 +98,41 @@ let OsceController = class OsceController {
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.end(found.buffer);
     }
-    async soundAudio(cardId, res) {
+    async soundAudio(cardId, req, res) {
         const found = await this.svc.auscultationAudioBytes(cardId);
         if (!found)
             throw new common_1.NotFoundException('Sound not found');
-        res.setHeader('Content-Type', found.mime);
-        res.setHeader('Content-Length', String(found.buffer.length));
-        res.setHeader('Accept-Ranges', 'none');
+        this.sendRangeable(req, res, found.buffer, found.mime);
+    }
+    sendRangeable(req, res, buffer, mime) {
+        res.setHeader('Content-Type', mime);
+        res.setHeader('Accept-Ranges', 'bytes');
         res.setHeader('Cache-Control', 'public, max-age=86400');
         res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.end(found.buffer);
+        const range = req.headers.range;
+        const total = buffer.length;
+        const match = typeof range === 'string' ? range.match(/^bytes=(\d*)-(\d*)$/) : null;
+        if (!match || (!match[1] && !match[2])) {
+            res.setHeader('Content-Length', String(total));
+            res.end(buffer);
+            return;
+        }
+        let start = match[1] ? parseInt(match[1], 10) : total - parseInt(match[2], 10);
+        let end = match[2] && match[1] ? parseInt(match[2], 10) : total - 1;
+        if (Number.isNaN(start) || start < 0)
+            start = 0;
+        if (Number.isNaN(end) || end >= total)
+            end = total - 1;
+        if (start > end || start >= total) {
+            res.status(416);
+            res.setHeader('Content-Range', `bytes */${total}`);
+            res.end();
+            return;
+        }
+        res.status(206);
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+        res.setHeader('Content-Length', String(end - start + 1));
+        res.end(buffer.subarray(start, end + 1));
     }
     async media(caseSlug, fileName, res) {
         if (!/^[A-Za-z0-9._-]{1,200}$/.test(caseSlug))
@@ -198,9 +223,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('sound/:cardId/audio'),
     __param(0, (0, common_1.Param)('cardId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Res)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], OsceController.prototype, "soundAudio", null);
 __decorate([

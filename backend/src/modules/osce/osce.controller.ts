@@ -149,15 +149,62 @@ export class OsceController {
    * is student-only, and an <audio> tag carries no bearer token.
    */
   @Get('sound/:cardId/audio')
-  async soundAudio(@Param('cardId', ParseIntPipe) cardId: number, @Res() res: Response) {
+  async soundAudio(
+    @Param('cardId', ParseIntPipe) cardId: number,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     const found = await this.svc.auscultationAudioBytes(cardId);
     if (!found) throw new NotFoundException('Sound not found');
-    res.setHeader('Content-Type', found.mime);
-    res.setHeader('Content-Length', String(found.buffer.length));
-    res.setHeader('Accept-Ranges', 'none');
+    this.sendRangeable(req, res, found.buffer, found.mime);
+  }
+
+  /**
+   * Answer a Range request properly (206 + Content-Range), or the whole body
+   * with Accept-Ranges: bytes when there's no Range header.
+   *
+   * The route used to always answer 200 with the full body and
+   * "Accept-Ranges: none" — even when a Range header was sent. iOS's AVPlayer
+   * (what the app's audio player uses under the hood) probes a URL with a
+   * Range request before it will initialize playback for some formats, WAV
+   * in particular, since it has to seek the file to read past the header. A
+   * flat 200 that ignores the Range header reads to it as "this server can't
+   * do random access," and it refuses to play — the student sees "Could not
+   * play this clip" with no further detail, because AVPlayer just fails to
+   * load, it doesn't report why.
+   */
+  private sendRangeable(req: Request, res: Response, buffer: Buffer, mime: string) {
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.end(found.buffer);
+
+    const range = req.headers.range;
+    const total = buffer.length;
+    const match = typeof range === 'string' ? range.match(/^bytes=(\d*)-(\d*)$/) : null;
+
+    if (!match || (!match[1] && !match[2])) {
+      res.setHeader('Content-Length', String(total));
+      res.end(buffer);
+      return;
+    }
+
+    let start = match[1] ? parseInt(match[1], 10) : total - parseInt(match[2], 10);
+    let end = match[2] && match[1] ? parseInt(match[2], 10) : total - 1;
+    if (Number.isNaN(start) || start < 0) start = 0;
+    if (Number.isNaN(end) || end >= total) end = total - 1;
+
+    if (start > end || start >= total) {
+      res.status(416);
+      res.setHeader('Content-Range', `bytes */${total}`);
+      res.end();
+      return;
+    }
+
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+    res.setHeader('Content-Length', String(end - start + 1));
+    res.end(buffer.subarray(start, end + 1));
   }
 
   /**
