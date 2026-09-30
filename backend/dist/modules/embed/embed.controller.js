@@ -159,6 +159,17 @@ function fullscreen() {
   }
 }
 
+/**
+ * Stop playback from outside the page.
+ *
+ * The app plays this page inline in a station slot as well as in the lesson
+ * sheet, and leaving that screen does not dispose the widget — without a way
+ * to reach in and pause, the clip keeps sounding behind whatever comes next.
+ */
+window.pauseVideo = function () {
+  try { if (player && player.pauseVideo) player.pauseVideo(); } catch (e) {}
+};
+
 /** Called by the app once it has actually resized, so the icon can't lie. */
 function setFs(on) {
   el('stage').classList.toggle('fs', !!on);

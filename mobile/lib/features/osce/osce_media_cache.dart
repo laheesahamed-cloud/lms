@@ -350,11 +350,8 @@ class OsceVideoTile extends StatelessWidget {
           // in place, so throwing it into a full-screen popup breaks the flow.
           // A 54px list thumbnail is too small for a player (and a WebView per
           // row is wasteful), so that keeps a badge that opens the full player.
-          // A pasted link is a watch page, not a media file, so there is
-          // nothing for the inline <video> to load — it always needs the full
-          // player, whatever room it has.
           final tight = box.maxWidth < 120 || box.maxHeight < 90;
-          if (!tight && !isOsceLinkedVideo(url)) return OsceInlineVideo(url: url);
+          if (!tight) return OsceInlineVideo(url: url);
 
           return _badge(context, c);
         },

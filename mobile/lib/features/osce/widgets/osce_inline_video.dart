@@ -53,7 +53,10 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
 
   void _pause() {
     _wvc.runJavaScript(
-      "var v=document.getElementById('v'); if(v){v.pause();}",
+      // Either player may be the one loaded: the bare <video> for a direct
+      // file, or our embed page for a link.
+      "var v=document.getElementById('v'); if(v){v.pause();}"
+      'if(window.pauseVideo){window.pauseVideo();}',
     ).catchError((_) {});
   }
 
@@ -110,9 +113,14 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
       })
       ..setNavigationDelegate(NavigationDelegate(
         onWebResourceError: (e) {
+          // A provider's embed page loads a great many sub-resources and some
+          // of them fail routinely; only the page itself failing means the clip
+          // did. Without this guard a perfectly good video shows an error.
+          if (e.isForMainFrame != true) return;
           if (mounted) setState(() => _error = 'Could not load the clip (${e.description}).');
         },
         onHttpError: (e) {
+          if (e.response == null) return;
           final code = e.response?.statusCode;
           if (mounted) {
             setState(() => _error = code != null
@@ -121,8 +129,17 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
           }
         },
       ))
-      ..loadHtmlString(_html(widget.url),
-          baseUrl: videoPageBaseUrl(widget.url));
+      ;
+
+    // A pasted link is a watch PAGE, not a media file, so there is nothing for
+    // the <video> tag to load — the provider's own embed has to do it. It still
+    // plays right here in the slot; only what gets loaded differs.
+    final page = externalInlinePlayerUrl(widget.url);
+    if (page != null) {
+      _wvc.loadRequest(Uri.parse(page));
+    } else {
+      _wvc.loadHtmlString(_html(widget.url), baseUrl: videoPageBaseUrl(widget.url));
+    }
   }
 
   /// MediaError codes per the HTML5 spec, said in plain terms.

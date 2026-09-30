@@ -204,3 +204,20 @@ String youtubePlayerPageUrl(String videoId) {
   final base = AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/+$'), '');
   return '$base/embed/youtube?v=${Uri.encodeQueryComponent(videoId)}';
 }
+
+/// The page to load in a WebView to play [rawUrl] in place, for a link to a
+/// video hosted elsewhere.
+///
+/// YouTube gets our own player page — the one the backend serves, with our
+/// controls and none of YouTube's share affordances. Vimeo and Drive get their
+/// own embed page, which is what they have always used and what their terms
+/// require. Returns null for anything that isn't an external link, since a
+/// direct file is played by a <video> tag instead.
+String? externalInlinePlayerUrl(String rawUrl) {
+  final embed = getVideoEmbed(rawUrl);
+  if (embed.provider == 'youtube' && embed.videoId.isNotEmpty) {
+    return youtubePlayerPageUrl(embed.videoId);
+  }
+  if (embed.type == VideoEmbedType.iframe) return embed.src;
+  return null;
+}
