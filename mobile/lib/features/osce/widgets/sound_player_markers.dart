@@ -30,6 +30,10 @@ class _SoundPlayerMarkersState extends State<SoundPlayerMarkers> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _playing = false;
+  /// Fetching the clip before the first note sounds. On a ward connection that
+  /// is a few seconds of a button that looks like it did nothing, which reads
+  /// as a broken app — so the button says it is working.
+  bool _loading = false;
   bool _comparing = false;
   String? _error;
 
@@ -68,11 +72,13 @@ class _SoundPlayerMarkersState extends State<SoundPlayerMarkers> {
         await _player.pause();
         if (mounted) setState(() => _playing = false);
       } else {
+        setState(() { _loading = true; _error = null; });
+        // play() does not return until the clip has been fetched and started.
         await _player.play(UrlSource(_url));
-        if (mounted) setState(() { _playing = true; _error = null; });
+        if (mounted) setState(() { _playing = true; _loading = false; });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = 'Could not play this clip.');
+      if (mounted) setState(() { _error = 'Could not play this clip.'; _loading = false; });
     }
   }
 
@@ -83,6 +89,7 @@ class _SoundPlayerMarkersState extends State<SoundPlayerMarkers> {
     setState(() {
       _comparing = compare;
       _playing = false;
+      _loading = false;
       _position = Duration.zero;
     });
   }
@@ -201,18 +208,31 @@ class _SoundPlayerMarkersState extends State<SoundPlayerMarkers> {
           Row(
             children: [
               GestureDetector(
-                onTap: _toggle,
+                onTap: _loading ? null : _toggle,
                 child: Container(
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                  child: Icon(
-                    _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF04121F)
-                        : Colors.white,
-                    size: 24,
-                  ),
+                  child: _loading
+                      ? Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF04121F)
+                                  : Colors.white,
+                            ),
+                          ),
+                        )
+                      : Icon(
+                          _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF04121F)
+                              : Colors.white,
+                          size: 24,
+                        ),
                 ),
               ),
               const SizedBox(width: 12),

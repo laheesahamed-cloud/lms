@@ -123,6 +123,7 @@ export class EmbedController {
   private script(videoId: string) {
     return `
 var player, ready = false, timer = null, hideAt = null, seeking = false;
+var busyAt = null;
 var SKIP = 10, IDLE = 3000;
 function el(id) { return document.getElementById(id); }
 
@@ -145,14 +146,34 @@ function onReady() {
 
 function onState(e) {
   var playing = e.data === YT.PlayerState.PLAYING;
+  // Buffering is the gap between the tap and the first frame. On a slow
+  // connection that is several seconds of a button that looks like it did
+  // nothing, which reads as a broken app.
+  //
+  // Only a settled state clears it — NOT merely "not buffering". YouTube emits
+  // UNSTARTED and CUED partway through a load, and treating those as done made
+  // the spinner blink off and back on mid-load, which looks worse than no
+  // spinner at all.
+  if (e.data === YT.PlayerState.BUFFERING) {
+    busy(true);
+  } else if (e.data === YT.PlayerState.PLAYING
+          || e.data === YT.PlayerState.PAUSED
+          || e.data === YT.PlayerState.ENDED) {
+    busy(false);
+  }
   // Before the first frame and after the last, YouTube draws its own poster
   // and end screen — both carry a share button and a link out. The cover hides
   // those two moments; in between, the picture is all there is to see.
   if (playing) el('stage').classList.add('started');
   if (e.data === YT.PlayerState.ENDED) el('stage').classList.remove('started');
 
-  el('big').innerHTML = playing ? PAUSE : PLAY;
-  el('big').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  // Same reason: a mid-load UNSTARTED must not paint the play icon over the
+  // spinner that is still doing its job.
+  if (!el('stage').classList.contains('busy') && busyAt === null) {
+    el('big').innerHTML = playing ? PAUSE : PLAY;
+    el('big').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    el('coverplay').innerHTML = COVER;
+  }
 
   if (playing && !timer) timer = setInterval(tick, 250);
   if (!playing && timer) { clearInterval(timer); timer = null; tick(); }
@@ -181,7 +202,35 @@ function playing() {
 
 function toggle() {
   if (!ready) return;
-  if (playing()) player.pauseVideo(); else player.playVideo();
+  if (playing()) {
+    player.pauseVideo();
+    busy(false);
+  } else {
+    player.playVideo();
+    // Don't wait for YouTube's own BUFFERING event — on a slow connection it
+    // can be a second behind the tap, which is exactly the silence being fixed.
+    busy(true);
+  }
+}
+
+/**
+ * Show the button as working, or stop.
+ *
+ * Deliberately delayed: an already-buffered clip starts almost instantly, and
+ * a spinner that appears and vanishes inside 100ms reads as a glitch rather
+ * than as progress. Anything slower than that is worth reporting.
+ */
+function busy(on) {
+  if (busyAt) { clearTimeout(busyAt); busyAt = null; }
+  if (!on) {
+    el('stage').classList.remove('busy');
+    return;
+  }
+  busyAt = setTimeout(function () {
+    el('stage').classList.add('busy');
+    el('big').innerHTML = SPIN;
+    el('coverplay').innerHTML = SPIN;
+  }, 150);
 }
 
 /** Show the controls; while playing, start the countdown to hiding again. */
@@ -255,6 +304,8 @@ function skip(by) {
 
 var FULL = '${FULL_ICON.replace(/'/g, "\\'")}';
 var EXIT = '${EXIT_ICON.replace(/'/g, "\\'")}';
+var SPIN = '<span class="spin" role="status" aria-label="Loading"></span>';
+var COVER = '${COVER_ICON.replace(/'/g, "\\'")}';
 var PLAY = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">'
   + '<path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg>';
 var PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">'
@@ -263,6 +314,7 @@ var PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
 function wire() {
   el('big').innerHTML = PLAY;
   el('cover').addEventListener('click', function () { toggle(); show(); });
+  el('coverplay').innerHTML = COVER;
 
   // A tap on the picture is about the controls, not playback: it shows them,
   // or puts them away if they're already up. Play/pause is the button's job
@@ -349,6 +401,11 @@ wire();
       + 'width:84px;height:84px;border-radius:50%;background:#0c0d11;'
       + 'box-shadow:0 2px 14px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.14) inset}'
       + '#big svg{width:30px;height:30px}'
+      + '.spin{display:block;width:26px;height:26px;border-radius:50%;'
+      + 'border:2.5px solid rgba(255,255,255,.26);border-top-color:#fff;'
+      + 'animation:spin .8s linear infinite}'
+      + '@keyframes spin{to{transform:rotate(360deg)}}'
+      + '@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}'
       + '#bar{position:absolute;left:0;right:0;bottom:0;display:flex;'
       + 'align-items:center;gap:12px;padding:12px 14px;'
       + 'background:linear-gradient(transparent,rgba(0,0,0,.78));'

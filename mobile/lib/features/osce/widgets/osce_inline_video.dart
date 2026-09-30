@@ -213,12 +213,30 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
 *{margin:0;padding:0}
 html,body{background:#000;height:100%;width:100%;overflow:hidden}
 video{width:100%;height:100%;object-fit:contain;display:block}
+/* Shown between the tap and the first frame. Without it a slow connection
+   looks like a button that did nothing. */
+#s{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;
+   border-radius:50%;border:2.5px solid rgba(255,255,255,.26);border-top-color:#fff;
+   animation:spin .8s linear infinite;display:none}
+#s.on{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#s{animation-duration:2.4s}}
 </style>
 </head><body>
 <video id="v" src="$src" controls playsinline webkit-playsinline
   preload="metadata" disablepictureinpicture oncontextmenu="return false"></video>
+<div id="s" role="status" aria-label="Loading"></div>
 <script>
 var v = document.getElementById('v');
+var s = document.getElementById('s');
+// Only once play has been asked for: a spinner over a clip nobody has started
+// would just be noise.
+function spin(on){ s.className = on ? 'on' : ''; }
+v.addEventListener('play', function(){ if (v.readyState < 3) spin(true); });
+v.addEventListener('waiting', function(){ spin(true); });
+v.addEventListener('playing', function(){ spin(false); });
+v.addEventListener('pause', function(){ spin(false); });
+v.addEventListener('error', function(){ spin(false); });
 v.addEventListener('error', function(){
   try {
     OsceVideoBridge.postMessage(JSON.stringify({
