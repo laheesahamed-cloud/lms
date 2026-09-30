@@ -30,6 +30,9 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
     with WidgetsBindingObserver, RouteAware {
   late WebViewController _wvc;
   String? _error;
+  /// The page is still being fetched. For a linked clip that is a real network
+  /// round trip, and the WebView paints black until it lands.
+  bool _pageLoading = true;
 
   @override
   void initState() {
@@ -83,9 +86,14 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
     // with a different clip — reload rather than keep showing the previous one.
     if (old.url != widget.url) {
       _error = null;
+      _pageLoading = true;
       _build();
     }
   }
+
+  /// The page this WebView was asked to load, so an HTTP failure can be told
+  /// apart from one of the provider's own sub-resources failing.
+  String? _loadedUrl;
 
   void _build() {
     PlatformWebViewControllerCreationParams params =
@@ -112,20 +120,35 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
         }
       })
       ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) {
+          if (mounted && _pageLoading) setState(() => _pageLoading = false);
+        },
         onWebResourceError: (e) {
           // A provider's embed page loads a great many sub-resources and some
           // of them fail routinely; only the page itself failing means the clip
           // did. Without this guard a perfectly good video shows an error.
           if (e.isForMainFrame != true) return;
-          if (mounted) setState(() => _error = 'Could not load the clip (${e.description}).');
+          if (mounted) {
+            setState(() {
+              _error = 'Could not load the clip (${e.description}).';
+              _pageLoading = false;
+            });
+          }
         },
         onHttpError: (e) {
-          if (e.response == null) return;
           final code = e.response?.statusCode;
+          if (code == null || code < 400) return;
+          // A provider's embed page requests a great many things and some of
+          // them 404 routinely; only the page we asked for failing means the
+          // clip failed. Without this a video that plays perfectly well shows
+          // "the server returned an error".
+          final failed = e.request?.uri.toString();
+          if (failed != null && failed != _loadedUrl) return;
           if (mounted) {
-            setState(() => _error = code != null
-                ? 'The server returned HTTP $code for this clip.'
-                : 'The server returned an error for this clip.');
+            setState(() {
+              _error = 'The server returned HTTP $code for this clip.';
+              _pageLoading = false;
+            });
           }
         },
       ))
@@ -135,9 +158,12 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
     // the <video> tag to load — the provider's own embed has to do it. It still
     // plays right here in the slot; only what gets loaded differs.
     final page = externalInlinePlayerUrl(widget.url);
+    _loadedUrl = page;
     if (page != null) {
       _wvc.loadRequest(Uri.parse(page));
     } else {
+      // Built in memory, so there is nothing to wait for.
+      _pageLoading = false;
       _wvc.loadHtmlString(_html(widget.url), baseUrl: videoPageBaseUrl(widget.url));
     }
   }
@@ -191,7 +217,10 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
                 style: TextStyle(fontSize: 12.5, height: 1.45, color: c.inkMedium)),
             const SizedBox(height: 10),
             TextButton(
-              onPressed: () { setState(() => _error = null); _build(); },
+              onPressed: () {
+                setState(() { _error = null; _pageLoading = true; });
+                _build();
+              },
               child: const Text('Try again'),
             ),
           ],
@@ -200,7 +229,24 @@ class _OsceInlineVideoState extends State<OsceInlineVideo>
     }
     return ColoredBox(
       color: Colors.black,
-      child: WebViewWidget(controller: _wvc),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          WebViewWidget(controller: _wvc),
+          if (_pageLoading)
+            const ColoredBox(
+              color: Colors.black,
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.2, color: Colors.white),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

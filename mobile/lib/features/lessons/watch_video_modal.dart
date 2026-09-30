@@ -37,6 +37,10 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
   /// deployed yet. Falls back to the "can't play this" panel, which at least
   /// says something true, rather than showing the student a raw 404 body.
   bool _pageFailed = false;
+  /// The player page is still being fetched. Until it arrives the WebView has
+  /// nothing to paint but black, and the page's own spinner cannot cover a gap
+  /// that happens before the page exists — so this one lives on our side.
+  bool _pageLoading = true;
   /// The player fills the screen. Driven from the page's own button, because
   /// iOS grants the web Fullscreen API only to a <video> element — never to a
   /// div — so the page cannot do this itself inside a WebView. It asks, and we
@@ -99,6 +103,9 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
   /// failing is YouTube's business, and treating it as fatal would blank a
   /// player that was about to work.
   NavigationDelegate _watchForLoadFailure() => NavigationDelegate(
+        onPageFinished: (_) {
+          if (mounted && _pageLoading) setState(() => _pageLoading = false);
+        },
         onHttpError: (error) {
           if (error.response?.statusCode == null) return;
           if (error.response!.statusCode < 400) return;
@@ -120,7 +127,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
 
   void _failPage() {
     if (_pageUrl == null || _pageFailed || !mounted) return;
-    setState(() => _pageFailed = true);
+    setState(() { _pageFailed = true; _pageLoading = false; });
   }
 
   @override
@@ -283,7 +290,29 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
     if (wvc != null && !_pageFailed) {
       return ColoredBox(
         color: Colors.black,
-        child: WebViewWidget(controller: wvc),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            WebViewWidget(controller: wvc),
+            // Covers the fetch of the player page itself. Once it paints, the
+            // page's own spinner takes over until the video is ready, so the
+            // two hand off with nothing blank in between.
+            if (_pageLoading)
+              const ColoredBox(
+                color: Colors.black,
+                child: Center(
+                  child: SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       );
     }
     // blocked or none
