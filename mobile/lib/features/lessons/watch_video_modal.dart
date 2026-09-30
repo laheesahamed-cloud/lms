@@ -60,12 +60,20 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
           videoId: id,
           autoPlay: false,
           params: const YoutubePlayerParams(
-            // Leave this at the package default. On mobile it becomes the
-            // WebView's baseUrl, and the package drives the iframe over
-            // origin-checked postMessage — pointing it at our own domain meant
-            // the player never reported ready, so it rendered as a black box
-            // with no controls and no error.
-            origin: 'https://www.youtube.com',
+            // Our own domain, and it must stay that way.
+            //
+            // On mobile the package uses this value three ways: as the WebView's
+            // baseUrl, as the embed `host`, and as the origin/widget_referrer
+            // player vars. The baseUrl sets the page's document origin, and so
+            // the Referer YouTube receives.
+            //
+            // Setting it to https://www.youtube.com makes the page claim to BE
+            // YouTube, so the embed arrives with a youtube.com referrer from
+            // something that plainly isn't — which YouTube rejects as error
+            // 152-4, "missing or spoofed referrer". Naming the domain we
+            // actually own is the supported setup: an ordinary third-party
+            // embed with an honest referrer.
+            origin: 'https://xyndrome.lk',
             showControls: true,
             showFullscreenButton: true,
             playsInline: true,

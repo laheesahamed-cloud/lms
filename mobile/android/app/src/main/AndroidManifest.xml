@@ -1,5 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Flutter injects this into the debug and profile manifests only, so
+         without it here a RELEASE build ships with no network access at all:
+         every API call, image, and the YouTube WebView fail — and only in
+         production. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="xyndrome"
         android:name="${applicationName}"
