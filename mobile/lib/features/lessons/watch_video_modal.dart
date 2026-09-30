@@ -60,7 +60,12 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
           videoId: id,
           autoPlay: false,
           params: const YoutubePlayerParams(
-            origin: 'https://xyndrome.lk',
+            // Leave this at the package default. On mobile it becomes the
+            // WebView's baseUrl, and the package drives the iframe over
+            // origin-checked postMessage — pointing it at our own domain meant
+            // the player never reported ready, so it rendered as a black box
+            // with no controls and no error.
+            origin: 'https://www.youtube.com',
             showControls: true,
             showFullscreenButton: true,
             playsInline: true,
