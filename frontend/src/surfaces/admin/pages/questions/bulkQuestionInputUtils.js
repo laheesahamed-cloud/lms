@@ -71,6 +71,12 @@ export function createEmptyQuestion(seed = {}) {
     paperId: '',
     keywordsText: '',
     explanation: '',
+    // "How to approach this question" — the student-facing reasoning
+    // walkthrough, and the stem phrases it quotes. Blank until AI fills them,
+    // but they have to exist on the object or the save payload silently drops
+    // whatever gets generated.
+    questionApproach: '',
+    questionApproachHighlights: [],
     status: 'active',
     topicLabel: '',
     courseId: '',
@@ -397,6 +403,14 @@ export function parseJsonQuestions(rawInput, defaults) {
           : source.keywordsText || source.tags || ''
       ),
       explanation: topLevelExplanation || optionExplanationSummary,
+      questionApproach: normalizeWhitespace(
+        source.questionApproach || source.approach || ''
+      ),
+      questionApproachHighlights: Array.isArray(source.questionApproachHighlights)
+        ? source.questionApproachHighlights.map(normalizeWhitespace).filter(Boolean)
+        : Array.isArray(source.approachHighlights)
+          ? source.approachHighlights.map(normalizeWhitespace).filter(Boolean)
+          : [],
       options,
       parserConfidence: warnings.length ? 'medium' : 'high',
       parserWarnings: warnings,
@@ -702,6 +716,8 @@ export function buildQuestionSignature(question, resolved) {
     paperId: resolved.paperId || null,
     keywordsText: resolved.keywordsText,
     explanation: normalizeWhitespace(buildCombinedExplanation(question)),
+    questionApproach: normalizeWhitespace(question.questionApproach || ''),
+    questionApproachHighlights: (question.questionApproachHighlights || []).join('|'),
     status: question.status,
     topicLabel: normalizeWhitespace(question.topicLabel),
     hierarchy: {
@@ -732,6 +748,10 @@ export async function saveQuestionRecord({ question, resolved }) {
     questionText: question.questionText,
     keywordsText: resolved.keywordsText,
     explanation: buildCombinedExplanation(question),
+    questionApproach: question.questionApproach || '',
+    questionApproachHighlights: Array.isArray(question.questionApproachHighlights)
+      ? question.questionApproachHighlights
+      : [],
     status: question.status,
     options: (question.options || []).map((option) => ({
       optionLabel: option.optionLabel,
