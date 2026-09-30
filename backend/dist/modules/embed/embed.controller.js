@@ -57,7 +57,7 @@ let EmbedController = EmbedController_1 = class EmbedController {
     script(videoId) {
         return `
 var player, ready = false, timer = null, hideAt = null, seeking = false;
-var busyAt = null;
+var busyAt = null, wantPlay = false;
 var SKIP = 10, IDLE = 3000;
 function el(id) { return document.getElementById(id); }
 
@@ -76,6 +76,17 @@ function onReady() {
   ready = true;
   el('stage').classList.add('ready');
   el('total').textContent = clock(player.getDuration());
+  // Now the button is real, so it can look like one.
+  el('coverplay').innerHTML = COVER;
+  el('big').innerHTML = PLAY;
+  // Someone tapped while the API was still loading. Honour it rather than
+  // making them tap again — from their side the first tap did nothing, which
+  // is exactly the complaint.
+  if (wantPlay) {
+    wantPlay = false;
+    player.playVideo();
+    busy(true);
+  }
 }
 
 function onState(e) {
@@ -135,7 +146,15 @@ function playing() {
 }
 
 function toggle() {
-  if (!ready) return;
+  // The IFrame API can take a second or two to arrive, and the cover's play
+  // button is on screen before it does. Returning silently here is what made
+  // the first tap feel dead: remember it, show it is working, and start as
+  // soon as the player exists.
+  if (!ready) {
+    wantPlay = true;
+    busy(true);
+    return;
+  }
   if (playing()) {
     player.pauseVideo();
     busy(false);
@@ -246,9 +265,7 @@ var PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
   + '<path fill="currentColor" d="M7 5h3.2v14H7zm6.8 0H17v14h-3.2z"/></svg>';
 
 function wire() {
-  el('big').innerHTML = PLAY;
   el('cover').addEventListener('click', function () { toggle(); show(); });
-  el('coverplay').innerHTML = COVER;
 
   // A tap on the picture is about the controls, not playback: it shows them,
   // or puts them away if they're already up. Play/pause is the button's job
@@ -346,7 +363,8 @@ wire();
             + '<div id="player"></div>'
             + '<div id="shield"></div>'
             + '<div id="ui">'
-            + '<button id="big" type="button" aria-label="Play"></button>'
+            + '<button id="big" type="button" aria-label="Play">'
+            + '<span class="spin" role="status" aria-label="Loading"></span></button>'
             + '<div id="bar">'
             + '<button id="back" class="skip" type="button" aria-label="Back 10 seconds">'
             + BACK_ICON + '<span>10</span></button>'
@@ -356,7 +374,8 @@ wire();
             + '<span id="time"><span id="at">0:00</span> / <span id="total">0:00</span></span>'
             + '<button id="full" class="skip" type="button" aria-label="Full screen"></button>'
             + '</div></div>'
-            + '<div id="cover"><span id="coverplay">' + COVER_ICON + '</span></div>'
+            + '<div id="cover"><span id="coverplay">'
+            + '<span class="spin" role="status" aria-label="Loading"></span></span></div>'
             + '</div>'
             + '<script src="https://www.youtube.com/iframe_api"></script>'
             + `<script>${script}</script>`
