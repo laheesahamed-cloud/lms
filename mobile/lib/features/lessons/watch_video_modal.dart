@@ -17,6 +17,11 @@ class WatchVideoModal extends StatefulWidget {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
+        // A stray tap on the backdrop used to close this mid-video and lose
+        // the student's place. Closing is now deliberate: the X, or the system
+        // back gesture — both confirm first.
+        isDismissible: false,
+        enableDrag: false,
         builder: (_) => WatchVideoModal(videoUrl: videoUrl),
       );
 
@@ -108,13 +113,52 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
     super.dispose();
   }
 
+  /// Closing asks first, so a mis-tap doesn't lose the student's place.
+  ///
+  /// The system back gesture is routed through here as well (see PopScope in
+  /// build); otherwise back would still dismiss instantly and guarding the X
+  /// would achieve nothing.
+  Future<void> _requestClose() async {
+    final c = context.c;
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.surface1,
+        title: Text('Close the video?',
+            style: TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
+        content: Text('You can reopen it from the lesson at any time.',
+            style: TextStyle(fontSize: 14, height: 1.5, color: c.inkMedium)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep watching'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true && mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = context.c;
     final bottom = MediaQuery.of(context).padding.bottom;
 
-    return Container(
+    return PopScope(
+      // Back doesn't dismiss on its own — it asks, same as the X. Without this
+      // the barrier guard above would just push accidental closes onto the
+      // back gesture instead of stopping them.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _requestClose();
+      },
+      child: Container(
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF0F121F) : const Color(0xFFFBFCFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -154,7 +198,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
                 ),
               ),
               IconButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: _requestClose,
                 icon: Icon(Icons.close_rounded, size: 20, color: c.inkMedium),
               ),
             ]),
@@ -175,6 +219,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
           ),
           SizedBox(height: bottom + 8),
         ],
+      ),
       ),
     );
   }
