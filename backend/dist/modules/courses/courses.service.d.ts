@@ -114,7 +114,7 @@ export declare class CoursesService {
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
         ok: boolean;
         lessonId: number;
-        status: "not_started" | "completed" | "in_progress";
+        status: "not_started" | "in_progress" | "completed";
         progressPercent: number;
         actionLabel: string;
     }>;

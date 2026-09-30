@@ -169,19 +169,19 @@ export declare class LessonsController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
@@ -276,8 +276,8 @@ export declare class LessonsController {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "cover" | "contain";
-        status: "draft" | "rejected" | "approved";
+        imageFit: "contain" | "cover";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -293,8 +293,8 @@ export declare class LessonsController {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "cover" | "contain";
-        status: "draft" | "rejected" | "approved";
+        imageFit: "contain" | "cover";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -307,7 +307,7 @@ export declare class LessonsController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -320,8 +320,8 @@ export declare class LessonsController {
             sourceHint: string;
             imageUrl: string;
             imageUrls: string[];
-            imageFit: "cover" | "contain";
-            status: "draft" | "rejected" | "approved";
+            imageFit: "contain" | "cover";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;
@@ -338,8 +338,8 @@ export declare class LessonsController {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "cover" | "contain";
-        status: "draft" | "rejected" | "approved";
+        imageFit: "contain" | "cover";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -440,8 +440,8 @@ export declare class LessonsController {
             sourceHint: string;
             imageUrl: string;
             imageUrls: string[];
-            imageFit: "cover" | "contain";
-            status: "draft" | "rejected" | "approved";
+            imageFit: "contain" | "cover";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;

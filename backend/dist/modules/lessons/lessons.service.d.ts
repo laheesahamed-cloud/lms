@@ -390,7 +390,7 @@ export declare class LessonsService {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "cover" | "contain";
+        imageFit: "contain" | "cover";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -415,7 +415,7 @@ export declare class LessonsService {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "cover" | "contain";
+        imageFit: "contain" | "cover";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -441,7 +441,7 @@ export declare class LessonsService {
         sourceHint: string;
         imageUrl: string;
         imageUrls: string[];
-        imageFit: "cover" | "contain";
+        imageFit: "contain" | "cover";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -459,7 +459,7 @@ export declare class LessonsService {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -472,7 +472,7 @@ export declare class LessonsService {
             sourceHint: string;
             imageUrl: string;
             imageUrls: string[];
-            imageFit: "cover" | "contain";
+            imageFit: "contain" | "cover";
             status: LessonFlashcardStatus;
             sortOrder: number;
             generatedBy: LessonFlashcardGeneratedBy;
@@ -594,7 +594,7 @@ export declare class LessonsService {
             sourceHint: string;
             imageUrl: string;
             imageUrls: string[];
-            imageFit: "cover" | "contain";
+            imageFit: "contain" | "cover";
             status: LessonFlashcardStatus;
             sortOrder: number;
             generatedBy: LessonFlashcardGeneratedBy;

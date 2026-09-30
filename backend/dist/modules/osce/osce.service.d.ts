@@ -136,7 +136,7 @@ export declare class OsceService {
         locked: boolean;
     }[]>;
     listRegions(baseUrl: string, userId?: number): Promise<{
-        key: "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs" | "general";
+        key: "general" | "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs";
         label: string;
         caseCount: number;
         cases: Record<string, unknown>[];

@@ -31,33 +31,41 @@ class WatchVideoModal extends StatefulWidget {
 class _WatchVideoModalState extends State<WatchVideoModal> {
   late final VideoEmbed _embed;
   WebViewController? _iframeWvc;
+  /// Set for YouTube: our own player page, in place of the provider's URL.
+  String? _pageUrl;
+  /// Our player page didn't load — almost always a backend that hasn't been
+  /// deployed yet. Falls back to the "can't play this" panel, which at least
+  /// says something true, rather than showing the student a raw 404 body.
+  bool _pageFailed = false;
 
   @override
   void initState() {
     super.initState();
     _embed = getVideoEmbed(widget.videoUrl);
 
-    // YouTube gets NO special case, deliberately.
+    // All three providers load the same way: a real navigation to a real page.
     //
-    // It used to run through youtube_player_iframe. That package builds its
-    // player page in memory with `loadHtmlString`, so the document has no real
-    // URL: whatever `origin` claims, the page was never served from anywhere.
-    // YouTube validates the referrer of an embed, and an in-memory page cannot
-    // produce an honest one — naming youtube.com got us error 152-4 ("missing
-    // or spoofed referrer") and naming our own domain got a black player. Both
-    // failures are the same failure.
+    // Vimeo and Drive go straight to the provider's own embed page, which is
+    // what they have always done and why they have always worked. YouTube is
+    // the one that needed fixing, twice, and the reason both attempts failed
+    // is the same: YouTube authorises an embed by the referrer of the page the
+    // iframe sits on, and neither attempt gave it a page.
     //
-    // So YouTube now takes the path below, which Vimeo and Drive have always
-    // taken and which has always worked: a real navigation to the provider's
-    // own embed page. `loadRequest` to https://www.youtube.com/embed/<id> is
-    // YouTube's documented embed, loaded as itself — first-party, nothing
-    // claimed, nothing spoofed — and the player's own controls come with it,
-    // which is what this modal showed anyway.
+    //   youtube_player_iframe builds its player in memory with loadHtmlString.
+    //   That document has no URL, so whatever `origin` claims there is nothing
+    //   to verify — claiming youtube.com is a spoof (error 152-4) and claiming
+    //   our own domain is honest but unverifiable (a black player).
     //
-    // So one path now serves all three providers, each on its own embed page
-    // with its own player chrome. That chrome isn't a compromise: Vimeo's basic
-    // embed terms require it, and Drive's `/preview` page is what handles a
-    // shared file's cookies and confirmation flow (a bare <video> tag can't).
+    //   Loading youtube.com/embed/<id> top-level has no parent page, so the
+    //   referrer isn't wrong, it's absent — error 153.
+    //
+    // The fix is to supply what the check asks for: the backend serves a page
+    // holding one YouTube iframe, and we navigate to it. The iframe request
+    // then carries an ordinary, honest referrer from a domain we own.
+    if (_embed.provider == 'youtube' && _embed.videoId.isNotEmpty) {
+      _pageUrl = youtubePlayerPageUrl(_embed.videoId);
+    }
+
     if (_embed.type == VideoEmbedType.iframe) {
       PlatformWebViewControllerCreationParams params =
           const PlatformWebViewControllerCreationParams();
@@ -70,12 +78,34 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
       _iframeWvc = WebViewController.fromPlatformCreationParams(params)
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Colors.black)
-        ..loadRequest(Uri.parse(_embed.src));
+        ..setNavigationDelegate(_watchForLoadFailure())
+        ..loadRequest(Uri.parse(_pageUrl ?? _embed.src));
     }
     // VideoEmbedType.video (direct mp4/webm/ogg/mov file links only, not
     // Drive) is handled entirely by _DirectVideoBlock below, which owns its
     // own WebViewController and a bare <video> element with no browser
     // chrome at all.
+  }
+
+  /// Our own page is the only one whose failure we can act on, so this only
+  /// watches the top-level document: a sub-resource inside YouTube's player
+  /// failing is YouTube's business, and treating it as fatal would blank a
+  /// player that was about to work.
+  NavigationDelegate _watchForLoadFailure() => NavigationDelegate(
+        onHttpError: (error) {
+          if (error.response?.statusCode == null) return;
+          if (error.response!.statusCode < 400) return;
+          _failPage();
+        },
+        onWebResourceError: (error) {
+          if (error.isForMainFrame != true) return;
+          _failPage();
+        },
+      );
+
+  void _failPage() {
+    if (_pageUrl == null || _pageFailed || !mounted) return;
+    setState(() => _pageFailed = true);
   }
 
   @override
@@ -208,7 +238,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
       );
     }
     final wvc = _iframeWvc;
-    if (wvc != null) {
+    if (wvc != null && !_pageFailed) {
       return ColoredBox(
         color: Colors.black,
         child: WebViewWidget(controller: wvc),
@@ -224,14 +254,18 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                _embed.type == VideoEmbedType.blocked ? '⚠️' : '🎬',
+                _embed.type == VideoEmbedType.blocked || _pageFailed
+                    ? '⚠️'
+                    : '🎬',
                 style: const TextStyle(fontSize: 36),
               ),
               const SizedBox(height: 10),
               Text(
-                _embed.type == VideoEmbedType.blocked
-                    ? 'This video cannot be played.'
-                    : 'No video yet.',
+                _pageFailed
+                    ? "This video couldn't be loaded."
+                    : _embed.type == VideoEmbedType.blocked
+                        ? 'This video cannot be played.'
+                        : 'No video yet.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 15,
@@ -240,9 +274,11 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
               ),
               const SizedBox(height: 4),
               Text(
-                _embed.type == VideoEmbedType.blocked
-                    ? 'Ask your instructor to upload an embeddable video.'
-                    : "Your instructor hasn't added a video for this lesson.",
+                _pageFailed
+                    ? 'Check your connection and try again.'
+                    : _embed.type == VideoEmbedType.blocked
+                        ? 'Ask your instructor to upload an embeddable video.'
+                        : "Your instructor hasn't added a video for this lesson.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: c.inkSoft),
               ),

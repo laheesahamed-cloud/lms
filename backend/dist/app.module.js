@@ -42,6 +42,7 @@ const drugs_module_1 = require("./modules/drugs/drugs.module");
 const ecg_module_1 = require("./modules/ecg/ecg.module");
 const auscultation_module_1 = require("./modules/auscultation/auscultation.module");
 const osce_module_1 = require("./modules/osce/osce.module");
+const embed_module_1 = require("./modules/embed/embed.module");
 const database_config_1 = require("./config/database.config");
 const database_module_1 = require("./database/database.module");
 let AppModule = class AppModule {
@@ -87,6 +88,7 @@ exports.AppModule = AppModule = __decorate([
             ecg_module_1.EcgModule,
             auscultation_module_1.AuscultationModule,
             osce_module_1.OsceModule,
+            embed_module_1.EmbedModule,
         ],
         controllers: [health_controller_1.HealthController],
     })

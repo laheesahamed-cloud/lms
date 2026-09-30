@@ -11,6 +11,11 @@ class VideoEmbed {
   final VideoEmbedType type;
   final String src;
   final String provider; // 'youtube' | 'vimeo' | 'drive' | ''
+  /// The provider's own id for the video, where it has one. Kept alongside
+  /// [src] because the YouTube path needs the bare id to build our own player
+  /// page URL, and re-parsing it back out of the embed URL is a needless
+  /// second place for that to go wrong.
+  final String videoId;
   // True for a vertical video (e.g. a YouTube Short) — the player should use
   // a 9:16 box instead of the default 16:9, or the picture gets stretched.
   final bool isVertical;
@@ -18,6 +23,7 @@ class VideoEmbed {
     required this.type,
     this.src = '',
     this.provider = '',
+    this.videoId = '',
     this.isVertical = false,
   });
 }
@@ -138,6 +144,7 @@ VideoEmbed _ytEmbed(String id, {bool isVertical = false}) => VideoEmbed(
       src: 'https://www.youtube.com/embed/$id'
           '?rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&controls=1&fs=1',
       provider: 'youtube',
+      videoId: id,
       isVertical: isVertical,
     );
 
@@ -180,4 +187,20 @@ Future<void> teardownVideoPage(WebViewController wvc) async {
   } catch (_) {
     // Nothing left to tear down.
   }
+}
+
+/// Our own player page for a YouTube video, served by the API.
+///
+/// YouTube authorises an embed by the referrer of the page the iframe sits on,
+/// so the iframe needs a page that was genuinely served from somewhere. An
+/// in-memory page (`loadHtmlString`) has no URL to be referred from, and
+/// loading `youtube.com/embed/<id>` as the top-level document has no parent
+/// page at all — that one is error 153, "video player configuration error".
+///
+/// So the backend serves a one-iframe page at this route and the app navigates
+/// to it for real. Built from [AppConfig.apiBaseUrl] rather than a constant so
+/// it follows the app to whichever environment it was compiled for.
+String youtubePlayerPageUrl(String videoId) {
+  final base = AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/+$'), '');
+  return '$base/embed/youtube?v=${Uri.encodeQueryComponent(videoId)}';
 }
