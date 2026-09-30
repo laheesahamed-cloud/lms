@@ -37,6 +37,11 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
   /// deployed yet. Falls back to the "can't play this" panel, which at least
   /// says something true, rather than showing the student a raw 404 body.
   bool _pageFailed = false;
+  /// The player fills the screen. Driven from the page's own button, because
+  /// iOS grants the web Fullscreen API only to a <video> element — never to a
+  /// div — so the page cannot do this itself inside a WebView. It asks, and we
+  /// resize the sheet around it.
+  bool _fullscreen = false;
 
   @override
   void initState() {
@@ -78,6 +83,8 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
       _iframeWvc = WebViewController.fromPlatformCreationParams(params)
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Colors.black)
+        ..addJavaScriptChannel('Fullscreen',
+            onMessageReceived: (_) => _toggleFullscreen())
         ..setNavigationDelegate(_watchForLoadFailure())
         ..loadRequest(Uri.parse(_pageUrl ?? _embed.src));
     }
@@ -102,6 +109,14 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
           _failPage();
         },
       );
+
+  void _toggleFullscreen() {
+    if (!mounted) return;
+    setState(() => _fullscreen = !_fullscreen);
+    // Tell the page what actually happened, so its icon can't drift out of
+    // step with the sheet — it may also be toggled from this side, by back.
+    _iframeWvc?.runJavaScript('setFs($_fullscreen)').catchError((_) {});
+  }
 
   void _failPage() {
     if (_pageUrl == null || _pageFailed || !mounted) return;
@@ -156,13 +171,40 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
     final c = context.c;
     final bottom = MediaQuery.of(context).padding.bottom;
 
+    // Fullscreen drops the sheet's chrome entirely — no handle, no header, no
+    // padding, no rounded corners — and hands the whole screen to the picture.
+    // The way back out is the page's own button, or back.
+    if (_fullscreen) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _toggleFullscreen();
+        },
+        child: ColoredBox(
+          color: Colors.black,
+          child: SizedBox(
+            width: double.infinity,
+            height: MediaQuery.of(context).size.height,
+            child: _buildPlayer(c, dark),
+          ),
+        ),
+      );
+    }
+
     return PopScope(
       // Back doesn't dismiss on its own — it asks, same as the X. Without this
       // the barrier guard above would just push accidental closes onto the
       // back gesture instead of stopping them.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _requestClose();
+        if (didPop) return;
+        // Back out of fullscreen before it offers to close the video —
+        // leaving fullscreen is what "back" means while you're in it.
+        if (_fullscreen) {
+          _toggleFullscreen();
+          return;
+        }
+        _requestClose();
       },
       child: Container(
       decoration: BoxDecoration(

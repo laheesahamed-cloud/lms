@@ -24,6 +24,19 @@ import { createHash } from 'crypto';
  * arrangement YouTube supports and the only one we want. Nothing here forges a
  * header or works around a check; it supplies what the check asks for.
  */
+const BACK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<path fill="currentColor" d="M12 5V2L7 6l5 4V7a5.5 5.5 0 1 1-5.5 5.5H4.5'
+  + 'A7.5 7.5 0 1 0 12 5z"/></svg>';
+const FWD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<path fill="currentColor" d="M12 5V2l5 4-5 4V7a5.5 5.5 0 1 0 5.5 5.5h2'
+  + 'A7.5 7.5 0 1 1 12 5z"/></svg>';
+const FULL_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<path fill="currentColor" d="M4 9V4h5v2H6v3zm11-5h5v5h-2V6h-3zM4 15h2v3h3v2H4zm14 0h2v5h-5v-2h3z"/></svg>';
+const EXIT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<path fill="currentColor" d="M9 4v5H4V7h3V4zm6 0h2v3h3v2h-5zM4 15h5v5H7v-3H4zm11 2v3h-2v-5h5v2z"/></svg>';
+const COVER_ICON = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">'
+  + '<path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg>';
+
 @Controller('embed')
 export class EmbedController {
   /** YouTube ids are exactly 11 url-safe base64 characters. */
@@ -109,7 +122,8 @@ export class EmbedController {
    */
   private script(videoId: string) {
     return `
-var player, ready = false, timer = null;
+var player, ready = false, timer = null, hideAt = null, seeking = false;
+var SKIP = 10, IDLE = 3000;
 function el(id) { return document.getElementById(id); }
 
 function onYouTubeIframeAPIReady() {
@@ -136,10 +150,15 @@ function onState(e) {
   // those two moments; in between, the picture is all there is to see.
   if (playing) el('stage').classList.add('started');
   if (e.data === YT.PlayerState.ENDED) el('stage').classList.remove('started');
-  el('play').textContent = playing ? '❚❚' : '►';
-  el('play').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+
+  el('big').innerHTML = playing ? PAUSE : PLAY;
+  el('big').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+
   if (playing && !timer) timer = setInterval(tick, 250);
   if (!playing && timer) { clearInterval(timer); timer = null; tick(); }
+  // Paused is a deliberate stop — leave the controls up. Playing hides them
+  // so nothing sits over the picture while it's being watched.
+  if (playing) idle(); else show(true);
 }
 
 function clock(s) {
@@ -156,28 +175,107 @@ function tick() {
   if (!seeking && of > 0) el('seek').value = String((at / of) * 1000);
 }
 
-function toggle() {
-  if (!ready) return;
-  var s = player.getPlayerState();
-  if (s === YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo();
+function playing() {
+  return ready && player.getPlayerState() === YT.PlayerState.PLAYING;
 }
 
-var seeking = false;
+function toggle() {
+  if (!ready) return;
+  if (playing()) player.pauseVideo(); else player.playVideo();
+}
+
+/** Show the controls; while playing, start the countdown to hiding again. */
+function show(stay) {
+  el('stage').classList.add('ui');
+  if (hideAt) { clearTimeout(hideAt); hideAt = null; }
+  if (!stay) idle();
+}
+function hide() {
+  el('stage').classList.remove('ui');
+  if (hideAt) { clearTimeout(hideAt); hideAt = null; }
+}
+function idle() {
+  if (hideAt) clearTimeout(hideAt);
+  hideAt = setTimeout(function () { if (playing()) hide(); }, IDLE);
+}
+
+/**
+ * Fullscreen, by whichever route this page is being viewed through.
+ *
+ * Inside the app, iOS only grants the Fullscreen API to a <video> element —
+ * never to a div — so calling requestFullscreen() on the stage does nothing on
+ * an iPhone. The app can resize the sheet itself, though, so the button hands
+ * the decision to Flutter over a channel and Flutter calls setFs() back to keep
+ * the icon honest. On the web, where the API does work on any element, it is
+ * used directly.
+ */
+function fullscreen() {
+  show();
+  if (window.Fullscreen && window.Fullscreen.postMessage) {
+    window.Fullscreen.postMessage('toggle');
+    return;
+  }
+  var st = el('stage');
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+    setFs(false);
+  } else if (st.requestFullscreen) {
+    st.requestFullscreen();
+    setFs(true);
+  }
+}
+
+/** Called by the app once it has actually resized, so the icon can't lie. */
+function setFs(on) {
+  el('stage').classList.toggle('fs', !!on);
+  el('full').innerHTML = on ? EXIT : FULL;
+  el('full').setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+}
+window.setFs = setFs;
+
+function skip(by) {
+  if (!ready) return;
+  var of = player.getDuration() || 0;
+  var to = (player.getCurrentTime() || 0) + by;
+  player.seekTo(Math.max(0, Math.min(of, to)), true);
+  tick();
+  show();
+}
+
+var FULL = '${FULL_ICON.replace(/'/g, "\\'")}';
+var EXIT = '${EXIT_ICON.replace(/'/g, "\\'")}';
+var PLAY = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">'
+  + '<path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg>';
+var PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">'
+  + '<path fill="currentColor" d="M7 5h3.2v14H7zm6.8 0H17v14h-3.2z"/></svg>';
+
 function wire() {
-  el('cover').addEventListener('click', toggle);
-  var shield = el('shield');
-  // The point of the shield: nothing reaches YouTube's iframe.
-  shield.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  shield.addEventListener('click', toggle);
-  el('play').addEventListener('click', toggle);
+  el('big').innerHTML = PLAY;
+  el('cover').addEventListener('click', function () { toggle(); show(); });
+
+  // A tap on the picture is about the controls, not playback: it shows them,
+  // or puts them away if they're already up. Play/pause is the button's job
+  // alone, so a mis-tap while watching can't stop the video.
+  el('shield').addEventListener('click', function () {
+    if (el('stage').classList.contains('ui')) hide(); else show();
+  });
+  el('shield').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  el('big').addEventListener('click', function () { toggle(); show(); });
+  el('back').addEventListener('click', function () { skip(-SKIP); });
+  el('fwd').addEventListener('click', function () { skip(SKIP); });
+  el('full').innerHTML = FULL;
+  el('full').addEventListener('click', fullscreen);
 
   var seek = el('seek');
-  seek.addEventListener('input', function () { seeking = true; });
+  seek.addEventListener('input', function () { seeking = true; show(true); });
   seek.addEventListener('change', function () {
     seeking = false;
-    if (!ready) return;
-    var of = player.getDuration() || 0;
-    if (of > 0) player.seekTo((Number(seek.value) / 1000) * of, true);
+    if (ready) {
+      var of = player.getDuration() || 0;
+      if (of > 0) player.seekTo((Number(seek.value) / 1000) * of, true);
+    }
+    show();
   });
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
@@ -200,7 +298,7 @@ wire();
 `;
   }
 
-  /** Full-bleed black page: the player, the shield, and our own control bar. */
+  /** Full-bleed black page: the player, the shield, and our own controls. */
   private page(script: string) {
     return '<!DOCTYPE html>'
       + '<html lang="en"><head><meta charset="utf-8">'
@@ -212,43 +310,67 @@ wire();
       // long-press on a video otherwise offers its own save/copy sheet.
       + '*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;'
       + '-webkit-tap-highlight-color:transparent}'
+      + 'button{border:0;background:none;color:#fff;cursor:pointer;padding:0;'
+      + 'font:inherit;display:flex;align-items:center;justify-content:center}'
       + '#stage{position:absolute;inset:0;background:#000}'
+      // YouTube's title bar, channel name and watermark cannot be turned off —
+      // `modestbranding` was deprecated in 2023 and `controls:0` does not
+      // remove them. They anchor to the PLAYER's edges, though, not the
+      // picture's. So the iframe is made three times the container's height
+      // and pulled up by one: YouTube letterboxes the video to the width,
+      // which centres the picture exactly over the container, while the
+      // overlays sit in the dead bands above and below, out of sight.
       + '#player,#stage iframe{position:absolute;left:0;width:100%;'
       + 'height:300%;top:-100%;border:0}'
+      // The fallback embed keeps YouTube's own controls, so it must not be cropped.
       + '#stage.fallback iframe{height:100%;top:0}'
-      // Above the iframe, below the bar. This is the piece that keeps pointer
-      // events away from YouTube's own UI.
+      // Above the iframe, below the controls. This is the piece that keeps
+      // pointer events away from YouTube's own UI.
       + '#shield{position:absolute;inset:0;z-index:2}'
-      + '#bar{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;'
-      + 'align-items:center;gap:10px;padding:10px 12px;'
-      + 'background:linear-gradient(transparent,rgba(0,0,0,.75));'
-      + 'font:500 12px/1 -apple-system,system-ui,sans-serif;color:#fff;'
-      + 'opacity:0;transition:opacity .2s}'
-      + '#stage.ready #bar{opacity:1}'
-      + '#cover{position:absolute;inset:0;z-index:4;background:#000;display:flex;'
-      + 'align-items:center;justify-content:center;cursor:pointer}'
-      + '#stage.started #cover,#stage.fallback #cover{display:none}'
-      + '#coverplay{width:62px;height:62px;border-radius:50%;color:#fff;font-size:22px;'
-      + 'background:rgba(255,255,255,.16);display:flex;align-items:center;'
-      + 'justify-content:center;padding-left:4px}'
-      + '#stage.fallback #bar,#stage.fallback #shield{display:none}'
-      + '#play{width:32px;height:32px;flex:0 0 auto;border:0;border-radius:50%;'
-      + 'background:rgba(255,255,255,.15);color:#fff;font-size:13px;cursor:pointer}'
+      // The control layer itself is transparent to taps — only its buttons
+      // take them — so tapping the picture still reaches the shield.
+      + '#ui{position:absolute;inset:0;z-index:3;pointer-events:none;'
+      + 'opacity:0;transition:opacity .18s}'
+      + '#stage.ready.ui #ui{opacity:1}'
+      + '#ui button,#ui input{pointer-events:auto}'
+      + '#stage:not(.ui) #ui button,#stage:not(.ui) #ui input{pointer-events:none}'
+      + '#big{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);'
+      + 'width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.45);'
+      + 'backdrop-filter:blur(2px)}'
+      + '#bar{position:absolute;left:0;right:0;bottom:0;display:flex;'
+      + 'align-items:center;gap:12px;padding:12px 14px;'
+      + 'background:linear-gradient(transparent,rgba(0,0,0,.78));'
+      + 'font:500 12px/1 -apple-system,system-ui,sans-serif;color:#fff}'
+      + '.skip{flex:0 0 auto;gap:2px;font-size:11px;font-weight:700;opacity:.92}'
+      + '.skip svg{width:19px;height:19px}'
       + '#seek{flex:1;-webkit-appearance:none;appearance:none;height:3px;'
       + 'border-radius:2px;background:rgba(255,255,255,.3);cursor:pointer}'
       + '#seek::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;'
       + 'border-radius:50%;background:#fff}'
       + '#time{flex:0 0 auto;font-variant-numeric:tabular-nums;opacity:.85}'
+      + '#cover{position:absolute;inset:0;z-index:4;background:#000;display:flex;'
+      + 'align-items:center;justify-content:center;cursor:pointer}'
+      + '#stage.started #cover,#stage.fallback #cover{display:none}'
+      + '#coverplay{width:62px;height:62px;border-radius:50%;color:#fff;'
+      + 'background:rgba(255,255,255,.16);display:flex;align-items:center;'
+      + 'justify-content:center}'
       + '</style></head><body>'
-      + '<div id="stage">'
+      + '<div id="stage" class="ui">'
       + '<div id="player"></div>'
       + '<div id="shield"></div>'
-      + '<div id="cover"><span id="coverplay">&#9658;</span></div>'
+      + '<div id="ui">'
+      + '<button id="big" type="button" aria-label="Play"></button>'
       + '<div id="bar">'
-      + '<button id="play" type="button" aria-label="Play">&#9658;</button>'
+      + '<button id="back" class="skip" type="button" aria-label="Back 10 seconds">'
+      + BACK_ICON + '<span>10</span></button>'
       + '<input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">'
+      + '<button id="fwd" class="skip" type="button" aria-label="Forward 10 seconds">'
+      + '<span>10</span>' + FWD_ICON + '</button>'
       + '<span id="time"><span id="at">0:00</span> / <span id="total">0:00</span></span>'
+      + '<button id="full" class="skip" type="button" aria-label="Full screen"></button>'
       + '</div></div>'
+      + '<div id="cover"><span id="coverplay">' + COVER_ICON + '</span></div>'
+      + '</div>'
       + '<script src="https://www.youtube.com/iframe_api"></script>'
       + `<script>${script}</script>`
       + '</body></html>';
