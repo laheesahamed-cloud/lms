@@ -3,5 +3,6 @@ export declare class EmbedController {
     private static readonly YOUTUBE_ID;
     youtube(id: string, res: Response): void;
     private harden;
+    private script;
     private page;
 }
