@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../theme/tokens.dart';
 import 'video_embed.dart';
 
@@ -32,64 +31,33 @@ class WatchVideoModal extends StatefulWidget {
 class _WatchVideoModalState extends State<WatchVideoModal> {
   late final VideoEmbed _embed;
   WebViewController? _iframeWvc;
-  YoutubePlayerController? _ytc;
 
   @override
   void initState() {
     super.initState();
     _embed = getVideoEmbed(widget.videoUrl);
 
-    // YouTube → the dedicated IFrame player with YouTube's own controls
-    // (showControls: true). We tried hiding these in favor of a fully custom
-    // bar, but that made some videos fail to play at all — reverted for
-    // reliability.
+    // YouTube gets NO special case, deliberately.
     //
-    // `origin` is deliberately our own real domain, NOT the package's
-    // default of 'https://www.youtube.com'. Per Google's own docs, `origin`
-    // is "an extra security measure... specify your domain as the value" —
-    // claiming to *be* youtube.com is self-referential nonsense that a
-    // legitimate third-party embed should never send, and YouTube appears to
-    // have started rejecting it more often recently (the "error 150/152/153"
-    // reports across many apps in late 2025 — see
-    // https://github.com/sarbagyastha/youtube_player_flutter/issues/1084 —
-    // point at YouTube tightening origin/referrer validation for embeds).
-    if (_embed.provider == 'youtube') {
-      final id = _youtubeId(_embed.src);
-      if (id != null && id.isNotEmpty) {
-        _ytc = YoutubePlayerController.fromVideoId(
-          videoId: id,
-          autoPlay: false,
-          params: const YoutubePlayerParams(
-            // Our own domain, and it must stay that way.
-            //
-            // On mobile the package uses this value three ways: as the WebView's
-            // baseUrl, as the embed `host`, and as the origin/widget_referrer
-            // player vars. The baseUrl sets the page's document origin, and so
-            // the Referer YouTube receives.
-            //
-            // Setting it to https://www.youtube.com makes the page claim to BE
-            // YouTube, so the embed arrives with a youtube.com referrer from
-            // something that plainly isn't — which YouTube rejects as error
-            // 152-4, "missing or spoofed referrer". Naming the domain we
-            // actually own is the supported setup: an ordinary third-party
-            // embed with an honest referrer.
-            origin: 'https://xyndrome.lk',
-            showControls: true,
-            showFullscreenButton: true,
-            playsInline: true,
-            enableCaption: false,
-            strictRelatedVideos: true,
-          ),
-        );
-        return;
-      }
-    }
-
-    // Vimeo and Google Drive — their own iframe/controls. Neither gives us
-    // a clean way to drive a fully custom UI the way YouTube's IFrame API
-    // does: Vimeo's basic embed terms require their player chrome, and
-    // Drive's own `/preview` page is what reliably handles a private/shared
-    // file's cookies + confirmation flow (a bare <video> tag can't).
+    // It used to run through youtube_player_iframe. That package builds its
+    // player page in memory with `loadHtmlString`, so the document has no real
+    // URL: whatever `origin` claims, the page was never served from anywhere.
+    // YouTube validates the referrer of an embed, and an in-memory page cannot
+    // produce an honest one — naming youtube.com got us error 152-4 ("missing
+    // or spoofed referrer") and naming our own domain got a black player. Both
+    // failures are the same failure.
+    //
+    // So YouTube now takes the path below, which Vimeo and Drive have always
+    // taken and which has always worked: a real navigation to the provider's
+    // own embed page. `loadRequest` to https://www.youtube.com/embed/<id> is
+    // YouTube's documented embed, loaded as itself — first-party, nothing
+    // claimed, nothing spoofed — and the player's own controls come with it,
+    // which is what this modal showed anyway.
+    //
+    // So one path now serves all three providers, each on its own embed page
+    // with its own player chrome. That chrome isn't a compromise: Vimeo's basic
+    // embed terms require it, and Drive's `/preview` page is what handles a
+    // shared file's cookies and confirmation flow (a bare <video> tag can't).
     if (_embed.type == VideoEmbedType.iframe) {
       PlatformWebViewControllerCreationParams params =
           const PlatformWebViewControllerCreationParams();
@@ -110,19 +78,14 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
     // chrome at all.
   }
 
-  /// Pull the 11-char video id out of a `youtube.com/embed/{id}` URL.
-  String? _youtubeId(String embedSrc) {
-    try {
-      final segs = Uri.parse(embedSrc).pathSegments;
-      final i = segs.indexOf('embed');
-      if (i >= 0 && i + 1 < segs.length) return segs[i + 1];
-    } catch (_) {}
-    return null;
-  }
-
   @override
   void dispose() {
-    _ytc?.close();
+    // A WKWebView's media element outlives the Flutter widget, so closing the
+    // sheet does not by itself stop an embedded player — the sound carries on
+    // over the next screen. Replacing the page is what actually stops it.
+    // (The direct-file player does the same in _DirectVideoBlock.dispose.)
+    final wvc = _iframeWvc;
+    if (wvc != null) teardownVideoPage(wvc);
     super.dispose();
   }
 
@@ -238,16 +201,6 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
   }
 
   Widget _buildPlayer(AppColors c, bool dark) {
-    final ytc = _ytc;
-    if (ytc != null) {
-      return ColoredBox(
-        color: Colors.black,
-        child: YoutubePlayer(
-          controller: ytc,
-          aspectRatio: _embed.isVertical ? 9 / 16 : 16 / 9,
-        ),
-      );
-    }
     if (_embed.type == VideoEmbedType.video) {
       return ColoredBox(
         color: Colors.black,
