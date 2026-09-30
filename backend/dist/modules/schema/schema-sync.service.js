@@ -803,6 +803,8 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
         await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
+        await this.ensureColumn(connection, 'osce_media', 'external_url', 'VARCHAR(500) NULL AFTER storage_key');
+        await connection.query("ALTER TABLE osce_media MODIFY COLUMN storage_key VARCHAR(255) NOT NULL DEFAULT ''").catch(() => undefined);
         await connection.execute(`
       CREATE TABLE IF NOT EXISTS osce_progress (
         id             INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

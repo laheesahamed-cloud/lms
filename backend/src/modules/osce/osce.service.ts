@@ -904,12 +904,13 @@ export class OsceService {
 
   async listMedia(caseId: number) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      'SELECT slot_key, storage_key, thumb_key, mime, source, bytes, width, height, updated_at FROM osce_media WHERE case_id = ?',
+      'SELECT slot_key, storage_key, external_url, thumb_key, mime, source, bytes, width, height, updated_at FROM osce_media WHERE case_id = ?',
       [caseId]
     );
     return rows.map((r) => ({
       slot: String(r.slot_key),
-      storageKey: String(r.storage_key),
+      storageKey: String(r.storage_key || ''),
+      externalUrl: r.external_url ? String(r.external_url) : null,
       thumbKey: r.thumb_key ? String(r.thumb_key) : null,
       mime: String(r.mime),
       source: String(r.source || 'upload'),
@@ -1009,9 +1010,10 @@ export class OsceService {
     }
 
     await this.db.execute(
-      `INSERT INTO osce_media (case_id, slot_key, storage_key, thumb_key, mime, source, bytes, width, height)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE storage_key = VALUES(storage_key), thumb_key = VALUES(thumb_key),
+      `INSERT INTO osce_media (case_id, slot_key, storage_key, external_url, thumb_key, mime, source, bytes, width, height)
+       VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE storage_key = VALUES(storage_key), external_url = NULL,
+                               thumb_key = VALUES(thumb_key),
                                mime = VALUES(mime), source = VALUES(source), bytes = VALUES(bytes),
                                width = VALUES(width), height = VALUES(height)`,
       [caseId, slotKey, storageKey, thumbKey, file.mimetype, meta.source ?? 'upload',
@@ -1019,6 +1021,47 @@ export class OsceService {
     );
 
     return { slot: slotKey, storageKey, thumbKey, bytes: file.buffer.length };
+  }
+
+  /**
+   * Point a slot at a video hosted somewhere else.
+   *
+   * The mirror image of saveSlotImage: same slot, same row, no file. Clips are
+   * what got the hosting account flagged, so a link is the preferred way to put
+   * video on a station — it costs no disk and no bandwidth, and the app already
+   * knows how to play YouTube, Vimeo and Drive.
+   *
+   * Storing the URL as pasted, and only ever handing it back for a player to
+   * load, means nothing here is fetched or proxied by us.
+   */
+  async saveSlotLink(caseId: number, slotKey: string, rawUrl: string) {
+    const found = await this.getCaseById(caseId);
+    if (!found) throw new NotFoundException('Case not found');
+
+    const url = String(rawUrl || '').trim();
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new BadRequestException('That does not look like a link. Paste the full address, starting with https://');
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new BadRequestException('Only http and https links can be used.');
+    }
+    if (url.length > 500) {
+      throw new BadRequestException('That link is too long (500 characters maximum).');
+    }
+
+    await this.db.execute(
+      `INSERT INTO osce_media (case_id, slot_key, storage_key, external_url, thumb_key, mime, source, bytes, width, height)
+       VALUES (?, ?, '', ?, NULL, 'video/external', 'upload', 0, NULL, NULL)
+       ON DUPLICATE KEY UPDATE storage_key = '', external_url = VALUES(external_url),
+                               thumb_key = NULL, mime = 'video/external',
+                               bytes = 0, width = NULL, height = NULL`,
+      [caseId, slotKey, url]
+    );
+
+    return { slot: slotKey, externalUrl: url };
   }
 
   /**
@@ -1286,6 +1329,19 @@ export class OsceService {
       const hit = bySlot.get(slot);
       if (!hit) return null;
       const stamp = hit.updatedAt ? new Date(hit.updatedAt as any).getTime() : 0;
+      // A linked slot points at someone else's host, so there is nothing of
+      // ours to serve, no cache stamp to add and no thumbnail to derive — the
+      // client gets the URL exactly as it was pasted and its own player works
+      // out what to do with it.
+      if (hit.externalUrl) {
+        return {
+          full: hit.externalUrl,
+          thumb: null,
+          width: null, height: null,
+          kind: 'video',
+          mime: 'video/external',
+        };
+      }
       const video = OsceService.isVideoMime(hit.mime);
       return {
         full: `${root}/api/osce/media/${hit.storageKey}?v=${stamp}`,

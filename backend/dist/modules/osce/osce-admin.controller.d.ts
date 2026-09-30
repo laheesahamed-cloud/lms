@@ -109,6 +109,7 @@ export declare class OsceAdminController {
             media: {
                 slot: string;
                 storageKey: string;
+                externalUrl: string | null;
                 thumbKey: string | null;
                 mime: string;
                 source: string;
@@ -402,6 +403,7 @@ export declare class OsceAdminController {
             media: {
                 slot: string;
                 storageKey: string;
+                externalUrl: string | null;
                 thumbKey: string | null;
                 mime: string;
                 source: string;
@@ -466,6 +468,12 @@ export declare class OsceAdminController {
         storageKey: string;
         thumbKey: string | null;
         bytes: number;
+    }>;
+    linkSlot(id: number, slot: string, body: {
+        url?: string;
+    }, auth?: string): Promise<{
+        slot: string;
+        externalUrl: string;
     }>;
     generateSlot(id: number, slot: string, body: {
         prompt?: string;

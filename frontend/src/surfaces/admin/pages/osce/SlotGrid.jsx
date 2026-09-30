@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { adminClearOsceSlot, adminOsceInbox, adminOsceInboxFile, adminOsceArchiveInboxFile,
-  adminGenerateOsceSlot, adminOsceSettings, adminSaveOsceSettings,
+  adminGenerateOsceSlot, adminLinkOsceSlot, adminOsceSettings, adminSaveOsceSettings,
   adminOsceImageModels } from '../../../../shared/api/osce.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { optimizeAndUploadSlot, optimizeAndUploadDataUrl, ratioWarning, isVideoFile } from './osceMedia.js';
@@ -13,8 +13,31 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
   const isVideoSlot = slot.media?.kind === 'video'
     || /\.(mp4|webm|mov|ogv)$/i.test(String(slot.media?.storageKey || ''));
   const [busy, setBusy] = useState(false);
+  // A slot can point at a video hosted elsewhere instead of holding a file.
+  // Self-hosted clips are what got the hosting account flagged, so this is the
+  // preferred way to put video on a station — and the app already plays
+  // YouTube, Vimeo and Drive.
+  const isLinked = slot.media?.mime === 'video/external';
+  const [link, setLink] = useState('');
+  const [linkOpen, setLinkOpen] = useState(false);
 
   const pick = () => inputRef.current?.click();
+
+  const saveLink = useCallback(async () => {
+    const url = link.trim();
+    if (!url) return;
+    setBusy(true);
+    try {
+      await adminLinkOsceSlot(caseId, slot.slot, url);
+      setLink('');
+      setLinkOpen(false);
+      onDone();
+    } catch (error) {
+      onError(getErrorMessage(error) || 'Could not save that link.');
+    } finally {
+      setBusy(false);
+    }
+  }, [caseId, slot.slot, link, onDone, onError]);
 
   const upload = useCallback(async (file) => {
     if (!file) return;
@@ -73,7 +96,15 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
     >
       <div className="osce-slot-frame" onClick={pick} role="button" tabIndex={0}
            onKeyDown={(e) => { if (e.key === 'Enter') pick(); }}>
-        {slot.filled && mediaUrl
+        {slot.filled && isLinked
+          ? (
+            <div className="osce-slot-drop">
+              <strong>Linked video</strong>
+              <span style={{ wordBreak: 'break-all' }}>{slot.media.externalUrl || 'external link'}</span>
+              <em>Plays in the app</em>
+            </div>
+          )
+          : slot.filled && mediaUrl
           ? (isVideoSlot
               // A clip has no still to show, so preview the clip itself. muted +
               // playsInline so it can be scrubbed in place without taking over.
@@ -113,10 +144,28 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
             {slot.filled ? 'Regenerate' : 'Generate'}
           </button>
         )}
+        <button type="button" onClick={() => setLinkOpen((v) => !v)} disabled={busy}
+                title="Use a video hosted elsewhere instead of uploading one">
+          {isLinked ? 'Change link' : 'Paste link'}
+        </button>
         {slot.filled ? (
           <button type="button" className="osce-btn-danger" onClick={clear} disabled={busy}>Clear</button>
         ) : null}
       </div>
+
+      {linkOpen ? (
+        <div className="osce-slot-link">
+          <input
+            className="osce-input"
+            type="url"
+            value={link}
+            placeholder="YouTube / Vimeo / Drive link"
+            onChange={(e) => setLink(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') saveLink(); }}
+          />
+          <button type="button" onClick={saveLink} disabled={busy || !link.trim()}>Save</button>
+        </div>
+      ) : null}
 
       <input
         ref={inputRef}

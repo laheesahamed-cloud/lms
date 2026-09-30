@@ -142,6 +142,10 @@ let OsceAdminController = class OsceAdminController {
             source: body?.source === 'ai' ? 'ai' : undefined,
         });
     }
+    async linkSlot(id, slot, body, auth) {
+        await this.authService.requireAdmin(auth);
+        return this.svc.saveSlotLink(id, slot, String(body?.url || ''));
+    }
     async generateSlot(id, slot, body, auth) {
         await this.authService.requireAdmin(auth);
         if (!this.svc.canGenerateSlot(slot)) {
@@ -388,6 +392,17 @@ __decorate([
     __metadata("design:paramtypes", [Number, String, Object, Object, String]),
     __metadata("design:returntype", Promise)
 ], OsceAdminController.prototype, "uploadSlot", null);
+__decorate([
+    (0, common_1.Post)('cases/:id/media/:slot/link'),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Param)('slot')),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, String, Object, String]),
+    __metadata("design:returntype", Promise)
+], OsceAdminController.prototype, "linkSlot", null);
 __decorate([
     (0, common_1.Post)('cases/:id/media/:slot/generate'),
     (0, permissions_decorator_1.RequirePermissions)('content.manage'),

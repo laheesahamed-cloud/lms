@@ -1,0 +1,1 @@
+import{C as e}from"./vendor-DefyWfRq.js";export{e as App};

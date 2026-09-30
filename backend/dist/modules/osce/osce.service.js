@@ -613,10 +613,11 @@ let OsceService = OsceService_1 = class OsceService {
         return out;
     }
     async listMedia(caseId) {
-        const [rows] = await this.db.execute('SELECT slot_key, storage_key, thumb_key, mime, source, bytes, width, height, updated_at FROM osce_media WHERE case_id = ?', [caseId]);
+        const [rows] = await this.db.execute('SELECT slot_key, storage_key, external_url, thumb_key, mime, source, bytes, width, height, updated_at FROM osce_media WHERE case_id = ?', [caseId]);
         return rows.map((r) => ({
             slot: String(r.slot_key),
-            storageKey: String(r.storage_key),
+            storageKey: String(r.storage_key || ''),
+            externalUrl: r.external_url ? String(r.external_url) : null,
             thumbKey: r.thumb_key ? String(r.thumb_key) : null,
             mime: String(r.mime),
             source: String(r.source || 'upload'),
@@ -686,13 +687,39 @@ let OsceService = OsceService_1 = class OsceService {
             await (0, promises_1.writeFile)((0, path_1.join)(dir, thumbName), meta.thumbBuffer);
             thumbKey = `${found.slug}/${thumbName}`;
         }
-        await this.db.execute(`INSERT INTO osce_media (case_id, slot_key, storage_key, thumb_key, mime, source, bytes, width, height)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE storage_key = VALUES(storage_key), thumb_key = VALUES(thumb_key),
+        await this.db.execute(`INSERT INTO osce_media (case_id, slot_key, storage_key, external_url, thumb_key, mime, source, bytes, width, height)
+       VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE storage_key = VALUES(storage_key), external_url = NULL,
+                               thumb_key = VALUES(thumb_key),
                                mime = VALUES(mime), source = VALUES(source), bytes = VALUES(bytes),
                                width = VALUES(width), height = VALUES(height)`, [caseId, slotKey, storageKey, thumbKey, file.mimetype, meta.source ?? 'upload',
             file.buffer.length, meta.width ?? null, meta.height ?? null]);
         return { slot: slotKey, storageKey, thumbKey, bytes: file.buffer.length };
+    }
+    async saveSlotLink(caseId, slotKey, rawUrl) {
+        const found = await this.getCaseById(caseId);
+        if (!found)
+            throw new common_1.NotFoundException('Case not found');
+        const url = String(rawUrl || '').trim();
+        let parsed;
+        try {
+            parsed = new URL(url);
+        }
+        catch {
+            throw new common_1.BadRequestException('That does not look like a link. Paste the full address, starting with https://');
+        }
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            throw new common_1.BadRequestException('Only http and https links can be used.');
+        }
+        if (url.length > 500) {
+            throw new common_1.BadRequestException('That link is too long (500 characters maximum).');
+        }
+        await this.db.execute(`INSERT INTO osce_media (case_id, slot_key, storage_key, external_url, thumb_key, mime, source, bytes, width, height)
+       VALUES (?, ?, '', ?, NULL, 'video/external', 'upload', 0, NULL, NULL)
+       ON DUPLICATE KEY UPDATE storage_key = '', external_url = VALUES(external_url),
+                               thumb_key = NULL, mime = 'video/external',
+                               bytes = 0, width = NULL, height = NULL`, [caseId, slotKey, url]);
+        return { slot: slotKey, externalUrl: url };
     }
     async promptForSlot(caseId, slotKey) {
         const found = await this.getCaseById(caseId);
@@ -881,6 +908,15 @@ let OsceService = OsceService_1 = class OsceService {
             if (!hit)
                 return null;
             const stamp = hit.updatedAt ? new Date(hit.updatedAt).getTime() : 0;
+            if (hit.externalUrl) {
+                return {
+                    full: hit.externalUrl,
+                    thumb: null,
+                    width: null, height: null,
+                    kind: 'video',
+                    mime: 'video/external',
+                };
+            }
             const video = OsceService_1.isVideoMime(hit.mime);
             return {
                 full: `${root}/api/osce/media/${hit.storageKey}?v=${stamp}`,

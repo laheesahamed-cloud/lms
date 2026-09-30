@@ -1,1 +1,0 @@
-import{S as e}from"./vendor-a53Uvpp-.js";export{e as AppWeb};

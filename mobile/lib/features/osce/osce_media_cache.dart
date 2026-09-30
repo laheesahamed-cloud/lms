@@ -193,7 +193,24 @@ class OsceMediaCache {
 /// slot media. Wiring the flag through each of them by hand is how two of them
 /// ended up trying to decode an MP4 as a picture.
 bool isOsceVideoUrl(String url) =>
-    RegExp(r'\.(mp4|webm|mov|ogv|ogg)(\?|#|$)', caseSensitive: false).hasMatch(url);
+    RegExp(r'\.(mp4|webm|mov|ogv|ogg)(\?|#|$)', caseSensitive: false).hasMatch(url)
+        || isOsceLinkedVideo(url);
+
+/// Whether a slot points at a video hosted somewhere else rather than a file of
+/// ours — a pasted YouTube, Vimeo or Drive link.
+///
+/// These can't be fed to a <video> tag the way a direct file can: the URL is a
+/// watch PAGE, not a media file, so the provider's own embed has to load it.
+/// Kept separate from [isOsceVideoUrl] so every call site can tell a clip we
+/// can play in place from one that needs a player.
+bool isOsceLinkedVideo(String url) {
+  final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+  if (host.isEmpty) return false;
+  return host.contains('youtube.com')
+      || host.contains('youtu.be')
+      || host.contains('vimeo.com')
+      || host.contains('drive.google.com');
+}
 
 final osceMediaCacheProvider = Provider<OsceMediaCache>(
   (ref) => OsceMediaCache(ref.read(apiClientProvider).dio),
@@ -333,8 +350,11 @@ class OsceVideoTile extends StatelessWidget {
           // in place, so throwing it into a full-screen popup breaks the flow.
           // A 54px list thumbnail is too small for a player (and a WebView per
           // row is wasteful), so that keeps a badge that opens the full player.
+          // A pasted link is a watch page, not a media file, so there is
+          // nothing for the inline <video> to load — it always needs the full
+          // player, whatever room it has.
           final tight = box.maxWidth < 120 || box.maxHeight < 90;
-          if (!tight) return OsceInlineVideo(url: url);
+          if (!tight && !isOsceLinkedVideo(url)) return OsceInlineVideo(url: url);
 
           return _badge(context, c);
         },

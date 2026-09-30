@@ -260,6 +260,24 @@ export class OsceAdminController {
    * end before the real pictures exist. Stored as `source: 'ai'` and badged in
    * the panel — these are stand-ins, not final teaching images.
    */
+  /**
+   * Point a slot at a video hosted elsewhere, instead of uploading one.
+   *
+   * Deliberately kept beside the upload rather than replacing it: stills still
+   * belong in a slot as files, and a link is the right home for a clip.
+   */
+  @Post('cases/:id/media/:slot/link')
+  @RequirePermissions('content.manage')
+  async linkSlot(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('slot') slot: string,
+    @Body() body: { url?: string },
+    @Headers('authorization') auth?: string,
+  ) {
+    await this.authService.requireAdmin(auth);
+    return this.svc.saveSlotLink(id, slot, String(body?.url || ''));
+  }
+
   @Post('cases/:id/media/:slot/generate')
   @RequirePermissions('content.manage')
   async generateSlot(

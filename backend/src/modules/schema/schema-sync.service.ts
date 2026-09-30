@@ -925,6 +925,17 @@ export class SchemaSyncService implements OnModuleInit {
     // the rest of this method — leaving osce_media and osce_progress uncreated
     // while the server booted and served OSCE routes against missing tables.
     await this.ensureColumn(connection, 'osce_media', 'source', "ENUM('upload','ai') NOT NULL DEFAULT 'upload' AFTER mime");
+    // A slot can hold a link to a video hosted elsewhere (YouTube, Vimeo,
+    // Drive) instead of a file we store. Same reason lessons take a link:
+    // clips are what got the hosting account flagged, and a link costs us no
+    // disk and no bandwidth. When this is set, storage_key is empty and the
+    // client is handed the external URL as-is.
+    await this.ensureColumn(connection, 'osce_media', 'external_url', 'VARCHAR(500) NULL AFTER storage_key');
+    // storage_key is NOT NULL from the original schema, and a linked slot has
+    // no stored file — so it has to accept ''.
+    await connection.query(
+      "ALTER TABLE osce_media MODIFY COLUMN storage_key VARCHAR(255) NOT NULL DEFAULT ''"
+    ).catch(() => undefined);
 
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS osce_progress (

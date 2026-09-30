@@ -136,7 +136,7 @@ export declare class OsceService {
         locked: boolean;
     }[]>;
     listRegions(baseUrl: string, userId?: number): Promise<{
-        key: "general" | "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs";
+        key: "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs" | "general";
         label: string;
         caseCount: number;
         cases: Record<string, unknown>[];
@@ -363,6 +363,7 @@ export declare class OsceService {
     listMedia(caseId: number): Promise<{
         slot: string;
         storageKey: string;
+        externalUrl: string | null;
         thumbKey: string | null;
         mime: string;
         source: string;
@@ -377,6 +378,7 @@ export declare class OsceService {
         media: {
             slot: string;
             storageKey: string;
+            externalUrl: string | null;
             thumbKey: string | null;
             mime: string;
             source: string;
@@ -406,6 +408,10 @@ export declare class OsceService {
         storageKey: string;
         thumbKey: string | null;
         bytes: number;
+    }>;
+    saveSlotLink(caseId: number, slotKey: string, rawUrl: string): Promise<{
+        slot: string;
+        externalUrl: string;
     }>;
     promptForSlot(caseId: number, slotKey: string): Promise<string>;
     saveGeneratedSlot(caseId: number, slotKey: string, dataUrl: string): Promise<{

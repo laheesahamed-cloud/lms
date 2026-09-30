@@ -130,6 +130,15 @@ export const adminOsceSlotPrompt = (caseId, slot) =>
   apiClient.get(`/admin/osce/cases/${caseId}/media/${encodeURIComponent(slot)}/prompt`)
     .then((r) => r.data);
 
+/**
+ * Point a slot at a video hosted elsewhere (YouTube, Vimeo, Drive) instead of
+ * uploading a file. Clears any file already in the slot.
+ */
+export const adminLinkOsceSlot = (caseId, slot, url) =>
+  apiClient
+    .post(`/admin/osce/cases/${caseId}/media/${encodeURIComponent(slot)}/link`, { url })
+    .then((r) => r.data);
+
 export const adminClearOsceSlot = (caseId, slot) =>
   apiClient.delete(`/admin/osce/cases/${caseId}/media/${encodeURIComponent(slot)}`)
     .then((r) => r.data);

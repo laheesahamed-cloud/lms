@@ -298,6 +298,25 @@ textarea.osce-input { resize: vertical; line-height: 1.5; }
 .osce-slot-actions { display: flex; gap: 6px; }
 .osce-slot-actions button { flex: 1; min-height: 34px; padding: 0 8px; font-size: 12.5px; }
 
+/* Paste a link to a video hosted elsewhere, instead of uploading a clip. */
+.osce-slot-link { display: flex; gap: 6px; margin-top: 6px; }
+.osce-slot-link .osce-input { flex: 1; min-width: 0; min-height: 34px; font-size: 12.5px; }
+.osce-slot-link button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-1);
+  color: var(--ink-strong);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.osce-slot-link button:hover { background: var(--surface-2); }
+.osce-slot-link button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* ── scenes + hotspot editor ───────────────────────────────── */
 .osce-scenes { display: grid; gap: 14px; }
 .osce-scene-picker { display: flex; flex-wrap: wrap; gap: 6px; }
