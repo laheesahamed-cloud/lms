@@ -127,10 +127,13 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
   /// Which kind of note the filter row is showing.
   _NoteFilter _filter = _NoteFilter.all;
 
+  /// Everything in this folder, before the filter row narrows it.
+  List<PersonalNote> get _notesInScope => widget.folderId == null
+      ? _notes.where((n) => n.folderId == null).toList()
+      : _notes.where((n) => n.folderId == widget.folderId).toList();
+
   List<PersonalNote> get _visibleNotes {
-    final inScope = widget.folderId == null
-        ? _notes.where((n) => n.folderId == null)
-        : _notes.where((n) => n.folderId == widget.folderId);
+    final inScope = _notesInScope;
     switch (_filter) {
       case _NoteFilter.all:
         return inScope.toList();
@@ -625,8 +628,13 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
   Widget _buildBody(AppColors c) {
     final showFolders = widget.folderId == null && _folders.isNotEmpty;
     final notes = _visibleNotes;
+    final anything = _notesInScope.isNotEmpty;
 
-    if (!showFolders && notes.isEmpty) return _empty(c);
+    // Only a genuinely empty shelf takes the whole page. If there ARE notes
+    // and this filter simply matches none of them, the filter row has to stay
+    // on screen — otherwise choosing "PDFs" with no PDFs makes the control you
+    // just pressed disappear, and there is no way back without guessing.
+    if (!showFolders && !anything) return _empty(c);
 
     // Grid tiles are built the same way regardless of layout — only the
     // container around them (a full-width column vs a 2-up grid) differs.
@@ -730,14 +738,17 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 40),
       children: [
-        // Always shown. Appearing only past a few notes meant the whole grid
-        // shifted down the first time you crossed that line, and the page
-        // read as starting hard against the header until it did.
-        _FilterRow(
-          value: _filter,
-          onChanged: (f) => setState(() => _filter = f),
+        // Centred, and wrapping its own width — a bare Container here is
+        // stretched the full width of the list, which made the pill read as a
+        // page-wide bar rather than a control.
+        Center(
+          child: _FilterRow(
+            value: _filter,
+            onChanged: (f) => setState(() => _filter = f),
+          ),
         ),
         const SizedBox(height: 18),
+        if (notes.isEmpty && !showFolders) _noMatches(c),
         // Dragging a note here (from the folder view) moves it back out to
         // "All Notes" — the drag counterpart to opening a folder tile below.
         if (widget.folderId != null)
@@ -753,6 +764,44 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
       ],
     );
   }
+
+  /// The shelf has notes, this filter just matches none of them. Deliberately
+  /// quiet and inline — it sits under the filter row that caused it, rather
+  /// than taking over the page the way a truly empty library does.
+  Widget _noMatches(AppColors c) => Padding(
+        padding: const EdgeInsets.only(top: 48),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _filter == _NoteFilter.pdfs
+                    ? Icons.picture_as_pdf_outlined
+                    : Icons.menu_book_outlined,
+                size: 34,
+                color: c.inkMuted,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _filter == _NoteFilter.pdfs
+                    ? 'No imported PDFs yet'
+                    : 'No notebooks yet',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: c.inkStrong),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _filter == _NoteFilter.pdfs
+                    ? 'Import a PDF from the + button.'
+                    : 'Create one from the + button.',
+                style: TextStyle(fontSize: 12.5, color: c.inkSoft),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _empty(AppColors c) => Center(
         child: Column(
