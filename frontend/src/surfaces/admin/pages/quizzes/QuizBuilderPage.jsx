@@ -1185,6 +1185,13 @@ export function QuizBuilderPage() {
   const [bulkInputMode, setBulkInputMode] = useState('text');
   const [bulkQuestions, setBulkQuestions] = useState([]);
   const [bulkGlobalDefaults, setBulkGlobalDefaults] = useState(buildGlobalDefaults);
+  // The assessment already knows its course and subject. These two panels used
+  // to start empty, so the same pair had to be picked a third time before any
+  // questions could be added — and picking them differently by accident is how
+  // a question ends up filed under the wrong subject. They follow the
+  // assessment until someone deliberately changes them, and then they stop.
+  const bulkDefaultsTouched = useRef(false);
+  const filtersTouched = useRef(false);
   const [bulkCurrentIndex, setBulkCurrentIndex] = useState(0);
   const [bulkQueueSearch, setBulkQueueSearch] = useState('');
   const [bulkQueueStatusFilter, setBulkQueueStatusFilter] = useState('all');
@@ -1329,6 +1336,22 @@ export function QuizBuilderPage() {
     const timeout = window.setTimeout(() => setBlueprintToast(''), 3200);
     return () => window.clearTimeout(timeout);
   }, [blueprintToast]);
+
+  useEffect(() => {
+    const from = {
+      courseId: form.courseId || '',
+      subjectId: form.subjectId || '',
+      topicId: form.topicId || '',
+      lessonId: form.lessonId || '',
+    };
+    if (!from.courseId && !from.subjectId) return;
+    if (!bulkDefaultsTouched.current) {
+      setBulkGlobalDefaults((current) => ({ ...current, ...from }));
+    }
+    if (!filtersTouched.current) {
+      setFilters((current) => ({ ...current, ...from }));
+    }
+  }, [form.courseId, form.subjectId, form.topicId, form.lessonId]);
 
   useEffect(() => {
     if (!bulkRawInput.trim() && !bulkQuestions.length) return;
@@ -1762,8 +1785,25 @@ export function QuizBuilderPage() {
     }
   }
 
+  /**
+   * The panel changed its own defaults. If that moved the course or subject,
+   * the admin has taken control of them and they should stop following the
+   * assessment — otherwise the next edit to the assessment would quietly undo
+   * a deliberate choice.
+   */
+  function handleBulkDefaultsChange(next) {
+    setBulkGlobalDefaults((current) => {
+      const resolved = typeof next === 'function' ? next(current) : next;
+      if (resolved.courseId !== current.courseId || resolved.subjectId !== current.subjectId) {
+        bulkDefaultsTouched.current = true;
+      }
+      return resolved;
+    });
+  }
+
   function handleFilterChange(event) {
     const { name, value } = event.target;
+    if (name === 'courseId' || name === 'subjectId') filtersTouched.current = true;
     setFilters((current) => {
       const next = { ...current, [name]: value };
 
@@ -3546,7 +3586,7 @@ export function QuizBuilderPage() {
                   meta={meta}
                   form={form}
                   defaults={bulkDefaults}
-                  onDefaultsChange={setBulkGlobalDefaults}
+                  onDefaultsChange={handleBulkDefaultsChange}
                   rawInput={bulkRawInput}
                   inputMode={bulkInputMode}
                   questions={bulkQuestions}
