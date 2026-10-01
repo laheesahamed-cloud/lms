@@ -71,6 +71,23 @@ const detailIncorrectOptionClass = 'border-brand-error/25 bg-brand-error/10';
 const detailRecapListClass = 'm-0 grid gap-1.5 pl-5 text-[13px] leading-relaxed text-ink-medium';
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+
+/**
+ * Drop the empty slots before sending options to the API.
+ *
+ * buildOptions always lays out five labelled slots (A-E) so the editor has
+ * somewhere to type, and fills the unused ones with ''. Those are UI
+ * scaffolding, not options — and the API requires every optionText to have at
+ * least one character, with validation set to reject the whole payload.
+ *
+ * A four-option question therefore failed to SAVE, which is what made bulk
+ * generation look like it was failing: bulk saves each question after
+ * generating, so the AI call succeeded and the update behind it returned 400.
+ * Nothing reached the AI log, because nothing was wrong with the AI.
+ */
+function realOptions(options = []) {
+  return options.filter((option) => String(option.optionText || '').trim());
+}
 const QUESTION_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 const QUESTION_IMPORT_MIME_TYPES = new Set(['', 'text/csv', 'application/csv', 'application/vnd.ms-excel']);
 
@@ -790,7 +807,7 @@ export function QuestionsPage() {
         questionApproach: form.questionApproach,
         questionApproachHighlights: textToArray(form.questionApproachHighlights),
         status: form.status,
-        options: form.options,
+        options: realOptions(form.options),
       };
 
       if (editingId) {
@@ -1119,7 +1136,7 @@ export function QuestionsPage() {
           questionApproach,
           questionApproachHighlights: textToArray(questionApproachHighlights),
           status: mapped.status,
-          options,
+          options: realOptions(options),
         });
       } catch (bulkError) {
         failed += 1;
