@@ -1402,7 +1402,11 @@ export class AiService {
    * server at all.
    */
   private formatProviderError(providerKey: AiProviderKey, error: unknown, modelName = '') {
-    this.logger.warn(
+    // error(), not warn(): Nest's console logger sends log/warn/debug to
+    // STDOUT and only error/fatal to stderr, and stderr.log is the only one
+    // of the two this host keeps. A warn here was written to a stream nobody
+    // can read — which is the same invisibility this was meant to fix.
+    this.logger.error(
       `[ai] ${providerKey}${modelName ? ` (${modelName})` : ''} failed: ${this.extractErrorMessage(error)}`,
     );
     const rawMessage = this.extractErrorMessage(error);

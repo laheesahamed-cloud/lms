@@ -1133,7 +1133,7 @@ let AiService = AiService_1 = class AiService {
         return null;
     }
     formatProviderError(providerKey, error, modelName = '') {
-        this.logger.warn(`[ai] ${providerKey}${modelName ? ` (${modelName})` : ''} failed: ${this.extractErrorMessage(error)}`);
+        this.logger.error(`[ai] ${providerKey}${modelName ? ` (${modelName})` : ''} failed: ${this.extractErrorMessage(error)}`);
         const rawMessage = this.extractErrorMessage(error);
         const normalized = rawMessage.toLowerCase();
         const providerLabel = ai_provider_utils_1.AI_PROVIDER_LABELS[providerKey];
