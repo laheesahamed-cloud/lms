@@ -2382,7 +2382,12 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                 child: Row(
                   children: [
                     _toolBtn(c, Icons.edit_outlined, _tool == _Tool.pen,
-                        () => setState(() => _tool = _Tool.pen)),
+                        // Tapping the pen also drops any shape — it is the
+                        // most obvious "just let me write" control there is.
+                        () => setState(() {
+                              _tool = _Tool.pen;
+                              _shape = _Shape.free;
+                            })),
                     const SizedBox(width: 6),
                     _toolBtn(c, Icons.brush_outlined,
                         _tool == _Tool.highlighter,
@@ -2449,8 +2454,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _Shape.rect: Icons.crop_square_rounded,
     _Shape.ellipse: Icons.circle_outlined,
   };
+  /// Freehand is deliberately absent: it is just "no shape", and the pen tool
+  /// already means that. Listing it made the menu look like it held two ways
+  /// of doing the same thing. Picking the active shape again turns it off.
   static const _shapeNames = <_Shape, String>{
-    _Shape.free: 'Freehand',
     _Shape.line: 'Straight line',
     _Shape.arrow: 'Arrow',
     _Shape.rect: 'Rectangle',
@@ -2463,15 +2470,23 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         tooltip: 'Shape',
         position: PopupMenuPosition.under,
         initialValue: _shape,
-        onSelected: (v) => setState(() => _shape = v),
+        // Choosing the one already on turns it back off, so there is a way out
+        // of shape mode without hunting for the pen button.
+        onSelected: (v) =>
+            setState(() => _shape = _shape == v ? _Shape.free : v),
         itemBuilder: (_) => [
-          for (final e in _shapeIcons.entries)
+          for (final e in _shapeNames.entries)
             PopupMenuItem<_Shape>(
               value: e.key,
               child: Row(children: [
-                Icon(e.value, size: 18, color: c.inkMedium),
+                Icon(_shapeIcons[e.key], size: 18,
+                    color: _shape == e.key ? c.primary : c.inkMedium),
                 const SizedBox(width: 10),
-                Text(_shapeNames[e.key]!),
+                Text(e.value),
+                if (_shape == e.key) ...[
+                  const Spacer(),
+                  Icon(Icons.check_rounded, size: 16, color: c.primary),
+                ],
               ]),
             ),
         ],

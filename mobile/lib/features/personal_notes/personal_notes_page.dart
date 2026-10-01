@@ -60,7 +60,11 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
   List<PersonalNote> _notes = [];
   List<PersonalFolder> _folders = [];
   bool _loading = true;
-  bool _gridView = false;
+  // Grid by default. A note is recognised by its cover, not its title, so the
+  // covers are what should be on screen when you arrive. Anyone who has
+  // switched to the list keeps it: the preference is only written once someone
+  // toggles, so this changes the default and nothing else.
+  bool _gridView = true;
   PersonalFolder? _folder;
 
   // Multi-select: entered via the header's checklist button, exited via its
@@ -81,7 +85,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
 
   Future<void> _loadViewPref() async {
     final prefs = await SharedPreferences.getInstance();
-    final grid = prefs.getBool(_viewPrefKey) ?? false;
+    final grid = prefs.getBool(_viewPrefKey) ?? true;
     if (mounted && grid != _gridView) setState(() => _gridView = grid);
   }
 
