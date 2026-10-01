@@ -121,6 +121,15 @@ class PersonalPageOps {
 
 enum _Tool { pen, highlighter, eraser }
 
+/// What the pen draws: freehand, or a generated shape.
+///
+/// Deliberately NOT part of [_Tool]. That enum is serialised by index
+/// (`toJson` writes `tool.index`), so adding to it would reinterpret every
+/// stroke already saved on every device. A shape is drawn as an ordinary pen or
+/// highlighter stroke whose points we generate, which means painting, saving,
+/// undo and the eraser all keep working with no changes at all.
+enum _Shape { free, line, arrow, rect, ellipse }
+
 class _Stroke {
   final _Tool tool;
   final Color color;
@@ -145,6 +154,24 @@ class _Stroke {
   void add(Offset o, double pressure) {
     points.add(o);
     pressures.add(pressure);
+  }
+
+  /// Shift this stroke by [d].
+  ///
+  /// The baked path is translated rather than thrown away: the smoother is
+  /// translation-invariant, so moving the baked curve gives exactly the same
+  /// geometry as re-smoothing the moved points — at a fraction of the cost,
+  /// which matters because this runs per frame while a selection is dragged.
+  void translate(Offset d) {
+    for (var i = 0; i < points.length; i++) {
+      points[i] = points[i] + d;
+    }
+    final b = _baked;
+    if (b != null) {
+      _baked = b.transform(Matrix4.translationValues(d.dx, d.dy, 0).storage);
+    }
+    _liveFrozen = null;
+    _liveFrozenSegs = 0;
   }
 
   // ── Live-render cache (transient; never serialized) ─────────────────────────
@@ -288,6 +315,25 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   final List<_Stroke> _strokes = [];
   _Stroke? _active;
+  /// Strokes taken off the canvas by undo, newest last.
+  ///
+  /// Undoing one stroke too many used to be unrecoverable — there was no redo
+  /// at all. Anything that changes the ink for a NEW reason clears this, since
+  /// a redo after drawing something else would drop a stroke back into a canvas
+  /// it no longer belongs to.
+  final List<_Stroke> _redoStack = [];
+  _Shape _shape = _Shape.free;
+  /// Lasso select: draw a loop, then drag what it caught or delete it.
+  bool _selectMode = false;
+  /// The loop being drawn, or the closed one holding the current selection.
+  List<Offset>? _lasso;
+  final List<_Stroke> _selected = [];
+  Offset? _dragAnchor;
+  /// Shapes apply to the pen and highlighter only. The eraser stays freehand:
+  /// its live cut assumes a stroke that accumulates points.
+  bool get _shapeMode => _shape != _Shape.free && _tool != _Tool.eraser;
+  /// Where the current shape started, in document space.
+  Offset? _shapeAnchor;
   _OneEuro? _euro; // per-stroke input filter (recreated on each pen-down)
   _Tool _tool = _Tool.pen;
   _Tool? _prevTool; // last non-eraser tool before pencil double-tap
@@ -860,6 +906,104 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         }));
   }
 
+  /// Drop ink that has been completely erased.
+  ///
+  /// The eraser never deletes anything: it lays down a stroke that cuts through
+  /// what is beneath it (BlendMode.clear). That is what makes an erase undoable,
+  /// and it is the right design — but it means a note GROWS as you erase, and
+  /// nothing ever took the dead weight back out. Write, erase, rewrite all year
+  /// and you carry every rubbed-out stroke forever, drawn on every frame.
+  ///
+  /// So this runs once, at load, where it is safe: the session's undo history
+  /// starts empty, so nothing it removes was reachable by undo anyway. Doing it
+  /// during a session would silently eat strokes out from under the undo stack.
+  ///
+  /// Conservative on purpose — it only removes a stroke when EVERY point of it
+  /// is inside a later eraser stroke. A partially erased stroke is left exactly
+  /// as it is, because the remaining ink is still on screen and still has to be
+  /// cut the same way.
+  static List<_Stroke> _compactErasedInk(List<_Stroke> list) {
+    // Not worth the sweep on a lightly annotated note, and this is on the path
+    // that opens a lesson.
+    if (list.length < 80) return list;
+
+    final erasers = <int>[];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].tool == _Tool.eraser) erasers.add(i);
+    }
+    if (erasers.isEmpty) return list;
+
+    final bounds = [for (final s in list) _strokeBounds(s)];
+    final dead = List<bool>.filled(list.length, false);
+
+    for (var i = 0; i < list.length; i++) {
+      final s = list[i];
+      if (s.tool == _Tool.eraser || s.points.isEmpty) continue;
+      // Only erasers laid down AFTER this stroke can have cut it.
+      final covering = erasers.where((e) => e > i);
+      if (covering.isEmpty) continue;
+      if (_fullyErased(s, bounds[i], covering, list, bounds)) dead[i] = true;
+    }
+
+    // An eraser with nothing left beneath it is now just a cost: it cuts paper.
+    for (final e in erasers) {
+      var cutsSomething = false;
+      for (var i = 0; i < e; i++) {
+        if (dead[i] || list[i].tool == _Tool.eraser) continue;
+        if (bounds[i].overlaps(bounds[e])) { cutsSomething = true; break; }
+      }
+      if (!cutsSomething) dead[e] = true;
+    }
+
+    final kept = <_Stroke>[];
+    for (var i = 0; i < list.length; i++) {
+      if (!dead[i]) kept.add(list[i]);
+    }
+    return kept;
+  }
+
+  static Rect _strokeBounds(_Stroke s) {
+    if (s.points.isEmpty) return Rect.zero;
+    var minX = s.points.first.dx, maxX = minX;
+    var minY = s.points.first.dy, maxY = minY;
+    for (final p in s.points) {
+      if (p.dx < minX) minX = p.dx;
+      if (p.dx > maxX) maxX = p.dx;
+      if (p.dy < minY) minY = p.dy;
+      if (p.dy > maxY) maxY = p.dy;
+    }
+    // The drawn stroke is as wide as its nib, so its real extent is the point
+    // cloud grown by half the width.
+    final pad = s.width / 2;
+    return Rect.fromLTRB(minX - pad, minY - pad, maxX + pad, maxY + pad);
+  }
+
+  /// True when every point of [s] sits under at least one of the [erasers].
+  static bool _fullyErased(_Stroke s, Rect sb, Iterable<int> erasers,
+      List<_Stroke> list, List<Rect> bounds) {
+    final candidates = [
+      for (final e in erasers)
+        if (bounds[e].overlaps(sb)) e
+    ];
+    if (candidates.isEmpty) return false;
+
+    for (final p in s.points) {
+      var covered = false;
+      for (final e in candidates) {
+        final er = list[e];
+        // The eraser cuts a band of its own width; a point of our stroke is gone
+        // when the two nibs overlap at that point.
+        final reach = er.width / 2 + s.width / 2;
+        for (final q in er.points) {
+          if ((p - q).distanceSquared <= reach * reach) { covered = true; break; }
+        }
+        if (covered) break;
+      }
+      if (!covered) return false;
+    }
+    return true;
+  }
+
   Future<void> _loadInk() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_inkKey);
@@ -870,7 +1014,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
             ..committed = true) // loaded strokes are final → cache their paths
           .toList();
       if (mounted) {
-        _strokes.addAll(list);
+        _strokes.addAll(_compactErasedInk(list));
+        _redoStack.clear();
         _inkGen.value++; // repaint committed layers
         setState(() {}); // refresh undo/clear enabled state in the toolbar
       }
@@ -1285,7 +1430,109 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   }
 
   // ── Stroke handlers (document space) ────────────────────────────────────────
+  // ── Lasso select ──────────────────────────────────────────────────────────
+
+  /// Ray casting. Fine for a hand-drawn loop of a few hundred points.
+  static bool _inPolygon(Offset p, List<Offset> poly) {
+    if (poly.length < 3) return false;
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      final a = poly[i], b = poly[j];
+      if ((a.dy > p.dy) != (b.dy > p.dy) &&
+          p.dx < (b.dx - a.dx) * (p.dy - a.dy) / (b.dy - a.dy) + a.dx) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  void _selectDown(PointerDownEvent e) {
+    final p = _toDoc(e.localPosition);
+    final loop = _lasso;
+    // Pressing inside an existing selection picks it up to move; anywhere else
+    // starts a new loop. Same gesture as every other canvas app.
+    if (_selected.isNotEmpty && loop != null && _inPolygon(p, loop)) {
+      _dragAnchor = p;
+      return;
+    }
+    _selected.clear();
+    _dragAnchor = null;
+    _lasso = [p];
+    _tick.value++;
+  }
+
+  void _selectMove(PointerMoveEvent e) {
+    final p = _toDoc(e.localPosition);
+    final anchor = _dragAnchor;
+    if (anchor != null) {
+      final d = p - anchor;
+      for (final st in _selected) {
+        st.translate(d);
+      }
+      // The loop travels with what it holds, so the next press still lands
+      // inside it.
+      final loop = _lasso;
+      if (loop != null) {
+        for (var i = 0; i < loop.length; i++) {
+          loop[i] = loop[i] + d;
+        }
+      }
+      _dragAnchor = p;
+      _inkGen.value++; // committed ink moved → replay the committed layers
+      _refreshPics();
+      _tick.value++;
+      return;
+    }
+    final loop = _lasso;
+    if (loop == null) return;
+    if (loop.isNotEmpty && (p - loop.last).distance < 1.5) return;
+    loop.add(p);
+    _tick.value++;
+  }
+
+  void _selectUp() {
+    if (_dragAnchor != null) {
+      _dragAnchor = null;
+      _redoStack.clear(); // the canvas changed for a new reason
+      _scheduleSaveInk();
+      setState(() {});
+      return;
+    }
+    final loop = _lasso;
+    if (loop == null || loop.length < 3) {
+      setState(() { _lasso = null; _selected.clear(); });
+      return;
+    }
+    _selected
+      ..clear()
+      // Fully enclosed only. Catching a stroke you merely clipped means moving
+      // half a word and no way to tell until it has moved.
+      ..addAll(_strokes.where((st) =>
+          st.points.isNotEmpty && st.points.every((pt) => _inPolygon(pt, loop))));
+    setState(() {});
+  }
+
+  void _deleteSelection() {
+    if (_selected.isEmpty) return;
+    _strokes.removeWhere(_selected.contains);
+    _selected.clear();
+    _lasso = null;
+    _redoStack.clear();
+    _inkGen.value++;
+    _refreshPics();
+    _tick.value++;
+    setState(() {});
+    _scheduleSaveInk();
+  }
+
+  void _clearSelection() {
+    if (_lasso == null && _selected.isEmpty) return;
+    setState(() { _lasso = null; _selected.clear(); _dragAnchor = null; });
+    _tick.value++;
+  }
+
   void _startStroke(PointerDownEvent e) {
+    if (_selectMode) { _selectDown(e); return; }
     _trace('[MidStrokeTransform] === STROKE START === isPersonal=${widget.isPersonal} tool=$_tool');
     // Lighter filter (less lag), faster speed response → tighter fast-stroke
     // tracking (the part that reads worst at high zoom).
@@ -1299,6 +1546,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     // does NOT change if you later zoom or toggle dark).
     _active = _Stroke(_tool, _activeColor, _activeSize / scale, scale: scale)
       ..add(p, _norm(e));
+    // A shape is rubber-banded from here to wherever the pen currently is.
+    _shapeAnchor = _shapeMode ? p : null;
     // The eraser is the only tool that cuts into COMMITTED ink, so it needs the
     // committed painters wired to repaint live — that needs a one-off rebuild to
     // set the `erasing` flag. Pen/highlighter never setState during a stroke.
@@ -1310,8 +1559,25 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   }
 
   void _extendStroke(PointerMoveEvent e) {
+    if (_selectMode) { _selectMove(e); return; }
     final s = _active;
     if (s == null) return;
+
+    // A shape redraws from its anchor every move rather than accumulating
+    // points. A FRESH stroke each time, deliberately: _Stroke caches its baked
+    // path incrementally on the assumption that settled points never move, and
+    // a rubber-banded shape breaks that assumption on every frame.
+    final anchor = _shapeAnchor;
+    if (anchor != null) {
+      if (_outsidePage(e.localPosition)) return;
+      final pts = _shapePoints(_shape, anchor, _toDoc(e.localPosition));
+      _active = _Stroke(s.tool, s.color, s.width, scale: s.scale)
+        ..points.addAll(pts)
+        ..pressures.addAll(List<double>.filled(pts.length, 1.0));
+      _tick.value++;
+      return;
+    }
+
     // Commit and stop the stroke if the pointer crosses outside the page.
     if (_outsidePage(e.localPosition)) {
       _endStroke(commit: true);
@@ -1329,14 +1595,17 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   }
 
   void _endStroke({required bool commit}) {
+    if (_selectMode) { _selectUp(); return; }
     final s = _active;
     if (s == null) return;
     _trace('[MidStrokeTransform] === STROKE END === commit=$commit points=${s.points.length}');
     final wasEraser = s.tool == _Tool.eraser;
     _active = null;
+    _shapeAnchor = null;
     if (commit) {
       s.committed = true; // points are final now → cache its baked path
       _strokes.add(s);
+      _redoStack.clear(); // a new stroke makes the undone ones unreachable
       _inkGen.value++; // advance generation (painters replay next frame)
       _refreshPics(); // rebuild the committed picture NOW (no setState on commit)
       _tick.value++; //  …and the live layer clears it — same frame, no flash
@@ -1558,11 +1827,61 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     });
   }
 
+  /// The points that draw [shape] from [a] to [b].
+  ///
+  /// Returned as an ordinary polyline so the rest of the pipeline — smoothing,
+  /// baking, painting, erasing, saving — needs to know nothing about shapes.
+  static List<Offset> _shapePoints(_Shape shape, Offset a, Offset b) {
+    switch (shape) {
+      case _Shape.free:
+        return [a, b];
+      case _Shape.line:
+        return [a, b];
+      case _Shape.arrow:
+        // The shaft, then back up one barb and down the other, so a single
+        // continuous stroke draws the whole arrow.
+        final v = b - a;
+        final len = v.distance;
+        if (len < 1) return [a, b];
+        final dir = v / len;
+        final head = (len * 0.22).clamp(8.0, 34.0);
+        final norm = Offset(-dir.dy, dir.dx);
+        final base = b - dir * head;
+        final left = base + norm * (head * 0.45);
+        final right = base - norm * (head * 0.45);
+        return [a, b, left, b, right];
+      case _Shape.rect:
+        final r = Rect.fromPoints(a, b);
+        return [
+          r.topLeft, r.topRight, r.bottomRight, r.bottomLeft, r.topLeft,
+        ];
+      case _Shape.ellipse:
+        final r = Rect.fromPoints(a, b);
+        final cx = r.center.dx, cy = r.center.dy;
+        final rx = r.width / 2, ry = r.height / 2;
+        // 48 segments is smooth at any zoom this canvas allows, and keeps the
+        // stored stroke small.
+        return [
+          for (var i = 0; i <= 48; i++)
+            Offset(cx + rx * math.cos(i * 2 * math.pi / 48),
+                   cy + ry * math.sin(i * 2 * math.pi / 48)),
+        ];
+    }
+  }
+
   void _undo() {
     if (_strokes.isEmpty) return;
-    _strokes.removeLast();
+    _redoStack.add(_strokes.removeLast());
     _inkGen.value++; // repaint committed layers
-    setState(() {}); // refresh undo/clear enabled state
+    setState(() {}); // refresh undo/redo/clear enabled state
+    _scheduleSaveInk();
+  }
+
+  void _redo() {
+    if (_redoStack.isEmpty) return;
+    _strokes.add(_redoStack.removeLast());
+    _inkGen.value++;
+    setState(() {});
     _scheduleSaveInk();
   }
 
@@ -1695,6 +2014,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _clear() {
     if (_strokes.isEmpty) return;
     _strokes.clear();
+    _redoStack.clear();
     _inkGen.value++;
     setState(() {});
     _scheduleSaveInk();
@@ -2003,8 +2323,40 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                     _toolBtn(c, Icons.cleaning_services_outlined,
                         _tool == _Tool.eraser,
                         () => setState(() => _tool = _Tool.eraser)),
+                    const SizedBox(width: 6),
+                    _toolBtn(c, Icons.highlight_alt_outlined, _selectMode, () {
+                      setState(() {
+                        _selectMode = !_selectMode;
+                        _lasso = null;
+                        _selected.clear();
+                        _dragAnchor = null;
+                      });
+                      _tick.value++;
+                    }),
+                    if (_selectMode && _selected.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      _toolBtn(c, Icons.delete_sweep_outlined, false,
+                          _deleteSelection),
+                      const SizedBox(width: 6),
+                      _toolBtn(c, Icons.close_rounded, false, _clearSelection),
+                    ],
                     _sep(c),
-                    if (_tool != _Tool.eraser) ...[
+                    // Shape picker — pen/highlighter only.
+                    if (_tool != _Tool.eraser && !_selectMode) ...[
+                      for (final entry in const [
+                        (_Shape.free, Icons.gesture_rounded),
+                        (_Shape.line, Icons.horizontal_rule_rounded),
+                        (_Shape.arrow, Icons.north_east_rounded),
+                        (_Shape.rect, Icons.crop_square_rounded),
+                        (_Shape.ellipse, Icons.circle_outlined),
+                      ]) ...[
+                        _toolBtn(c, entry.$2, _shape == entry.$1,
+                            () => setState(() => _shape = entry.$1)),
+                        const SizedBox(width: 6),
+                      ],
+                      _sep(c),
+                    ],
+                    if (_tool != _Tool.eraser && !_selectMode) ...[
                       for (var i = 0; i < 3; i++) ...[
                         _favSlot(c, i),
                         const SizedBox(width: 6),
@@ -2022,6 +2374,9 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
             _sep(c),
             _toolBtn(c, Icons.undo_rounded, false,
                 _strokes.isEmpty ? null : _undo),
+            const SizedBox(width: 6),
+            _toolBtn(c, Icons.redo_rounded, false,
+                _redoStack.isEmpty ? null : _redo),
             const SizedBox(width: 6),
             _toolBtn(c, Icons.delete_outline_rounded, false,
                 _strokes.isEmpty ? null : _clear),
@@ -2371,6 +2726,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                 child: RepaintBoundary(
                   child: CustomPaint(
                     painter: _LivePainter(() => _active,
+                        getLasso: () => _lasso,
+                        getSelected: () => _selected,
                         isPaperDarkAt: (y) => _isPaperDarkAt(y, dark),
                         repaint: _tick),
                   ),
@@ -2708,10 +3065,52 @@ class _LivePainter extends CustomPainter {
   // page still on its default White paper meant a white ring on white
   // paper, invisible regardless of width or opacity.
   final bool Function(double y) isPaperDarkAt;
-  _LivePainter(this.getActive, {required this.isPaperDarkAt, super.repaint});
+  /// The lasso loop and the strokes it holds, when selecting. Drawn here rather
+  /// than in a layer of their own so the selection shares the live layer's
+  /// repaint signal and can never lag a frame behind the drag.
+  final List<Offset>? Function() getLasso;
+  final List<_Stroke> Function() getSelected;
+  _LivePainter(this.getActive,
+      {required this.isPaperDarkAt,
+      required this.getLasso,
+      required this.getSelected,
+      super.repaint});
+
+  void _paintSelection(Canvas canvas) {
+    final loop = getLasso();
+    if (loop == null || loop.length < 2) return;
+    final accent = const Color(0xFF2563EB);
+
+    // What the loop caught, outlined so it is obvious what will move.
+    for (final st in getSelected()) {
+      canvas.drawPath(
+          st.bakedPath,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = st.width + 6
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
+            ..color = accent.withValues(alpha: 0.18)
+            ..isAntiAlias = true);
+    }
+
+    final path = Path()..moveTo(loop.first.dx, loop.first.dy);
+    for (final o in loop.skip(1)) {
+      path.lineTo(o.dx, o.dy);
+    }
+    if (getSelected().isNotEmpty) path.close();
+    canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..color = accent.withValues(alpha: 0.9)
+          ..isAntiAlias = true);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
+    _paintSelection(canvas);
     final s = getActive();
     if (s == null || s.points.isEmpty) return;
     switch (s.tool) {
