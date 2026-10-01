@@ -823,7 +823,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     // Each stroke carries its own draw-time scale, so the baked curve is identical
     // regardless of the current zoom → existing strokes never re-shift on commit.
     final pen = ui.PictureRecorder();
-    _paintPenLayer(Canvas(pen), size, _strokes, null, dark);
+    _paintPenLayer(Canvas(pen), size, _strokes, null, dark);  // no isolation
     final hl = ui.PictureRecorder();
     final (pageHeights, pageDark) = _highlighterSpans(dark, size.height);
     _paintHighlighterLayer(Canvas(hl), size, _strokes, null, pageHeights, pageDark);
@@ -1063,6 +1063,18 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // stays glued to the pen tip and persists correctly).
   Offset _toDoc(Offset viewportPt) =>
       MatrixUtils.transformPoint(_invMatrix, viewportPt);
+
+  /// The part of the document on screen, in document coordinates.
+  ///
+  /// Padded a little so a layer bounded by it cannot clip antialiased edges
+  /// right at the viewport border.
+  Rect get _visibleDocRect {
+    if (_viewport.isEmpty) return Rect.largest;
+    return Rect.fromPoints(
+      _toDoc(Offset.zero),
+      _toDoc(Offset(_viewport.width, _viewport.height)),
+    ).inflate(32);
+  }
 
   /// Height of page [i] in document space.
   ///
@@ -2776,6 +2788,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                       strokes: _strokes,
                       active: erasing ? _active : null,
                       getPicture: () => _hlPic,
+                      visibleDocRect: () => _visibleDocRect,
                       repaint: _inkGen,
                       eraseRepaint: erasing ? _tick : null),
                 ),
@@ -2794,6 +2807,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                       strokes: _strokes,
                       active: erasing ? _active : null,
                       getPicture: () => _penPic,
+                      visibleDocRect: () => _visibleDocRect,
                       repaint: _inkGen,
                       eraseRepaint: erasing ? _tick : null),
                 ),
@@ -3054,13 +3068,17 @@ void _paintHighlighterLayer(Canvas canvas, Size size, List<_Stroke> strokes,
 /// the paper shows back through). Opaque pen ink composites pixel-identically with
 /// or without the layer, so for pen-only notes we skip the offscreen — otherwise a
 /// full-note-height saveLayer would be allocated on every zoom frame (jank).
-void _paintPenLayer(
-    Canvas canvas, Size size, List<_Stroke> strokes, _Stroke? active, bool dark) {
+void _paintPenLayer(Canvas canvas, Size size, List<_Stroke> strokes,
+    _Stroke? active, bool dark, {Rect? isolateBounds}) {
   final all = active == null ? strokes : [...strokes, active];
   final hasPen = all.any((s) => s.tool == _Tool.pen);
   final hasEraser = all.any((s) => s.tool == _Tool.eraser);
   if (!hasPen && !hasEraser) return;
-  final isolate = hasEraser;
+  // Isolation is the CALLER's decision now. When this is recording into a
+  // Picture there is no answer to give — the picture is replayed at every zoom
+  // and scroll position, so any bounds baked in here would be wrong for all but
+  // one of them. The replay wraps it instead, where the viewport is known.
+  final isolate = hasEraser && isolateBounds != null;
   if (isolate) {
     // Bound the offscreen to the VISIBLE region, not the whole note.
     //
@@ -3075,8 +3093,8 @@ void _paintPenLayer(
     //
     // Anything outside the clip is not drawn either way, so bounding to it
     // changes nothing on screen except the resolution it is drawn at.
-    final visible = canvas.getLocalClipBounds().intersect(Offset.zero & size);
-    canvas.saveLayer(visible.isEmpty ? (Offset.zero & size) : visible, Paint());
+    final bounds = isolateBounds.intersect(Offset.zero & size);
+    canvas.saveLayer(bounds.isEmpty ? (Offset.zero & size) : bounds, Paint());
   }
   for (final s in all) {
     if (s.points.isEmpty) continue;
@@ -3104,6 +3122,15 @@ class _InkPainter extends CustomPainter {
   final List<_Stroke> strokes; // for the eraser fallback only
   final _Stroke? active; // in-flight eraser, or null
   final ui.Picture? Function() getPicture;
+  /// The part of the document actually on screen, in document coordinates.
+  ///
+  /// Needed for the eraser's offscreen: `size` is the whole note, and an
+  /// offscreen that big is allocated at note x devicePixelRatio x zoom, which
+  /// on a long note exceeds the maximum texture size and comes back scaled up
+  /// — the pixelated edges. It cannot be read off the canvas: the ClipRect is
+  /// OUTSIDE the Transform, so it is a layer, and getLocalClipBounds() here
+  /// returns the full paint bounds rather than what you can see.
+  final Rect Function() visibleDocRect;
   _InkPainter({
     required this.highlighter,
     required this.dark,
@@ -3112,6 +3139,7 @@ class _InkPainter extends CustomPainter {
     required this.strokes,
     required this.active,
     required this.getPicture,
+    required this.visibleDocRect,
     required Listenable repaint,
     Listenable? eraseRepaint,
   }) : super(
@@ -3123,7 +3151,23 @@ class _InkPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (active == null) {
       final pic = getPicture();
-      if (pic != null) canvas.drawPicture(pic);
+      if (pic == null) return;
+      // BlendMode.clear only cuts the ink (rather than punching a hole in the
+      // page) when the ink sits on its own layer — but that layer must be the
+      // size of the VIEWPORT, not the note. At note size it is allocated at
+      // note x devicePixelRatio x zoom, overruns the maximum texture size on a
+      // long note, and comes back scaled up: the pixelated edges. Nothing
+      // outside the viewport is visible anyway.
+      final needsLayer =
+          !highlighter && strokes.any((s) => s.tool == _Tool.eraser);
+      if (!needsLayer) {
+        canvas.drawPicture(pic);
+        return;
+      }
+      final b = visibleDocRect().intersect(Offset.zero & size);
+      canvas.saveLayer(b.isEmpty ? (Offset.zero & size) : b, Paint());
+      canvas.drawPicture(pic);
+      canvas.restore();
       return;
     }
     // Live eraser cut: re-run the loop with the in-flight eraser.
@@ -3131,7 +3175,8 @@ class _InkPainter extends CustomPainter {
       _paintHighlighterLayer(canvas, size, strokes, active,
           pageHeights ?? [size.height], pageDark ?? [dark]);
     } else {
-      _paintPenLayer(canvas, size, strokes, active, dark);
+      _paintPenLayer(canvas, size, strokes, active, dark,
+          isolateBounds: visibleDocRect());
     }
   }
 
