@@ -1590,7 +1590,29 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final scale = _matrix.getMaxScaleOnAxis();
     final p = _euro!.filter(_toDoc(e.localPosition), e.timeStamp, scale: scale);
     final last = s.points.last;
-    if ((p - last).distance * scale < 0.6) return; // constant on-screen density
+    // Drop a sample only when it is close in BOTH screen and document terms.
+    //
+    // The screen test alone (0.6px) is zoom-invariant by design, so at first it
+    // looks like it cannot explain why 100% drifts and 358% does not. The
+    // missing step is that you WRITE DIFFERENTLY at each zoom: zoomed in, the
+    // same letters are larger on the glass, so the pen physically travels
+    // further per second and comfortably clears 0.6px per sample. At 100% you
+    // write small, the pen crawls, and whole samples fall under the threshold —
+    // measured at 120Hz, a 15mm/s pen (a corner, a letter start, careful
+    // detail) kept only 25 of every 50 samples. That is the ink not quite
+    // following the pen, and it is worst exactly where detail matters most.
+    //
+    // The document floor fixes it where it hurts and changes nothing where it
+    // doesn't: at 100% a 15mm/s pen now keeps all 50, while above ~240% the
+    // screen test is already the tighter of the two and nothing changes at all.
+    // Worst case ~2.4x more points, and only on slow strokes.
+    //
+    // It also fixes a quieter bug. A stroke is STORED in document space, so one
+    // drawn at 100% held a fraction of the detail of the same stroke drawn
+    // zoomed in — and that coarseness surfaced later, when you zoomed in to
+    // read it back.
+    final step = (p - last).distance;
+    if (step * scale < 0.6 && step < 0.25) return;
     s.add(p, _norm(e));
     _tick.value++; // repaint the live layer only (pen/hl) or live eraser cut
   }
@@ -3039,7 +3061,23 @@ void _paintPenLayer(
   final hasEraser = all.any((s) => s.tool == _Tool.eraser);
   if (!hasPen && !hasEraser) return;
   final isolate = hasEraser;
-  if (isolate) canvas.saveLayer(Offset.zero & size, Paint());
+  if (isolate) {
+    // Bound the offscreen to the VISIBLE region, not the whole note.
+    //
+    // `size` is the full canvas in document space, and under the zoom
+    // transform this layer is allocated at size x devicePixelRatio x zoom. On a
+    // long note that exceeds the maximum texture size, so it gets allocated
+    // smaller and scaled up — which is the pixelated, stepped-edge look, and it
+    // appears ONLY once a note contains an eraser stroke, because `isolate` is
+    // the only thing that asks for an offscreen at all. A pen-only note draws
+    // straight to the canvas and stays crisp. The highlighter layer above never
+    // had this: it bounds itself per page.
+    //
+    // Anything outside the clip is not drawn either way, so bounding to it
+    // changes nothing on screen except the resolution it is drawn at.
+    final visible = canvas.getLocalClipBounds().intersect(Offset.zero & size);
+    canvas.saveLayer(visible.isEmpty ? (Offset.zero & size) : visible, Paint());
+  }
   for (final s in all) {
     if (s.points.isEmpty) continue;
     if (s.tool == _Tool.pen) {
