@@ -1219,6 +1219,7 @@ export function QuizBuilderPage() {
   const filtersRef = useRef(defaultFilters);
   const loadQuestionPoolRef = useRef(null);
   const saveBulkDraftRef = useRef(null);
+  const [autoSavedAt, setAutoSavedAt] = useState(null);
 
   useEffect(() => {
     formRef.current = form;
@@ -1676,6 +1677,66 @@ export function QuizBuilderPage() {
       paperTitle: getMetaLabel(meta.papers, resolved.paperId, 'paperTitle'),
     };
   }
+
+  /**
+   * Keep the assessment itself saved as you work, so a mis-tap on back doesn't
+   * lose it. The bulk question queue already autosaved to local storage; the
+   * assessment did not, and it is the half you cannot rebuild from the draft.
+   *
+   * Two deliberate limits:
+   *
+   *  - Drafts only. Autosaving an ACTIVE assessment would push every keystroke
+   *    straight to students, possibly mid-attempt. A live assessment still
+   *    takes an explicit Save.
+   *  - Only once it would actually save: a title, and either questions or a
+   *    blueprint. The API rejects an empty assessment, and retrying that on a
+   *    timer would just raise errors at someone who is still typing.
+   *
+   * The first autosave of a new assessment creates it and then adopts the new
+   * id, so the next one updates rather than creating a second copy.
+   */
+  const autoSaveTimer = useRef(null);
+  const autoSavingRef = useRef(false);
+
+  async function autoSaveQuiz() {
+    if (autoSavingRef.current || saving) return;
+    if (form.status === 'active') return;
+    if (!String(form.title || '').trim() || !form.courseId) return;
+    const hasContent = form.randomizationMode === 'dynamic'
+      ? blueprintTotals.targetCount > 0
+      : form.questionIds.length > 0;
+    if (!hasContent) return;
+
+    autoSavingRef.current = true;
+    try {
+      const payload = buildQuizPayload();
+      if (isEditing) {
+        await updateQuiz(Number(quizId), payload);
+      } else {
+        const created = await createQuiz(payload);
+        const newId = Number(created?.id || created?.quizId || 0);
+        // Adopt the id so the next autosave updates this draft instead of
+        // creating another one. `replace` so back still leaves the builder.
+        if (newId) navigate(`/quizzes/${newId}/edit`, { replace: true });
+      }
+      setAutoSavedAt(Date.now());
+    } catch {
+      // A failed autosave is not worth interrupting someone mid-edit over —
+      // the explicit Save will surface the real reason.
+    } finally {
+      autoSavingRef.current = false;
+    }
+  }
+
+  useEffect(() => {
+    if (loading) return undefined;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(autoSaveQuiz, 2500);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, blueprintSections, loading]);
 
   function saveBulkDraft({ quiet = false } = {}) {
     const payload = {
@@ -2735,6 +2796,24 @@ export function QuizBuilderPage() {
     }
   }
 
+  /**
+   * Leaving mid-run loses the generation that is already paid for and in
+   * flight, and leaves the queue half-filled. This catches a refresh, a tab
+   * close and the browser's own back button; an in-app navigation does not
+   * fire beforeunload, so the panel also disables its own controls while it
+   * runs.
+   */
+  useEffect(() => {
+    if (!bulkAiRunning) return undefined;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [bulkAiRunning]);
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
@@ -3760,6 +3839,18 @@ export function QuizBuilderPage() {
                   Cancel
                 </button>
               </div>
+              {/* Autosave is silent when it works, which is also how someone
+                  concludes their work isn't being kept. Say so. */}
+              {autoSavedAt ? (
+                <p className="mt-2 text-[11px] font-semibold text-ink-soft">
+                  Draft saved automatically at{' '}
+                  {new Date(autoSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              ) : form.status === 'active' ? (
+                <p className="mt-2 text-[11px] font-semibold text-ink-soft">
+                  This assessment is live — changes are only saved when you press Update.
+                </p>
+              ) : null}
             </div>
           </aside>
         </form>
