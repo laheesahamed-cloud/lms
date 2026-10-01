@@ -268,7 +268,11 @@ export function QuestionsPage() {
   const [bulkAiOpen, setBulkAiOpen] = useState(false);
   const [bulkAiMode, setBulkAiMode] = useState('skip');
   const [bulkAiRunning, setBulkAiRunning] = useState(false);
-  const [bulkAiProgress, setBulkAiProgress] = useState({ done: 0, total: 0, failed: 0, label: '' });
+  // `errors` holds each distinct reason once, with a count. A run that fails
+  // forty times almost always fails forty times for ONE reason, and a bare
+  // "12 failed" hides the single line that would explain all of them.
+  const [bulkAiProgress, setBulkAiProgress] = useState(
+    { done: 0, total: 0, failed: 0, label: '', errors: {} });
   const bulkAiCancelRef = useRef(false);
   const [toast, setToast] = useState(null);
   const [error, setError] = useState('');
@@ -1047,13 +1051,13 @@ export function QuestionsPage() {
     bulkAiCancelRef.current = false;
     setBulkAiRunning(true);
     setError('');
-    setBulkAiProgress({ done: 0, total: ids.length, failed: 0, label: '' });
+    setBulkAiProgress({ done: 0, total: ids.length, failed: 0, label: '', errors: {} });
 
     let failed = 0;
     for (let i = 0; i < ids.length; i++) {
       if (bulkAiCancelRef.current) break;
       const id = ids[i];
-      setBulkAiProgress({ done: i, total: ids.length, failed, label: `Question #${id}` });
+      setBulkAiProgress((cur) => ({ ...cur, done: i, total: ids.length, failed, label: `Question #${id}` }));
 
       try {
         const fetched = await fetchQuestion(id);
@@ -1061,7 +1065,15 @@ export function QuestionsPage() {
         const correctOption = mapped.options.find((option) => Number(option.isCorrect) === 1);
         if (!mapped.questionText.trim() || !correctOption) {
           failed += 1;
-          setBulkAiProgress({ done: i + 1, total: ids.length, failed, label: '' });
+          const why = !mapped.questionText.trim()
+            ? 'Question text is empty'
+            : 'No correct answer is marked';
+          setBulkAiProgress((cur) => ({
+            ...cur,
+            done: i + 1, total: ids.length, failed,
+            label: '',
+            errors: { ...cur.errors, [why]: (cur.errors[why] || 0) + 1 },
+          }));
           continue;
         }
 
@@ -1111,9 +1123,14 @@ export function QuestionsPage() {
         });
       } catch (bulkError) {
         failed += 1;
+        const why = getErrorMessage(bulkError, 'AI generation failed');
+        setBulkAiProgress((cur) => ({
+          ...cur,
+          errors: { ...cur.errors, [why]: (cur.errors[why] || 0) + 1 },
+        }));
       }
 
-      setBulkAiProgress({ done: i + 1, total: ids.length, failed, label: '' });
+      setBulkAiProgress((cur) => ({ ...cur, done: i + 1, total: ids.length, failed, label: '' }));
     }
 
     const cancelled = bulkAiCancelRef.current;
@@ -1574,8 +1591,22 @@ export function QuestionsPage() {
                   </>
                 ) : (
                   <div className={bulkWarningClass}>
-                    Processing {bulkAiProgress.done} of {bulkAiProgress.total}{bulkAiProgress.label ? ` — ${bulkAiProgress.label}` : ''}
-                    {bulkAiProgress.failed ? ` (${bulkAiProgress.failed} failed so far)` : ''}
+                    <div>
+                      Processing {bulkAiProgress.done} of {bulkAiProgress.total}{bulkAiProgress.label ? ` — ${bulkAiProgress.label}` : ''}
+                      {bulkAiProgress.failed ? ` (${bulkAiProgress.failed} failed so far)` : ''}
+                    </div>
+                    {/* The reason, not just the count. A run that fails forty
+                        times almost always fails for one reason, and that one
+                        line is the whole diagnosis. */}
+                    {Object.keys(bulkAiProgress.errors || {}).length ? (
+                      <ul className="mt-2 mb-0 list-none space-y-1 p-0">
+                        {Object.entries(bulkAiProgress.errors).map(([why, count]) => (
+                          <li key={why} className="text-xs font-semibold leading-snug text-brand-error">
+                            {count}&times; {why}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 )}
               </div>
