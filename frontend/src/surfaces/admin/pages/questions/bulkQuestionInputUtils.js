@@ -637,6 +637,40 @@ export function resolveQuestion(question, defaults, usePerQuestionHierarchy) {
   };
 }
 
+/**
+ * Whether a question has enough in it for the AI to write about.
+ *
+ * Deliberately NOT the same bar as saving. Drafting an explanation, a
+ * why-incorrect or an approach needs the stem, the options and which one is
+ * right — the course, subject and category are optional context the endpoint
+ * does not require, and the five-option rule is a house style for the bank,
+ * not something the model needs.
+ *
+ * Gating generation on save-validity meant most of a freshly pasted batch was
+ * refused before a single call went out: the defaults hadn't been picked yet,
+ * or the source had four options. Nothing was wrong with those questions that
+ * the AI couldn't have worked with.
+ *
+ * Saving is still gated on validateQuestion — this only decides whether it is
+ * worth asking the model.
+ */
+export function aiReadiness(question, resolved) {
+  const missing = [];
+  if (!normalizeWhitespace(question.questionText)) missing.push('question text');
+
+  const filled = (question.options || []).filter((o) => normalizeWhitespace(o.optionText));
+  if (filled.length < 2) missing.push('at least two options');
+
+  const correct = filled.filter((o) => Number(o.isCorrect) === 1);
+  if (resolved.questionType === 'sba' && correct.length !== 1) {
+    missing.push('exactly one correct answer marked');
+  } else if (resolved.questionType !== 'sba' && correct.length < 1) {
+    missing.push('the correct answer marked');
+  }
+
+  return { ready: missing.length === 0, missing };
+}
+
 export function validateQuestion(question, resolved, duplicateMap) {
   const errors = [];
   const warnings = [...(question.parserWarnings || [])];

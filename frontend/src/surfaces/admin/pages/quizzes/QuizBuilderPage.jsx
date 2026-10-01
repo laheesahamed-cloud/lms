@@ -4,6 +4,7 @@ import { createQuiz, fetchQuiz, fetchQuizzesMeta, updateQuiz } from '../../../..
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { bulkUpdateQuestionKeywords, fetchQuestionCounts, fetchQuestions } from '../../../../shared/api/questions.api.js';
 import {
+  generateQuestionApproach,
   generateQuestionExplanation,
   generateWhyIncorrectExplanations,
 } from '../../../../shared/api/ai.api.js';
@@ -19,6 +20,7 @@ import {
   resolveQuestion,
   sampleJsonFormat,
   saveQuestionRecord,
+  aiReadiness,
   validateQuestion,
 } from '../questions/bulkQuestionInputUtils.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -685,6 +687,14 @@ function BulkAddQuestionsPanel({
             <label className={qb.checkbox}>
               <input className="shrink-0"
                 type="checkbox"
+                checked={aiOptions.approach}
+                onChange={(event) => onAiOptionsChange({ approach: event.target.checked })}
+              />
+              <span>Generate missing question approach</span>
+            </label>
+            <label className={qb.checkbox}>
+              <input className="shrink-0"
+                type="checkbox"
                 checked={aiOptions.theoryCards}
                 onChange={(event) => onAiOptionsChange({ theoryCards: event.target.checked })}
               />
@@ -1183,6 +1193,10 @@ export function QuizBuilderPage() {
   const [bulkAiOptions, setBulkAiOptions] = useState({
     explanations: true,
     whyIncorrect: true,
+    // On by default: without it a question saves with no "How to approach this
+    // question", and the student app hides that block entirely when it is
+    // empty — so the gap is invisible until someone opens the question.
+    approach: true,
     theoryCards: false,
     regenerate: false,
   });
@@ -2081,11 +2095,11 @@ export function QuizBuilderPage() {
   }
 
   async function enhanceQuizBulkQuestion(question, options = bulkAiOptions) {
-    const duplicateMap = buildDuplicateMap(bulkQuestions);
     const resolved = resolveQuestion(question, bulkDefaults, true);
-    const validation = validateQuestion(question, resolved, duplicateMap);
-    if (!validation.canSave) {
-      throw new Error((validation.errors || ['Question is not valid enough for AI generation.']).join(' '));
+    // Only what the model actually needs — not the full save checklist.
+    const readiness = aiReadiness(question, resolved);
+    if (!readiness.ready) {
+      throw new Error(`Needs ${readiness.missing.join(', ')} before AI can write about it.`);
     }
 
     let workingQuestion = question;
@@ -2122,6 +2136,25 @@ export function QuizBuilderPage() {
           )),
         };
         patchBulkQuestion(question.clientId, { options: workingQuestion.options });
+      }
+    }
+
+    if (options.approach
+        && (options.regenerate || !normalizeWhitespace(workingQuestion.questionApproach))) {
+      const result = await generateQuestionApproach(
+        buildBulkAiPayload(workingQuestion, resolved, explanation));
+      const approach = result.questionApproach || '';
+      if (approach) {
+        const highlights = Array.isArray(result.highlights) ? result.highlights : [];
+        workingQuestion = {
+          ...workingQuestion,
+          questionApproach: approach,
+          questionApproachHighlights: highlights,
+        };
+        patchBulkQuestion(question.clientId, {
+          questionApproach: approach,
+          questionApproachHighlights: highlights,
+        });
       }
     }
 

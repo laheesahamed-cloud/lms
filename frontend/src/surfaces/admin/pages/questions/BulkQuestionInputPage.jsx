@@ -28,6 +28,7 @@ import {
   resolveQuestion,
   sampleJsonFormat,
   saveQuestionRecord,
+  aiReadiness,
   validateQuestion,
 } from './bulkQuestionInputUtils.js';
 
@@ -401,11 +402,15 @@ export function BulkQuestionInputPage() {
 
   async function enhanceOneQuestion(question, options = aiEnhanceOptions) {
     const diagnostics = questionDiagnostics.get(question.clientId);
-    if (!diagnostics?.validation?.canSave) {
-      throw new Error((diagnostics?.validation?.errors || ['Question is not valid enough for AI generation.']).join(' '));
-    }
-
     const resolved = diagnostics.resolved;
+    // Only what the model actually needs — not the full save checklist. See
+    // aiReadiness: course/subject/category are optional context to the
+    // endpoint, so refusing on them rejected questions the AI could have
+    // written about perfectly well.
+    const readiness = aiReadiness(question, resolved);
+    if (!readiness.ready) {
+      throw new Error(`Needs ${readiness.missing.join(', ')} before AI can write about it.`);
+    }
     let workingQuestion = question;
     let explanation = workingQuestion.explanation || '';
 
