@@ -39,6 +39,7 @@ type QuizGeneratorEngineKey = 'gemini' | 'openai';
 export declare class AiService {
     private readonly configService;
     private readonly db;
+    private readonly logger;
     constructor(configService: ConfigService, db: Pool);
     normalizeQuizEngineKey(value: string | undefined): QuizGeneratorEngineKey;
     generateQuiz(dto: GenerateAiQuizDto, engineKeyRaw?: string): Promise<{

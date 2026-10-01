@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var AiService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiService = void 0;
 const common_1 = require("@nestjs/common");
@@ -20,10 +21,11 @@ const database_tokens_1 = require("../../database/database.tokens");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const fetch_with_retry_1 = require("../../common/utils/fetch-with-retry");
 const AI_REQUEST_TIMEOUT_MS = 180_000;
-let AiService = class AiService {
+let AiService = AiService_1 = class AiService {
     constructor(configService, db) {
         this.configService = configService;
         this.db = db;
+        this.logger = new common_1.Logger(AiService_1.name);
     }
     normalizeQuizEngineKey(value) {
         return value === 'openai' ? 'openai' : 'gemini';
@@ -1131,6 +1133,7 @@ let AiService = class AiService {
         return null;
     }
     formatProviderError(providerKey, error, modelName = '') {
+        this.logger.warn(`[ai] ${providerKey}${modelName ? ` (${modelName})` : ''} failed: ${this.extractErrorMessage(error)}`);
         const rawMessage = this.extractErrorMessage(error);
         const normalized = rawMessage.toLowerCase();
         const providerLabel = ai_provider_utils_1.AI_PROVIDER_LABELS[providerKey];
@@ -1165,7 +1168,7 @@ let AiService = class AiService {
     }
 };
 exports.AiService = AiService;
-exports.AiService = AiService = __decorate([
+exports.AiService = AiService = AiService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(1, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [config_1.ConfigService, Object])

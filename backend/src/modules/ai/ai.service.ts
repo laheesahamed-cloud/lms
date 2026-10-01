@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  Logger,
   BadRequestException,
   Inject,
   Injectable,
@@ -111,6 +112,7 @@ type QuizGeneratorEngineKey = 'gemini' | 'openai';
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
   constructor(
     private readonly configService: ConfigService,
     @Inject(DATABASE_CONNECTION) private readonly db: Pool
@@ -1388,7 +1390,21 @@ export class AiService {
     return null;
   }
 
+  /**
+   * Every provider failure ends up here on its way to the client, so this is
+   * the one place worth logging from.
+   *
+   * It was logging nowhere. These are thrown as BadGatewayException, and Nest
+   * does not log HttpExceptions — it treats them as an expected response — so
+   * a bulk run could fail forty times and leave nothing at all in stderr.log.
+   * The only copy of the reason was in the HTTP response, and the admin panel
+   * reduced that to a count. Nobody could answer "why is it failing" from the
+   * server at all.
+   */
   private formatProviderError(providerKey: AiProviderKey, error: unknown, modelName = '') {
+    this.logger.warn(
+      `[ai] ${providerKey}${modelName ? ` (${modelName})` : ''} failed: ${this.extractErrorMessage(error)}`,
+    );
     const rawMessage = this.extractErrorMessage(error);
     const normalized = rawMessage.toLowerCase();
     const providerLabel = AI_PROVIDER_LABELS[providerKey];
