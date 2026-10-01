@@ -1750,7 +1750,24 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       // The axis is decided ONCE after a threshold and held for the whole gesture
       // so circular/curved motions don't cause the canvas to jump mid-gesture.
       if (_panAxis == null && dFocal.distance > 6.0) {
-        _panAxis = dFocal.dx.abs() > dFocal.dy.abs() ? 'x' : 'y';
+        // Never lock to an axis that cannot move.
+        //
+        // The clamp centres the page horizontally whenever it fits the width —
+        // which it does at 100% — so an x-locked gesture has every update
+        // thrown away and the canvas sits still for the whole touch. A swipe
+        // whose first 6px drifted slightly sideways did nothing at all, and the
+        // next one, happening to be more vertical, scrolled: the "first touch
+        // does nothing, second one works" that this felt like.
+        final gs = _startMatrix.storage[0];
+        final canPanX = _pageWidth * gs > _viewport.width + 0.5;
+        final canPanY = _contentH * gs > _viewport.height + 0.5;
+        if (!canPanX && canPanY) {
+          _panAxis = 'y';
+        } else if (canPanX && !canPanY) {
+          _panAxis = 'x';
+        } else {
+          _panAxis = dFocal.dx.abs() > dFocal.dy.abs() ? 'x' : 'y';
+        }
       }
       if (_panAxis == 'x') {
         dFocal = Offset(dFocal.dx, 0);
