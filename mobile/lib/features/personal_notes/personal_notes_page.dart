@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:file_selector/file_selector.dart' show XFile;
@@ -14,6 +15,11 @@ import 'personal_notes_store.dart';
 /// Remembered on-device, not scoped per-user: it's a display preference, not
 /// content, so there's no reason a second account on the same phone shouldn't
 /// see whichever layout was last chosen.
+/// The filter row's three states. Deliberately a filter and nothing else —
+/// creating lives on its own button, so this row has one job and a tap on it
+/// never does something irreversible.
+enum _NoteFilter { all, notebooks, pdfs }
+
 const String _viewPrefKey = 'xyndrome.personal_notes.grid_view';
 
 /// Cover-colour palette for the grid's notebook/folder illustrations — cycled
@@ -118,9 +124,82 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
     }
   }
 
-  List<PersonalNote> get _visibleNotes => widget.folderId == null
-      ? _notes.where((n) => n.folderId == null).toList()
-      : _notes.where((n) => n.folderId == widget.folderId).toList();
+  /// Which kind of note the filter row is showing.
+  _NoteFilter _filter = _NoteFilter.all;
+
+  List<PersonalNote> get _visibleNotes {
+    final inScope = widget.folderId == null
+        ? _notes.where((n) => n.folderId == null)
+        : _notes.where((n) => n.folderId == widget.folderId);
+    switch (_filter) {
+      case _NoteFilter.all:
+        return inScope.toList();
+      case _NoteFilter.notebooks:
+        // Anything you wrote from blank paper — i.e. not built on an import.
+        return inScope.where((n) => !n.paper.any((p) => p.isPdfBacked)).toList();
+      case _NoteFilter.pdfs:
+        return inScope.where((n) => n.paper.any((p) => p.isPdfBacked)).toList();
+    }
+  }
+
+  /// The create menu, in iOS's own shape: rounded, icons down the left, a
+  /// hairline between each. Anchored under whatever opened it.
+  Future<void> _showCreateMenu(BuildContext anchor) async {
+    final c = context.c;
+    final box = anchor.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final bottomRight =
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay);
+    final rect = RelativeRect.fromLTRB(
+      topLeft.dx,
+      bottomRight.dy + 6,
+      overlay.size.width - bottomRight.dx,
+      overlay.size.height - bottomRight.dy,
+    );
+
+    PopupMenuItem<String> item(String value, IconData icon, String label) =>
+        PopupMenuItem<String>(
+          value: value,
+          height: 46,
+          child: Row(children: [
+            Icon(icon, size: 19, color: c.inkStrong),
+            const SizedBox(width: 12),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: c.inkStrong)),
+          ]),
+        );
+
+    final picked = await showMenu<String>(
+      context: context,
+      position: rect,
+      color: c.surface1,
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      items: [
+        item('note', Icons.menu_book_outlined, 'Notebook'),
+        const PopupMenuDivider(height: 1),
+        if (widget.folderId == null) ...[
+          item('folder', Icons.folder_outlined, 'Folder'),
+          const PopupMenuDivider(height: 1),
+        ],
+        item('pdf', Icons.file_download_outlined, 'Import PDF'),
+      ],
+    );
+    if (!mounted || picked == null) return;
+    if (picked == 'note') {
+      await _createNote();
+    } else if (picked == 'folder') {
+      await _createFolder();
+    } else if (picked == 'pdf') {
+      await _importPdf();
+    }
+  }
 
   Future<void> _createNote() async {
     final title = await _showTextDialog(context, title: 'New note', hint: 'Note title', initial: '');
@@ -471,23 +550,16 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
                         // way to create a note at all. "New folder" is
                         // dropped from the menu while already inside one —
                         // folders are flat, no nesting.
-                        PopupMenuButton<String>(
-                          onSelected: (v) {
-                            if (v == 'note') {
-                              _createNote();
-                            } else if (v == 'folder') {
-                              _createFolder();
-                            } else if (v == 'pdf') {
-                              _importPdf();
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            const PopupMenuItem(value: 'note', child: Text('New note')),
-                            if (folder == null)
-                              const PopupMenuItem(value: 'folder', child: Text('New folder')),
-                            const PopupMenuItem(value: 'pdf', child: Text('Import PDF')),
-                          ],
-                          icon: Icon(Icons.add_rounded, size: 24, color: c.primary),
+                        // Same menu as the grid's "+" card, so creating a
+                        // notebook looks and reads identically wherever you
+                        // start it.
+                        Builder(
+                          builder: (anchor) => IconButton(
+                            tooltip: 'New',
+                            onPressed: () => _showCreateMenu(anchor),
+                            icon: Icon(Icons.add_rounded,
+                                size: 24, color: c.primary),
+                          ),
                         ),
                         if (folder != null)
                           PopupMenuButton<String>(
@@ -618,9 +690,13 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
           // actually gets denser on a bigger screen instead of just wider,
           // matching how Files/GoodNotes-style grids behave.
           gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 130,
-            mainAxisSpacing: 40,
-            crossAxisSpacing: 32,
+            // Larger than the old 130: at that size a cover was a stamp
+            // adrift in its own cell, which is what read as "needs spacing" —
+            // the gaps were not too small, the tiles were. Bigger covers with
+            // tighter gutters fill the row instead of floating in it.
+            maxCrossAxisExtent: 172,
+            mainAxisSpacing: 26,
+            crossAxisSpacing: 22,
             // Tall enough for the thumbnail (its own 0.78 ratio) plus the
             // title row below it, with real margin to spare — a tighter
             // ratio here (0.7, tried first) overflowed by 37px on an iPad's
@@ -639,14 +715,30 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
     // Files/Drive-style convention: folders before files), just as part of
     // the same continuous grid/list rather than under its own "Folders"
     // label with a second "Notes" label below it.
-    final items = [
+    final List<Widget> items = [
       if (showFolders) ..._folders.map(folderItem),
       ...notes.map(noteItem),
     ];
+    // A "+" card leading the grid, the way Files and GoodNotes do it — but
+    // only in the grid, and only when there is already something for it to
+    // lead. On an empty page the empty state does this job better, and in the
+    // list it would be a strange row rather than a card.
+    if (_gridView && items.isNotEmpty && !_selecting) {
+      items.insert(0, _NewItemTile(onTap: _showCreateMenu));
+    }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
       children: [
+        // Only worth showing once there is enough here to sift through. On one
+        // or two notes it is three controls that all show the same thing.
+        if (_notes.length >= 3) ...[
+          _FilterRow(
+            value: _filter,
+            onChanged: (f) => setState(() => _filter = f),
+          ),
+          const SizedBox(height: 16),
+        ],
         // Dragging a note here (from the folder view) moves it back out to
         // "All Notes" — the drag counterpart to opening a folder tile below.
         if (widget.folderId != null)
@@ -1038,8 +1130,6 @@ class _NoteGridTile extends StatelessWidget {
     // out-of-range access.
     final firstPage = note.pages.first;
     final isPdf = firstPage.isPdfBacked;
-    // TEMPORARY: diagnosing why the thumbnail wasn't showing up on device.
-    debugPrint('[NoteGridTile] "${note.title}" isPdf=$isPdf pdfPath=${firstPage.pdfPath} pdfPageIndex=${firstPage.pdfPageIndex}');
     // Every tile — PDF-backed or not — uses the SAME thumbnail sizing (an
     // Expanded slot below, not its own aspect ratio), so the grid stays
     // uniformly sized and aligned. An earlier version let a PDF's own real
@@ -1514,4 +1604,147 @@ class _BackToAllNotesTarget extends StatelessWidget {
       },
     );
   }
+}
+
+/// All / Notebooks / PDFs. A filter, not a menu: every tap shows a different
+/// slice of the same shelf and nothing is created or lost by pressing one.
+class _FilterRow extends StatelessWidget {
+  final _NoteFilter value;
+  final ValueChanged<_NoteFilter> onChanged;
+  const _FilterRow({required this.value, required this.onChanged});
+
+  static const _labels = <_NoteFilter, String>{
+    _NoteFilter.all: 'All',
+    _NoteFilter.notebooks: 'Notebooks',
+    _NoteFilter.pdfs: 'PDFs',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: c.surface2,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final e in _labels.entries)
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onChanged(e.key);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  color: value == e.key ? c.surface1 : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: value == e.key
+                      ? [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.10),
+                              blurRadius: 6,
+                              offset: const Offset(0, 1)),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  e.value,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: value == e.key ? c.inkStrong : c.inkSoft,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The dashed "new" card that leads the grid, as Files and GoodNotes do it.
+/// Sized by the grid, so it always matches the covers beside it.
+class _NewItemTile extends StatelessWidget {
+  final void Function(BuildContext anchor) onTap;
+  const _NewItemTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return Builder(
+      builder: (tileContext) => GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap(tileContext);
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // An Expanded slot, exactly like _NoteGridTile — NOT its own
+            // AspectRatio. The tiles are kept uniform by the grid's own cell
+            // size; a card that sizes itself breaks the alignment of the row.
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: c.surface2.withValues(alpha: 0.45),
+                ),
+                child: CustomPaint(
+                  painter: _DashedBorderPainter(color: c.line),
+                  child: Center(
+                    child: Icon(Icons.add_rounded, size: 30, color: c.primary),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('New',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: c.inkSoft)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A dashed rounded outline. Flutter has no dashed border, and a dotted PNG
+/// would not follow the theme.
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  const _DashedBorderPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..color = color
+      ..isAntiAlias = true;
+    final rrect = RRect.fromRectAndRadius(
+        Offset.zero & size, const Radius.circular(10));
+    final path = Path()..addRRect(rrect);
+    const dash = 6.0, gap = 4.5;
+    for (final metric in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        canvas.drawPath(
+            metric.extractPath(d, math.min(d + dash, metric.length)), paint);
+        d += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter old) => old.color != color;
 }
