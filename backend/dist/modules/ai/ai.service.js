@@ -729,7 +729,8 @@ let AiService = class AiService {
                 responseMimeType: 'application/json',
             },
         });
-        for (let attempt = 0; attempt <= 3; attempt += 1) {
+        const MAX_ATTEMPTS = 4;
+        for (let attempt = 0; attempt <= MAX_ATTEMPTS; attempt += 1) {
             try {
                 const result = await model.generateContent([
                     'Return valid JSON only. Do not use markdown fences. Do not add commentary before or after the JSON.',
@@ -742,19 +743,34 @@ let AiService = class AiService {
                 return text.trim();
             }
             catch (error) {
-                if (error instanceof common_1.BadGatewayException) {
+                const message = this.extractErrorMessage(error);
+                const lower = message.toLowerCase();
+                const emptyCompletion = error instanceof common_1.BadGatewayException && lower.includes('empty');
+                if (error instanceof common_1.BadGatewayException && !emptyCompletion) {
                     throw error;
                 }
-                const message = this.extractErrorMessage(error);
-                const retryable = message.toLowerCase().includes('socket') ||
-                    message.toLowerCase().includes('fetch failed') ||
-                    message.toLowerCase().includes('econnreset') ||
-                    message.toLowerCase().includes('und_err_socket') ||
-                    message.toLowerCase().includes('terminated');
-                if (!retryable || attempt === 3) {
+                const network = lower.includes('socket') ||
+                    lower.includes('fetch failed') ||
+                    lower.includes('econnreset') ||
+                    lower.includes('und_err_socket') ||
+                    lower.includes('terminated');
+                const rateLimited = lower.includes('429') ||
+                    lower.includes('rate limit') ||
+                    lower.includes('quota') ||
+                    lower.includes('resource exhausted');
+                const transientServer = lower.includes('overloaded') ||
+                    lower.includes('unavailable') ||
+                    lower.includes('503') ||
+                    lower.includes('502') ||
+                    lower.includes('504') ||
+                    lower.includes('internal error') ||
+                    lower.includes('try again');
+                const retryable = network || rateLimited || transientServer || emptyCompletion;
+                if (!retryable || attempt === MAX_ATTEMPTS) {
                     throw new common_1.BadGatewayException(this.formatProviderError('gemini', message, provider.model));
                 }
-                await new Promise((resolve) => setTimeout(resolve, 1500 * 2 ** attempt + Math.floor(Math.random() * 300)));
+                const base = rateLimited ? 5000 : 1500;
+                await new Promise((resolve) => setTimeout(resolve, base * 2 ** attempt + Math.floor(Math.random() * 400)));
             }
         }
         throw new common_1.BadGatewayException('Gemini request failed after retries');

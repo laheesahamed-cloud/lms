@@ -895,7 +895,10 @@ export class AiService {
       },
     });
 
-    for (let attempt = 0; attempt <= 3; attempt += 1) {
+    // Four retries rather than three: with rate limits now retried, the
+    // backoff needs room to outlast a short burst of them.
+    const MAX_ATTEMPTS = 4;
+    for (let attempt = 0; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
         const result = await model.generateContent([
           'Return valid JSON only. Do not use markdown fences. Do not add commentary before or after the JSON.',
@@ -909,23 +912,59 @@ export class AiService {
 
         return text.trim();
       } catch (error) {
-        if (error instanceof BadGatewayException) {
+        const message = this.extractErrorMessage(error);
+        const lower = message.toLowerCase();
+
+        // An empty completion is transient — a safety trip, a truncation, a
+        // bad moment — and asking again usually works. It was being rethrown
+        // immediately because it arrives as our own BadGatewayException, so it
+        // never got the retry it most needed.
+        const emptyCompletion =
+          error instanceof BadGatewayException && lower.includes('empty');
+        if (error instanceof BadGatewayException && !emptyCompletion) {
           throw error;
         }
 
-        const message = this.extractErrorMessage(error);
-        const retryable =
-          message.toLowerCase().includes('socket') ||
-          message.toLowerCase().includes('fetch failed') ||
-          message.toLowerCase().includes('econnreset') ||
-          message.toLowerCase().includes('und_err_socket') ||
-          message.toLowerCase().includes('terminated');
+        const network =
+          lower.includes('socket') ||
+          lower.includes('fetch failed') ||
+          lower.includes('econnreset') ||
+          lower.includes('und_err_socket') ||
+          lower.includes('terminated');
 
-        if (!retryable || attempt === 3) {
+        // The reason a bulk run fails so much. A batch of 50 questions is
+        // 150-200 calls back to back, and this provider answers a fair share
+        // of them with "rate limit" or "overloaded" — neither of which was
+        // retryable, so each one killed its question outright. Both pass if
+        // you simply wait and ask again, which is what a human would do.
+        const rateLimited =
+          lower.includes('429') ||
+          lower.includes('rate limit') ||
+          lower.includes('quota') ||
+          lower.includes('resource exhausted');
+
+        const transientServer =
+          lower.includes('overloaded') ||
+          lower.includes('unavailable') ||
+          lower.includes('503') ||
+          lower.includes('502') ||
+          lower.includes('504') ||
+          lower.includes('internal error') ||
+          lower.includes('try again');
+
+        const retryable =
+          network || rateLimited || transientServer || emptyCompletion;
+
+        if (!retryable || attempt === MAX_ATTEMPTS) {
           throw new BadGatewayException(this.formatProviderError('gemini', message, provider.model));
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 1500 * 2 ** attempt + Math.floor(Math.random() * 300)));
+        // Back off harder for a rate limit than for a dropped socket: a
+        // socket can be retried straight away, a quota cannot, and retrying
+        // too soon just spends another request being refused.
+        const base = rateLimited ? 5000 : 1500;
+        await new Promise((resolve) =>
+          setTimeout(resolve, base * 2 ** attempt + Math.floor(Math.random() * 400)));
       }
     }
 
