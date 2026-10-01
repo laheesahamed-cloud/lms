@@ -1168,6 +1168,15 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   /// every rebuild after the first, since both the cache and the in-flight set
   /// dedupe it). Failures are swallowed — the page just keeps showing its
   /// plain paper background rather than crashing the note.
+  /// Imported PDFs whose file is no longer on disk.
+  ///
+  /// A blank page is the worst possible way to report this: the note opens,
+  /// the paper is there, and nothing says the background is gone — it just
+  /// looks like the import silently failed, long after it actually worked.
+  final Set<String> _pdfMissing = {};
+  /// Imported PDFs that are present but would not render.
+  final Map<String, String> _pdfFailed = {};
+
   void _ensurePdfImage(String path, int pageIndex, double targetWidth) {
     final key = _pdfImageKey(path, pageIndex);
     if (_pdfImageCache.containsKey(key) || _pdfImageLoading.contains(key)) {
@@ -1213,8 +1222,26 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         // land at any time, including mid-stroke, and a full rebuild right
         // then was a real source of an unpredictable write-time hitch.
         _paperTick.value++;
-      } catch (_) {
-        // Leave uncached — the page keeps its plain background.
+      } catch (e) {
+        // Say WHICH failure it was. "The file is gone" and "the file is here
+        // but will not render" need completely different fixes, and a silently
+        // blank page distinguishes neither.
+        try {
+          final resolved = await PersonalNotesStore.resolvePdfPath(path);
+          final gone = !await File(resolved).exists();
+          if (mounted) {
+            setState(() {
+              if (gone) {
+                _pdfMissing.add(path);
+                _pdfFailed.remove(path);
+              } else {
+                _pdfFailed[path] = e.toString();
+              }
+            });
+          }
+        } catch (_) {
+          // Even the check failed; nothing more to report.
+        }
       } finally {
         _pdfImageLoading.remove(key);
         await doc?.dispose();
@@ -2866,6 +2893,24 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       );
 
       return Stack(children: [
+        // A blank page is not a report. If an imported PDF has gone missing (or
+        // will not render), say so where it happened — and say that the
+        // handwriting is safe, because that is the first thing anyone will
+        // assume they have lost.
+        if (_pdfMissing.isNotEmpty || _pdfFailed.isNotEmpty)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: _PdfProblemBanner(
+              missing: _pdfMissing.toList(),
+              failed: _pdfFailed,
+              onDismiss: () => setState(() {
+                _pdfMissing.clear();
+                _pdfFailed.clear();
+              }),
+            ),
+          ),
         Listener(
           // translucent (not opaque) so taps can still reach note content later.
           behavior: HitTestBehavior.translucent,
@@ -3318,6 +3363,87 @@ class _LivePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LivePainter old) => true;
+}
+
+/// Tells the reader an imported PDF background could not be shown, and which
+/// of the two reasons it was — the file is gone, or it is there and will not
+/// render. Those need different fixes, and a blank page suggests neither.
+class _PdfProblemBanner extends StatelessWidget {
+  final List<String> missing;
+  final Map<String, String> failed;
+  final VoidCallback onDismiss;
+  const _PdfProblemBanner({
+    required this.missing,
+    required this.failed,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final gone = missing.isNotEmpty;
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        decoration: BoxDecoration(
+          color: c.surface1,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: c.line),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 6)),
+          ],
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.picture_as_pdf_outlined, size: 20, color: c.inkMuted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                gone
+                    ? 'The imported PDF is missing'
+                    : 'The imported PDF could not be displayed',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: c.inkStrong),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                gone
+                    ? 'Its pages show blank. Your handwriting is safe — it is '
+                        'stored separately and will come back if you re-import '
+                        'the same file.'
+                    : 'The file is still here but would not open. Your '
+                        'handwriting is unaffected.',
+                style: TextStyle(fontSize: 11.5, height: 1.4, color: c.inkSoft),
+              ),
+              const SizedBox(height: 4),
+              // The path is what tells anyone looking into this WHICH file went
+              // missing, and from where.
+              Text(
+                gone ? missing.first : (failed.values.first),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10,
+                    height: 1.3,
+                    color: c.inkMuted,
+                    fontFeatures: const [FontFeature.tabularFigures()]),
+              ),
+            ]),
+          ),
+          IconButton(
+            onPressed: onDismiss,
+            icon: Icon(Icons.close_rounded, size: 18, color: c.inkMuted),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 /// Video pill button — opens WatchVideoModal on tap.
