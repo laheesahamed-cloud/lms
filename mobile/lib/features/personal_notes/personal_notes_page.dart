@@ -728,17 +728,16 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 40),
       children: [
-        // Only worth showing once there is enough here to sift through. On one
-        // or two notes it is three controls that all show the same thing.
-        if (_notes.length >= 3) ...[
-          _FilterRow(
-            value: _filter,
-            onChanged: (f) => setState(() => _filter = f),
-          ),
-          const SizedBox(height: 16),
-        ],
+        // Always shown. Appearing only past a few notes meant the whole grid
+        // shifted down the first time you crossed that line, and the page
+        // read as starting hard against the header until it did.
+        _FilterRow(
+          value: _filter,
+          onChanged: (f) => setState(() => _filter = f),
+        ),
+        const SizedBox(height: 18),
         // Dragging a note here (from the folder view) moves it back out to
         // "All Notes" — the drag counterpart to opening a folder tile below.
         if (widget.folderId != null)
@@ -1688,10 +1687,14 @@ class _NewItemTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // An Expanded slot, exactly like _NoteGridTile — NOT its own
-            // AspectRatio. The tiles are kept uniform by the grid's own cell
-            // size; a card that sizes itself breaks the alignment of the row.
-            Expanded(
+            // The SAME fixed 0.78 the covers and folder tiles use — not
+            // Expanded, which stretched this card down the whole cell while
+            // the covers beside it stopped at their own height, leaving the
+            // "New" label sitting well below every other title in the row.
+            // (_NoteGridTile's comment about not using an aspect ratio is
+            // about a PDF's OWN page ratio, not this shared one.)
+            AspectRatio(
+              aspectRatio: 0.78,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
