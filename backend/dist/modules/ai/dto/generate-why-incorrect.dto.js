@@ -60,4 +60,24 @@ __decorate([
     (0, class_transformer_1.Type)(() => WhyIncorrectOptionDto),
     __metadata("design:type", Array)
 ], GenerateWhyIncorrectDto.prototype, "options", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], GenerateWhyIncorrectDto.prototype, "course", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], GenerateWhyIncorrectDto.prototype, "subject", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], GenerateWhyIncorrectDto.prototype, "topic", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], GenerateWhyIncorrectDto.prototype, "lesson", void 0);
 //# sourceMappingURL=generate-why-incorrect.dto.js.map

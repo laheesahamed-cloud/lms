@@ -10,5 +10,9 @@ export declare class GenerateWhyIncorrectDto {
     correctAnswerLabel?: string;
     explanation?: string;
     options: WhyIncorrectOptionDto[];
+    course?: string;
+    subject?: string;
+    topic?: string;
+    lesson?: string;
 }
 export {};
