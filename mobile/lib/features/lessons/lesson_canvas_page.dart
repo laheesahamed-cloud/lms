@@ -329,9 +329,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   List<Offset>? _lasso;
   final List<_Stroke> _selected = [];
   Offset? _dragAnchor;
-  /// Shapes apply to the pen and highlighter only. The eraser stays freehand:
-  /// its live cut assumes a stroke that accumulates points.
-  bool get _shapeMode => _shape != _Shape.free && _tool != _Tool.eraser;
+  /// Shapes are a PEN thing. A highlighter is for sweeping over text, not for
+  /// drawing boxes, and the eraser's live cut assumes a stroke that
+  /// accumulates points.
+  bool get _shapeMode => _shape != _Shape.free && _tool == _Tool.pen;
   /// Where the current shape started, in document space.
   Offset? _shapeAnchor;
   _OneEuro? _euro; // per-stroke input filter (recreated on each pen-down)
@@ -1831,15 +1832,31 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   ///
   /// Returned as an ordinary polyline so the rest of the pipeline — smoothing,
   /// baking, painting, erasing, saving — needs to know nothing about shapes.
+  /// Points along an edge, dense enough that the smoother barely moves them.
+  static List<Offset> _edge(Offset a, Offset b, {int steps = 14}) =>
+      [for (var i = 1; i <= steps; i++) a + (b - a) * (i / steps)];
+
+  /// A corner, repeated so the smoother leaves it alone.
+  ///
+  /// `_smoothN(pts, 2)` is a [0.25, 0.5, 0.25] kernel run twice, so each point
+  /// is pulled by its neighbours up to two away. Repeating a corner five times
+  /// means the middle copy is surrounded by identical values and comes through
+  /// untouched — which is why a rectangle drawn as four bare corners came out
+  /// as a rounded blob, and this one does not.
+  static List<Offset> _corner(Offset p) => [p, p, p, p, p];
+
+  /// The points that draw [shape] from [a] to [b].
+  ///
+  /// Returned as an ordinary polyline so the rest of the pipeline — smoothing,
+  /// baking, painting, erasing, saving — needs to know nothing about shapes.
   static List<Offset> _shapePoints(_Shape shape, Offset a, Offset b) {
     switch (shape) {
       case _Shape.free:
-        return [a, b];
       case _Shape.line:
-        return [a, b];
+        return [a, ..._edge(a, b, steps: 24)];
       case _Shape.arrow:
-        // The shaft, then back up one barb and down the other, so a single
-        // continuous stroke draws the whole arrow.
+        // Shaft, then back up one barb and down the other, so a single
+        // continuous stroke draws the whole arrow. The tip is a corner.
         final v = b - a;
         final len = v.distance;
         if (len < 1) return [a, b];
@@ -1849,22 +1866,31 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
         final base = b - dir * head;
         final left = base + norm * (head * 0.45);
         final right = base - norm * (head * 0.45);
-        return [a, b, left, b, right];
+        return [
+          a, ..._edge(a, b, steps: 24), ..._corner(b),
+          ..._edge(b, left, steps: 6), ..._corner(left),
+          ..._edge(left, b, steps: 6), ..._corner(b),
+          ..._edge(b, right, steps: 6),
+        ];
       case _Shape.rect:
         final r = Rect.fromPoints(a, b);
+        final tl = r.topLeft, tr = r.topRight;
+        final br = r.bottomRight, bl = r.bottomLeft;
         return [
-          r.topLeft, r.topRight, r.bottomRight, r.bottomLeft, r.topLeft,
+          ..._corner(tl), ..._edge(tl, tr), ..._corner(tr),
+          ..._edge(tr, br), ..._corner(br),
+          ..._edge(br, bl), ..._corner(bl),
+          ..._edge(bl, tl), ..._corner(tl),
         ];
       case _Shape.ellipse:
         final r = Rect.fromPoints(a, b);
         final cx = r.center.dx, cy = r.center.dy;
         final rx = r.width / 2, ry = r.height / 2;
-        // 48 segments is smooth at any zoom this canvas allows, and keeps the
-        // stored stroke small.
+        // A closed curve has no corners to protect, so plain sampling is right.
         return [
-          for (var i = 0; i <= 48; i++)
-            Offset(cx + rx * math.cos(i * 2 * math.pi / 48),
-                   cy + ry * math.sin(i * 2 * math.pi / 48)),
+          for (var i = 0; i <= 64; i++)
+            Offset(cx + rx * math.cos(i * 2 * math.pi / 64),
+                   cy + ry * math.sin(i * 2 * math.pi / 64)),
         ];
     }
   }
@@ -2006,15 +2032,6 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       }
     }
     if (!changed) return;
-    _inkGen.value++;
-    setState(() {});
-    _scheduleSaveInk();
-  }
-
-  void _clear() {
-    if (_strokes.isEmpty) return;
-    _strokes.clear();
-    _redoStack.clear();
     _inkGen.value++;
     setState(() {});
     _scheduleSaveInk();
@@ -2341,19 +2358,12 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                       _toolBtn(c, Icons.close_rounded, false, _clearSelection),
                     ],
                     _sep(c),
-                    // Shape picker — pen/highlighter only.
-                    if (_tool != _Tool.eraser && !_selectMode) ...[
-                      for (final entry in const [
-                        (_Shape.free, Icons.gesture_rounded),
-                        (_Shape.line, Icons.horizontal_rule_rounded),
-                        (_Shape.arrow, Icons.north_east_rounded),
-                        (_Shape.rect, Icons.crop_square_rounded),
-                        (_Shape.ellipse, Icons.circle_outlined),
-                      ]) ...[
-                        _toolBtn(c, entry.$2, _shape == entry.$1,
-                            () => setState(() => _shape = entry.$1)),
-                        const SizedBox(width: 6),
-                      ],
+                    // Shape picker — one dropdown, pen only. Five buttons in
+                    // a row crowded out the colours and sizes that get used
+                    // far more often.
+                    if (_tool == _Tool.pen && !_selectMode) ...[
+                      _shapeMenu(c),
+                      const SizedBox(width: 6),
                       _sep(c),
                     ],
                     if (_tool != _Tool.eraser && !_selectMode) ...[
@@ -2377,10 +2387,59 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
             const SizedBox(width: 6),
             _toolBtn(c, Icons.redo_rounded, false,
                 _redoStack.isEmpty ? null : _redo),
-            const SizedBox(width: 6),
-            _toolBtn(c, Icons.delete_outline_rounded, false,
-                _strokes.isEmpty ? null : _clear),
           ],
+        ),
+      );
+
+  static const _shapeIcons = <_Shape, IconData>{
+    _Shape.free: Icons.gesture_rounded,
+    _Shape.line: Icons.horizontal_rule_rounded,
+    _Shape.arrow: Icons.north_east_rounded,
+    _Shape.rect: Icons.crop_square_rounded,
+    _Shape.ellipse: Icons.circle_outlined,
+  };
+  static const _shapeNames = <_Shape, String>{
+    _Shape.free: 'Freehand',
+    _Shape.line: 'Straight line',
+    _Shape.arrow: 'Arrow',
+    _Shape.rect: 'Rectangle',
+    _Shape.ellipse: 'Ellipse',
+  };
+
+  /// Pick a shape, then draw it with the pen. Shows which one is active, so
+  /// it is obvious why the pen has stopped drawing freehand.
+  Widget _shapeMenu(AppColors c) => PopupMenuButton<_Shape>(
+        tooltip: 'Shape',
+        position: PopupMenuPosition.under,
+        initialValue: _shape,
+        onSelected: (v) => setState(() => _shape = v),
+        itemBuilder: (_) => [
+          for (final e in _shapeIcons.entries)
+            PopupMenuItem<_Shape>(
+              value: e.key,
+              child: Row(children: [
+                Icon(e.value, size: 18, color: c.inkMedium),
+                const SizedBox(width: 10),
+                Text(_shapeNames[e.key]!),
+              ]),
+            ),
+        ],
+        child: Container(
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: _shape == _Shape.free
+                ? Colors.transparent
+                : c.primary.withValues(alpha: 0.14),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(_shapeIcons[_shape],
+                size: 18,
+                color: _shape == _Shape.free ? c.inkMedium : c.primary),
+            Icon(Icons.arrow_drop_down_rounded, size: 18, color: c.inkSoft),
+          ]),
         ),
       );
 
