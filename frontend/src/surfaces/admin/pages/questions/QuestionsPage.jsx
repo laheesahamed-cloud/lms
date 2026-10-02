@@ -284,6 +284,10 @@ export function QuestionsPage() {
   const [bulkKeywordForm, setBulkKeywordForm] = useState({ keywordsText: '', mode: 'append' });
   const [bulkAiOpen, setBulkAiOpen] = useState(false);
   const [bulkAiMode, setBulkAiMode] = useState('skip');
+  // Off by default, like the importer and the quiz builder: it is another AI
+  // call per question on top of the three this already makes, so a 40-question
+  // batch gets noticeably longer for something not everyone wants.
+  const [bulkAiTheory, setBulkAiTheory] = useState(false);
   const [bulkAiRunning, setBulkAiRunning] = useState(false);
   // `errors` holds each distinct reason once, with a count. A run that fails
   // forty times almost always fails forty times for ONE reason, and a bare
@@ -1138,6 +1142,21 @@ export function QuestionsPage() {
           status: mapped.status,
           options: realOptions(options),
         });
+
+        // After the save, not before: a recap is stored against the question
+        // and read back by id, so it has nothing to attach to until the
+        // question itself has been written. (The other two bulk paths save
+        // mid-run for exactly this reason; here the question already exists.)
+        if (bulkAiTheory) {
+          const existingRecap = regenerate
+            ? null
+            : await fetchTheoryRecap(id).catch(() => null);
+          if (regenerate) {
+            await regenerateTheoryRecap(id);
+          } else if (!existingRecap) {
+            await generateTheoryRecap(id);
+          }
+        }
       } catch (bulkError) {
         failed += 1;
         const why = getErrorMessage(bulkError, 'AI generation failed');
@@ -1604,6 +1623,14 @@ export function QuestionsPage() {
                         <option value="skip">Only fill in missing content</option>
                         <option value="regenerate">Regenerate everything, even if already filled</option>
                       </select>
+                    </label>
+                    <label className={ui.inlineCheck}>
+                      <input className="shrink-0"
+                        type="checkbox"
+                        checked={bulkAiTheory}
+                        onChange={(event) => setBulkAiTheory(event.target.checked)}
+                      />
+                      <span>Also generate missing quick theory cards (slower)</span>
                     </label>
                   </>
                 ) : (
