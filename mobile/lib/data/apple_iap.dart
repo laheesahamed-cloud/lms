@@ -30,6 +30,9 @@ class IapProduct {
   final String displayName;
   final String description;
   final String displayPrice;
+  /// The numeric price, for comparing plans only — never for display, which
+  /// always uses [displayPrice] so the storefront's own formatting is kept.
+  final double price;
   final String unit; // day | week | month | year
   final int unitCount;
 
@@ -38,6 +41,7 @@ class IapProduct {
     required this.displayName,
     required this.description,
     required this.displayPrice,
+    this.price = 0,
     required this.unit,
     required this.unitCount,
   });
@@ -61,6 +65,7 @@ class IapProduct {
       displayName: (m['displayName'] ?? '').toString(),
       description: (m['description'] ?? '').toString(),
       displayPrice: (m['displayPrice'] ?? '').toString(),
+      price: (m['price'] as num?)?.toDouble() ?? 0,
       unit: (m['unit'] ?? 'period').toString(),
       unitCount: (m['unitCount'] is int) ? m['unitCount'] as int : 1,
     );

@@ -116,6 +116,12 @@ final class StoreKitBridge {
       // Always Apple's localized string — never a price we format ourselves,
       // which would be wrong in every non-USD storefront.
       "displayPrice": product.displayPrice,
+      // The NUMERIC price alongside the localized string. Not for display —
+      // displayPrice is the only thing ever shown — but a "save 40%" badge has
+      // to compare plans arithmetically, and parsing a localized price string
+      // back into a number is wrong in any storefront that puts the symbol in a
+      // different place or uses a comma as the decimal mark.
+      "price": NSDecimalNumber(decimal: product.price).doubleValue,
     ]
     if let subscription = product.subscription {
       payload["unit"] = Self.unitName(subscription.subscriptionPeriod.unit)

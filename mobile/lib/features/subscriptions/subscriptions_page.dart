@@ -105,11 +105,8 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               // an existing subscriber seeing "Subscribe" would risk paying twice.
               if (iapSupported && !_hasAccess(billing.current)) ...[
                 const SizedBox(height: 14),
-                AppButton(
-                  'Unlock full access',
-                  kind: AppButtonKind.cta,
-                  expand: true,
-                  onPressed: () async {
+                _UpgradeBanner(
+                  onTap: () async {
                     final granted = await PaywallSheet.show(context);
                     if (granted) ref.invalidate(billingProvider);
                   },
@@ -221,6 +218,13 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
                     children: [
+                      // A leading icon per row. Twelve lines of plain text read
+                      // as a wall; an icon gives the eye somewhere to land and
+                      // tells you what kind of thing each row is before you
+                      // read it.
+                      Icon(featureIcon(feature),
+                          size: 17, color: c.inkSoft),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(feature,
                             style: TextStyle(
@@ -342,4 +346,191 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
       ),
     );
   }
+}
+
+/// The pitch, as a card rather than a bare button.
+///
+/// A single full-width CTA says what happens but nothing about why. This says
+/// what you get and keeps the button's job — one tap, same destination.
+///
+/// The artwork is drawn, not an asset: gradient containers and icons theme
+/// themselves, stay crisp at any size and add nothing to the bundle, where a
+/// raster illustration would be pinned to one theme and need regenerating to
+/// change.
+class _UpgradeBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _UpgradeBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
+        decoration: BoxDecoration(
+          gradient: kHeroGradient,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4F46E5).withValues(alpha: dark ? 0.34 : 0.22),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(children: [
+                    const Icon(Icons.auto_awesome_rounded,
+                        size: 14, color: Colors.white70),
+                    const SizedBox(width: 6),
+                    Text('Upgrade to Premium',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                            color: Colors.white.withValues(alpha: 0.88))),
+                  ]),
+                  const SizedBox(height: 8),
+                  const Text('Unlock your full\nlearning potential',
+                      style: TextStyle(
+                          fontSize: 21,
+                          height: 1.22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: Colors.white)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Get access to all courses, practice questions, mock exams and more.',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: Colors.white.withValues(alpha: 0.82)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            const _CrownMark(size: 62),
+            const SizedBox(width: 6),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.chevron_right_rounded,
+                  size: 20, color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The crown badge: a tilted card with a crown on it, drawn from two rounded
+/// rectangles and an icon. Sparkles sit at the corners so it reads as a mark
+/// rather than a button.
+class _CrownMark extends StatelessWidget {
+  final double size;
+  const _CrownMark({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // The card behind, tilted, to give the mark some depth.
+          Transform.rotate(
+            angle: -0.22,
+            child: Container(
+              width: size * 0.62,
+              height: size * 0.72,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(size * 0.14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+              ),
+            ),
+          ),
+          Transform.rotate(
+            angle: 0.12,
+            child: Container(
+              width: size * 0.58,
+              height: size * 0.68,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.42),
+                    Colors.white.withValues(alpha: 0.18),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(size * 0.14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.42)),
+              ),
+              child: Icon(Icons.workspace_premium_rounded,
+                  size: size * 0.32, color: Colors.white),
+            ),
+          ),
+          Positioned(
+            top: 2,
+            right: 4,
+            child: Icon(Icons.auto_awesome_rounded,
+                size: size * 0.18,
+                color: Colors.white.withValues(alpha: 0.9)),
+          ),
+          Positioned(
+            bottom: 4,
+            left: 2,
+            child: Icon(Icons.auto_awesome_rounded,
+                size: size * 0.13,
+                color: Colors.white.withValues(alpha: 0.7)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// An icon for a feature row, matched on what the feature says.
+///
+/// Derived rather than stored: the rows come from the plan's own feature list,
+/// which is edited in the admin panel, so anything stored alongside would drift
+/// the moment someone reworded a line.
+IconData featureIcon(String feature) {
+  final f = feature.toLowerCase();
+  if (f.contains('course')) return Icons.menu_book_rounded;
+  if (f.contains('randomi')) return Icons.shuffle_rounded;
+  if (f.contains('exam')) return Icons.timer_outlined;
+  if (f.contains('lesson') && f.contains('study')) return Icons.school_rounded;
+  if (f.contains('lesson')) return Icons.play_circle_outline_rounded;
+  if (f.contains('mock')) return Icons.description_outlined;
+  if (f.contains('past paper') || f.contains('paper')) {
+    return Icons.history_edu_outlined;
+  }
+  if (f.contains('analytic')) return Icons.insights_rounded;
+  if (f.contains('practice')) return Icons.track_changes_rounded;
+  if (f.contains('advanced') && f.contains('progress')) {
+    return Icons.trending_up_rounded;
+  }
+  if (f.contains('progress')) return Icons.bar_chart_rounded;
+  if (f.contains('question')) return Icons.layers_rounded;
+  if (f.contains('flashcard')) return Icons.style_rounded;
+  if (f.contains('note')) return Icons.edit_note_rounded;
+  return Icons.check_circle_outline_rounded;
 }

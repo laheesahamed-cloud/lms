@@ -201,12 +201,65 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
 
   /// What a subscription actually unlocks. The old sheet listed only prices,
   /// which gave no reason to buy.
-  static const List<({IconData icon, String label})> _features = [
-    (icon: Icons.menu_book_rounded, label: 'Every course, lesson and set of notes'),
-    (icon: Icons.quiz_rounded, label: 'Full question bank with explained answers'),
-    (icon: Icons.style_rounded, label: 'Flashcards with spaced repetition'),
-    (icon: Icons.timer_rounded, label: 'Timed mock exams and progress tracking'),
+  /// Title plus a short caption, so each one can sit as a tile in a 2x2 grid.
+  /// Four full-width rows of small text read as fine print; four tiles read as
+  /// four things you get.
+  static const List<({IconData icon, String title, String caption})> _features = [
+    (icon: Icons.menu_book_rounded,
+     title: 'Every course and lesson',
+     caption: 'Complete study library'),
+    (icon: Icons.timer_rounded,
+     title: 'Timed mock exams',
+     caption: 'Real exam experience'),
+    (icon: Icons.quiz_rounded,
+     title: 'Full question bank',
+     caption: 'With explained answers'),
+    (icon: Icons.insights_rounded,
+     title: 'Progress analytics',
+     caption: 'Track your improvement'),
   ];
+
+  /// Roughly how many days a product's billing period covers, for comparing
+  /// plans of different lengths on the same footing.
+  static int _periodDays(IapProduct p) {
+    final n = p.unitCount <= 0 ? 1 : p.unitCount;
+    switch (p.unit) {
+      case 'day':
+        return n;
+      case 'week':
+        return n * 7;
+      case 'year':
+        return n * 365;
+      case 'month':
+      default:
+        return n * 30;
+    }
+  }
+
+  /// "Save 40%" against the costliest plan per day, or null.
+  ///
+  /// Computed from the real prices rather than configured, so it cannot claim
+  /// a saving that is not there — if someone reprices a plan in App Store
+  /// Connect the badge follows, and it simply disappears when the discount
+  /// stops being worth announcing.
+  String? _savingLabel(IapProduct product, List<IapProduct> all) {
+    if (product.price <= 0) return null;
+    final perDay = <double>[];
+    for (final p in all) {
+      if (p.price <= 0) continue;
+      final days = _periodDays(p);
+      if (days > 0) perDay.add(p.price / days);
+    }
+    if (perDay.length < 2) return null;
+    final dearest = perDay.reduce((a, b) => a > b ? a : b);
+    final mine = product.price / _periodDays(product);
+    if (dearest <= 0) return null;
+    final saved = ((dearest - mine) / dearest) * 100;
+    // Below ten per cent is not a reason to choose a plan, and rounding noise
+    // at that end makes the badge look arbitrary.
+    if (saved < 10) return null;
+    return 'SAVE ${saved.round()}%';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -238,50 +291,76 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               ),
             ),
 
-            // Title row, with Restore tucked small at the top-right so it stops
-            // competing with the primary action.
+            // Close on the left, Restore on the right — the sheet's own
+            // chrome, kept off the title so neither competes with it.
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text('Unlock everything',
-                      style: TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.w800, color: c.inkStrong)),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).maybePop(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                        color: c.surface2, shape: BoxShape.circle),
+                    child: Icon(Icons.close_rounded, size: 18, color: c.inkMedium),
+                  ),
                 ),
+                const Spacer(),
                 GestureDetector(
                   onTap: busy ? null : _restore,
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     child: _restoring
                         ? SizedBox(
                             width: 13,
                             height: 13,
-                            child: CircularProgressIndicator(strokeWidth: 1.8, color: c.inkSoft))
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.8, color: c.inkSoft))
                         : Text('Restore',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: c.inkSoft)),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: c.inkSoft)),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
 
-            for (final f in _features)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 9),
-                child: Row(
-                  children: [
-                    Icon(f.icon, size: 17, color: c.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(f.label,
-                          style: TextStyle(
-                              fontSize: 13.5, height: 1.3, color: c.inkMedium)),
-                    ),
-                  ],
-                ),
-              ),
+            // The mark, then the promise. A paywall that opens on a price list
+            // asks for money before it has said what for.
+            const SizedBox(height: 4),
+            const Center(child: _PremiumMark()),
+            const SizedBox(height: 14),
+            Text('Unlock everything',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: c.inkStrong)),
+            const SizedBox(height: 8),
+            Text(
+              'Get complete access to all courses, practice materials and premium features.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, height: 1.45, color: c.inkSoft),
+            ),
+            const SizedBox(height: 18),
+
+            // 2x2 rather than four rows: it halves the vertical space the
+            // features take, which is what lets the plans sit above the fold.
+            Row(children: [
+              Expanded(child: _FeatureTile(f: _features[0])),
+              const SizedBox(width: 10),
+              Expanded(child: _FeatureTile(f: _features[1])),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: _FeatureTile(f: _features[2])),
+              const SizedBox(width: 10),
+              Expanded(child: _FeatureTile(f: _features[3])),
+            ]),
             const SizedBox(height: 10),
 
             if (_loading)
@@ -295,6 +374,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                   product: product,
                   selected: product.id == selected?.id,
                   disabled: busy,
+                  saving: _savingLabel(product, _products),
                   onTap: () => setState(() => _selectedProductId = product.id),
                 ),
                 const SizedBox(height: 8),
@@ -370,12 +450,17 @@ class _PlanOption extends StatelessWidget {
   final bool selected;
   final bool disabled;
   final VoidCallback onTap;
+  /// "SAVE 40%", or null when this plan is not meaningfully cheaper per day.
+  /// Worked out by the sheet, which can see every plan; a row on its own
+  /// cannot know what it is cheaper than.
+  final String? saving;
 
   const _PlanOption({
     required this.product,
     required this.selected,
     required this.disabled,
     required this.onTap,
+    this.saving,
   });
 
   @override
@@ -435,6 +520,25 @@ class _PlanOption extends StatelessWidget {
                                 color: c.inkStrong),
                           ),
                         ),
+                        // Only on a plan that is NOT the recommended one, so
+                        // a single row never carries two competing badges.
+                        if (!recommended && saving != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: c.success.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(saving!,
+                                style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.7,
+                                    color: c.success)),
+                          ),
+                        ],
                         if (recommended) ...[
                           const SizedBox(width: 8),
                           // Solid fill, not a tint — the old badge blended into
@@ -502,6 +606,89 @@ class _LegalLink extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// One of the four things a subscription buys, as a tile.
+class _FeatureTile extends StatelessWidget {
+  final ({IconData icon, String title, String caption}) f;
+  const _FeatureTile({required this.f});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+      decoration: BoxDecoration(
+        color: c.surface2,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: c.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(f.icon, size: 17, color: c.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(f.title,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.25,
+                        fontWeight: FontWeight.w800,
+                        color: c.inkStrong)),
+                const SizedBox(height: 3),
+                Text(f.caption,
+                    style: TextStyle(
+                        fontSize: 11, height: 1.3, color: c.inkSoft)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The crown mark at the top of the sheet: a rounded tile with a soft glow
+/// behind it. Drawn rather than an asset, so it follows the theme and stays
+/// crisp — the glow is simply a wider shadow in the brand colour.
+class _PremiumMark extends StatelessWidget {
+  const _PremiumMark();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        gradient: kHeroGradient,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: c.primary.withValues(alpha: dark ? 0.46 : 0.28),
+            blurRadius: 26,
+            spreadRadius: 1,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.workspace_premium_rounded,
+          size: 30, color: Colors.white),
     );
   }
 }
