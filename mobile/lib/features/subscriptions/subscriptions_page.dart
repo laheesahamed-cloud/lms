@@ -218,7 +218,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                   // 3, not 6: this repeats twelve times, so it is worth more
                   // than any single block on the page — 72pt, which is most of
                   // what stood between this list and fitting on one screen.
-                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
                     children: [
                       // A leading icon per row. Twelve lines of plain text read
@@ -226,27 +226,27 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                       // tells you what kind of thing each row is before you
                       // read it.
                       Icon(featureIcon(feature),
-                          size: 17, color: c.inkSoft),
-                      const SizedBox(width: 10),
+                          size: 15, color: c.inkSoft),
+                      const SizedBox(width: 9),
                       Expanded(
                         child: Text(feature,
                             style: TextStyle(
-                                fontSize: 12.5, height: 1.25, color: c.inkMedium)),
+                                fontSize: 12, height: 1.2, color: c.inkMedium)),
                       ),
                       SizedBox(
                         width: 52,
                         child: Center(
                           child: freeFeatures.contains(feature)
-                              ? Icon(Icons.check_rounded, size: 17, color: c.success)
+                              ? Icon(Icons.check_rounded, size: 15, color: c.success)
                               : Icon(Icons.close_rounded,
-                                  size: 17, color: c.inkMuted.withValues(alpha: 0.6)),
+                                  size: 15, color: c.inkMuted.withValues(alpha: 0.6)),
                         ),
                       ),
                       SizedBox(
                         width: 62,
                         child: Center(
                           child:
-                              Icon(Icons.check_circle_rounded, size: 18, color: c.primary),
+                              Icon(Icons.check_circle_rounded, size: 16, color: c.primary),
                         ),
                       ),
                     ],

@@ -205,18 +205,21 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
   /// Four full-width rows of small text read as fine print; four tiles read as
   /// four things you get.
   static const List<({IconData icon, String title, String caption})> _features = [
+    // Short enough to sit on ONE line in half a phone's width. The longer
+    // wording wrapped to two lines, and its caption to two more — four lines
+    // in a tile built for two, which is most of why this still scrolled.
     (icon: Icons.menu_book_rounded,
-     title: 'Every course and lesson',
-     caption: 'Complete study library'),
+     title: 'All courses',
+     caption: 'Every lesson and note'),
     (icon: Icons.timer_rounded,
      title: 'Timed mock exams',
-     caption: 'Real exam experience'),
+     caption: 'Real exam conditions'),
     (icon: Icons.quiz_rounded,
      title: 'Full question bank',
-     caption: 'With explained answers'),
+     caption: 'Explained answers'),
     (icon: Icons.insights_rounded,
      title: 'Progress analytics',
-     caption: 'Track your improvement'),
+     caption: 'Track improvement'),
   ];
 
   /// Roughly how many days a product's billing period covers, for comparing
@@ -270,7 +273,15 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     final selected = _selectedProduct;
 
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.92),
+      // Never taller than the space below the status bar. The old 92% was a
+      // guess that happens to be wrong on exactly the phones with a dynamic
+      // island: the sheet grows upward, so 8% of the screen was not enough to
+      // clear it and the title was cut in half by it.
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            10,
+      ),
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF0F121F) : const Color(0xFFFBFCFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -633,6 +644,8 @@ class _FeatureTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(f.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 11.5,
                         height: 1.2,
@@ -640,6 +653,8 @@ class _FeatureTile extends StatelessWidget {
                         color: c.inkStrong)),
                 const SizedBox(height: 3),
                 Text(f.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 10.5, height: 1.25, color: c.inkSoft)),
               ],
