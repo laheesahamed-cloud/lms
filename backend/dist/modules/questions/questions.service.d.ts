@@ -16,6 +16,7 @@ type QuestionFilters = {
     lessonId?: number;
     paperId?: number;
     unclassified?: boolean;
+    missing?: 'explanation' | 'why_incorrect' | 'approach' | 'theory' | 'any';
     ids?: number[];
     excludeIds?: number[];
     limit?: number;

@@ -57,6 +57,7 @@ export class QuestionsController {
     @Query('unclassified') unclassified?: string,
     @Query('keywords') keywords?: string,
     @Query('usage') usage?: string,
+    @Query('missing') missing?: string,
     @Query('ids') ids?: string,
     @Query('excludeIds') excludeIds?: string,
     @Query('limit') limit?: string,
@@ -71,6 +72,10 @@ export class QuestionsController {
       category,
       keywords,
       usage,
+      missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
+        .includes(String(missing))
+        ? (missing as 'explanation' | 'why_incorrect' | 'approach' | 'theory' | 'any')
+        : undefined,
       courseId: courseId ? Number(courseId) : undefined,
       subjectId: subjectId ? Number(subjectId) : undefined,
       topicId: topicId ? Number(topicId) : undefined,
@@ -133,6 +138,7 @@ export class QuestionsController {
     @Query('unclassified') unclassified?: string,
     @Query('keywords') keywords?: string,
     @Query('usage') usage?: string,
+    @Query('missing') missing?: string,
     @Res() response?: any,
   ) {
     const actor = await this.authService.requireAdmin(authorization);
@@ -143,6 +149,10 @@ export class QuestionsController {
       category,
       keywords,
       usage,
+      missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
+        .includes(String(missing))
+        ? (missing as 'explanation' | 'why_incorrect' | 'approach' | 'theory' | 'any')
+        : undefined,
       courseId: courseId ? Number(courseId) : undefined,
       subjectId: subjectId ? Number(subjectId) : undefined,
       topicId: topicId ? Number(topicId) : undefined,
@@ -171,6 +181,7 @@ export class QuestionsController {
     @Query('unclassified') unclassified?: string,
     @Query('keywords') keywords?: string,
     @Query('usage') usage?: string,
+    @Query('missing') missing?: string,
     @Res() response?: any,
   ) {
     return this.exportQuestions(

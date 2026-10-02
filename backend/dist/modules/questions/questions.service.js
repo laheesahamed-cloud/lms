@@ -157,6 +157,25 @@ let QuestionsService = class QuestionsService {
         if (filters.unclassified) {
             sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
         }
+        const missingClauses = {
+            explanation: "(q.explanation IS NULL OR TRIM(q.explanation) = '')",
+            approach: "(q.question_approach IS NULL OR TRIM(q.question_approach) = '')",
+            why_incorrect: `EXISTS (
+        SELECT 1 FROM question_options o
+        WHERE o.question_id = q.id
+          AND o.is_correct = 0
+          AND (o.why_incorrect IS NULL OR TRIM(o.why_incorrect) = '')
+      )`,
+            theory: `NOT EXISTS (
+        SELECT 1 FROM question_theory_recaps tr WHERE tr.question_id = q.id
+      )`,
+        };
+        if (filters.missing === 'any') {
+            sql += ` AND (${Object.values(missingClauses).join(' OR ')})`;
+        }
+        else if (filters.missing && missingClauses[filters.missing]) {
+            sql += ` AND ${missingClauses[filters.missing]}`;
+        }
         if (filters.usage === 'unused') {
             sql += ' AND COALESCE(qql.quiz_count, 0) = 0';
         }
@@ -1451,6 +1470,25 @@ let QuestionsService = class QuestionsService {
         }
         if (filters.unclassified) {
             sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
+        }
+        const missingClauses = {
+            explanation: "(q.explanation IS NULL OR TRIM(q.explanation) = '')",
+            approach: "(q.question_approach IS NULL OR TRIM(q.question_approach) = '')",
+            why_incorrect: `EXISTS (
+        SELECT 1 FROM question_options o
+        WHERE o.question_id = q.id
+          AND o.is_correct = 0
+          AND (o.why_incorrect IS NULL OR TRIM(o.why_incorrect) = '')
+      )`,
+            theory: `NOT EXISTS (
+        SELECT 1 FROM question_theory_recaps tr WHERE tr.question_id = q.id
+      )`,
+        };
+        if (filters.missing === 'any') {
+            sql += ` AND (${Object.values(missingClauses).join(' OR ')})`;
+        }
+        else if (filters.missing && missingClauses[filters.missing]) {
+            sql += ` AND ${missingClauses[filters.missing]}`;
         }
         if (filters.usage === 'unused') {
             sql += ' AND COALESCE(qql.quiz_count, 0) = 0';

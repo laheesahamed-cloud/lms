@@ -58,6 +58,10 @@ type QuestionFilters = {
   lessonId?: number;
   paperId?: number;
   unclassified?: boolean;
+  /// Narrow to questions that are still missing a piece of generated content,
+  /// so a bulk run can be pointed at exactly those instead of re-walking the
+  /// ones already done.
+  missing?: 'explanation' | 'why_incorrect' | 'approach' | 'theory' | 'any';
   ids?: number[];
   excludeIds?: number[];
   limit?: number;
@@ -244,6 +248,33 @@ export class QuestionsService {
 
     if (filters.unclassified) {
       sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
+    }
+
+    // Each clause asks "is this piece absent", the same way the admin panel
+    // decides whether to generate it. Kept as SQL rather than filtered in the
+    // client because the list is paginated: a client-side filter would only
+    // ever sift the page you happen to be looking at.
+    const missingClauses: Record<string, string> = {
+      explanation: "(q.explanation IS NULL OR TRIM(q.explanation) = '')",
+      approach: "(q.question_approach IS NULL OR TRIM(q.question_approach) = '')",
+      // An SBA is incomplete while any WRONG option has no reason attached.
+      // The correct one never has, so it has to be excluded or every question
+      // would look unfinished.
+      why_incorrect: `EXISTS (
+        SELECT 1 FROM question_options o
+        WHERE o.question_id = q.id
+          AND o.is_correct = 0
+          AND (o.why_incorrect IS NULL OR TRIM(o.why_incorrect) = '')
+      )`,
+      theory: `NOT EXISTS (
+        SELECT 1 FROM question_theory_recaps tr WHERE tr.question_id = q.id
+      )`,
+    };
+
+    if (filters.missing === 'any') {
+      sql += ` AND (${Object.values(missingClauses).join(' OR ')})`;
+    } else if (filters.missing && missingClauses[filters.missing]) {
+      sql += ` AND ${missingClauses[filters.missing]}`;
     }
 
     if (filters.usage === 'unused') {
@@ -1802,6 +1833,33 @@ export class QuestionsService {
 
     if (filters.unclassified) {
       sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
+    }
+
+    // Each clause asks "is this piece absent", the same way the admin panel
+    // decides whether to generate it. Kept as SQL rather than filtered in the
+    // client because the list is paginated: a client-side filter would only
+    // ever sift the page you happen to be looking at.
+    const missingClauses: Record<string, string> = {
+      explanation: "(q.explanation IS NULL OR TRIM(q.explanation) = '')",
+      approach: "(q.question_approach IS NULL OR TRIM(q.question_approach) = '')",
+      // An SBA is incomplete while any WRONG option has no reason attached.
+      // The correct one never has, so it has to be excluded or every question
+      // would look unfinished.
+      why_incorrect: `EXISTS (
+        SELECT 1 FROM question_options o
+        WHERE o.question_id = q.id
+          AND o.is_correct = 0
+          AND (o.why_incorrect IS NULL OR TRIM(o.why_incorrect) = '')
+      )`,
+      theory: `NOT EXISTS (
+        SELECT 1 FROM question_theory_recaps tr WHERE tr.question_id = q.id
+      )`,
+    };
+
+    if (filters.missing === 'any') {
+      sql += ` AND (${Object.values(missingClauses).join(' OR ')})`;
+    } else if (filters.missing && missingClauses[filters.missing]) {
+      sql += ` AND ${missingClauses[filters.missing]}`;
     }
 
     if (filters.usage === 'unused') {

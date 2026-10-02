@@ -254,7 +254,7 @@ function adminFieldsToRecap(fields) {
   };
 }
 
-const questionInitialFilters = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
+const questionInitialFilters = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', missing: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
 
 export function QuestionsPage() {
   const navigate = useNavigate();
@@ -1332,6 +1332,17 @@ export function QuestionsPage() {
                 </select>
               </label>
               <label className={ui.formLabel}>
+                Missing content
+                <select className={ui.input} name="missing" value={filters.missing} onChange={handleFilterChange}>
+                  <option value="">All questions</option>
+                  <option value="any">Missing anything</option>
+                  <option value="explanation">No explanation</option>
+                  <option value="why_incorrect">No why-incorrect</option>
+                  <option value="approach">No question approach</option>
+                  <option value="theory">No quick theory card</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
                 Unclassified
                 <select className={ui.input} name="unclassified" value={filters.unclassified} onChange={handleFilterChange}>
                   <option value="">All</option>
@@ -1344,7 +1355,7 @@ export function QuestionsPage() {
                   type="button"
                  
                   onClick={() => {
-                    const next = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
+                    const next = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', missing: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
                     setFilters(next);
                     loadQuestions(next);
                   }}

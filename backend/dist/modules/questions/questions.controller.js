@@ -49,7 +49,7 @@ let QuestionsController = class QuestionsController {
         this.questionsService = questionsService;
         this.authService = authService;
     }
-    findAll(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, ids, excludeIds, limit, page, offset, random) {
+    findAll(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, missing, ids, excludeIds, limit, page, offset, random) {
         return this.questionsService.findAll({
             search,
             status,
@@ -57,6 +57,10 @@ let QuestionsController = class QuestionsController {
             category,
             keywords,
             usage,
+            missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
+                .includes(String(missing))
+                ? missing
+                : undefined,
             courseId: courseId ? Number(courseId) : undefined,
             subjectId: subjectId ? Number(subjectId) : undefined,
             topicId: topicId ? Number(topicId) : undefined,
@@ -88,7 +92,7 @@ let QuestionsController = class QuestionsController {
             paperId: paperId ? Number(paperId) : undefined,
         });
     }
-    async exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, response) {
+    async exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, missing, response) {
         const actor = await this.authService.requireAdmin(authorization);
         const workbook = await this.questionsService.exportWorkbook({
             search,
@@ -97,6 +101,10 @@ let QuestionsController = class QuestionsController {
             category,
             keywords,
             usage,
+            missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
+                .includes(String(missing))
+                ? missing
+                : undefined,
             courseId: courseId ? Number(courseId) : undefined,
             subjectId: subjectId ? Number(subjectId) : undefined,
             topicId: topicId ? Number(topicId) : undefined,
@@ -108,7 +116,7 @@ let QuestionsController = class QuestionsController {
         response.setHeader('Content-Disposition', `attachment; filename="questions-export-${Date.now()}.csv"`);
         response.send(workbook);
     }
-    async exportQuestionsLegacy(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, response) {
+    async exportQuestionsLegacy(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, missing, response) {
         return this.exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, response);
     }
     async importQuestions(authorization, file) {
@@ -203,14 +211,15 @@ __decorate([
     __param(9, (0, common_1.Query)('unclassified')),
     __param(10, (0, common_1.Query)('keywords')),
     __param(11, (0, common_1.Query)('usage')),
-    __param(12, (0, common_1.Query)('ids')),
-    __param(13, (0, common_1.Query)('excludeIds')),
-    __param(14, (0, common_1.Query)('limit')),
-    __param(15, (0, common_1.Query)('page')),
-    __param(16, (0, common_1.Query)('offset')),
-    __param(17, (0, common_1.Query)('random')),
+    __param(12, (0, common_1.Query)('missing')),
+    __param(13, (0, common_1.Query)('ids')),
+    __param(14, (0, common_1.Query)('excludeIds')),
+    __param(15, (0, common_1.Query)('limit')),
+    __param(16, (0, common_1.Query)('page')),
+    __param(17, (0, common_1.Query)('offset')),
+    __param(18, (0, common_1.Query)('random')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "findAll", null);
 __decorate([
@@ -250,9 +259,10 @@ __decorate([
     __param(10, (0, common_1.Query)('unclassified')),
     __param(11, (0, common_1.Query)('keywords')),
     __param(12, (0, common_1.Query)('usage')),
-    __param(13, (0, common_1.Res)()),
+    __param(13, (0, common_1.Query)('missing')),
+    __param(14, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "exportQuestions", null);
 __decorate([
@@ -270,9 +280,10 @@ __decorate([
     __param(10, (0, common_1.Query)('unclassified')),
     __param(11, (0, common_1.Query)('keywords')),
     __param(12, (0, common_1.Query)('usage')),
-    __param(13, (0, common_1.Res)()),
+    __param(13, (0, common_1.Query)('missing')),
+    __param(14, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "exportQuestionsLegacy", null);
 __decorate([

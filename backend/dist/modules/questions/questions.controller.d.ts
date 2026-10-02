@@ -8,7 +8,7 @@ export declare class QuestionsController {
     private readonly questionsService;
     private readonly authService;
     constructor(questionsService: QuestionsService, authService: AuthService);
-    findAll(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, ids?: string, excludeIds?: string, limit?: string, page?: string, offset?: string, random?: string): Promise<{
+    findAll(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, missing?: string, ids?: string, excludeIds?: string, limit?: string, page?: string, offset?: string, random?: string): Promise<{
         id: number;
         courseId: number;
         subjectId: number;
@@ -71,8 +71,8 @@ export declare class QuestionsController {
         unused: number;
         used: number;
     }>;
-    exportQuestions(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, response?: any): Promise<void>;
-    exportQuestionsLegacy(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, response?: any): Promise<void>;
+    exportQuestions(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, missing?: string, response?: any): Promise<void>;
+    exportQuestionsLegacy(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, missing?: string, response?: any): Promise<void>;
     importQuestions(authorization: string | undefined, file: any): Promise<{
         ok: boolean;
         importedCount: number;
