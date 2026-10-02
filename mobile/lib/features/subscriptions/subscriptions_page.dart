@@ -84,7 +84,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
       builder: (context) => RefreshIndicator(
           onRefresh: () async => ref.refresh(billingProvider.future),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             children: [
               Text('PLAN',
                   style: TextStyle(
@@ -95,11 +95,11 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               const SizedBox(height: 4),
               Text('Subscription',
                   style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.w800,
                       color: c.inkStrong,
                       letterSpacing: -0.5)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               _statusCard(c, billing.current),
               // Only offer a purchase when there is nothing active to buy over —
               // an existing subscriber seeing "Subscribe" would risk paying twice.
@@ -140,7 +140,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                 ),
               ],
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 16),
               _comparison(c, billing.plans),
             ],
           ),
@@ -178,10 +178,10 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
       children: [
         Text("What's included",
             style: TextStyle(
-                fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
-        const SizedBox(height: 12),
+                fontSize: 15, fontWeight: FontWeight.w800, color: c.inkStrong)),
+        const SizedBox(height: 8),
         GlassCard(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           child: Column(
             children: [
               // Column headers
@@ -215,7 +215,10 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               ),
               for (final feature in rows)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  // 3, not 6: this repeats twelve times, so it is worth more
+                  // than any single block on the page — 72pt, which is most of
+                  // what stood between this list and fitting on one screen.
+                  padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
                     children: [
                       // A leading icon per row. Twelve lines of plain text read
@@ -228,7 +231,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
                       Expanded(
                         child: Text(feature,
                             style: TextStyle(
-                                fontSize: 13.5, height: 1.3, color: c.inkMedium)),
+                                fontSize: 12.5, height: 1.25, color: c.inkMedium)),
                       ),
                       SizedBox(
                         width: 52,
@@ -367,7 +370,7 @@ class _UpgradeBanner extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
+        padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
         decoration: BoxDecoration(
           gradient: kHeroGradient,
           borderRadius: BorderRadius.circular(20),
@@ -401,8 +404,8 @@ class _UpgradeBanner extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text('Unlock your full\nlearning potential',
                       style: TextStyle(
-                          fontSize: 21,
-                          height: 1.22,
+                          fontSize: 18,
+                          height: 1.2,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.4,
                           color: Colors.white)),
@@ -410,15 +413,15 @@ class _UpgradeBanner extends StatelessWidget {
                   Text(
                     'Get access to all courses, practice questions, mock exams and more.',
                     style: TextStyle(
-                        fontSize: 12.5,
-                        height: 1.4,
+                        fontSize: 11.5,
+                        height: 1.35,
                         color: Colors.white.withValues(alpha: 0.82)),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
-            const _CrownMark(size: 62),
+            const SizedBox(width: 8),
+            const _CrownMark(size: 50),
             const SizedBox(width: 6),
             Container(
               width: 30,

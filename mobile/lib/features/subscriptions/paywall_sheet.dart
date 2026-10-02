@@ -281,16 +281,6 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                width: 36,
-                height: 4,
-                decoration:
-                    BoxDecoration(color: c.line, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-
             // Close on the left, Restore on the right — the sheet's own
             // chrome, kept off the title so neither competes with it.
             Row(
@@ -330,23 +320,22 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
 
             // The mark, then the promise. A paywall that opens on a price list
             // asks for money before it has said what for.
-            const SizedBox(height: 4),
             const Center(child: _PremiumMark()),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Text('Unlock everything',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                    letterSpacing: -0.4,
                     color: c.inkStrong)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               'Get complete access to all courses, practice materials and premium features.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, height: 1.45, color: c.inkSoft),
+              style: TextStyle(fontSize: 12, height: 1.35, color: c.inkSoft),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
             // 2x2 rather than four rows: it halves the vertical space the
             // features take, which is what lets the plans sit above the fold.
@@ -355,7 +344,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               const SizedBox(width: 10),
               Expanded(child: _FeatureTile(f: _features[1])),
             ]),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(children: [
               Expanded(child: _FeatureTile(f: _features[2])),
               const SizedBox(width: 10),
@@ -410,7 +399,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                   child: Text(
                     '${selected.displayPrice} / ${selected.periodLabel} · ${selected.renewalNote}',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11.5, height: 1.35, color: c.inkSoft),
+                    style: TextStyle(fontSize: 11, height: 1.25, color: c.inkSoft),
                   ),
                 ),
               ),
@@ -422,7 +411,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
             Text(
               'Charged to your Apple ID. Cancel any time in Settings.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, height: 1.4, color: c.inkMuted),
+              style: TextStyle(fontSize: 10.5, height: 1.25, color: c.inkMuted),
             ),
             const SizedBox(height: 8),
             Row(
@@ -475,7 +464,7 @@ class _PlanOption extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           decoration: BoxDecoration(
             color: selected ? c.primaryTint.withValues(alpha: 0.55) : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
@@ -619,7 +608,7 @@ class _FeatureTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.c;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+      padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
       decoration: BoxDecoration(
         color: c.surface2,
         borderRadius: BorderRadius.circular(14),
@@ -629,15 +618,15 @@ class _FeatureTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: c.primary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(f.icon, size: 17, color: c.primary),
+            child: Icon(f.icon, size: 15, color: c.primary),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,14 +634,14 @@ class _FeatureTile extends StatelessWidget {
               children: [
                 Text(f.title,
                     style: TextStyle(
-                        fontSize: 12.5,
-                        height: 1.25,
+                        fontSize: 11.5,
+                        height: 1.2,
                         fontWeight: FontWeight.w800,
                         color: c.inkStrong)),
                 const SizedBox(height: 3),
                 Text(f.caption,
                     style: TextStyle(
-                        fontSize: 11, height: 1.3, color: c.inkSoft)),
+                        fontSize: 10.5, height: 1.25, color: c.inkSoft)),
               ],
             ),
           ),
@@ -673,11 +662,11 @@ class _PremiumMark extends StatelessWidget {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      width: 62,
-      height: 62,
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
         gradient: kHeroGradient,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: c.primary.withValues(alpha: dark ? 0.46 : 0.28),
@@ -688,7 +677,7 @@ class _PremiumMark extends StatelessWidget {
         ],
       ),
       child: const Icon(Icons.workspace_premium_rounded,
-          size: 30, color: Colors.white),
+          size: 26, color: Colors.white),
     );
   }
 }
