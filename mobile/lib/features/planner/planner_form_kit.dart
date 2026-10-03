@@ -235,15 +235,28 @@ class PlannerSection extends StatelessWidget {
   }
 }
 
-/// A selectable tile. Selected fills with the hero gradient and carries a
-/// check badge; an [accent] overrides that with a tinted, outlined treatment,
-/// which is what the priorities use so their own colours survive.
+/// A selectable tile.
+///
+/// Selected is an outline in the tile's own colour over a low-opacity wash of
+/// that colour blended into the card — the same language as the paywall's
+/// selected plan. A solid gradient fill read as a different app's component
+/// sitting inside ours.
+///
+/// [accent] overrides the hero blue and also tints the icon when the tile is
+/// OFF, which is how the priorities keep their green/amber/red: an unlit flag
+/// in [AppColors.inkMuted] was a grey smudge that said nothing.
 class PlannerChoice extends StatelessWidget {
   final IconData? icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final Color? accent;
+
+  /// Centres the content, for a row of equal-width tiles. The label scales
+  /// down rather than clipping, so the longest word in a row of three does not
+  /// force the type scale down for every other tile in the form.
+  final bool expand;
+
   const PlannerChoice({
     super.key,
     this.icon,
@@ -251,12 +264,21 @@ class PlannerChoice extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.accent,
+    this.expand = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final tinted = accent != null;
+    final tone = accent ?? c.primary;
+
+    final text = Text(label,
+        maxLines: 1,
+        style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? c.inkStrong : c.inkMedium));
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -266,38 +288,38 @@ class PlannerChoice extends StatelessWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 140),
             padding: EdgeInsets.symmetric(
-                horizontal: icon == null ? 14 : 11, vertical: 11),
+                horizontal: expand ? 8 : (icon == null ? 14 : 11),
+                vertical: 11),
             decoration: BoxDecoration(
-              gradient: selected && !tinted ? kHeroGradient : null,
+              // Blended, not translucent: a wash with alpha composites over
+              // whatever happens to be behind the tile rather than over the
+              // card it sits in.
               color: selected
-                  ? (tinted ? accent!.withValues(alpha: 0.14) : null)
+                  ? Color.alphaBlend(tone.withValues(alpha: 0.14), c.card)
                   : c.surface2,
               borderRadius: BorderRadius.circular(13),
               border: Border.all(
-                color: selected
-                    ? (tinted ? accent! : Colors.transparent)
-                    : c.line,
-                width: 1.2,
+                color: selected ? tone : c.line,
+                width: selected ? 1.4 : 1.2,
               ),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment:
+                  expand ? MainAxisAlignment.center : MainAxisAlignment.start,
               children: [
                 if (icon != null) ...[
                   Icon(icon,
                       size: 17,
                       color: selected
-                          ? (tinted ? accent! : Colors.white)
-                          : c.inkMuted),
+                          ? tone
+                          : (accent ?? c.inkMuted)),
                   const SizedBox(width: 7),
                 ],
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: selected
-                            ? (tinted ? c.inkStrong : Colors.white)
-                            : c.inkMedium)),
+                if (expand)
+                  Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: text))
+                else
+                  text,
               ],
             ),
           ),
@@ -309,8 +331,7 @@ class PlannerChoice extends StatelessWidget {
                 width: 19,
                 height: 19,
                 decoration: BoxDecoration(
-                  gradient: tinted ? null : kHeroGradient,
-                  color: tinted ? accent! : null,
+                  color: tone,
                   shape: BoxShape.circle,
                   border: Border.all(color: c.card, width: 2),
                 ),

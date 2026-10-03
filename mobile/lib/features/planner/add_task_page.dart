@@ -148,6 +148,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               for (final p in _priorities) ...[
                 Expanded(
                   child: PlannerChoice(
+                    expand: true,
                     icon: Icons.flag_rounded,
                     label: plannerTitleCase(p),
                     selected: _priority == p,

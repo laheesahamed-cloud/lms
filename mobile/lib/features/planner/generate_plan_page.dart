@@ -159,28 +159,39 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
         PlannerSection(
           icon: Icons.layers_outlined,
           label: 'Include',
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 10,
+          // One row of three equal tiles — they are one choice made three
+          // times, so they should not wrap into ragged widths.
+          child: Row(
             children: [
-              PlannerChoice(
-                  icon: Icons.menu_book_rounded,
-                  label: 'Lessons',
-                  selected: _includeLessons,
-                  onTap: () =>
-                      setState(() => _includeLessons = !_includeLessons)),
-              PlannerChoice(
-                  icon: Icons.rule_rounded,
-                  label: 'Q-Bank',
-                  selected: _includeQuizzes,
-                  onTap: () =>
-                      setState(() => _includeQuizzes = !_includeQuizzes)),
-              PlannerChoice(
-                  icon: Icons.style_outlined,
-                  label: 'Flashcards',
-                  selected: _includeFlashcards,
-                  onTap: () => setState(
-                      () => _includeFlashcards = !_includeFlashcards)),
+              Expanded(
+                child: PlannerChoice(
+                    expand: true,
+                    icon: Icons.menu_book_rounded,
+                    label: 'Lessons',
+                    selected: _includeLessons,
+                    onTap: () =>
+                        setState(() => _includeLessons = !_includeLessons)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: PlannerChoice(
+                    expand: true,
+                    icon: Icons.rule_rounded,
+                    label: 'Q-Bank',
+                    selected: _includeQuizzes,
+                    onTap: () =>
+                        setState(() => _includeQuizzes = !_includeQuizzes)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: PlannerChoice(
+                    expand: true,
+                    icon: Icons.style_outlined,
+                    label: 'Flashcards',
+                    selected: _includeFlashcards,
+                    onTap: () => setState(
+                        () => _includeFlashcards = !_includeFlashcards)),
+              ),
             ],
           ),
         ),
