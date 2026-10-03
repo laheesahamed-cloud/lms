@@ -290,96 +290,21 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
       // sheet below the status bar, and a second limit computed here is what
       // kept fighting it.
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF0F121F) : const Color(0xFFFBFCFF),
+        color: dark ? const Color(0xFF07070B) : const Color(0xFFFBFCFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Stack(children: [
-          // Behind everything, pinned to the top, the full width of the sheet.
-          // It is not in the layout at all — the close button, the title and
-          // the subtitle are laid out OVER it. That is what the reference does,
-          // and it is why the picture now costs no height of its own.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _UnlockBackdrop(width: MediaQuery.of(context).size.width),
-          ),
-          SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 16),
+        child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20, 0, 20, bottom + 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Close on the left, Restore on the right — the sheet's own
-            // chrome, kept off the title so neither competes with it.
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                        color: c.surface2, shape: BoxShape.circle),
-                    child: Icon(Icons.close_rounded, size: 18, color: c.inkMedium),
-                  ),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: busy ? null : _restore,
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    child: _restoring
-                        ? SizedBox(
-                            width: 13,
-                            height: 13,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 1.8, color: c.inkSoft))
-                        : Text('Restore',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: c.inkSoft)),
-                  ),
-                ),
-              ],
-            ),
-
-            // Artwork and title as ONE block, the title sitting over the
-            // lower part of the art. Stacked rather than placed one above the
-            // other, which is what the reference does and why its crown reads
-            // as a crest over the words rather than a picture parked above
-            // them — and it costs less height than the two separately.
-            // Pushed onto the lower half of the backdrop, where the cards are
-            // darkest and the words read cleanly against them.
-            const SizedBox(height: 74),
-            Text('Unlock everything',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: c.inkStrong,
-                    shadows: const [
-                      Shadow(color: Color(0xCC000000), blurRadius: 14),
-                    ])),
-            const SizedBox(height: 6),
-            // Back again: with the artwork out of the layout there is room for
-            // it, and the reference has it.
-            Text(
-              'Get complete access to all courses, practice materials and premium features.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 12,
-                  height: 1.35,
-                  color: c.inkSoft,
-                  shadows: const [
-                    Shadow(color: Color(0x99000000), blurRadius: 10),
-                  ]),
+            _UnlockHeader(
+              onClose: () => Navigator.of(context).maybePop(),
+              onRestore: busy ? null : _restore,
+              restoring: _restoring,
             ),
             const SizedBox(height: 14),
             // 2x2 rather than four rows: it halves the vertical space the
@@ -462,8 +387,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
             ),
           ],
         ),
-          ),
-        ]),
+      ),
       ),
     );
   }
@@ -711,54 +635,189 @@ class _FeatureTile extends StatelessWidget {
 ///
 /// Height-constrained, not width: the sheet's height is the scarce thing here,
 /// and at 92pt this still comes out ~196pt wide, comfortably inside the
-/// The artwork behind the top of the sheet.
+/// The whole top of the sheet: the artwork, a scrim, the close and Restore
+/// controls, the title and the subtitle — as ONE block.
 ///
-/// Laid out by nobody: it is positioned, so the content flows over it rather
-/// than after it. Height follows width from the picture's own ratio, so it is
-/// stretched edge to edge and cropped in neither direction.
-class _UnlockBackdrop extends StatelessWidget {
-  final double width;
-  const _UnlockBackdrop({required this.width});
+/// Together, deliberately. The artwork used to be positioned behind the
+/// scrolling content, which meant it stayed put while the words moved: on an
+/// overscroll bounce the text slid away and left the picture stranded. In one
+/// block they move as a unit, and the words still sit ON the picture because
+/// they are stacked over it rather than laid out after it.
+class _UnlockHeader extends StatelessWidget {
+  final VoidCallback onClose;
+  final VoidCallback? onRestore;
+  final bool restoring;
+  const _UnlockHeader({
+    required this.onClose,
+    required this.onRestore,
+    required this.restoring,
+  });
 
+  /// The picture's own proportions — height follows width, so it is stretched
+  /// edge to edge and cropped in neither direction.
   static const double _aspect = 2.13;
 
   @override
-  Widget build(BuildContext context) => IgnorePointer(
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final w = MediaQuery.of(context).size.width;
+    final art = w / _aspect;
+    // Enough room under the picture for the title and the subtitle to sit on
+    // its lower half, where the cards are darkest.
+    final height = art + 34;
+
+    return SizedBox(
+      height: height,
+      // The sheet pads its content 20 a side; this one child steps outside
+      // that so the artwork reaches both edges.
+      child: OverflowBox(
+        maxWidth: w,
+        alignment: Alignment.topCenter,
         child: SizedBox(
-          width: width,
-          height: width / _aspect,
-          child: ShaderMask(
-            // Fades out on every side instead of ending on a straight cut, so
-            // the picture dissolves into the sheet rather than sitting on it
-            // as a visible rectangle.
-            // radius is a fraction of the box's SHORTEST side, not its width.
-            // At 0.8 on a 393x185 box that reached 148pt from centre while the
-            // artwork extends 196 — so the mask was erasing the outer third of
-            // the cards, which looked exactly like the picture being cropped.
-            // 1.25 clears the corners (they sit 1.17 away), and the fade is
-            // held to the last tenth so only the very edge dissolves.
-            shaderCallback: (rect) => const RadialGradient(
-              center: Alignment.center,
-              radius: 1.25,
-              colors: [
-                Colors.white,
-                Colors.white,
-                Color(0x88FFFFFF),
-                Colors.transparent,
-              ],
-              stops: [0.0, 0.76, 0.92, 1.0],
-            ).createShader(rect),
-            blendMode: BlendMode.dstIn,
-            child: Opacity(
-              opacity: 0.85,
-              child: Image.asset(
-                'assets/premium/unlock_hero.png',
-                width: width,
-                fit: BoxFit.fitWidth,
-                filterQuality: FilterQuality.medium,
+      width: w,
+      height: height,
+      child: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              width: w,
+              height: art,
+              child: ShaderMask(
+                // radius is a fraction of the SHORTEST side, so it must exceed
+                // 1 to reach the corners of a wide box — at 0.8 it was erasing
+                // the outer quarter of the artwork.
+                shaderCallback: (rect) => const RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.25,
+                  colors: [
+                    Colors.white,
+                    Colors.white,
+                    Color(0x88FFFFFF),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.76, 0.92, 1.0],
+                ).createShader(rect),
+                blendMode: BlendMode.dstIn,
+                child: Image.asset(
+                  'assets/premium/unlock_hero.png',
+                  width: w,
+                  fit: BoxFit.fitWidth,
+                  filterQuality: FilterQuality.medium,
+                ),
               ),
             ),
           ),
+          // A shade rising from the bottom, so the words have something to sit
+          // on rather than relying on whatever part of the picture happens to
+          // fall behind each letter.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: height * 0.62,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.0),
+                      Colors.black.withValues(alpha: 0.55),
+                      Colors.black.withValues(alpha: 0.78),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // The sheet's own controls, over the top of the picture.
+          Positioned(
+            top: 10,
+            left: 20,
+            right: 20,
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: onClose,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded,
+                        size: 18, color: Colors.white),
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: onRestore,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    child: restoring
+                        ? const SizedBox(
+                            width: 13,
+                            height: 13,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.8, color: Colors.white70))
+                        : Text('Restore',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.85),
+                                shadows: const [
+                                  Shadow(color: Color(0xAA000000), blurRadius: 8)
+                                ])),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Unlock everything',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: c.inkStrong,
+                        shadows: const [
+                          Shadow(color: Color(0xDD000000), blurRadius: 16),
+                        ])),
+                const SizedBox(height: 5),
+                Text(
+                  'Get complete access to all courses, practice materials and premium features.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: c.inkSoft,
+                      shadows: const [
+                        Shadow(color: Color(0xCC000000), blurRadius: 12),
+                      ]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
         ),
-      );
+      ),
+    );
+  }
 }
