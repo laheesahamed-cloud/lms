@@ -6,6 +6,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
 import '../../state/auth_controller.dart';
 import '../auth/auth_widgets.dart';
+import '../../widgets/page_header.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
@@ -69,7 +70,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            _Header(title: 'Change password'),
+            const PageHeader(title: 'Change password'),
             const SizedBox(height: 6),
             AuthField(
               label: 'Current password',
@@ -123,32 +124,6 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  final String title;
-  const _Header({required this.title});
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return Row(
-      children: [
-        IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_rounded, color: c.inkStrong),
-        ),
-        const SizedBox(width: 8),
-        Text(title,
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: c.inkStrong,
-                letterSpacing: -0.4)),
-      ],
     );
   }
 }

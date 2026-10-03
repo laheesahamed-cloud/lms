@@ -9,6 +9,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../state/auth_controller.dart';
 import '../../state/theme_mode.dart';
+import '../../widgets/page_header.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -27,13 +28,8 @@ class ProfilePage extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
         children: [
-          Text('Profile',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: c.inkStrong,
-                  letterSpacing: -0.5)),
-          const SizedBox(height: 18),
+          const PageHeader(title: 'Profile'),
+          const SizedBox(height: 14),
           GlassCard(
             padding: const EdgeInsets.all(18),
             child: Row(

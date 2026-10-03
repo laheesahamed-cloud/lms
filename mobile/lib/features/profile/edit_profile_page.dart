@@ -7,6 +7,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../state/auth_controller.dart';
 import '../auth/auth_widgets.dart';
+import '../../widgets/page_header.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -72,7 +73,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            _Header(title: 'Edit profile'),
+            const PageHeader(title: 'Edit profile'),
             const SizedBox(height: 8),
             // Live preview of the selected avatar.
             Center(
@@ -156,32 +157,6 @@ class _AvatarChoice extends StatelessWidget {
         ),
         child: ProfileAvatar(avatar: avatar, size: 52, radius: 16),
       ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  final String title;
-  const _Header({required this.title});
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return Row(
-      children: [
-        IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_rounded, color: c.inkStrong),
-        ),
-        const SizedBox(width: 8),
-        Text(title,
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: c.inkStrong,
-                letterSpacing: -0.4)),
-      ],
     );
   }
 }

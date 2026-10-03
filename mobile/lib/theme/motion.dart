@@ -37,7 +37,11 @@ Page<T> slidePage<T>({
   required LocalKey key,
   required Widget child,
 }) {
-  return _SwipeableSlidePage<T>(pageKey: key, child: child);
+  // Every pushed route slides in OVER the screen it came from, so a child that
+  // paints no background shows that screen through itself for the length of the
+  // transition and reads as a cross-fade. Screens with their own Scaffold cover
+  // this ground anyway; the bare-ListView ones need it.
+  return _SwipeableSlidePage<T>(pageKey: key, child: _PageGround(child: child));
 }
 
 class _SwipeableSlidePage<T> extends Page<T> {

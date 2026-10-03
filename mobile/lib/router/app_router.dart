@@ -434,17 +434,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/app/profile',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const ProfilePage()),
+                slidePage(key: s.pageKey, child: const ProfilePage()),
           ),
           GoRoute(
             path: '/app/profile/edit',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const EditProfilePage()),
+                slidePage(key: s.pageKey, child: const EditProfilePage()),
           ),
           GoRoute(
             path: '/app/profile/password',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const ChangePasswordPage()),
+                slidePage(key: s.pageKey, child: const ChangePasswordPage()),
           ),
           GoRoute(
             path: '/app/my-notes',

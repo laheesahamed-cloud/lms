@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'auscultation_repository.dart';
 import '../../widgets/page_header.dart';
+import 'widgets/lungs_icon.dart';
 
 class AuscultationPage extends ConsumerStatefulWidget {
   const AuscultationPage({super.key});
@@ -110,7 +111,7 @@ class _CategoryTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget tab(String key, IconData icon, String label) {
+    Widget tab(String key, Widget Function(Color) icon, String label) {
       final active = value == key;
       return GestureDetector(
         onTap: () => onChange(key),
@@ -123,7 +124,7 @@ class _CategoryTabs extends StatelessWidget {
             boxShadow: active ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))] : null,
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 16, color: active ? c.inkStrong : c.inkSoft),
+            icon(active ? c.inkStrong : c.inkSoft),
             const SizedBox(width: 7),
             Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: active ? c.inkStrong : c.inkSoft)),
           ]),
@@ -132,14 +133,14 @@ class _CategoryTabs extends StatelessWidget {
     }
 
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.center,
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(12)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          tab('heart', Icons.favorite_rounded, 'Heart'),
+          tab('heart', (col) => Icon(Icons.favorite_rounded, size: 16, color: col), 'Heart'),
           const SizedBox(width: 4),
-          tab('lung', Icons.air_rounded, 'Lung'),
+          tab('lung', (col) => LungsIcon(size: 16, color: col), 'Lung'),
         ]),
       ),
     );

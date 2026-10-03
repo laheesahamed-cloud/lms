@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../theme/tokens.dart';
 import '../auscultation_repository.dart';
+import 'lungs_icon.dart';
 
 String _extForMime(String mime) {
   switch (mime) {
@@ -141,7 +142,9 @@ class _AudioPlayerCardState extends ConsumerState<AudioPlayerCard> {
                     if (widget.title != null)
                       Expanded(child: Text(widget.title!, maxLines: 1, overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: c.inkStrong))),
-                    Icon(widget.category == 'lung' ? Icons.air_rounded : Icons.favorite_rounded, size: 13, color: _accent),
+                    widget.category == 'lung'
+                        ? LungsIcon(size: 13, color: _accent)
+                        : Icon(Icons.favorite_rounded, size: 13, color: _accent),
                     const SizedBox(width: 4),
                     Text(widget.category == 'lung' ? 'Lung' : 'Heart',
                         style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: c.inkSoft)),
