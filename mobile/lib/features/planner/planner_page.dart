@@ -1,5 +1,6 @@
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/study_reminders.dart';
-import 'generate_plan_sheet.dart';
+import 'add_task_page.dart';
+import 'generate_plan_page.dart';
 import 'planner_repository.dart';
 
 class PlannerPage extends ConsumerStatefulWidget {
@@ -517,7 +519,9 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 
   Future<void> _generatePlan() async {
-    final created = await showGeneratePlanSheet(context);
+    final created = await Navigator.of(context).push<List<int>>(
+      CupertinoPageRoute(builder: (_) => const GeneratePlanPage()),
+    );
     if (created == null) return; // cancelled
     setState(() => _newTaskIds.addAll(created));
     ref.invalidate(plannerTasksProvider); // reconcile runs on rebuild
@@ -527,13 +531,8 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 
   Future<void> _showAddSheet() async {
-    final result = await showModalBottomSheet<_NewTask>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.c.page,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => const _AddTaskSheet(),
+    final result = await Navigator.of(context).push<NewTask>(
+      CupertinoPageRoute(builder: (_) => const AddTaskPage()),
     );
     if (result == null || result.title.trim().isEmpty) return;
 
@@ -1064,189 +1063,6 @@ class _CategoryIdentity extends StatelessWidget {
 }
 
 // ── Add-task sheet (date only — reminders come from global prefs) ──
-class _NewTask {
-  final String title;
-  final DateTime? date;
-  final String category;
-  final String priority;
-  _NewTask(this.title, this.date, this.category, this.priority);
-}
-
-class _AddTaskSheet extends StatefulWidget {
-  const _AddTaskSheet();
-  @override
-  State<_AddTaskSheet> createState() => _AddTaskSheetState();
-}
-
-class _AddTaskSheetState extends State<_AddTaskSheet> {
-  final _controller = TextEditingController();
-  DateTime? _date;
-  String _category = 'general';
-  String _priority = 'medium';
-
-  static const _categories = ['general', 'lesson', 'quiz', 'exam', 'review', 'flashcards', 'class'];
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 18,
-        right: 18,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 18,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _grabber(c),
-          Text('New task',
-              style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: c.inkStrong)),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            textCapitalization: TextCapitalization.sentences,
-            // Dismiss the keyboard when tapping anywhere outside the field —
-            // inside a dialog the app-level tap-to-unfocus never fires.
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            style: TextStyle(color: c.inkStrong),
-            decoration: InputDecoration(
-              hintText: 'What do you need to study?',
-              filled: true,
-              fillColor: c.surface2,
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _pickerTile(
-            c,
-            icon: Icons.event_outlined,
-            label: _date == null ? 'Due date (optional)' : _fmt(_date!),
-            onTap: _pickDate,
-          ),
-          const SizedBox(height: 12),
-          _label(c, 'Category'),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              for (final cat in _categories)
-                _chip(c, _titleCase(cat), _category == cat,
-                    () => setState(() => _category = cat)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _label(c, 'Priority'),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              for (final p in const ['low', 'medium', 'high'])
-                Padding(
-                  padding: const EdgeInsets.only(right: 7),
-                  child: _chip(c, _titleCase(p), _priority == p,
-                      () => setState(() => _priority = p)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton(
-              onPressed: () => Navigator.of(context)
-                  .pop(_NewTask(_controller.text, _date, _category, _priority)),
-              child: const Text('Add task',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _label(AppColors c, String t) => Text(t.toUpperCase(),
-      style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.6,
-          color: c.inkSoft));
-
-  Widget _pickerTile(AppColors c,
-      {required IconData icon, required String label, VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-        decoration: BoxDecoration(
-            color: c.surface2, borderRadius: BorderRadius.circular(12)),
-        child: Row(
-          children: [
-            Icon(icon, size: 17, color: c.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: c.inkStrong)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _chip(AppColors c, String label, bool on, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-        decoration: BoxDecoration(
-            color: on ? c.primary : c.surface2,
-            borderRadius: BorderRadius.circular(9)),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: on ? Colors.white : c.inkMedium)),
-      ),
-    );
-  }
-
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date ?? now,
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: DateTime(now.year + 3),
-    );
-    if (picked != null) setState(() => _date = picked);
-  }
-
-  static String _titleCase(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-
-  static String _fmt(DateTime d) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
-  }
-}
-
 Widget _grabber(AppColors c) => Center(
       child: Container(
         width: 40,

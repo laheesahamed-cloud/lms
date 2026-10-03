@@ -4,33 +4,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/study_reminders.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/app_button.dart';
 import '../courses/courses_repository.dart';
 import 'plan_generator.dart';
+import 'planner_form_kit.dart';
 
 /// "Generate Plan" wizard: ask study-hours/date-range/content details, run a
 /// short generating animation while [generateStudyPlan] actually does the
-/// work, then close. Returns the created tasks' ids (null if cancelled, empty
+/// work, then pop. Returns the created tasks' ids (null if cancelled, empty
 /// if nothing matched) so the caller can badge them as "new" and toast/refresh.
-Future<List<int>?> showGeneratePlanSheet(BuildContext context) {
-  return showModalBottomSheet<List<int>>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: context.c.page,
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => const _GeneratePlanSheet(),
-  );
-}
-
-class _GeneratePlanSheet extends ConsumerStatefulWidget {
-  const _GeneratePlanSheet();
+///
+/// A full screen, not a sheet: the form has six groups of controls and a
+/// course list of unknown length, which a sheet could only ever show a slice
+/// of at a time.
+class GeneratePlanPage extends ConsumerStatefulWidget {
+  const GeneratePlanPage({super.key});
   @override
-  ConsumerState<_GeneratePlanSheet> createState() => _GeneratePlanSheetState();
+  ConsumerState<GeneratePlanPage> createState() => _GeneratePlanPageState();
 }
 
 enum _Phase { details, generating }
 
-class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
+class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
     with SingleTickerProviderStateMixin {
   _Phase _phase = _Phase.details;
 
@@ -99,77 +94,100 @@ class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 18,
-        right: 18,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: _phase == _Phase.details ? _details(context) : _generating(context),
-    );
+    final c = context.c;
+    // While it generates there is nothing to fill in and nothing to confirm,
+    // so the form chrome steps aside entirely.
+    if (_phase == _Phase.generating) {
+      return Scaffold(
+        backgroundColor: c.page,
+        body: SafeArea(child: Center(child: _generating(context))),
+      );
+    }
+    return _details(context);
   }
 
   Widget _details(BuildContext context) {
     final c = context.c;
     final coursesAsync = ref.watch(studentCoursesProvider);
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _grabber(c),
-          Text('Generate a study plan',
-              style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: c.inkStrong)),
-          const SizedBox(height: 4),
-          Text('Fills your Planner from what you still have left to study.',
-              style: TextStyle(fontSize: 13, color: c.inkSoft)),
-          const SizedBox(height: 18),
 
-          _label(c, 'Course(s)'),
-          const SizedBox(height: 8),
-          coursesAsync.when(
+    return PlannerFormPage(
+      titleTop: 'Generate',
+      titleAccent: 'Study Plan',
+      subtitle: 'Fills your Planner from what you still have left to study',
+      heroIcon: Icons.auto_awesome_rounded,
+      cta: AppButton(
+        'Generate plan',
+        kind: AppButtonKind.cta,
+        expand: true,
+        leading: const Icon(Icons.auto_awesome_rounded,
+            size: 18, color: Colors.white),
+        onPressed: _selectedCourseIds.isEmpty ? null : _generate,
+      ),
+      children: [
+        PlannerSection(
+          icon: Icons.school_outlined,
+          label: 'Courses',
+          trailing: Text(
+              _selectedCourseIds.isEmpty
+                  ? 'Pick at least one'
+                  : '${_selectedCourseIds.length} selected',
+              style: TextStyle(fontSize: 12, color: c.inkMuted)),
+          child: coursesAsync.when(
             loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
             error: (e, _) => Text('Could not load courses.',
                 style: TextStyle(color: c.inkSoft, fontSize: 13)),
             data: (courses) => Wrap(
-              spacing: 7,
-              runSpacing: 7,
+              spacing: 8,
+              runSpacing: 10,
               children: [
                 for (final course in courses)
-                  _chip(c, course.title, _selectedCourseIds.contains(course.id),
-                      () => setState(() {
-                            if (!_selectedCourseIds.remove(course.id)) {
-                              _selectedCourseIds.add(course.id);
-                            }
-                          })),
+                  PlannerChoice(
+                    label: course.title,
+                    selected: _selectedCourseIds.contains(course.id),
+                    onTap: () => setState(() {
+                      if (!_selectedCourseIds.remove(course.id)) {
+                        _selectedCourseIds.add(course.id);
+                      }
+                    }),
+                  ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-
-          _label(c, 'Include'),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
+        ),
+        PlannerSection(
+          icon: Icons.layers_outlined,
+          label: 'Include',
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 10,
             children: [
-              _chip(c, 'Lessons', _includeLessons,
-                  () => setState(() => _includeLessons = !_includeLessons)),
-              _chip(c, 'Q-Bank', _includeQuizzes,
-                  () => setState(() => _includeQuizzes = !_includeQuizzes)),
-              _chip(c, 'Flashcards', _includeFlashcards,
-                  () => setState(() => _includeFlashcards = !_includeFlashcards)),
+              PlannerChoice(
+                  icon: Icons.menu_book_rounded,
+                  label: 'Lessons',
+                  selected: _includeLessons,
+                  onTap: () =>
+                      setState(() => _includeLessons = !_includeLessons)),
+              PlannerChoice(
+                  icon: Icons.rule_rounded,
+                  label: 'Q-Bank',
+                  selected: _includeQuizzes,
+                  onTap: () =>
+                      setState(() => _includeQuizzes = !_includeQuizzes)),
+              PlannerChoice(
+                  icon: Icons.style_outlined,
+                  label: 'Flashcards',
+                  selected: _includeFlashcards,
+                  onTap: () => setState(
+                      () => _includeFlashcards = !_includeFlashcards)),
             ],
           ),
-          const SizedBox(height: 16),
-
-          _label(c, 'Organize'),
-          const SizedBox(height: 8),
-          Row(
+        ),
+        PlannerSection(
+          icon: Icons.tune_rounded,
+          label: 'Organize',
+          child: Row(
             children: [
               Expanded(
                 child: _toggleTile(c,
@@ -190,102 +208,80 @@ class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
               ),
             ],
           ),
-
-          // These two only mean anything when the plan is actually being
-          // spread across days — hidden entirely for "By subject", where
-          // nothing gets a due date at all.
-          if (_organizeByDay) ...[
-            const SizedBox(height: 16),
-            _label(c, 'Study hours per day'),
-            const SizedBox(height: 8),
-            Row(
+        ),
+        // Both of these only mean anything when the plan is actually being
+        // spread across days — hidden entirely for "By subject", where nothing
+        // gets a due date at all.
+        if (_organizeByDay)
+          PlannerSection(
+            icon: Icons.schedule_rounded,
+            label: 'Schedule',
+            child: Column(
               children: [
-                _stepperBtn(c, Icons.remove_rounded,
-                    () => setState(() => _hoursPerDay = (_hoursPerDay - 0.5).clamp(0.5, 12))),
-                Expanded(
-                  child: Center(
-                    child: Text('${_hoursPerDay.toStringAsFixed(_hoursPerDay % 1 == 0 ? 0 : 1)}h',
-                        style: TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
-                  ),
-                ),
-                _stepperBtn(c, Icons.add_rounded,
-                    () => setState(() => _hoursPerDay = (_hoursPerDay + 0.5).clamp(0.5, 12))),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _label(c, 'Study until (optional)'),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _pickUntilDate,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-                decoration:
-                    BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(12)),
-                child: Row(
+                Row(
                   children: [
-                    Icon(Icons.event_outlined, size: 17, color: c.primary),
-                    const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                          _until == null
-                              ? 'No end date — schedule everything selected'
-                              : _fmtDate(_until!),
+                      child: Text('Study hours per day',
                           style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600, color: c.inkStrong)),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: c.inkMedium)),
                     ),
-                    if (_until != null)
-                      GestureDetector(
-                        onTap: () => setState(() => _until = null),
-                        child: Icon(Icons.close_rounded, size: 18, color: c.inkMuted),
+                    _stepperBtn(c, Icons.remove_rounded,
+                        () => setState(() => _hoursPerDay =
+                            (_hoursPerDay - 0.5).clamp(0.5, 12))),
+                    SizedBox(
+                      width: 54,
+                      child: Center(
+                        child: Text(
+                            '${_hoursPerDay.toStringAsFixed(_hoursPerDay % 1 == 0 ? 0 : 1)}h',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: c.inkStrong)),
                       ),
+                    ),
+                    _stepperBtn(c, Icons.add_rounded,
+                        () => setState(() => _hoursPerDay =
+                            (_hoursPerDay + 0.5).clamp(0.5, 12))),
                   ],
                 ),
-              ),
+                const SizedBox(height: 10),
+                PlannerFieldRow(
+                  icon: Icons.event_outlined,
+                  label: _until == null
+                      ? 'Study until — no end date'
+                      : 'Study until ${_fmtDate(_until!)}',
+                  placeholder: _until == null,
+                  onTap: _pickUntilDate,
+                  trailing: _until == null
+                      ? null
+                      : GestureDetector(
+                          onTap: () => setState(() => _until = null),
+                          child: Icon(Icons.close_rounded,
+                              size: 18, color: c.inkMuted),
+                        ),
+                ),
+              ],
             ),
-          ],
-          const SizedBox(height: 16),
-
-          _label(c, 'Daily study reminder'),
-          const SizedBox(height: 8),
-          GestureDetector(
+          ),
+        PlannerSection(
+          icon: Icons.alarm_outlined,
+          label: 'Daily study reminder',
+          child: PlannerFieldRow(
+            icon: Icons.notifications_active_outlined,
+            label: 'At $_reminderTime',
             onTap: _pickReminderTime,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-              decoration:
-                  BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(12)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.alarm_outlined, size: 17, color: c.primary),
-                  const SizedBox(width: 8),
-                  Text('At $_reminderTime',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w700, color: c.inkStrong)),
-                ],
-              ),
-            ),
           ),
-          const SizedBox(height: 20),
-
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton(
-              onPressed: _selectedCourseIds.isEmpty ? null : _generate,
-              child: const Text('Generate plan',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _generating(BuildContext context) {
     final c = context.c;
-    return SizedBox(
-      height: 300,
+    return Padding(
+      padding: const EdgeInsets.all(24),
       child: AnimatedBuilder(
         animation: _animCtrl,
         builder: (_, _) {
@@ -293,6 +289,7 @@ class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
           // Four staged reveals across the animation's length.
           double stage(int i) => ((t * 4) - i).clamp(0.0, 1.0);
           return Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Row(
@@ -343,26 +340,6 @@ class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
     );
   }
 
-  Widget _label(AppColors c, String t) => Text(t.toUpperCase(),
-      style: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: c.inkSoft));
-
-  Widget _chip(AppColors c, String label, bool on, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-        decoration: BoxDecoration(
-            color: on ? c.primary : c.surface2, borderRadius: BorderRadius.circular(9)),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: on ? Colors.white : c.inkMedium)),
-      ),
-    );
-  }
-
   Widget _toggleTile(AppColors c,
       {required IconData icon,
       required String label,
@@ -375,9 +352,10 @@ class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? c.primary.withValues(alpha: 0.12) : c.surface2,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? c.primary : Colors.transparent, width: 1.4),
+          color: selected ? c.primaryTint : c.surface2,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(
+              color: selected ? c.primary : c.line, width: selected ? 1.4 : 1.2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,7 +380,10 @@ class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
       child: Container(
         width: 40,
         height: 40,
-        decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: c.surface2,
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: c.line)),
         child: Icon(icon, size: 20, color: c.inkStrong),
       ),
     );
@@ -440,12 +421,3 @@ class _GeneratePlanSheetState extends ConsumerState<_GeneratePlanSheet>
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 }
-
-Widget _grabber(AppColors c) => Center(
-      child: Container(
-        width: 40,
-        height: 4,
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(color: c.inkMuted, borderRadius: BorderRadius.circular(2)),
-      ),
-    );
