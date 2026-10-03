@@ -83,12 +83,29 @@ Page<T> studyToolPage<T>(
   // Screens that already render their own back button (e.g. My Notes) pass
   // chrome: false so we don't stack a second chevron — the swipe-back still
   // works because it comes from the pushed route, not the chrome.
-  final wrapped = chrome ? StudyToolChrome(child: child) : child;
+  //
+  // They still need the opaque ground the chrome was also providing: a pushed
+  // route slides in OVER the screen it came from, so a transparent child shows
+  // that screen through itself for the length of the transition, which reads
+  // as a cross-fade rather than a push.
+  final wrapped = chrome ? StudyToolChrome(child: child) : _PageGround(child: child);
   // On phones push a swipeable slide route (edge back-swipe → Study hub); on
   // the side-rail layout these are reached via `go`, so keep the plain fade.
   return phone
       ? slidePage<T>(key: key, child: wrapped)
       : fadePage<T>(key: key, child: wrapped);
+}
+
+/// An opaque page-coloured ground, for screens that draw their own header and
+/// so skip [StudyToolChrome]. A screen with its own [Scaffold] does not need
+/// it, but one that is just a [ListView] does.
+class _PageGround extends StatelessWidget {
+  final Widget child;
+  const _PageGround({required this.child});
+
+  @override
+  Widget build(BuildContext context) =>
+      ColoredBox(color: context.c.page, child: child);
 }
 
 /// Adds a leading back chevron above a study-tool screen, but only when the
