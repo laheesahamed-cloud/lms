@@ -357,6 +357,22 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                 loading: _busyProductId != null,
                 onPressed: busy ? null : () => _buy(selected),
               ),
+              const SizedBox(height: 6),
+              // Guideline 3.1.2 wants the price, the period and the renewal on
+              // the purchase screen — so it stays, just quiet. One line that
+              // shrinks rather than wraps: FittedBox only ever scales DOWN, so
+              // larger accessibility text still renders, just fitted.
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${selected.displayPrice} / ${selected.periodLabel} · ${selected.renewalNote}',
+                    maxLines: 1,
+                    style: TextStyle(
+                        fontSize: 9, height: 1.15, color: c.inkMuted),
+                  ),
+                ),
+              ),
             ],
 
             const SizedBox(height: 8),
