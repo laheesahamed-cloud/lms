@@ -10,6 +10,10 @@ class AppButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final AppButtonKind kind;
+  /// Overrides the kind's own fill. For a surface with its own identity — the
+  /// paywall's blue-indigo-violet — so it does not have to widen the app-wide
+  /// hero gradient that the dashboard also draws with.
+  final Gradient? gradient;
   final bool expand;
   final bool loading;
   final Widget? leading;
@@ -19,6 +23,7 @@ class AppButton extends StatefulWidget {
     super.key,
     this.onPressed,
     this.kind = AppButtonKind.primary,
+    this.gradient,
     this.expand = false,
     this.loading = false,
     this.leading,
@@ -43,7 +48,7 @@ class _AppButtonState extends State<AppButton> {
     BoxBorder? border;
     switch (widget.kind) {
       case AppButtonKind.cta:
-        grad = kHeroGradient;
+        grad = widget.gradient ?? kHeroGradient;
         fg = Colors.white;
         break;
       case AppButtonKind.primary:
