@@ -251,6 +251,16 @@ class _BottomNav extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
+          // Light mode's edge is a hairline shadow all the way round rather
+          // than a stroke: no offset, almost no blur, so it draws the rim
+          // without painting a line on the glass.
+          if (!dark)
+            const BoxShadow(
+              color: Color(0x1F0B1220),
+              blurRadius: 1.5,
+              spreadRadius: 0.5,
+              offset: Offset.zero,
+            ),
           BoxShadow(
             color: dark ? const Color(0x80000000) : const Color(0x240B1220),
             blurRadius: 28,
@@ -269,7 +279,12 @@ class _BottomNav extends StatelessWidget {
             // being hidden under an opaque fill.
             color: c.card.withValues(alpha: 0.62),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            // A white hairline reads as light catching the rim on a dark
+            // ground. On a light one it is invisible, and the 360 shadow above
+            // draws that edge instead.
+            border: dark
+                ? Border.all(color: Colors.white.withValues(alpha: 0.10))
+                : null,
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
