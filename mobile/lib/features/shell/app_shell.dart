@@ -251,6 +251,18 @@ class _BottomNav extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
+          // The rim, on the TOP half only. A shadow cannot be drawn to an arc,
+          // but offsetting it up by more than it spreads puts it entirely above
+          // the pill's bottom edge: strongest across the top, thinning down the
+          // sides, gone before it reaches the foot — so you can see where it
+          // starts and ends instead of a uniform ring.
+          if (!dark)
+            const BoxShadow(
+              color: Color(0x140B1220),
+              blurRadius: 3,
+              spreadRadius: 0.5,
+              offset: Offset(0, -1.5),
+            ),
           BoxShadow(
             color: dark ? const Color(0x80000000) : const Color(0x240B1220),
             blurRadius: 28,
@@ -269,7 +281,12 @@ class _BottomNav extends StatelessWidget {
             // being hidden under an opaque fill.
             color: c.card.withValues(alpha: 0.62),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            // A white hairline reads as light catching the rim on a dark
+            // ground and as nothing at all on a light one, where the shadow
+            // above draws that edge instead.
+            border: dark
+                ? Border.all(color: Colors.white.withValues(alpha: 0.10))
+                : null,
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
