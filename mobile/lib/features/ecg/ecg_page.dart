@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'ecg_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 /// ECG landing — numbered topic list + a quiz entry banner.
 class EcgPage extends ConsumerWidget {
@@ -18,10 +19,11 @@ class EcgPage extends ConsumerWidget {
     final topicsAsync = ref.watch(ecgTopicsProvider);
 
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: () async => ref.refresh(ecgTopicsProvider.future),
         child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+              padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
               children: [
                 const PageHeader(title: 'ECG'),
                 const SizedBox(height: 10),

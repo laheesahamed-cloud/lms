@@ -10,6 +10,7 @@ import '../../widgets/profile_avatar.dart';
 import '../../state/auth_controller.dart';
 import '../../state/theme_mode.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -25,8 +26,9 @@ class ProfilePage extends ConsumerWidget {
     final plan = (user?.plan?.isNotEmpty ?? false) ? user!.plan! : 'Free';
 
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
         children: [
           const PageHeader(title: 'Profile'),
           const SizedBox(height: 14),

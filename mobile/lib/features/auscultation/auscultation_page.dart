@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import 'auscultation_repository.dart';
 import '../../widgets/page_header.dart';
 import 'widgets/lungs_icon.dart';
+import '../../widgets/shell_insets.dart';
 
 class AuscultationPage extends ConsumerStatefulWidget {
   const AuscultationPage({super.key});
@@ -25,10 +26,11 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
     final accent = _category == 'lung' ? const Color(0xFF2F9E8F) : const Color(0xFFE0567B);
 
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
             onRefresh: () async => ref.refresh(auscTopicsProvider(_category).future),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+              padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
               children: [
                 const PageHeader(title: 'Auscultation'),
                 const SizedBox(height: 10),

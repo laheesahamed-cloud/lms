@@ -7,6 +7,7 @@ import '../../widgets/glass_card.dart';
 import '../../services/flashcard_reminders.dart';
 import 'flashcards_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 /// Anki-style flashcards: a deck list with New / Learning / Due counts.
 /// Tap a deck to start an FSRS review session.
@@ -67,6 +68,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
     final decksAsync = ref.watch(flashDecksProvider);
 
     return SafeArea(
+      bottom: false,
       child: decksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -98,7 +100,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
             child: CustomScrollView(
               slivers: [
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
                   sliver: SliverMainAxisGroup(
                     slivers: [
                       SliverToBoxAdapter(

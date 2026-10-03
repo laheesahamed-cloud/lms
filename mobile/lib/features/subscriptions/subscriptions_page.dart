@@ -9,6 +9,7 @@ import '../../widgets/glass_card.dart';
 import 'paywall_sheet.dart';
 import 'subscriptions_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 /// Subscription screen — the user's current plan/status, what each plan
 /// includes, and (on iOS) the way to subscribe.
@@ -61,10 +62,11 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     // loading and error states below.
     final cached = billingAsync.asData?.value;
     if (cached != null) {
-      return SafeArea(child: _content(c, cached));
+      return SafeArea(bottom: false, child: _content(c, cached));
     }
 
     return SafeArea(
+      bottom: false,
       child: billingAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -85,7 +87,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
       builder: (context) => RefreshIndicator(
           onRefresh: () async => ref.refresh(billingProvider.future),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 20 + shellNavInset(context)),
             children: [
               const PageHeader(title: 'Subscription'),
               const SizedBox(height: 10),

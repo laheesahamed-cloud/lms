@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -173,15 +175,37 @@ class _AppShellState extends ConsumerState<AppShell> with RouteAware {
       );
     }
     return Scaffold(
+      // EXPERIMENTAL (frosted tab bar): the body paints behind the bar so the
+      // blur has something to work on. Pages add shellNavInset() to their
+      // scroll padding so the last item still clears the glass.
+      extendBody: true,
       body: gatedChild,
       bottomNavigationBar: _BottomNav(index: _index),
     );
   }
 }
 
+/// Vertical space the floating tab bar occupies — the pill, its bottom margin
+/// and the home indicator under it. A page adds this to the BOTTOM PADDING OF
+/// ITS SCROLL VIEW (not to a SafeArea, which would shrink the viewport and stop
+/// anything passing under the glass), so its last item clears the bar while
+/// everything above slides beneath it.
+double shellNavInset(BuildContext context) =>
+    _kPillHeight + _kPillMargin + MediaQuery.viewPaddingOf(context).bottom;
+
+const double _kPillHeight = 64;
+const double _kPillMargin = 10;
+
+/// How far above the pill the blur begins to come in.
+const double _kBlurRunUp = 46;
+
 /// Floating, curved tab bar (detached pill) — mirrors the LMS student nav:
 /// rounded surface + soft shadow, active tab in a tinted pill that shows its
 /// label; the rest stay icon-only so 5 items never crowd.
+///
+/// EXPERIMENTAL: the pill is frosted glass over a blur that ramps in from
+/// nothing [_kBlurRunUp] above it to full strength at the screen's edge, so
+/// content dissolves into the bar rather than meeting a hard line.
 class _BottomNav extends StatelessWidget {
   final int index;
   const _BottomNav({required this.index});
@@ -190,49 +214,116 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-        child: Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            color: c.card,
-            borderRadius: BorderRadius.circular(26),
-            boxShadow: [
-              BoxShadow(
-                color: dark ? const Color(0x80000000) : const Color(0x1F0B1220),
-                blurRadius: 28,
-                spreadRadius: -6,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          // LayoutBuilder (not Expanded/flex) so each tab's width is a real
-          // animatable number — flex changes on Expanded snap instantly with
-          // no way to tween them, which is what made switching tabs feel
-          // like a jump cut instead of a slide.
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const activeShare = 5;
-              const inactiveShare = 2;
-              final totalShare =
-                  activeShare + inactiveShare * (kDests.length - 1);
-              final unit = constraints.maxWidth / totalShare;
+    final safe = MediaQuery.viewPaddingOf(context).bottom;
 
-              return Row(
-                children: [
-                  for (var i = 0; i < kDests.length; i++)
-                    _NavItem(
-                      dest: kDests[i],
-                      active: i == index,
-                      width: unit * (i == index ? activeShare : inactiveShare),
-                    ),
-                ],
-              );
-            },
+    return SizedBox(
+      height: _kPillHeight + _kPillMargin + safe + _kBlurRunUp,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const _ProgressiveBlur(),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: _kPillMargin + safe,
+            height: _kPillHeight,
+            child: _pill(c, dark),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pill(AppColors c, bool dark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            // Translucent, so the blur behind it reads as glass rather than
+            // being hidden under an opaque fill.
+            color: c.card.withValues(alpha: dark ? 0.62 : 0.72),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.10)
+                  : Colors.white.withValues(alpha: 0.55),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            // LayoutBuilder (not Expanded/flex) so each tab's width is a real
+            // animatable number — flex changes on Expanded snap instantly with
+            // no way to tween them, which is what made switching tabs feel
+            // like a jump cut instead of a slide.
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const activeShare = 5;
+                const inactiveShare = 2;
+                final totalShare =
+                    activeShare + inactiveShare * (kDests.length - 1);
+                final unit = constraints.maxWidth / totalShare;
+
+                return Row(
+                  children: [
+                    for (var i = 0; i < kDests.length; i++)
+                      _NavItem(
+                        dest: kDests[i],
+                        active: i == index,
+                        width:
+                            unit * (i == index ? activeShare : inactiveShare),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A blur that ramps in down the screen instead of switching on at an edge.
+///
+/// One BackdropFilter cannot vary its sigma across its own area, so this stacks
+/// several — each stronger than the last, and each masked by a gradient so it
+/// fades in over its own band. The bands overlap, so what you see is a smooth
+/// ramp rather than the steps it is built from.
+class _ProgressiveBlur extends StatelessWidget {
+  const _ProgressiveBlur();
+
+  static const _layers = 6;
+  static const _maxSigma = 20.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ClipRect(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            for (var i = 0; i < _layers; i++)
+              ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (rect) => LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: const [Colors.transparent, Colors.black],
+                  // Each band starts where the one before it was already
+                  // fully in, so the layers pile up toward the bottom.
+                  stops: [i / _layers, (i + 1) / _layers],
+                ).createShader(rect),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: _maxSigma * (i + 1) / _layers,
+                    sigmaY: _maxSigma * (i + 1) / _layers,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+          ],
         ),
       ),
     );

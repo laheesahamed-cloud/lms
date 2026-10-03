@@ -6,6 +6,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'notifications_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -155,6 +156,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     final notesAsync = ref.watch(notificationsProvider);
 
     return SafeArea(
+      bottom: false,
       child: notesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -168,7 +170,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         data: (items) => RefreshIndicator(
           onRefresh: () async => ref.refresh(notificationsProvider.future),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: [
               PageHeader(
                 title: 'Notifications',

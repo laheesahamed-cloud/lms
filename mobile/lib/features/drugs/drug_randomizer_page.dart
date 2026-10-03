@@ -9,6 +9,7 @@ import 'drug_randomizer_repository.dart';
 import 'widgets/lottery_spinner.dart';
 import 'widgets/drug_mcq_card.dart';
 import 'widgets/drug_info_card.dart';
+import '../../widgets/shell_insets.dart';
 
 enum _Phase { idle, spinning, mcq, card }
 
@@ -118,8 +119,9 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
     final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
         children: [
           // Header — compact in landscape
           if (!isLandscape) ...[

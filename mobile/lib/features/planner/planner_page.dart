@@ -12,6 +12,7 @@ import 'add_task_page.dart';
 import 'generate_plan_page.dart';
 import 'planner_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 class PlannerPage extends ConsumerStatefulWidget {
   const PlannerPage({super.key});
@@ -65,6 +66,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
         label: const Text('Add task'),
       ),
       body: SafeArea(
+        bottom: false,
         child: tasksAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
@@ -113,7 +115,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     return RefreshIndicator(
       onRefresh: () async => ref.refresh(plannerTasksProvider.future),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
         children: [
           PageHeader(
             title: 'Planner',

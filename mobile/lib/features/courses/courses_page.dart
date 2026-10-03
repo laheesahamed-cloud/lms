@@ -6,6 +6,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'courses_repository.dart';
+import '../../widgets/shell_insets.dart';
 
 /// Student course library — grouped by exam type, with a dropdown filter.
 class CoursesPage extends ConsumerStatefulWidget {
@@ -41,6 +42,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
     final coursesAsync = ref.watch(studentCoursesProvider);
 
     return SafeArea(
+      bottom: false,
       child: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Padding(
@@ -77,7 +79,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: <Widget>[
               Text('YOUR LIBRARY',
                   style: TextStyle(

@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import '../quizzes/quizzes_repository.dart';
 import 'bookmarks_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 class BookmarksPage extends ConsumerStatefulWidget {
   const BookmarksPage({super.key});
@@ -83,6 +84,7 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
         .maybeWhen(data: (x) => x, orElse: () => const <QuizListItem>[]);
 
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: () => ref.refresh(bookmarksProvider.future),
         child: bookmarksAsync.when(
@@ -105,7 +107,7 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
             final items =
                 type == null ? all : all.where((e) => e.itemType == type).toList();
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+              padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
               children: [
                 const PageHeader(title: 'Saved'),
                 const SizedBox(height: 10),

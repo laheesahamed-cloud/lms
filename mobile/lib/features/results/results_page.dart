@@ -6,6 +6,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../quizzes/quizzes_repository.dart';
+import '../../widgets/shell_insets.dart';
 
 /// Quiz/exam attempt history — real attempts from the backend
 /// (`GET /quiz-attempts/results`).
@@ -18,6 +19,7 @@ class ResultsPage extends ConsumerWidget {
     final resultsAsync = ref.watch(resultsListProvider);
 
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: () => ref.refresh(resultsListProvider.future),
         child: resultsAsync.when(
@@ -36,7 +38,7 @@ class ResultsPage extends ConsumerWidget {
             ],
           ),
           data: (items) => ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: <Widget>[
               Text('YOUR HISTORY',
                   style: TextStyle(

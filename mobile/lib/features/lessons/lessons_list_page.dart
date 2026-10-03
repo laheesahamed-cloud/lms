@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import 'lesson_models.dart';
 import 'lessons_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/shell_insets.dart';
 
 class LessonsListPage extends ConsumerStatefulWidget {
   const LessonsListPage({super.key});
@@ -34,6 +35,7 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
     final notesAsync = ref.watch(lessonsListProvider);
 
     return SafeArea(
+      bottom: false,
       child: notesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -81,7 +83,7 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: [
               PageHeader(
                 title: 'Your lessons',

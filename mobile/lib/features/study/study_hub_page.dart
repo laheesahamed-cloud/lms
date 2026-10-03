@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../drugs/drug_queue_service.dart';
+import '../../widgets/shell_insets.dart';
 
 /// Study hub — launcher for all core study tools.
 ///
@@ -78,8 +79,9 @@ class StudyHubPage extends ConsumerWidget {
     final drugState = ref.watch(drugQueueProvider);
 
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
         children: [
           Text(
             'TOOLS',

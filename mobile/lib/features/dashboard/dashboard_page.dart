@@ -19,6 +19,7 @@ import '../lessons/lessons_repository.dart';
 import '../lessons/lesson_models.dart';
 import 'dashboard_repository.dart';
 import '../../services/streak_reminders.dart';
+import '../../widgets/shell_insets.dart';
 
 String _timeAgo(String iso) {
   final dt = DateTime.tryParse(iso)?.toLocal();
@@ -110,6 +111,7 @@ class DashboardPage extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
         return SafeArea(
+      bottom: false,
           child: Container(
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
@@ -326,7 +328,7 @@ class DashboardPage extends ConsumerWidget {
       _LevelCard(name: name),
     ];
     final list = ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
       children: reduced
           ? kids
           : AnimationConfiguration.toStaggeredList(
@@ -339,7 +341,7 @@ class DashboardPage extends ConsumerWidget {
               children: kids,
             ),
     );
-    return SafeArea(child: reduced ? list : AnimationLimiter(child: list));
+    return SafeArea(bottom: false, child: reduced ? list : AnimationLimiter(child: list));
   }
 }
 

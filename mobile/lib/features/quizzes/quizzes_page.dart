@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'quizzes_repository.dart';
+import '../../widgets/shell_insets.dart';
 
 class QuizzesPage extends ConsumerStatefulWidget {
   final bool examMode;
@@ -34,6 +35,7 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
     final quizzesAsync = ref.watch(quizListProvider);
 
     return SafeArea(
+      bottom: false,
       child: quizzesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -57,7 +59,7 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
               ? allGroups
               : allGroups.where((g) => g.examType == _examTypeFilter).toList();
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: [
               Text(_exam ? 'TIMED ASSESSMENTS' : 'PRACTICE MODE',
                   style: TextStyle(
