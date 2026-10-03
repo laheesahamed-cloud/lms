@@ -290,7 +290,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
       // sheet below the status bar, and a second limit computed here is what
       // kept fighting it.
       decoration: BoxDecoration(
-        color: dark ? c.page : const Color(0xFFFBFCFF),
+        color: dark ? c.page : _kLightGround,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: ClipRRect(
@@ -408,6 +408,15 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
 ///
 /// It runs to the page colour at the far corner, so the card reads as the
 /// background warming toward the CTA rather than a flat tinted panel.
+/// The sheet's own ground: the app's black in dark, a near-white in light.
+/// Named because the selected card's wash and the header's bottom fade both
+/// have to run out into exactly this colour.
+const Color _kLightGround = Color(0xFFFBFCFF);
+
+/// The dark band the header artwork sits on. The picture is lit for black, so
+/// it keeps its own ground in light mode rather than smearing grey over white.
+const Color _kHeroGround = Color(0xFF0A0A0F);
+
 LinearGradient _ctaWash(Color page) => LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
@@ -440,6 +449,7 @@ class _PlanOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final recommended = product.isRecommended;
 
     return Opacity(
@@ -454,7 +464,9 @@ class _PlanOption extends StatelessWidget {
           padding: EdgeInsets.all(selected ? 1.6 : 1),
           decoration: BoxDecoration(
             gradient: selected ? kHeroGradient : null,
-            color: selected ? null : c.line.withValues(alpha: 0.55),
+            color: selected
+                ? null
+                : (dark ? c.line.withValues(alpha: 0.55) : c.lineMedium),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Container(
@@ -463,8 +475,8 @@ class _PlanOption extends StatelessWidget {
               // Mixed into the page's black rather than a solid fill: the card
               // reads as the background warming toward the CTA, with the
               // gradient at full strength only on its edge.
-              color: selected ? null : c.page,
-              gradient: selected ? _ctaWash(c.page) : null,
+              color: selected ? null : (dark ? c.page : c.card),
+              gradient: selected ? _ctaWash(dark ? c.page : _kLightGround) : null,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -692,7 +704,7 @@ class _UnlockHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.c;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final w = MediaQuery.of(context).size.width;
     final art = w / _aspect;
     // Where the words start: just past the crown's middle, so the title
@@ -715,6 +727,17 @@ class _UnlockHeader extends StatelessWidget {
       height: height,
       child: Stack(
         children: [
+          // The artwork is lit for a black ground. On the light sheet it would
+          // read as a grey smear with unreadable words over it, so the header
+          // carries its own dark band in BOTH themes and everything written on
+          // it stays white.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: art,
+            child: const ColoredBox(color: _kHeroGround),
+          ),
           Positioned(
             top: 0,
             left: 0,
@@ -777,6 +800,30 @@ class _UnlockHeader extends StatelessWidget {
               ),
             ),
           ),
+          // In light mode the band would otherwise end in a hard dark-on-white
+          // line; this runs it out into the sheet. 26 high, which clears the
+          // subtitle.
+          if (!dark)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 26,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        _kLightGround.withValues(alpha: 0.0),
+                        _kLightGround,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // The sheet's own controls, over the top of the picture.
           Positioned(
             top: 10,
@@ -837,7 +884,7 @@ class _UnlockHeader extends StatelessWidget {
                         fontSize: 25,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
-                        color: c.inkStrong,
+                        color: Colors.white,
                         shadows: const [
                           Shadow(color: Color(0xDD000000), blurRadius: 16),
                         ])),
@@ -848,7 +895,7 @@ class _UnlockHeader extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 12,
                       height: 1.35,
-                      color: c.inkSoft,
+                      color: Colors.white.withValues(alpha: 0.78),
                       shadows: const [
                         Shadow(color: Color(0xCC000000), blurRadius: 12),
                       ]),
