@@ -86,6 +86,7 @@ let WorkspaceService = class WorkspaceService {
     }
     async listNotifications(authorization) {
         const user = await this.authService.requireAuthenticatedUser(authorization);
+        const dismissed = await this.loadDismissedKeys(user.id);
         const [rows] = await this.db.execute(`
         SELECT a.*, ar.id AS read_id
         FROM announcements a
@@ -100,12 +101,14 @@ let WorkspaceService = class WorkspaceService {
         ORDER BY a.created_at DESC
         LIMIT 80
       `, [user.id, user.role, user.id]);
-        const announcements = rows.map((row) => ({
+        const announcements = rows
+            .map((row) => ({
             ...this.mapAnnouncement(row),
             kind: 'announcement',
             read: Boolean(row.read_id),
             actionPath: '',
-        }));
+        }))
+            .filter((item) => !dismissed.has(String(item.id)));
         if (user.role !== 'student') {
             return announcements;
         }
@@ -148,9 +151,47 @@ let WorkspaceService = class WorkspaceService {
                 actionPath: '/dashboard',
             })),
         ];
-        return [...announcements, ...derived]
+        return [...announcements, ...derived.filter((item) => !dismissed.has(item.id))]
             .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
             .slice(0, 80);
+    }
+    async loadDismissedKeys(userId) {
+        try {
+            const [rows] = await this.db.execute(`SELECT notification_key FROM notification_dismissals WHERE user_id = ?`, [userId]);
+            return new Set(rows.map((row) => String(row.notification_key)));
+        }
+        catch {
+            return new Set();
+        }
+    }
+    async dismissNotification(authorization, key) {
+        const user = await this.authService.requireAuthenticatedUser(authorization);
+        const trimmed = String(key || '').trim().slice(0, 190);
+        if (!trimmed)
+            return { ok: false };
+        await this.db.execute(`INSERT IGNORE INTO notification_dismissals (user_id, notification_key) VALUES (?, ?)`, [user.id, trimmed]);
+        return { ok: true, key: trimmed };
+    }
+    async clearNotifications(authorization) {
+        const user = await this.authService.requireAuthenticatedUser(authorization);
+        const items = (await this.listNotifications(authorization));
+        if (!items.length)
+            return { ok: true, cleared: 0 };
+        const keys = items.map((item) => String(item.id).slice(0, 190));
+        await this.db.query(`INSERT IGNORE INTO notification_dismissals (user_id, notification_key) VALUES ?`, [keys.map((key) => [user.id, key])]);
+        return { ok: true, cleared: keys.length };
+    }
+    async markAllNotificationsRead(authorization) {
+        const user = await this.authService.requireAuthenticatedUser(authorization);
+        const items = (await this.listNotifications(authorization));
+        const ids = items
+            .filter((item) => item.kind === 'announcement' && !item.read)
+            .map((item) => Number(item.id))
+            .filter((id) => Number.isInteger(id) && id > 0);
+        if (!ids.length)
+            return { ok: true, marked: 0 };
+        await this.db.query(`INSERT IGNORE INTO announcement_reads (announcement_id, user_id) VALUES ?`, [ids.map((id) => [id, user.id])]);
+        return { ok: true, marked: ids.length };
     }
     formatPaymentStatusLabel(value) {
         const status = String(value || '').trim().toLowerCase();

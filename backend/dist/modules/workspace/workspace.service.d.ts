@@ -80,6 +80,22 @@ export declare class WorkspaceService {
         createdAt: any;
         actionPath: string;
     })[]>;
+    private loadDismissedKeys;
+    dismissNotification(authorization: string | undefined, key: string): Promise<{
+        ok: boolean;
+        key?: undefined;
+    } | {
+        ok: boolean;
+        key: string;
+    }>;
+    clearNotifications(authorization?: string): Promise<{
+        ok: boolean;
+        cleared: number;
+    }>;
+    markAllNotificationsRead(authorization?: string): Promise<{
+        ok: boolean;
+        marked: number;
+    }>;
     private formatPaymentStatusLabel;
     private isFreePlanPaymentStatus;
     markNotificationRead(authorization: string | undefined, id: number): Promise<{

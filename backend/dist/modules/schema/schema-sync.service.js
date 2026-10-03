@@ -733,10 +733,23 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
                     await this.backfillSortOrder(conn, 'subtopics', 'subtopic_name', 'topic_id');
             });
             await step('osce tables', () => this.ensureOsceTables(conn));
+            await step('notification dismissals', () => this.ensureNotificationDismissalsTable(conn));
         }
         finally {
             connection.release();
         }
+    }
+    async ensureNotificationDismissalsTable(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS notification_dismissals (
+        id               INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id          INT NOT NULL,
+        notification_key VARCHAR(190) NOT NULL,
+        created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_notification_dismissal (user_id, notification_key),
+        INDEX idx_notification_dismissals_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
     }
     async ensureOsceTables(connection) {
         await connection.execute(`

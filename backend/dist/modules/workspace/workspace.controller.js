@@ -38,6 +38,15 @@ let WorkspaceController = class WorkspaceController {
     markNotificationRead(authorization, id) {
         return this.workspaceService.markNotificationRead(authorization, id);
     }
+    markAllNotificationsRead(authorization) {
+        return this.workspaceService.markAllNotificationsRead(authorization);
+    }
+    clearNotifications(authorization) {
+        return this.workspaceService.clearNotifications(authorization);
+    }
+    dismissNotification(authorization, key) {
+        return this.workspaceService.dismissNotification(authorization, key);
+    }
     listPlannerTasks(authorization) {
         return this.workspaceService.listPlannerTasks(authorization);
     }
@@ -127,6 +136,28 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", void 0)
 ], WorkspaceController.prototype, "markNotificationRead", null);
+__decorate([
+    (0, common_1.Post)('notifications/read-all'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], WorkspaceController.prototype, "markAllNotificationsRead", null);
+__decorate([
+    (0, common_1.Delete)('notifications'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], WorkspaceController.prototype, "clearNotifications", null);
+__decorate([
+    (0, common_1.Delete)('notifications/:key'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('key')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], WorkspaceController.prototype, "dismissNotification", null);
 __decorate([
     (0, common_1.Get)('study-planner'),
     __param(0, (0, common_1.Headers)('authorization')),

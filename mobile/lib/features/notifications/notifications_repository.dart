@@ -71,3 +71,22 @@ final notificationsApiProvider = Provider((ref) => ref.read(apiClientProvider));
 Future<void> markNotificationRead(ApiClient api, String id) async {
   await api.dio.post('/student/notifications/$id/read');
 }
+
+/// Marks every unread announcement read — for the bell's badge. Separate from
+/// clearing, which removes the rows entirely.
+Future<void> markAllNotificationsRead(ApiClient api) async {
+  await api.dio.post('/student/notifications/read-all');
+}
+
+/// Clears one notification for this user. The key is the id the list handed
+/// out, so it works for the derived subscription and weak-topic items too —
+/// those have no "read" state and could not be got rid of any other way.
+Future<void> dismissNotification(ApiClient api, String id) async {
+  await api.dio.delete('/student/notifications/${Uri.encodeComponent(id)}');
+}
+
+/// Clears everything currently in the list. Anything published afterwards
+/// still arrives.
+Future<void> clearNotifications(ApiClient api) async {
+  await api.dio.delete('/student/notifications');
+}

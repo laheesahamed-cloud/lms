@@ -7,8 +7,15 @@ import '../../widgets/glass_card.dart';
 import 'notifications_repository.dart';
 import '../../widgets/page_header.dart';
 
-class NotificationsPage extends ConsumerWidget {
+class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
+
+  @override
+  ConsumerState<NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends ConsumerState<NotificationsPage> {
+  bool _busy = false;
 
   (IconData, Color) _visual(AppColors c, String kind) {
     switch (kind) {
@@ -21,7 +28,7 @@ class NotificationsPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _tap(WidgetRef ref, AppNotification n) async {
+  Future<void> _tap(AppNotification n) async {
     if (!n.canMarkRead) return;
     try {
       await markNotificationRead(ref.read(notificationsApiProvider), n.id);
@@ -29,8 +36,65 @@ class NotificationsPage extends ConsumerWidget {
     } catch (_) {}
   }
 
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Swiping one away clears it for good — including the derived subscription
+  /// and weak-topic items, which have no read state and could not be got rid
+  /// of at all before.
+  Future<void> _dismiss(AppNotification n) async {
+    try {
+      await dismissNotification(ref.read(notificationsApiProvider), n.id);
+    } catch (_) {
+      _toast('Could not clear that one.');
+    }
+    ref.invalidate(notificationsProvider);
+  }
+
+  Future<void> _markAllRead() async {
+    setState(() => _busy = true);
+    try {
+      await markAllNotificationsRead(ref.read(notificationsApiProvider));
+      ref.invalidate(notificationsProvider);
+    } catch (_) {
+      _toast('Could not mark them read.');
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear all notifications?'),
+        content: const Text(
+            'They are removed from your list. Anything sent afterwards still arrives.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Clear all')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await clearNotifications(ref.read(notificationsApiProvider));
+      ref.invalidate(notificationsProvider);
+    } catch (_) {
+      _toast('Could not clear them.');
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.c;
     final notesAsync = ref.watch(notificationsProvider);
 
@@ -50,7 +114,33 @@ class NotificationsPage extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
-              const PageHeader(title: 'Notifications'),
+              PageHeader(
+                title: 'Notifications',
+                actions: [
+                  if (_busy)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  else if (items.isNotEmpty)
+                    PopupMenuButton<String>(
+                      tooltip: 'More',
+                      icon: Icon(Icons.more_horiz_rounded, color: c.inkMedium),
+                      onSelected: (v) =>
+                          v == 'read' ? _markAllRead() : _clearAll(),
+                      itemBuilder: (_) => [
+                        if (items.any((n) => n.canMarkRead))
+                          const PopupMenuItem(
+                              value: 'read', child: Text('Mark all as read')),
+                        const PopupMenuItem(
+                            value: 'clear', child: Text('Clear all')),
+                      ],
+                    ),
+                ],
+              ),
               const SizedBox(height: 14),
               if (items.isEmpty)
                 Padding(
@@ -75,10 +165,25 @@ class NotificationsPage extends ConsumerWidget {
                       for (final n in items)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _NoteCard(
-                            note: n,
-                            visual: _visual(c, n.kind),
-                            onTap: () => _tap(ref, n),
+                          child: Dismissible(
+                            key: ValueKey(n.id),
+                            direction: DismissDirection.endToStart,
+                            onDismissed: (_) => _dismiss(n),
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              decoration: BoxDecoration(
+                                color: c.error.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(Icons.delete_outline_rounded,
+                                  color: c.error),
+                            ),
+                            child: _NoteCard(
+                              note: n,
+                              visual: _visual(c, n.kind),
+                              onTap: () => _tap(n),
+                            ),
                           ),
                         ),
                     ],

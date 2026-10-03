@@ -44,6 +44,29 @@ export class WorkspaceController {
     return this.workspaceService.markNotificationRead(authorization, id);
   }
 
+  @Post('notifications/read-all')
+  markAllNotificationsRead(@Headers('authorization') authorization?: string) {
+    return this.workspaceService.markAllNotificationsRead(authorization);
+  }
+
+  // Clears everything in the list. Declared BEFORE the :key route so "clear" is
+  // not swallowed as a notification key.
+  @Delete('notifications')
+  clearNotifications(@Headers('authorization') authorization?: string) {
+    return this.workspaceService.clearNotifications(authorization);
+  }
+
+  // Not ParseIntPipe: a derived item's id is a string
+  // ("subscription-active-…"), and those are exactly the ones that cannot be
+  // dismissed any other way.
+  @Delete('notifications/:key')
+  dismissNotification(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('key') key: string
+  ) {
+    return this.workspaceService.dismissNotification(authorization, key);
+  }
+
   @Get('study-planner')
   listPlannerTasks(@Headers('authorization') authorization?: string) {
     return this.workspaceService.listPlannerTasks(authorization);

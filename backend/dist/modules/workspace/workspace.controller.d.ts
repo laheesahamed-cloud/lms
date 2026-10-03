@@ -51,6 +51,21 @@ export declare class WorkspaceController {
         ok: boolean;
         id: number;
     }>;
+    markAllNotificationsRead(authorization?: string): Promise<{
+        ok: boolean;
+        marked: number;
+    }>;
+    clearNotifications(authorization?: string): Promise<{
+        ok: boolean;
+        cleared: number;
+    }>;
+    dismissNotification(authorization: string | undefined, key: string): Promise<{
+        ok: boolean;
+        key?: undefined;
+    } | {
+        ok: boolean;
+        key: string;
+    }>;
     listPlannerTasks(authorization?: string): Promise<{
         id: number;
         title: string;

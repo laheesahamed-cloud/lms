@@ -828,9 +828,34 @@ export class SchemaSyncService implements OnModuleInit {
       // students write checklist progress — so it can't sit behind the full sync
       // either (prod runs SCHEMA_SYNC=0).
       await step('osce tables', () => this.ensureOsceTables(conn));
+      // Clearing a notification is a student write path, and prod runs
+      // SCHEMA_SYNC=0, so this cannot sit behind the full sync.
+      await step('notification dismissals', () =>
+        this.ensureNotificationDismissalsTable(conn));
     } finally {
       connection.release();
     }
+  }
+
+  /// Per-user "I have cleared this" marks.
+  ///
+  /// The key is the notification's own id as the list hands it out, which is a
+  /// number for an announcement but a string for the derived subscription and
+  /// weak-topic items ("subscription-active-2026-01-01"). One VARCHAR holds
+  /// both, so clearing works the same for every row in the list — and a derived
+  /// item whose underlying state later changes gets a new key and correctly
+  /// comes back.
+  private async ensureNotificationDismissalsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS notification_dismissals (
+        id               INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id          INT NOT NULL,
+        notification_key VARCHAR(190) NOT NULL,
+        created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_notification_dismissal (user_id, notification_key),
+        INDEX idx_notification_dismissals_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
   }
 
   private async ensureOsceTables(connection: PoolConnection) {

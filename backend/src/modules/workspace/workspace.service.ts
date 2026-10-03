@@ -141,6 +141,7 @@ export class WorkspaceService {
 
   async listNotifications(authorization?: string) {
     const user = await this.authService.requireAuthenticatedUser(authorization);
+    const dismissed = await this.loadDismissedKeys(user.id);
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `
         SELECT a.*, ar.id AS read_id
@@ -158,12 +159,14 @@ export class WorkspaceService {
       `,
       [user.id, user.role, user.id]
     );
-    const announcements = rows.map((row) => ({
-      ...this.mapAnnouncement(row),
-      kind: 'announcement',
-      read: Boolean(row.read_id),
-      actionPath: '',
-    }));
+    const announcements = rows
+      .map((row) => ({
+        ...this.mapAnnouncement(row),
+        kind: 'announcement',
+        read: Boolean(row.read_id),
+        actionPath: '',
+      }))
+      .filter((item) => !dismissed.has(String(item.id)));
 
     if (user.role !== 'student') {
       return announcements;
@@ -216,9 +219,72 @@ export class WorkspaceService {
       })),
     ];
 
-    return [...announcements, ...derived]
+    return [...announcements, ...derived.filter((item) => !dismissed.has(item.id))]
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
       .slice(0, 80);
+  }
+
+  private async loadDismissedKeys(userId: number) {
+    try {
+      const [rows] = await this.db.execute<RowDataPacket[]>(
+        `SELECT notification_key FROM notification_dismissals WHERE user_id = ?`,
+        [userId]
+      );
+      return new Set(rows.map((row) => String(row.notification_key)));
+    } catch {
+      // A server that has not run the migration yet should still serve the
+      // list — it just cannot hide anything.
+      return new Set<string>();
+    }
+  }
+
+  /// Clear one notification for this user. The key is whatever the list handed
+  /// out, so it works for a derived item as well as an announcement.
+  async dismissNotification(authorization: string | undefined, key: string) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const trimmed = String(key || '').trim().slice(0, 190);
+    if (!trimmed) return { ok: false };
+    await this.db.execute(
+      `INSERT IGNORE INTO notification_dismissals (user_id, notification_key) VALUES (?, ?)`,
+      [user.id, trimmed]
+    );
+    return { ok: true, key: trimmed };
+  }
+
+  /// Clear everything currently in the user's list. It dismisses the keys the
+  /// list is showing right now rather than truncating a table, so an
+  /// announcement published after this call still arrives.
+  async clearNotifications(authorization?: string) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const items = (await this.listNotifications(authorization)) as Array<{ id: unknown }>;
+    if (!items.length) return { ok: true, cleared: 0 };
+    const keys = items.map((item) => String(item.id).slice(0, 190));
+    await this.db.query(
+      `INSERT IGNORE INTO notification_dismissals (user_id, notification_key) VALUES ?`,
+      [keys.map((key) => [user.id, key])]
+    );
+    return { ok: true, cleared: keys.length };
+  }
+
+  /// Mark every unread announcement in the user's list as read, for the bell's
+  /// badge — separate from clearing, which removes the rows entirely.
+  async markAllNotificationsRead(authorization?: string) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const items = (await this.listNotifications(authorization)) as Array<{
+      id: unknown;
+      kind?: string;
+      read?: boolean;
+    }>;
+    const ids = items
+      .filter((item) => item.kind === 'announcement' && !item.read)
+      .map((item) => Number(item.id))
+      .filter((id) => Number.isInteger(id) && id > 0);
+    if (!ids.length) return { ok: true, marked: 0 };
+    await this.db.query(
+      `INSERT IGNORE INTO announcement_reads (announcement_id, user_id) VALUES ?`,
+      [ids.map((id) => [id, user.id])]
+    );
+    return { ok: true, marked: ids.length };
   }
 
   private formatPaymentStatusLabel(value: unknown) {
