@@ -223,8 +223,8 @@ class _BottomNav extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     c.page.withValues(alpha: 0.0),
-                    c.page.withValues(alpha: 0.34),
-                    c.page.withValues(alpha: 0.72),
+                    c.page.withValues(alpha: 0.48),
+                    c.page.withValues(alpha: 0.90),
                   ],
                   stops: const [0.0, 0.5, 1.0],
                 ),
@@ -247,7 +247,7 @@ class _BottomNav extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
         child: DecoratedBox(
           decoration: BoxDecoration(
             // Translucent, so the blur behind it reads as glass rather than
@@ -303,8 +303,10 @@ class _BottomNav extends StatelessWidget {
 class _ProgressiveBlur extends StatelessWidget {
   const _ProgressiveBlur();
 
-  static const _layers = 6;
-  static const _maxSigma = 20.0;
+  // 7, not 6: the step between layers is maxSigma/layers, so raising the
+  // sigma without raising the count is what makes the bands show.
+  static const _layers = 7;
+  static const _maxSigma = 32.0;
 
   @override
   Widget build(BuildContext context) {
