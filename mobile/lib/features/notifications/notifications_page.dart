@@ -54,6 +54,62 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     ref.invalidate(notificationsProvider);
   }
 
+  /// Anchored under the button, same shape as My Notes' "+" menu, so every
+  /// dropdown in the app opens the same way.
+  Future<void> _showMenu(BuildContext anchor, bool anyUnread) async {
+    final c = context.c;
+    final box = anchor.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final bottomRight =
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay);
+    final rect = RelativeRect.fromLTRB(
+      topLeft.dx,
+      bottomRight.dy + 6,
+      overlay.size.width - bottomRight.dx,
+      overlay.size.height - bottomRight.dy,
+    );
+
+    PopupMenuItem<String> item(String value, IconData icon, String label,
+            {Color? tint}) =>
+        PopupMenuItem<String>(
+          value: value,
+          height: 46,
+          child: Row(children: [
+            Icon(icon, size: 19, color: tint ?? c.inkStrong),
+            const SizedBox(width: 12),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: tint ?? c.inkStrong)),
+          ]),
+        );
+
+    final picked = await showMenu<String>(
+      context: context,
+      position: rect,
+      color: c.surface1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      items: [
+        if (anyUnread) ...[
+          item('read', Icons.done_all_rounded, 'Mark all as read'),
+          const PopupMenuDivider(height: 1),
+        ],
+        item('clear', Icons.delete_outline_rounded, 'Clear all',
+            tint: c.error),
+      ],
+    );
+    if (!mounted || picked == null) return;
+    if (picked == 'read') {
+      await _markAllRead();
+    } else {
+      await _clearAll();
+    }
+  }
+
   Future<void> _markAllRead() async {
     setState(() => _busy = true);
     try {
@@ -126,18 +182,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                           child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   else if (items.isNotEmpty)
-                    PopupMenuButton<String>(
-                      tooltip: 'More',
-                      icon: Icon(Icons.more_horiz_rounded, color: c.inkMedium),
-                      onSelected: (v) =>
-                          v == 'read' ? _markAllRead() : _clearAll(),
-                      itemBuilder: (_) => [
-                        if (items.any((n) => n.canMarkRead))
-                          const PopupMenuItem(
-                              value: 'read', child: Text('Mark all as read')),
-                        const PopupMenuItem(
-                            value: 'clear', child: Text('Clear all')),
-                      ],
+                    Builder(
+                      builder: (anchor) => IconButton(
+                        tooltip: 'More',
+                        onPressed: () => _showMenu(
+                            anchor, items.any((n) => n.canMarkRead)),
+                        icon: Icon(Icons.more_horiz_rounded,
+                            size: 22, color: c.inkMedium),
+                      ),
                     ),
                 ],
               ),
