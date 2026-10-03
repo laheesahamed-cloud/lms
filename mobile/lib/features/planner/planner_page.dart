@@ -60,11 +60,6 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddSheet,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add task'),
-      ),
       body: SafeArea(
         bottom: false,
         child: tasksAsync.when(
@@ -137,6 +132,14 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                         )
                       : const Icon(Icons.refresh_rounded, color: Color(0xFFDC2626)),
                 ),
+              // Was a FloatingActionButton, which the glass tab bar now sits
+              // under — and the page's own primary action belongs with its
+              // title rather than floating over its content.
+              IconButton(
+                tooltip: 'New task',
+                onPressed: _showAddSheet,
+                icon: Icon(Icons.add_rounded, size: 24, color: c.primary),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -409,6 +412,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     if (!mounted) return;
     final msg = (List.of(_celebrations)..shuffle()).first;
     await showDialog<void>(
+      useRootNavigator: true,
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (ctx) => Dialog(
@@ -451,6 +455,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     final tasks = ref.read(plannerTasksProvider).value ?? const <PlannerTask>[];
     if (tasks.isEmpty) return;
     final ok = await showDialog<bool>(
+      useRootNavigator: true,
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Clear your planner?'),
@@ -536,6 +541,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
 
   Future<void> _showReminderSettings(List<PlannerTask> tasks) async {
     await showModalBottomSheet<void>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: context.c.page,

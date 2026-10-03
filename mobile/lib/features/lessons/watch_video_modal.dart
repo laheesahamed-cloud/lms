@@ -13,6 +13,7 @@ class WatchVideoModal extends StatefulWidget {
 
   static Future<void> show(BuildContext context, String videoUrl) =>
       showModalBottomSheet(
+        useRootNavigator: true,
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
@@ -149,6 +150,7 @@ class _WatchVideoModalState extends State<WatchVideoModal> {
   Future<void> _requestClose() async {
     final c = context.c;
     final leave = await showDialog<bool>(
+      useRootNavigator: true,
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: c.surface1,

@@ -54,6 +54,7 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
     final c = context.c;
     final limit = ref.read(drugQueueProvider).freeLimit;
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(

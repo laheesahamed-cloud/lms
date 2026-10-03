@@ -2601,6 +2601,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     final isHl = _tool == _Tool.highlighter;
     final palette = isHl ? _hlPalette : _penPalette;
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: c.card,
       shape: const RoundedRectangleBorder(
@@ -2660,6 +2661,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _openSizePicker(AppColors c) {
     final isHl = _tool == _Tool.highlighter;
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: c.card,
       shape: const RoundedRectangleBorder(

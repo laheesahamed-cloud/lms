@@ -265,6 +265,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
     // conflict with — show a spinner for the copy + page-count read, which
     // can take a moment for a large file.
     showDialog<void>(
+      useRootNavigator: true,
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const AlertDialog(
@@ -348,6 +349,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
 
   Future<void> _pickFolderFor(PersonalNote note) async {
     final target = await showModalBottomSheet<Object?>(
+      useRootNavigator: true,
       context: context,
       builder: (sheetCtx) => SafeArea(
         child: Column(
@@ -449,6 +451,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
   Future<void> _bulkMove() async {
     if (_selectedNotes.isEmpty) return;
     final target = await showModalBottomSheet<Object?>(
+      useRootNavigator: true,
       context: context,
       builder: (sheetCtx) => SafeArea(
         child: Column(
@@ -820,6 +823,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
       {required String title, required String hint, required String initial}) {
     final controller = TextEditingController(text: initial);
     return showDialog<String>(
+      useRootNavigator: true,
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
         title: Text(title),
@@ -845,6 +849,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
   }
 
   Future<bool?> _confirm(BuildContext ctx, {required String title, required String message}) => showDialog<bool>(
+        useRootNavigator: true,
         context: ctx,
         builder: (dialogCtx) => AlertDialog(
           title: Text(title),

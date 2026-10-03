@@ -9,6 +9,7 @@ import 'notifications_repository.dart';
 /// one marks it read and it disappears from the popup.
 void showNotificationsPopup(BuildContext context) {
   showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

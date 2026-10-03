@@ -124,6 +124,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   Future<void> _clearAll() async {
     final ok = await showDialog<bool>(
+      useRootNavigator: true,
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Clear all notifications?'),

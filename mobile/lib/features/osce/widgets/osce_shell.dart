@@ -139,6 +139,7 @@ class OsceRow extends StatelessWidget {
 void showLockedNote(BuildContext context) {
   final c = context.c;
   showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     backgroundColor: c.surface1,
     shape: const RoundedRectangleBorder(

@@ -154,6 +154,7 @@ Future<void> _openUrl(BuildContext context, String url) async {
 /// state clears and the router returns to login automatically.
 Future<bool> _confirmDeleteAccount(BuildContext context) async {
   final ok = await showDialog<bool>(
+    useRootNavigator: true,
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Delete account?'),
@@ -355,6 +356,7 @@ class _LogoutButtonState extends ConsumerState<_LogoutButton> {
     // Signing out was immediate on a single tap, with nothing to undo it —
     // the only destructive action in the app without a confirmation.
     final ok = await showDialog<bool>(
+      useRootNavigator: true,
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Log out?'),

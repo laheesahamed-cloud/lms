@@ -14,6 +14,7 @@ Future<bool?> showQuizStartDialog(
     if (exam && timeLimitMinutes > 0) '$timeLimitMinutes minute time limit',
   ];
   return showDialog<bool>(
+    useRootNavigator: true,
     context: context,
     barrierDismissible: false,
     builder: (ctx) => AlertDialog(
@@ -66,6 +67,7 @@ Future<bool?> showQuizStartDialog(
 Future<bool?> showQuizLeaveDialog(BuildContext context, {required bool exam}) {
   final c = context.c;
   return showDialog<bool>(
+    useRootNavigator: true,
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: c.cardElevated,
@@ -104,6 +106,7 @@ Future<bool?> showQuizFinishDialog(
   final c = context.c;
   final unanswered = (total != null) ? (total - answered) : 0;
   return showDialog<bool>(
+    useRootNavigator: true,
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: c.cardElevated,

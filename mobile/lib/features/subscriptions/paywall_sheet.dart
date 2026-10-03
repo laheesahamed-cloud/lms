@@ -36,6 +36,7 @@ class PaywallSheet extends ConsumerStatefulWidget {
   static Future<bool> show(BuildContext context) async {
     if (!iapSupported) return false;
     final granted = await showModalBottomSheet<bool>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

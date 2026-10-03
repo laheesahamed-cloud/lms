@@ -258,6 +258,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
   void _explainVoice() {
     final c = context.c;
     showModalBottomSheet<void>(
+      useRootNavigator: true,
       context: context,
       backgroundColor: c.surface1,
       shape: const RoundedRectangleBorder(
@@ -903,6 +904,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
   void _openQuestionNav(List<PracticeQuestion> questions) {
     final c = context.c;
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: c.card,
       shape: const RoundedRectangleBorder(
@@ -1379,6 +1381,7 @@ class _QuestionView extends StatelessWidget {
   void _openRecap(BuildContext context, AppColors c, TheoryRecap r) {
     final groups = _recap(c, r);
     showModalBottomSheet(
+      useRootNavigator: true,
       context: context,
       backgroundColor: c.card,
       isScrollControlled: true,

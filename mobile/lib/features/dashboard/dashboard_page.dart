@@ -107,6 +107,7 @@ class DashboardPage extends ConsumerWidget {
   Future<void> _showProfileMenu(BuildContext context, WidgetRef ref) async {
     final c = context.c;
     await showModalBottomSheet<void>(
+      useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {

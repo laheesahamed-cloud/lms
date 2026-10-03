@@ -44,6 +44,7 @@ class _NotificationPrimingGateState
 
 Future<void> _showNotificationPrimingSheet(BuildContext context) {
   return showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     backgroundColor: context.c.card,
     shape: const RoundedRectangleBorder(

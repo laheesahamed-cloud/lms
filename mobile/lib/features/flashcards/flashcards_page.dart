@@ -274,6 +274,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
 
   Future<void> _showReminderSettings() async {
     await showModalBottomSheet<void>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       backgroundColor: context.c.page,

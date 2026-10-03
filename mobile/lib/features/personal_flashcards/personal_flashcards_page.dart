@@ -62,6 +62,7 @@ class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
 
   Future<void> _deleteDeck(_DeckEntry e) async {
     final ok = await showDialog<bool>(
+      useRootNavigator: true,
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Deck?'),
@@ -266,6 +267,7 @@ Future<String?> _promptTitle(
     {String? helperText}) async {
   final ctrl = TextEditingController(text: initial);
   return showDialog<String>(
+    useRootNavigator: true,
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(dialogTitle),

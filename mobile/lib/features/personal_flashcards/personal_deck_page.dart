@@ -54,6 +54,7 @@ class _PersonalDeckPageState extends State<PersonalDeckPage> {
 
   Future<void> _deleteCard(PersonalCard card) async {
     final ok = await showDialog<bool>(
+      useRootNavigator: true,
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Card?'),
@@ -194,6 +195,7 @@ Future<(String, String)?> _showCardEditor(
   final backCtrl = TextEditingController(text: initBack);
 
   return showModalBottomSheet<(String, String)>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     backgroundColor: context.c.page,

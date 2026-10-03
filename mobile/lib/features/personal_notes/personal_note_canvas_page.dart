@@ -49,6 +49,7 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
 
   Future<void> _openMenu() async {
     final action = await showModalBottomSheet<String>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => _PageMenuSheet(pageNumber: _page + 1,
@@ -80,6 +81,7 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
   Future<void> _insertPageFlow({required int atIndex}) async {
     final result = await showModalBottomSheet<
         (PaperStyle, PaperTint, PaperSize, PaperOrientation)>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => _PaperSheet(
@@ -148,6 +150,7 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
     // conflict with — show a spinner for the copy + page-count read, which
     // can take a moment for a large file.
     showDialog<void>(
+      useRootNavigator: true,
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const _ImportingDialog(),
@@ -208,6 +211,7 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
       required String body,
       required String action}) async {
     final ok = await showDialog<bool>(
+      useRootNavigator: true,
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
@@ -232,6 +236,7 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
   Future<void> _pickPaper({required bool addNew}) async {
     final result = await showModalBottomSheet<
         (PaperStyle, PaperTint, PaperSize, PaperOrientation)>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => _PaperSheet(

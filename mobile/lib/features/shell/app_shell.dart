@@ -223,8 +223,8 @@ class _BottomNav extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     c.page.withValues(alpha: 0.0),
-                    c.page.withValues(alpha: 0.48),
-                    c.page.withValues(alpha: 0.90),
+                    c.page.withValues(alpha: dark ? 0.48 : 0.38),
+                    c.page.withValues(alpha: dark ? 0.90 : 0.78),
                   ],
                   stops: const [0.0, 0.5, 1.0],
                 ),
@@ -244,7 +244,22 @@ class _BottomNav extends StatelessWidget {
   }
 
   Widget _pill(AppColors c, bool dark) {
-    return ClipRRect(
+    // The shadow has to sit OUTSIDE the clip, or it is cut away with everything
+    // else beyond the rounded rect. Without it the bar has no edge of its own
+    // in light mode — a white pill, over a white scrim, over a white page.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: dark ? const Color(0x80000000) : const Color(0x240B1220),
+            blurRadius: 28,
+            spreadRadius: -6,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
       borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
@@ -252,12 +267,15 @@ class _BottomNav extends StatelessWidget {
           decoration: BoxDecoration(
             // Translucent, so the blur behind it reads as glass rather than
             // being hidden under an opaque fill.
-            color: c.card.withValues(alpha: dark ? 0.62 : 0.72),
+            color: c.card.withValues(alpha: dark ? 0.62 : 0.86),
             borderRadius: BorderRadius.circular(26),
             border: Border.all(
+              // A white hairline reads as a highlight on a dark ground and as
+              // nothing at all on a light one, where the edge has to be drawn
+              // with the separator instead.
               color: dark
                   ? Colors.white.withValues(alpha: 0.10)
-                  : Colors.white.withValues(alpha: 0.55),
+                  : c.lineMedium,
             ),
           ),
           child: Padding(
@@ -289,6 +307,7 @@ class _BottomNav extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
