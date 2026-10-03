@@ -258,7 +258,7 @@ class _BottomNav extends StatelessWidget {
           // starts and ends instead of a uniform ring.
           if (!dark)
             const BoxShadow(
-              color: Color(0x140B1220),
+              color: Color(0x0D0B1220),
               blurRadius: 3,
               spreadRadius: 0.5,
               offset: Offset(0, -1.5),
@@ -275,19 +275,34 @@ class _BottomNav extends StatelessWidget {
       borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
-        child: DecoratedBox(
+        child: Container(
           decoration: BoxDecoration(
             // Translucent, so the blur behind it reads as glass rather than
             // being hidden under an opaque fill.
             color: c.card.withValues(alpha: 0.62),
             borderRadius: BorderRadius.circular(26),
             // A white hairline reads as light catching the rim on a dark
-            // ground and as nothing at all on a light one, where the shadow
-            // above draws that edge instead.
+            // ground and as nothing at all on a light one, where the shadows
+            // draw that edge instead.
             border: dark
                 ? Border.all(color: Colors.white.withValues(alpha: 0.10))
                 : null,
           ),
+          // The inner half of the rim, inside the glass and over the top edge
+          // only. The outer shadow alone leaves the bar's top boundary hard to
+          // find on a light page; this fades out by 16% of the height, well
+          // above where the icons sit.
+          foregroundDecoration: dark
+              ? null
+              : BoxDecoration(
+                  borderRadius: BorderRadius.circular(26),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x160B1220), Color(0x000B1220)],
+                    stops: [0.0, 0.16],
+                  ),
+                ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             // LayoutBuilder (not Expanded/flex) so each tab's width is a real
