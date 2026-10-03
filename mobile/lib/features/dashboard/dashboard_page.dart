@@ -265,8 +265,31 @@ class DashboardPage extends ConsumerWidget {
       // Gold trophy Level/XP card — last card, matching the web/Capacitor app.
       _LevelCard(name: name),
     ];
+    // The artwork goes BEHIND the first child rather than over the whole page,
+    // so it scrolls away with the content instead of staying pinned under it —
+    // and the top SafeArea comes off below, so the scroll view owns the full
+    // height and the picture can reach the top of the screen.
+    final safeTop = mq.viewPadding.top;
+    if (kids.isNotEmpty) {
+      kids[0] = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            // Back out of the list's own padding to reach the screen's edges
+            // and its very top.
+            top: -(safeTop + 14),
+            left: -16,
+            right: -16,
+            height: safeTop + _HubHero.toCardTop + _HubHero.intoCard,
+            child: const _HubHero(),
+          ),
+          kids[0],
+        ],
+      );
+    }
+
     final list = ListView(
-      padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
+      padding: EdgeInsets.fromLTRB(16, safeTop + 14, 16, 28 + shellNavInset(context)),
       children: reduced
           ? kids
           : AnimationConfiguration.toStaggeredList(
@@ -279,18 +302,16 @@ class DashboardPage extends ConsumerWidget {
               children: kids,
             ),
     );
-    final body =
-        SafeArea(bottom: false, child: reduced ? list : AnimationLimiter(child: list));
-    // Dark only: the artwork is lit for a black ground and would sit on the
-    // light page as a grey slab.
-    if (Theme.of(context).brightness != Brightness.dark) return body;
-    return Stack(children: [const _HubHero(), body]);
+    // No top SafeArea: the inset is in the list's padding above, so the
+    // viewport runs to the top of the screen and the artwork is not clipped
+    // short of it.
+    return reduced ? list : AnimationLimiter(child: list);
   }
 }
 
 /// The artwork behind the top of the Study Hub, bundled in assets/hub/.
-/// One per day, the same way the mascots rotate — seven of them, so a week
-/// goes by before one comes round again.
+/// One per day, the same way the mascots rotate.
+/// Night desks, for the dark theme.
 const _kHubHeroes = [
   'assets/hub/hero_1.webp',
   'assets/hub/hero_2.webp',
@@ -301,34 +322,41 @@ const _kHubHeroes = [
   'assets/hub/hero_7.webp',
 ];
 
+/// Daylight desks, for the light theme. A set of its own rather than the same
+/// pictures lightened: these are lit from the window, and the empty space the
+/// words sit on is the bright side instead of the dark one.
+const _kHubHeroesLight = [
+  'assets/hub/hero_light_1.webp',
+  'assets/hub/hero_light_2.webp',
+  'assets/hub/hero_light_3.webp',
+  'assets/hub/hero_light_4.webp',
+  'assets/hub/hero_light_5.webp',
+  'assets/hub/hero_light_6.webp',
+];
+
 /// A full-bleed photograph behind the page's first screenful, dissolving into
 /// the page colour before it reaches the bottom of the Continue card.
 class _HubHero extends StatelessWidget {
   const _HubHero();
 
-  /// From the top of the screen down to the Continue card's own top: the safe
-  /// inset, the list's 14 padding, the avatar row, and the eyebrow / title /
-  /// goal-line stack with its gaps. These are all fixed sizes, so this is
-  /// arithmetic rather than a guess — but it is still a number to re-check if
-  /// that header ever changes.
-  static const double _toCardTop = 14 + 38 + 2 + 16 + 5 + 36 + 4 + 18 + 14;
+  /// From the top of the list's content down to the Continue card's own top:
+  /// the 14 padding, the avatar row, and the eyebrow / title / goal-line stack
+  /// with its gaps. These are all fixed sizes, so this is arithmetic rather
+  /// than a guess — but it is still a number to re-check if that header ever
+  /// changes.
+  static const double toCardTop = 14 + 38 + 2 + 16 + 5 + 36 + 4 + 18 + 14;
 
   /// How far INTO the card the artwork is allowed to reach. Half of it.
-  static const double _intoCard = 74;
+  static const double intoCard = 74;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final top = MediaQuery.viewPaddingOf(context).top;
-    final height = top + _toCardTop + _intoCard;
-    final asset = _kHubHeroes[DateTime.now().day % _kHubHeroes.length];
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final set = dark ? _kHubHeroes : _kHubHeroesLight;
+    final asset = set[DateTime.now().day % set.length];
 
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      height: height,
-      child: IgnorePointer(
+    return IgnorePointer(
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -369,7 +397,6 @@ class _HubHero extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
