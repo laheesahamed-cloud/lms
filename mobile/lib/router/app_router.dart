@@ -424,12 +424,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/app/notifications',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const NotificationsPage()),
+                slidePage(key: s.pageKey, child: const NotificationsPage()),
           ),
           GoRoute(
             path: '/app/subscriptions',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const SubscriptionsPage()),
+                slidePage(key: s.pageKey, child: const SubscriptionsPage()),
           ),
           GoRoute(
             path: '/app/profile',

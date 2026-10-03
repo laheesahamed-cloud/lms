@@ -5,6 +5,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'notifications_repository.dart';
+import '../../widgets/page_header.dart';
 
 class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
@@ -49,25 +50,8 @@ class NotificationsPage extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 20, color: c.inkMedium),
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                  const SizedBox(width: 10),
-                  Text('Notifications',
-                      style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: c.inkStrong,
-                          letterSpacing: -0.5)),
-                ],
-              ),
-              const SizedBox(height: 18),
+              const PageHeader(title: 'Notifications'),
+              const SizedBox(height: 14),
               if (items.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 60),

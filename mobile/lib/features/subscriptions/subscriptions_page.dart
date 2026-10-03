@@ -8,6 +8,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/glass_card.dart';
 import 'paywall_sheet.dart';
 import 'subscriptions_repository.dart';
+import '../../widgets/page_header.dart';
 
 /// Subscription screen — the user's current plan/status, what each plan
 /// includes, and (on iOS) the way to subscribe.
@@ -86,33 +87,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             children: [
-              // The page is pushed from the dashboard and from Profile, and had
-              // no way back but the system swipe.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 20, color: c.inkMedium),
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text('PLAN',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      color: c.accent)),
-              const SizedBox(height: 4),
-              Text('Subscription',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: c.inkStrong,
-                      letterSpacing: -0.5)),
+              const PageHeader(title: 'Subscription'),
               const SizedBox(height: 10),
               _statusCard(c, billing.current),
               // Only offer a purchase when there is nothing active to buy over —
