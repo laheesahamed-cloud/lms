@@ -87,17 +87,11 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
-              PageHeader(title: courseName),
-              const SizedBox(height: 4),
-              // Kept: examMode comes from the URL with no toggle on screen, so
-              // after the "EXAM SETS" eyebrow went this line is the only thing
-              // that still says which of the two you are looking at.
-              Text(
-                  '${groups.length} ${_scope.groupingNoun}${groups.length == 1 ? '' : 's'} · ${mine.length} ${_exam ? 'exam' : 'set'}${mine.length == 1 ? '' : 's'}',
-                  style: TextStyle(fontSize: 14, color: c.inkSoft)),
-              const SizedBox(height: 14),
-              if (mine.isNotEmpty) _scopeBar(c),
-              const SizedBox(height: 14),
+              PageHeader(
+                title: courseName,
+                actions: [if (mine.isNotEmpty) _scopePicker(c)],
+              ),
+              const SizedBox(height: 12),
               if (mine.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 30),
@@ -140,32 +134,26 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     );
   }
 
-  /// The "view by" categorization dropdown (mirrors the web `<select>`).
-  Widget _scopeBar(AppColors c) {
-    return Row(
-      children: [
-        Icon(Icons.tune_rounded, size: 16, color: c.inkSoft),
-        const SizedBox(width: 6),
-        Text('View by',
-            style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w700, color: c.inkSoft)),
-        const Spacer(),
-        Container(
+  /// The categorization dropdown (mirrors the web `<select>`). It sits in the
+  /// title row, so it carries no "View by" label of its own — the chosen value
+  /// says what it is.
+  Widget _scopePicker(AppColors c) {
+    return Container(
           decoration: BoxDecoration(
             color: c.surface2,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(color: c.line),
           ),
-          padding: const EdgeInsets.only(left: 14, right: 8),
+          padding: const EdgeInsets.only(left: 12, right: 6),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<QuizScope>(
               value: _scope,
               isDense: true,
               borderRadius: BorderRadius.circular(AppRadius.compact),
               dropdownColor: c.cardElevated,
-              icon: Icon(Icons.expand_more_rounded, color: c.inkSoft, size: 18),
+              icon: Icon(Icons.expand_more_rounded, color: c.inkSoft, size: 17),
               style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   color: c.inkStrong),
               items: [
@@ -174,7 +162,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
                     value: s,
                     child: Text(s.label,
                         style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.w800,
                             color: c.inkStrong)),
                   ),
@@ -184,9 +172,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
               },
             ),
           ),
-        ),
-      ],
-    );
+        );
   }
 
   /// Horizontal "All {noun}s" + per-group filter chips.
