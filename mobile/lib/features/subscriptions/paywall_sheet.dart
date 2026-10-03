@@ -398,14 +398,26 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
 /// of the sheet rather than repeated on every card.
 /// A selectable plan row. Tapping selects; the single CTA at the bottom of the
 /// sheet does the buying, so nothing here competes with it.
-/// A selected card's fill: the CTA's own gradient at a low alpha, so the card
-/// is the background tinted rather than a block of colour on top of it. The
-/// edge carries the full strength; the inside only hints at it.
-const _ctaWash = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Color(0x2E3B82F6), Color(0x2E6366F1)],
-);
+/// A selected card's fill: the CTA's colours at low strength, blended into the
+/// app's own background and fading back to it.
+///
+/// Blended explicitly rather than left translucent. A BoxDecoration ignores its
+/// `color` when a `gradient` is set, so a translucent wash was compositing over
+/// whatever happened to be behind the card rather than over the page — fine
+/// here by luck, wrong the moment anything sits underneath it.
+///
+/// It runs to the page colour at the far corner, so the card reads as the
+/// background warming toward the CTA rather than a flat tinted panel.
+LinearGradient _ctaWash(Color page) => LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color.alphaBlend(const Color(0xFF3B82F6).withValues(alpha: 0.26), page),
+        Color.alphaBlend(const Color(0xFF6366F1).withValues(alpha: 0.15), page),
+        page,
+      ],
+      stops: const [0.0, 0.55, 1.0],
+    );
 
 class _PlanOption extends StatelessWidget {
   final IapProduct product;
@@ -449,10 +461,10 @@ class _PlanOption extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(13, 7, 13, 7),
             decoration: BoxDecoration(
               // Mixed into the page's black rather than a solid fill: the card
-              // reads as the background lifted, with the gradient only on its
-              // edge, instead of a blue block sitting on a black sheet.
-              color: c.page,
-              gradient: selected ? _ctaWash : null,
+              // reads as the background warming toward the CTA, with the
+              // gradient at full strength only on its edge.
+              color: selected ? null : c.page,
+              gradient: selected ? _ctaWash(c.page) : null,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
