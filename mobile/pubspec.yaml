@@ -98,6 +98,7 @@ flutter:
     - assets/brand/
     - assets/medical/
     - assets/mascots/
+    - assets/premium/
 
   # Plus Jakarta Sans bundled as a variable TTF (weights 200–800) so the app
   # never downloads the font at runtime. Replaces the google_fonts package.

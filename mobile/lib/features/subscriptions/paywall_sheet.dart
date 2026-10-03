@@ -264,30 +264,42 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     return 'SAVE ${saved.round()}%';
   }
 
+  /// The status-bar inset, read from viewPadding so a sheet that has had its
+  /// padding consumed still sees the real value.
+  static double _topInset(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return mq.viewPadding.top > 0 ? mq.viewPadding.top : mq.padding.top;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final bottom = MediaQuery.of(context).padding.bottom;
+    final mq = MediaQuery.of(context);
+    final bottom = mq.viewPadding.bottom > 0
+        ? mq.viewPadding.bottom
+        : mq.padding.bottom;
     final busy = _busyProductId != null || _restoring;
     final selected = _selectedProduct;
 
     return Container(
-      // Never taller than the space below the status bar. The old 92% was a
-      // guess that happens to be wrong on exactly the phones with a dynamic
-      // island: the sheet grows upward, so 8% of the screen was not enough to
-      // clear it and the title was cut in half by it.
+      // viewPadding, NOT padding. Inside a modal bottom sheet Flutter zeroes
+      // MediaQuery.padding, so the previous fix subtracted nothing and the
+      // sheet still opened under the dynamic island — the close button landed
+      // on the clock. viewPadding reports the real inset regardless of who has
+      // consumed it.
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height -
-            MediaQuery.of(context).padding.top -
-            10,
+        maxHeight: MediaQuery.of(context).size.height - _topInset(context) - 8,
       ),
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF0F121F) : const Color(0xFFFBFCFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 10, 20, bottom + 16),
+        // And pad the content by the same inset. Capping the height stops the
+        // sheet growing into the island; this stops the first row sitting
+        // against its edge.
+        padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -332,7 +344,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
             // The mark, then the promise. A paywall that opens on a price list
             // asks for money before it has said what for.
             const Center(child: _PremiumMark()),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text('Unlock everything',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -342,7 +354,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                     color: c.inkStrong)),
             const SizedBox(height: 6),
             Text(
-              'Get complete access to all courses, practice materials and premium features.',
+              'Complete access to every course, question and mock exam.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, height: 1.35, color: c.inkSoft),
             ),
@@ -475,7 +487,7 @@ class _PlanOption extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
           decoration: BoxDecoration(
             color: selected ? c.primaryTint.withValues(alpha: 0.55) : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
@@ -520,6 +532,7 @@ class _PlanOption extends StatelessWidget {
                                 color: c.inkStrong),
                           ),
                         ),
+                        const Spacer(),
                         // Only on a plan that is NOT the recommended one, so
                         // a single row never carries two competing badges.
                         if (!recommended && saving != null) ...[
@@ -618,13 +631,11 @@ class _FeatureTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
-      decoration: BoxDecoration(
-        color: c.surface2,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.line),
-      ),
+    // No card behind it. Four bordered boxes stacked two-by-two made a grid of
+    // containers rather than a list of benefits, and the borders cost height
+    // this sheet does not have. The icon tile is enough of an anchor.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -677,8 +688,8 @@ class _PremiumMark extends StatelessWidget {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      width: 52,
-      height: 52,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
         gradient: kHeroGradient,
         borderRadius: BorderRadius.circular(16),
@@ -692,7 +703,7 @@ class _PremiumMark extends StatelessWidget {
         ],
       ),
       child: const Icon(Icons.workspace_premium_rounded,
-          size: 26, color: Colors.white),
+          size: 24, color: Colors.white),
     );
   }
 }

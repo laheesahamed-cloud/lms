@@ -364,147 +364,86 @@ class _UpgradeBanner extends StatelessWidget {
   final VoidCallback onTap;
   const _UpgradeBanner({required this.onTap});
 
+  /// The artwork is the whole card, not a decoration on one: the gradient, the
+  /// crown, the cap, the sparkles and the chevron are all painted into it, with
+  /// its left side deliberately left clear for the words. So the widget's only
+  /// job is to lay the text into that clear space and take the tap.
+  ///
+  /// 2.39:1 is the image's own aspect. Pinned, so the art is never cropped and
+  /// the text never drifts off the part of it that was left empty.
+  static const double _aspect = 2.39;
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-        decoration: BoxDecoration(
-          gradient: kHeroGradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF4F46E5).withValues(alpha: dark ? 0.34 : 0.22),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: AspectRatio(
+          aspectRatio: _aspect,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              image: const DecorationImage(
+                image: AssetImage('assets/premium/upgrade_card.jpg'),
+                fit: BoxFit.cover,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4F46E5)
+                      .withValues(alpha: dark ? 0.30 : 0.18),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(children: [
-                    const Icon(Icons.auto_awesome_rounded,
-                        size: 14, color: Colors.white70),
-                    const SizedBox(width: 6),
-                    Text('Upgrade to Premium',
+            child: LayoutBuilder(
+              builder: (context, box) => Padding(
+                // The clear part of the artwork is its left 55%; the crown and
+                // the chevron live in the rest. Sizing the text block to that
+                // fraction keeps the words off the picture at every width.
+                padding: EdgeInsets.fromLTRB(
+                    box.maxWidth * 0.055, 0, box.maxWidth * 0.45, 0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.auto_awesome_rounded,
+                          size: 13, color: Colors.white70),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text('Upgrade to Premium',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white.withValues(alpha: 0.9))),
+                      ),
+                    ]),
+                    const SizedBox(height: 6),
+                    const Text('Unlock your full\nlearning potential',
                         style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 17,
+                            height: 1.18,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 0.2,
-                            color: Colors.white.withValues(alpha: 0.88))),
-                  ]),
-                  const SizedBox(height: 8),
-                  const Text('Unlock your full\nlearning potential',
+                            letterSpacing: -0.3,
+                            color: Colors.white)),
+                    const SizedBox(height: 6),
+                    Text(
+                      'All courses, practice questions, mock exams and more.',
                       style: TextStyle(
-                          fontSize: 18,
-                          height: 1.2,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                          color: Colors.white)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Get access to all courses, practice questions, mock exams and more.',
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.35,
-                        color: Colors.white.withValues(alpha: 0.82)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const _CrownMark(size: 50),
-            const SizedBox(width: 6),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.chevron_right_rounded,
-                  size: 20, color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The crown badge: a tilted card with a crown on it, drawn from two rounded
-/// rectangles and an icon. Sparkles sit at the corners so it reads as a mark
-/// rather than a button.
-class _CrownMark extends StatelessWidget {
-  final double size;
-  const _CrownMark({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          // The card behind, tilted, to give the mark some depth.
-          Transform.rotate(
-            angle: -0.22,
-            child: Container(
-              width: size * 0.62,
-              height: size * 0.72,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(size * 0.14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
-              ),
-            ),
-          ),
-          Transform.rotate(
-            angle: 0.12,
-            child: Container(
-              width: size * 0.58,
-              height: size * 0.68,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.42),
-                    Colors.white.withValues(alpha: 0.18),
+                          fontSize: 11,
+                          height: 1.3,
+                          color: Colors.white.withValues(alpha: 0.85)),
+                    ),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(size * 0.14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.42)),
               ),
-              child: Icon(Icons.workspace_premium_rounded,
-                  size: size * 0.32, color: Colors.white),
             ),
           ),
-          Positioned(
-            top: 2,
-            right: 4,
-            child: Icon(Icons.auto_awesome_rounded,
-                size: size * 0.18,
-                color: Colors.white.withValues(alpha: 0.9)),
-          ),
-          Positioned(
-            bottom: 4,
-            left: 2,
-            child: Icon(Icons.auto_awesome_rounded,
-                size: size * 0.13,
-                color: Colors.white.withValues(alpha: 0.7)),
-          ),
-        ],
+        ),
       ),
     );
   }
