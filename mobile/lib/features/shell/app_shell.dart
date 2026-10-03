@@ -15,6 +15,7 @@ import '../flashcards/flashcards_repository.dart';
 import '../dashboard/dashboard_repository.dart';
 import '../bookmarks/bookmarks_repository.dart';
 import '../planner/planner_repository.dart';
+import '../../widgets/shell_insets.dart';
 
 /// Observes the root navigator so the shell can refresh its lists when a
 /// pushed detail screen (lesson, quiz, course, review…) is popped back.
@@ -185,16 +186,6 @@ class _AppShellState extends ConsumerState<AppShell> with RouteAware {
   }
 }
 
-/// Vertical space the floating tab bar occupies — the pill, its bottom margin
-/// and the home indicator under it. A page adds this to the BOTTOM PADDING OF
-/// ITS SCROLL VIEW (not to a SafeArea, which would shrink the viewport and stop
-/// anything passing under the glass), so its last item clears the bar while
-/// everything above slides beneath it.
-double shellNavInset(BuildContext context) =>
-    _kPillHeight + _kPillMargin + MediaQuery.viewPaddingOf(context).bottom;
-
-const double _kPillHeight = 64;
-const double _kPillMargin = 10;
 
 /// How far above the pill the blur begins to come in.
 const double _kBlurRunUp = 46;
@@ -217,16 +208,34 @@ class _BottomNav extends StatelessWidget {
     final safe = MediaQuery.viewPaddingOf(context).bottom;
 
     return SizedBox(
-      height: _kPillHeight + _kPillMargin + safe + _kBlurRunUp,
+      height: kShellPillHeight + kShellPillMargin + safe + _kBlurRunUp,
       child: Stack(
         fit: StackFit.expand,
         children: [
           const _ProgressiveBlur(),
+          // The page's own colour, fading in downward. Blur alone leaves bright
+          // content showing straight through; this settles it into the bar.
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    c.page.withValues(alpha: 0.0),
+                    c.page.withValues(alpha: 0.34),
+                    c.page.withValues(alpha: 0.72),
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
           Positioned(
             left: 16,
             right: 16,
-            bottom: _kPillMargin + safe,
-            height: _kPillHeight,
+            bottom: kShellPillMargin + safe,
+            height: kShellPillHeight,
             child: _pill(c, dark),
           ),
         ],

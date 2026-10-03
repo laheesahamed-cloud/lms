@@ -9,7 +9,9 @@ import 'package:flutter/material.dart';
 /// instead, which is inside the scrollable: the last item still comes to rest
 /// clear of the bar, and everything above it slides beneath.
 const double kShellPillHeight = 64;
-const double kShellPillMargin = 10;
+/// Gap under the pill, on top of the home indicator. Deliberately small —
+/// the bar sits low, close to the screen's edge.
+const double kShellPillMargin = 4;
 
 double shellNavInset(BuildContext context) =>
     kShellPillHeight +
