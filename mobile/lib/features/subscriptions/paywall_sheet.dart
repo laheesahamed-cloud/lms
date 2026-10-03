@@ -345,7 +345,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
             // as a crest over the words rather than a picture parked above
             // them — and it costs less height than the two separately.
             const _UnlockHeader(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             // 2x2 rather than four rows: it halves the vertical space the
             // features take, which is what lets the plans sit above the fold.
             Row(children: [
@@ -466,7 +466,7 @@ class _PlanOption extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+          padding: const EdgeInsets.fromLTRB(14, 7, 14, 7),
           decoration: BoxDecoration(
             color: selected ? c.primaryTint.withValues(alpha: 0.55) : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
@@ -511,44 +511,6 @@ class _PlanOption extends StatelessWidget {
                                 color: c.inkStrong),
                           ),
                         ),
-                        const Spacer(),
-                        // Only on a plan that is NOT the recommended one, so
-                        // a single row never carries two competing badges.
-                        if (!recommended && saving != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: c.success.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                            child: Text(saving!,
-                                style: TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.7,
-                                    color: c.success)),
-                          ),
-                        ],
-                        if (recommended) ...[
-                          const SizedBox(width: 8),
-                          // Solid fill, not a tint — the old badge blended into
-                          // the card and was easy to miss.
-                          Container(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                                color: c.primary,
-                                borderRadius: BorderRadius.circular(99)),
-                            child: const Text('BEST VALUE',
-                                style: TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.7,
-                                    color: Colors.white)),
-                          ),
-                        ],
                       ],
                     ),
                     const SizedBox(height: 3),
@@ -558,6 +520,56 @@ class _PlanOption extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color: selected ? c.primary : c.inkSoft)),
                   ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // A fixed slot, so every badge starts at the same x down the
+              // column and sits centred against the name and the price rather
+              // than riding on the name's baseline.
+              SizedBox(
+                width: 86,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Only on a plan that is NOT the recommended one, so a
+                      // single row never carries two competing badges.
+                      if (!recommended && saving != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: c.success.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(saving!,
+                              style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.7,
+                                  color: c.success)),
+                        ),
+                      if (recommended)
+                        // Solid fill, not a tint — the old badge blended into
+                        // the card and was easy to miss.
+                        Container(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                              color: c.primary,
+                              borderRadius: BorderRadius.circular(99)),
+                          child: const Text('BEST VALUE',
+                              style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.7,
+                                  color: Colors.white)),
+                        ),
+
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -613,9 +625,7 @@ class _FeatureTile extends StatelessWidget {
     // No card behind it. Four bordered boxes stacked two-by-two made a grid of
     // containers rather than a list of benefits, and the borders cost height
     // this sheet does not have. The icon tile is enough of an anchor.
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
+    return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -651,7 +661,6 @@ class _FeatureTile extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }
@@ -668,62 +677,73 @@ class _FeatureTile extends StatelessWidget {
 class _UnlockHeader extends StatelessWidget {
   const _UnlockHeader();
 
+  /// The artwork's own proportions. Height follows width from this, so the
+  /// picture is never cropped — cover was cutting the top off the crown and
+  /// the bottom off the cards.
+  static const double _aspect = 2.13;
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    // The sheet pads its content by 20 a side, which left the artwork floating
-    // in a column with margins while the reference runs it to both edges.
-    // OverflowBox lets this one child ignore that padding and take the full
-    // sheet width, so the fanned cards bleed off each side as they should.
+    // The sheet pads its content 20 a side; this one child ignores that and
+    // takes the full width, so the fanned cards reach both edges.
     final full = MediaQuery.of(context).size.width;
+    final art = full / _aspect;
+
     return SizedBox(
-      height: 118,
+      height: art,
       child: OverflowBox(
         maxWidth: full,
         alignment: Alignment.topCenter,
         child: SizedBox(
           width: full,
-          height: 118,
+          height: art,
           child: Stack(
-            alignment: Alignment.topCenter,
+            alignment: Alignment.bottomCenter,
             children: [
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Opacity(
-                  // Held well back: the cards are a backdrop for the title, and
-                  // at full strength they pulled the eye away from it.
-                  opacity: 0.72,
-                  child: Image.asset(
-                    'assets/premium/unlock_hero.png',
-                    height: 92,
-                    width: full,
-                    // cover, not contain: edge to edge is the point, so the art
-                    // fills the width and loses a little top and bottom rather
-                    // than leaving a margin.
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                    filterQuality: FilterQuality.medium,
+              // Background only — nothing is laid out around it, things are
+              // laid out ON it.
+              Positioned.fill(
+                child: ShaderMask(
+                  // Feather every edge into the sheet instead of ending on a
+                  // straight cut. Without this the picture reads as a pasted
+                  // rectangle: you could see exactly where it stopped.
+                  shaderCallback: (rect) => const RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.78,
+                    colors: [
+                      Colors.white,
+                      Colors.white,
+                      Color(0x66FFFFFF),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.55, 0.82, 1.0],
+                  ).createShader(rect),
+                  blendMode: BlendMode.dstIn,
+                  child: Opacity(
+                    opacity: 0.85,
+                    child: Image.asset(
+                      'assets/premium/unlock_hero.png',
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.medium,
+                    ),
                   ),
                 ),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
+              // The title sits ON the artwork, in its lower third where the
+              // cards are darkest.
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   'Unlock everything',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 25,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                     color: c.inkStrong,
-                    // The art behind the words is busy in places, so the type
-                    // carries its own separation rather than relying on luck.
                     shadows: const [
-                      Shadow(color: Color(0x99000000), blurRadius: 12),
+                      Shadow(color: Color(0xCC000000), blurRadius: 14),
                     ],
                   ),
                 ),
