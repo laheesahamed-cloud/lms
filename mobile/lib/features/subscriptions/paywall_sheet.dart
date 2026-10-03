@@ -353,7 +353,6 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               AppButton(
                 'Unlock full access',
                 kind: AppButtonKind.cta,
-              gradient: _premiumGradient,
                 expand: true,
                 loading: _busyProductId != null,
                 onPressed: busy ? null : () => _buy(selected),
@@ -399,22 +398,13 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
 /// of the sheet rather than repeated on every card.
 /// A selectable plan row. Tapping selects; the single CTA at the bottom of the
 /// sheet does the buying, so nothing here competes with it.
-/// The sheet's one accent: blue into indigo into violet.
-///
-/// Defined here rather than by widening kHeroGradient, which the dashboard
-/// hero also draws with — this is the premium surface's own identity and
-/// should be free to differ from it.
-const _premiumGradient = LinearGradient(
+/// A selected card's fill: the CTA's own gradient at a low alpha, so the card
+/// is the background tinted rather than a block of colour on top of it. The
+/// edge carries the full strength; the inside only hints at it.
+const _ctaWash = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF3B82F6), Color(0xFF6366F1), Color(0xFFA855F7)],
-);
-
-/// The same three colours as a soft wash, for a selected card's fill.
-const _premiumWash = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Color(0x333B82F6), Color(0x336366F1), Color(0x33A855F7)],
+  colors: [Color(0x2E3B82F6), Color(0x2E6366F1)],
 );
 
 class _PlanOption extends StatelessWidget {
@@ -451,7 +441,7 @@ class _PlanOption extends StatelessWidget {
           // gradient-filled box with the card inset inside it by the stroke.
           padding: EdgeInsets.all(selected ? 1.6 : 1),
           decoration: BoxDecoration(
-            gradient: selected ? _premiumGradient : null,
+            gradient: selected ? kHeroGradient : null,
             color: selected ? null : c.line.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(15),
           ),
@@ -462,7 +452,7 @@ class _PlanOption extends StatelessWidget {
               // reads as the background lifted, with the gradient only on its
               // edge, instead of a blue block sitting on a black sheet.
               color: c.page,
-              gradient: selected ? _premiumWash : null,
+              gradient: selected ? _ctaWash : null,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -473,7 +463,7 @@ class _PlanOption extends StatelessWidget {
                 height: 21,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: selected ? _premiumGradient : null,
+                  gradient: selected ? kHeroGradient : null,
                   color: selected ? null : Colors.transparent,
                   border: Border.all(
                       color: selected ? Colors.transparent : c.line,
@@ -550,7 +540,7 @@ class _PlanOption extends StatelessWidget {
                           padding:
                               const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                              gradient: _premiumGradient,
+                              gradient: kHeroGradient,
                               borderRadius: BorderRadius.circular(99)),
                           child: const Text('BEST VALUE',
                               style: TextStyle(
@@ -625,7 +615,7 @@ class _FeatureTile extends StatelessWidget {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              gradient: _premiumGradient,
+              gradient: kHeroGradient,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(f.icon, size: 15, color: Colors.white),
