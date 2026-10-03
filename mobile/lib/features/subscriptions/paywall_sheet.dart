@@ -341,10 +341,14 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               ],
             ),
 
-            // The mark, then the promise. A paywall that opens on a price list
-            // asks for money before it has said what for.
-            const Center(child: _PremiumMark()),
-            const SizedBox(height: 8),
+            // The artwork carries the pitch. The one-line subtitle it replaces
+            // said what the crown, the cards and the four tiles below already
+            // show — and at 92pt the art costs more height than this sheet has
+            // spare, so something had to go and the sentence was the weakest
+            // of the three.
+            const SizedBox(height: 2),
+            const Center(child: _UnlockHero()),
+            const SizedBox(height: 6),
             Text('Unlock everything',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -352,14 +356,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.4,
                     color: c.inkStrong)),
-            const SizedBox(height: 6),
-            Text(
-              'Complete access to every course, question and mock exam.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, height: 1.35, color: c.inkSoft),
-            ),
-            const SizedBox(height: 14),
-
+            const SizedBox(height: 12),
             // 2x2 rather than four rows: it halves the vertical space the
             // features take, which is what lets the plans sit above the fold.
             Row(children: [
@@ -367,7 +364,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               const SizedBox(width: 10),
               Expanded(child: _FeatureTile(f: _features[1])),
             ]),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(children: [
               Expanded(child: _FeatureTile(f: _features[2])),
               const SizedBox(width: 10),
@@ -677,33 +674,23 @@ class _FeatureTile extends StatelessWidget {
   }
 }
 
-/// The crown mark at the top of the sheet: a rounded tile with a soft glow
-/// behind it. Drawn rather than an asset, so it follows the theme and stays
-/// crisp — the glow is simply a wider shadow in the brand colour.
-class _PremiumMark extends StatelessWidget {
-  const _PremiumMark();
+/// The artwork at the top of the sheet.
+///
+/// A PNG with a real alpha channel, so the glow fades into whatever is behind
+/// it rather than sitting on a plate — which is what let it keep its white
+/// crown: a background removed by colour would have taken the crown with it.
+///
+/// Height-constrained, not width: the sheet's height is the scarce thing here,
+/// and at 92pt this still comes out ~196pt wide, comfortably inside the
+/// content column on any phone.
+class _UnlockHero extends StatelessWidget {
+  const _UnlockHero();
 
   @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        gradient: kHeroGradient,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: c.primary.withValues(alpha: dark ? 0.46 : 0.28),
-            blurRadius: 26,
-            spreadRadius: 1,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: const Icon(Icons.workspace_premium_rounded,
-          size: 24, color: Colors.white),
-    );
-  }
+  Widget build(BuildContext context) => Image.asset(
+        'assets/premium/unlock_hero.png',
+        height: 92,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
+      );
 }
