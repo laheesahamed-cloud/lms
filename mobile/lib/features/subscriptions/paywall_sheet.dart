@@ -290,7 +290,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
       // sheet below the status bar, and a second limit computed here is what
       // kept fighting it.
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF07070B) : const Color(0xFFFBFCFF),
+        color: dark ? c.page : const Color(0xFFFBFCFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: ClipRRect(
@@ -662,9 +662,13 @@ class _UnlockHeader extends StatelessWidget {
     final c = context.c;
     final w = MediaQuery.of(context).size.width;
     final art = w / _aspect;
-    // Enough room under the picture for the title and the subtitle to sit on
-    // its lower half, where the cards are darkest.
-    final height = art + 34;
+    // Where the words start: just past the crown's middle, so the title
+    // crosses it rather than clearing it. Taken as a fraction of the artwork so
+    // it holds at any width.
+    final textTop = art * 0.46;
+    // The block ends with the subtitle, which now finishes inside the picture
+    // — so the header is the artwork's own height and no taller.
+    final height = art;
 
     return SizedBox(
       height: height,
@@ -701,11 +705,16 @@ class _UnlockHeader extends StatelessWidget {
                   stops: [0.0, 0.76, 0.92, 1.0],
                 ).createShader(rect),
                 blendMode: BlendMode.dstIn,
-                child: Image.asset(
-                  'assets/premium/unlock_hero.png',
-                  width: w,
-                  fit: BoxFit.fitWidth,
-                  filterQuality: FilterQuality.medium,
+                child: Opacity(
+                  // Quieter again: the words sit across the crown now, and the
+                  // picture has to give way to them.
+                  opacity: 0.72,
+                  child: Image.asset(
+                    'assets/premium/unlock_hero.png',
+                    width: w,
+                    fit: BoxFit.fitWidth,
+                    filterQuality: FilterQuality.medium,
+                  ),
                 ),
               ),
             ),
@@ -717,7 +726,7 @@ class _UnlockHeader extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 0,
-            height: height * 0.62,
+            height: height * 0.72,
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -785,7 +794,7 @@ class _UnlockHeader extends StatelessWidget {
           Positioned(
             left: 20,
             right: 20,
-            bottom: 0,
+            top: textTop,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
