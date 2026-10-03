@@ -279,7 +279,98 @@ class DashboardPage extends ConsumerWidget {
               children: kids,
             ),
     );
-    return SafeArea(bottom: false, child: reduced ? list : AnimationLimiter(child: list));
+    final body =
+        SafeArea(bottom: false, child: reduced ? list : AnimationLimiter(child: list));
+    // Dark only: the artwork is lit for a black ground and would sit on the
+    // light page as a grey slab.
+    if (Theme.of(context).brightness != Brightness.dark) return body;
+    return Stack(children: [const _HubHero(), body]);
+  }
+}
+
+/// The artwork behind the top of the Study Hub, bundled in assets/hub/.
+/// One per day, the same way the mascots rotate — seven of them, so a week
+/// goes by before one comes round again.
+const _kHubHeroes = [
+  'assets/hub/hero_1.webp',
+  'assets/hub/hero_2.webp',
+  'assets/hub/hero_3.webp',
+  'assets/hub/hero_4.webp',
+  'assets/hub/hero_5.webp',
+  'assets/hub/hero_6.webp',
+  'assets/hub/hero_7.webp',
+];
+
+/// A full-bleed photograph behind the page's first screenful, dissolving into
+/// the page colour before it reaches the bottom of the Continue card.
+class _HubHero extends StatelessWidget {
+  const _HubHero();
+
+  /// From the top of the screen down to the Continue card's own top: the safe
+  /// inset, the list's 14 padding, the avatar row, and the eyebrow / title /
+  /// goal-line stack with its gaps. These are all fixed sizes, so this is
+  /// arithmetic rather than a guess — but it is still a number to re-check if
+  /// that header ever changes.
+  static const double _toCardTop = 14 + 38 + 2 + 16 + 5 + 36 + 4 + 18 + 14;
+
+  /// How far INTO the card the artwork is allowed to reach. Half of it.
+  static const double _intoCard = 74;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final top = MediaQuery.viewPaddingOf(context).top;
+    final height = top + _toCardTop + _intoCard;
+    final asset = _kHubHeroes[DateTime.now().day % _kHubHeroes.length];
+
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: height,
+      child: IgnorePointer(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(asset, fit: BoxFit.cover, alignment: Alignment.centerRight),
+            // Down the picture: a touch of shade at the very top so the status
+            // bar and the avatar row stay readable over the lamp, then clear
+            // through the middle, then all the way to the page colour so the
+            // photograph ends without an edge.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    c.page.withValues(alpha: 0.45),
+                    c.page.withValues(alpha: 0.10),
+                    c.page.withValues(alpha: 0.55),
+                    c.page,
+                  ],
+                  stops: const [0.0, 0.3, 0.72, 1.0],
+                ),
+              ),
+            ),
+            // And across it: the words all sit on the left, where every one of
+            // these photographs is darkest, so this only has to deepen it.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    c.page.withValues(alpha: 0.55),
+                    c.page.withValues(alpha: 0.0),
+                  ],
+                  stops: const [0.0, 0.62],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

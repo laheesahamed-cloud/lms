@@ -96,6 +96,7 @@ flutter:
 
   assets:
     - assets/brand/
+    - assets/hub/
     - assets/medical/
     - assets/mascots/
     - assets/premium/
