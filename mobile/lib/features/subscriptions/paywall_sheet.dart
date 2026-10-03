@@ -731,16 +731,22 @@ class _UnlockBackdrop extends StatelessWidget {
             // Fades out on every side instead of ending on a straight cut, so
             // the picture dissolves into the sheet rather than sitting on it
             // as a visible rectangle.
+            // radius is a fraction of the box's SHORTEST side, not its width.
+            // At 0.8 on a 393x185 box that reached 148pt from centre while the
+            // artwork extends 196 — so the mask was erasing the outer third of
+            // the cards, which looked exactly like the picture being cropped.
+            // 1.25 clears the corners (they sit 1.17 away), and the fade is
+            // held to the last tenth so only the very edge dissolves.
             shaderCallback: (rect) => const RadialGradient(
               center: Alignment.center,
-              radius: 0.8,
+              radius: 1.25,
               colors: [
                 Colors.white,
                 Colors.white,
-                Color(0x55FFFFFF),
+                Color(0x88FFFFFF),
                 Colors.transparent,
               ],
-              stops: [0.0, 0.5, 0.8, 1.0],
+              stops: [0.0, 0.76, 0.92, 1.0],
             ).createShader(rect),
             blendMode: BlendMode.dstIn,
             child: Opacity(
