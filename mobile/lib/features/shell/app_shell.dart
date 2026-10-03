@@ -304,9 +304,9 @@ class _BottomNav extends StatelessWidget {
                     // The last stop stays at 0.16, so it reaches no further
                     // down the bar than before.
                     colors: [
-                      Color(0x080B1220),
                       Color(0x050B1220),
-                      Color(0x020B1220),
+                      Color(0x030B1220),
+                      Color(0x010B1220),
                       Color(0x000B1220),
                     ],
                     stops: [0.0, 0.05, 0.10, 0.16],
