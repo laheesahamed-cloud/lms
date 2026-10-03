@@ -357,23 +357,6 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                 loading: _busyProductId != null,
                 onPressed: busy ? null : () => _buy(selected),
               ),
-              const SizedBox(height: 8),
-              // One line, and it shrinks rather than wraps. The two-line floor
-              // this used to reserve existed to stop the sheet jumping as the
-              // selected plan changed the string's length — holding it to a
-              // single line removes the jump outright and gives the height
-              // back. FittedBox only ever scales DOWN, so larger accessibility
-              // text still renders, just fitted.
-              Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    '${selected.displayPrice} / ${selected.periodLabel} · ${selected.renewalNote}',
-                    maxLines: 1,
-                    style: TextStyle(fontSize: 10.5, height: 1.2, color: c.inkSoft),
-                  ),
-                ),
-              ),
             ],
 
             const SizedBox(height: 8),
