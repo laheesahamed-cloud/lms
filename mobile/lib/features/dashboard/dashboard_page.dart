@@ -20,6 +20,7 @@ import '../lessons/lesson_models.dart';
 import 'dashboard_repository.dart';
 import '../../services/streak_reminders.dart';
 import '../../widgets/shell_insets.dart';
+import '../../widgets/profile_avatar.dart';
 
 String _timeAgo(String iso) {
   final dt = DateTime.tryParse(iso)?.toLocal();
@@ -104,63 +105,6 @@ class DashboardPage extends ConsumerWidget {
     return 'Good evening';
   }
 
-  Future<void> _showProfileMenu(BuildContext context, WidgetRef ref) async {
-    final c = context.c;
-    await showModalBottomSheet<void>(
-      useRootNavigator: true,
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        return SafeArea(
-      bottom: false,
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            decoration: BoxDecoration(
-              color: c.cardElevated,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: c.line),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 8),
-                Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: c.lineStrong,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _MenuRow(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Profile',
-                  color: c.inkStrong,
-                  onTap: () {
-                    Navigator.of(sheetCtx).pop();
-                    context.push('/app/profile');
-                  },
-                ),
-                Divider(height: 1, color: c.line),
-                _MenuRow(
-                  icon: Icons.logout_rounded,
-                  label: 'Sign out',
-                  color: c.error,
-                  onTap: () {
-                    Navigator.of(sheetCtx).pop();
-                    ref.read(authControllerProvider.notifier).logout();
-                  },
-                ),
-                const SizedBox(height: 4),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Whenever fresh dashboard data comes in, reconcile the "streak ends
@@ -178,7 +122,6 @@ class DashboardPage extends ConsumerWidget {
         ? user!.fullName.split(RegExp(r'\s+')).first
         : 'there';
 
-    final initials = user?.initials ?? 'MS';
     final unread = ref.watch(unreadCountProvider);
     final goalLine = ref.watch(studentDashboardProvider).maybeWhen(
           data: (d) {
@@ -231,23 +174,17 @@ class DashboardPage extends ConsumerWidget {
             ],
           ),
           GestureDetector(
-            onTap: () => _showProfileMenu(context, ref),
-            child: Container(
-              width: 38,
-              height: 38,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [
-                  c.accent.withValues(alpha: 0.30),
-                  c.primary.withValues(alpha: 0.24),
-                ]),
+            onTap: () => context.push('/app/profile'),
+            child: ClipOval(
+              // The user's own avatar instead of their initials, at the same 38
+              // the gradient circle was — ClipOval, because ProfileAvatar draws
+              // a rounded square and this slot is round.
+              child: ProfileAvatar.from(
+                avatarKey: user?.avatarKey,
+                seed: user?.id ?? user?.email ?? user?.fullName,
+                size: 38,
+                radius: 0,
               ),
-              child: Text(initials,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: c.inkStrong)),
             ),
           ),
         ],
@@ -2031,35 +1968,3 @@ class _RecentResults extends ConsumerWidget {
   }
 }
 
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _MenuRow({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-        child: Row(
-          children: [
-            Icon(icon, size: 21, color: color),
-            const SizedBox(width: 14),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w700, color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-}

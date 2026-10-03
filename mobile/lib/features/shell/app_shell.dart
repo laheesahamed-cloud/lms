@@ -223,8 +223,8 @@ class _BottomNav extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     c.page.withValues(alpha: 0.0),
-                    c.page.withValues(alpha: dark ? 0.48 : 0.38),
-                    c.page.withValues(alpha: dark ? 0.90 : 0.78),
+                    c.page.withValues(alpha: 0.48),
+                    c.page.withValues(alpha: 0.90),
                   ],
                   stops: const [0.0, 0.5, 1.0],
                 ),
@@ -267,16 +267,9 @@ class _BottomNav extends StatelessWidget {
           decoration: BoxDecoration(
             // Translucent, so the blur behind it reads as glass rather than
             // being hidden under an opaque fill.
-            color: c.card.withValues(alpha: dark ? 0.62 : 0.86),
+            color: c.card.withValues(alpha: 0.62),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              // A white hairline reads as a highlight on a dark ground and as
-              // nothing at all on a light one, where the edge has to be drawn
-              // with the separator instead.
-              color: dark
-                  ? Colors.white.withValues(alpha: 0.10)
-                  : c.lineMedium,
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
