@@ -293,10 +293,20 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
         color: dark ? const Color(0xFF0F121F) : const Color(0xFFFBFCFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: SingleChildScrollView(
-        // And pad the content by the same inset. Capping the height stops the
-        // sheet growing into the island; this stops the first row sitting
-        // against its edge.
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: Stack(children: [
+          // Behind everything, pinned to the top, the full width of the sheet.
+          // It is not in the layout at all — the close button, the title and
+          // the subtitle are laid out OVER it. That is what the reference does,
+          // and it is why the picture now costs no height of its own.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _UnlockBackdrop(width: MediaQuery.of(context).size.width),
+          ),
+          SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -344,8 +354,34 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
             // other, which is what the reference does and why its crown reads
             // as a crest over the words rather than a picture parked above
             // them — and it costs less height than the two separately.
-            const _UnlockHeader(),
-            const SizedBox(height: 8),
+            // Pushed onto the lower half of the backdrop, where the cards are
+            // darkest and the words read cleanly against them.
+            const SizedBox(height: 74),
+            Text('Unlock everything',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: c.inkStrong,
+                    shadows: const [
+                      Shadow(color: Color(0xCC000000), blurRadius: 14),
+                    ])),
+            const SizedBox(height: 6),
+            // Back again: with the artwork out of the layout there is room for
+            // it, and the reference has it.
+            Text(
+              'Get complete access to all courses, practice materials and premium features.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: c.inkSoft,
+                  shadows: const [
+                    Shadow(color: Color(0x99000000), blurRadius: 10),
+                  ]),
+            ),
+            const SizedBox(height: 14),
             // 2x2 rather than four rows: it halves the vertical space the
             // features take, which is what lets the plans sit above the fold.
             Row(children: [
@@ -426,6 +462,8 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
             ),
           ],
         ),
+          ),
+        ]),
       ),
     );
   }
@@ -673,85 +711,48 @@ class _FeatureTile extends StatelessWidget {
 ///
 /// Height-constrained, not width: the sheet's height is the scarce thing here,
 /// and at 92pt this still comes out ~196pt wide, comfortably inside the
-/// content column on any phone.
-class _UnlockHeader extends StatelessWidget {
-  const _UnlockHeader();
+/// The artwork behind the top of the sheet.
+///
+/// Laid out by nobody: it is positioned, so the content flows over it rather
+/// than after it. Height follows width from the picture's own ratio, so it is
+/// stretched edge to edge and cropped in neither direction.
+class _UnlockBackdrop extends StatelessWidget {
+  final double width;
+  const _UnlockBackdrop({required this.width});
 
-  /// The artwork's own proportions. Height follows width from this, so the
-  /// picture is never cropped — cover was cutting the top off the crown and
-  /// the bottom off the cards.
   static const double _aspect = 2.13;
 
   @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    // The sheet pads its content 20 a side; this one child ignores that and
-    // takes the full width, so the fanned cards reach both edges.
-    final full = MediaQuery.of(context).size.width;
-    final art = full / _aspect;
-
-    return SizedBox(
-      height: art,
-      child: OverflowBox(
-        maxWidth: full,
-        alignment: Alignment.topCenter,
+  Widget build(BuildContext context) => IgnorePointer(
         child: SizedBox(
-          width: full,
-          height: art,
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              // Background only — nothing is laid out around it, things are
-              // laid out ON it.
-              Positioned.fill(
-                child: ShaderMask(
-                  // Feather every edge into the sheet instead of ending on a
-                  // straight cut. Without this the picture reads as a pasted
-                  // rectangle: you could see exactly where it stopped.
-                  shaderCallback: (rect) => const RadialGradient(
-                    center: Alignment.center,
-                    radius: 0.78,
-                    colors: [
-                      Colors.white,
-                      Colors.white,
-                      Color(0x66FFFFFF),
-                      Colors.transparent,
-                    ],
-                    stops: [0.0, 0.55, 0.82, 1.0],
-                  ).createShader(rect),
-                  blendMode: BlendMode.dstIn,
-                  child: Opacity(
-                    opacity: 0.85,
-                    child: Image.asset(
-                      'assets/premium/unlock_hero.png',
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.medium,
-                    ),
-                  ),
-                ),
+          width: width,
+          height: width / _aspect,
+          child: ShaderMask(
+            // Fades out on every side instead of ending on a straight cut, so
+            // the picture dissolves into the sheet rather than sitting on it
+            // as a visible rectangle.
+            shaderCallback: (rect) => const RadialGradient(
+              center: Alignment.center,
+              radius: 0.8,
+              colors: [
+                Colors.white,
+                Colors.white,
+                Color(0x55FFFFFF),
+                Colors.transparent,
+              ],
+              stops: [0.0, 0.5, 0.8, 1.0],
+            ).createShader(rect),
+            blendMode: BlendMode.dstIn,
+            child: Opacity(
+              opacity: 0.85,
+              child: Image.asset(
+                'assets/premium/unlock_hero.png',
+                width: width,
+                fit: BoxFit.fitWidth,
+                filterQuality: FilterQuality.medium,
               ),
-              // The title sits ON the artwork, in its lower third where the
-              // cards are darkest.
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  'Unlock everything',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: c.inkStrong,
-                    shadows: const [
-                      Shadow(color: Color(0xCC000000), blurRadius: 14),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
