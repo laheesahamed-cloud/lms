@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../quizzes/quizzes_repository.dart';
 import 'bookmarks_repository.dart';
+import '../../widgets/page_header.dart';
 
 class BookmarksPage extends ConsumerStatefulWidget {
   const BookmarksPage({super.key});
@@ -106,13 +107,8 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               children: [
-                Text('Saved',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: c.inkStrong,
-                        letterSpacing: -0.5)),
-                const SizedBox(height: 14),
+                const PageHeader(title: 'Saved'),
+                const SizedBox(height: 10),
                 SizedBox(
                   height: 36,
                   child: ListView(

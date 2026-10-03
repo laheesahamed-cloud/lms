@@ -11,6 +11,7 @@ import '../../services/study_reminders.dart';
 import 'add_task_page.dart';
 import 'generate_plan_page.dart';
 import 'planner_repository.dart';
+import '../../widgets/page_header.dart';
 
 class PlannerPage extends ConsumerStatefulWidget {
   const PlannerPage({super.key});
@@ -114,29 +115,9 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('STUDY PLANNER',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.4,
-                            color: c.accent)),
-                    const SizedBox(height: 5),
-                    Text('Planner',
-                        style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: c.inkStrong,
-                            letterSpacing: -0.5)),
-                  ],
-                ),
-              ),
+          PageHeader(
+            title: 'Planner',
+            actions: [
               IconButton(
                 tooltip: 'Reminders',
                 onPressed: () => _showReminderSettings(tasks),
@@ -156,10 +137,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 2),
-          Text('Plan tasks and get a reminder before they are due.',
-              style: TextStyle(fontSize: 14, color: c.inkSoft)),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           GlassCard(
             onTap: _generatePlan,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),

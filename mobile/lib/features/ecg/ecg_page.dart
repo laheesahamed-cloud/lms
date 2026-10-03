@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'ecg_repository.dart';
+import '../../widgets/page_header.dart';
 
 /// ECG landing — numbered topic list + a quiz entry banner.
 class EcgPage extends ConsumerWidget {
@@ -15,7 +16,6 @@ class EcgPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
     final topicsAsync = ref.watch(ecgTopicsProvider);
-    final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return SafeArea(
       child: RefreshIndicator(
@@ -23,35 +23,8 @@ class EcgPage extends ConsumerWidget {
         child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               children: [
-                if (!isLandscape) ...[
-                  Text('STUDY TOOL',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
-                          letterSpacing: 1.4, color: c.accent)),
-                  const SizedBox(height: 5),
-                  Text('ECG',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5, color: c.inkStrong)),
-                  const SizedBox(height: 4),
-                  Text('Learn to read the ECG, topic by topic',
-                      style: TextStyle(fontSize: 14, color: c.inkSoft)),
-                  const SizedBox(height: 16),
-                ] else ...[
-                  Row(
-                    children: [
-                      Text('ECG',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
-                              letterSpacing: -0.4, color: c.inkStrong)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text('Learn to read the ECG, topic by topic',
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13, color: c.inkSoft)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
+                const PageHeader(title: 'ECG'),
+                const SizedBox(height: 10),
                 _QuizBanner(c: c, onTap: () => context.push('/app/ecg/quiz')),
                 const SizedBox(height: 16),
 

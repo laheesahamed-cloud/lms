@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'lesson_models.dart';
 import 'lessons_repository.dart';
+import '../../widgets/page_header.dart';
 
 class LessonsListPage extends ConsumerStatefulWidget {
   const LessonsListPage({super.key});
@@ -82,23 +83,9 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
-              Text('LESSONS',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: c.accent)),
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text('Your lessons',
-                        style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: c.inkStrong)),
-                  ),
+              PageHeader(
+                title: 'Your lessons',
+                actions: [
                   if (examTypes.isNotEmpty)
                     _ExamDropdown(
                       value: _examType,
@@ -107,7 +94,7 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
                     ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               if (items.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 40),

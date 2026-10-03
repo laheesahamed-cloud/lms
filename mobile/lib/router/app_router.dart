@@ -373,7 +373,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/app/flashcards',
             pageBuilder: (c, s) =>
-                studyToolPage(c, key: s.pageKey, child: const FlashcardsPage()),
+                studyToolPage(c,
+                    key: s.pageKey,
+                    chrome: false,
+                    child: const FlashcardsPage()),
           ),
           GoRoute(
             path: '/app/drugs',
@@ -383,12 +386,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/app/ecg',
             pageBuilder: (c, s) =>
-                studyToolPage(c, key: s.pageKey, child: const EcgPage()),
+                studyToolPage(c,
+                    key: s.pageKey, chrome: false, child: const EcgPage()),
           ),
           GoRoute(
             path: '/app/auscultation',
             pageBuilder: (c, s) => studyToolPage(c,
-                key: s.pageKey, child: const AuscultationPage()),
+                key: s.pageKey,
+                    chrome: false,
+                    child: const AuscultationPage()),
           ),
           GoRoute(
             path: '/app/osce',
@@ -398,17 +404,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/app/lessons',
             pageBuilder: (c, s) =>
-                studyToolPage(c, key: s.pageKey, child: const LessonsListPage()),
+                studyToolPage(c,
+                    key: s.pageKey,
+                    chrome: false,
+                    child: const LessonsListPage()),
           ),
           GoRoute(
             path: '/app/planner',
             pageBuilder: (c, s) =>
-                studyToolPage(c, key: s.pageKey, child: const PlannerPage()),
+                studyToolPage(c,
+                    key: s.pageKey, chrome: false, child: const PlannerPage()),
           ),
           GoRoute(
             path: '/app/bookmarks',
             pageBuilder: (c, s) =>
-                studyToolPage(c, key: s.pageKey, child: const BookmarksPage()),
+                studyToolPage(c,
+                    key: s.pageKey, chrome: false, child: const BookmarksPage()),
           ),
           GoRoute(
             path: '/app/notifications',

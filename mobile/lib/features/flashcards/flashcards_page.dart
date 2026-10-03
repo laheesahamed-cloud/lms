@@ -6,6 +6,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/flashcard_reminders.dart';
 import 'flashcards_repository.dart';
+import '../../widgets/page_header.dart';
 
 /// Anki-style flashcards: a deck list with New / Learning / Due counts.
 /// Tap a deck to start an FSRS review session.
@@ -104,30 +105,9 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('SPACED REPETITION',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: 1.4,
-                                              color: c.accent)),
-                                      const SizedBox(height: 5),
-                                      Text('Flashcards',
-                                          style: TextStyle(
-                                              fontSize: 28,
-                                              fontWeight: FontWeight.w800,
-                                              color: c.inkStrong,
-                                              letterSpacing: -0.5)),
-                                    ],
-                                  ),
-                                ),
+                            PageHeader(
+                              title: 'Flashcards',
+                              actions: [
                                 IconButton(
                                   tooltip: 'Reminders',
                                   onPressed: _showReminderSettings,
@@ -136,7 +116,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 10),
                             _summary(c, result),
                             const SizedBox(height: 12),
                             if (allNotes.isNotEmpty)

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'auscultation_repository.dart';
+import '../../widgets/page_header.dart';
 
 class AuscultationPage extends ConsumerStatefulWidget {
   const AuscultationPage({super.key});
@@ -20,7 +21,6 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
   Widget build(BuildContext context) {
     final c = context.c;
     final topicsAsync = ref.watch(auscTopicsProvider(_category));
-    final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
     final accent = _category == 'lung' ? const Color(0xFF2F9E8F) : const Color(0xFFE0567B);
 
     return SafeArea(
@@ -29,22 +29,8 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               children: [
-                if (!isLandscape) ...[
-                  Text('STUDY TOOL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.4, color: c.accent)),
-                  const SizedBox(height: 5),
-                  Text('Auscultation', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: c.inkStrong)),
-                  const SizedBox(height: 4),
-                  Text('Heart & lung sounds', style: TextStyle(fontSize: 14, color: c.inkSoft)),
-                  const SizedBox(height: 14),
-                ] else ...[
-                  Row(children: [
-                    Text('Auscultation', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: c.inkStrong)),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text('Heart & lung sounds', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.inkSoft))),
-                  ]),
-                  const SizedBox(height: 12),
-                ],
-
+                const PageHeader(title: 'Auscultation'),
+                const SizedBox(height: 10),
                 // Heart / Lung tabs
                 _CategoryTabs(value: _category, onChange: (v) => setState(() => _category = v), c: c),
                 const SizedBox(height: 16),
