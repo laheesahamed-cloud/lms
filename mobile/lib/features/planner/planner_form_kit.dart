@@ -10,8 +10,9 @@ import '../../theme/tokens.dart';
 /// sit in the same world as the rest of the app in both themes rather than
 /// introducing a palette of their own.
 
-/// The page shell: a hero, a scrolling body, and one CTA pinned to the bottom
-/// so the primary action never scrolls out of reach.
+/// The page shell: a hero, the form, and the CTA at the end of it. The action
+/// is the last thing you do, so it sits where the form finishes rather than
+/// floating in a bar of its own above the tab bar.
 class PlannerFormPage extends StatelessWidget {
   /// First line of the title, in plain ink.
   final String titleTop;
@@ -40,26 +41,23 @@ class PlannerFormPage extends StatelessWidget {
     final c = context.c;
     return Scaffold(
       backgroundColor: c.page,
+      // SafeArea rather than a fixed inset: inside the shell the tab bar has
+      // already taken the bottom padding, so this adds nothing there and still
+      // clears the home indicator when the page is opened on its own.
       body: SafeArea(
-        bottom: false,
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                children: [
-                  _Hero(
-                    titleTop: titleTop,
-                    titleAccent: titleAccent,
-                    subtitle: subtitle,
-                    icon: heroIcon,
-                  ),
-                  const SizedBox(height: 18),
-                  ...children,
-                ],
-              ),
+            _Hero(
+              titleTop: titleTop,
+              titleAccent: titleAccent,
+              subtitle: subtitle,
+              icon: heroIcon,
             ),
-            _CtaBar(child: cta),
+            const SizedBox(height: 18),
+            ...children,
+            const SizedBox(height: 10),
+            cta,
           ],
         ),
       ),
@@ -153,25 +151,6 @@ class _BackChip extends StatelessWidget {
         ),
         child: Icon(Icons.arrow_back_rounded, size: 19, color: c.inkStrong),
       ),
-    );
-  }
-}
-
-class _CtaBar extends StatelessWidget {
-  final Widget child;
-  const _CtaBar({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-          16, 10, 16, MediaQuery.of(context).viewPadding.bottom + 10),
-      decoration: BoxDecoration(
-        color: c.page,
-        border: Border(top: BorderSide(color: c.line)),
-      ),
-      child: child,
     );
   }
 }
