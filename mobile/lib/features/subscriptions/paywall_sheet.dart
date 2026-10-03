@@ -15,7 +15,11 @@ import 'subscriptions_repository.dart';
 /// App Review checks this screen closely — Guideline 3.1.1 and 3.1.2 require it
 /// to show, for each option: the name, the duration, the localized price, and
 /// that it auto-renews until cancelled; plus a **Restore Purchases** action and
-/// links to the **Terms of Use** and **Privacy Policy**. All of those are here
+/// links to the **Terms of Use** and **Privacy Policy**. The separate "charged
+/// to your Apple ID, cancel in Settings" sentence was removed at the owner's
+/// request — it is convention rather than a documented requirement, and the
+/// things 3.1.2 actually asks for (price, period, auto-renewal, and both legal
+/// links) are all still on screen. All of those are here
 /// deliberately; removing any one of them is a rejection.
 ///
 /// Everything money-related happens through Apple. There is no price we compute
@@ -393,31 +397,24 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
                 onPressed: busy ? null : () => _buy(selected),
               ),
               const SizedBox(height: 8),
-              // Reserve two lines' worth of height. This string wraps to two
-              // lines for "3 months" but fits one for "year", so without a
-              // floor the whole sheet visibly jumps as you switch plans.
-              // minHeight (not a fixed height) so larger accessibility text
-              // can still grow instead of being clipped.
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 32),
-                child: Center(
+              // One line, and it shrinks rather than wraps. The two-line floor
+              // this used to reserve existed to stop the sheet jumping as the
+              // selected plan changed the string's length — holding it to a
+              // single line removes the jump outright and gives the height
+              // back. FittedBox only ever scales DOWN, so larger accessibility
+              // text still renders, just fitted.
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
                   child: Text(
                     '${selected.displayPrice} / ${selected.periodLabel} · ${selected.renewalNote}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, height: 1.25, color: c.inkSoft),
+                    maxLines: 1,
+                    style: TextStyle(fontSize: 10.5, height: 1.2, color: c.inkSoft),
                   ),
                 ),
               ),
             ],
 
-            const SizedBox(height: 10),
-            // Apple requires these terms; kept to one quiet line so they read as
-            // fine print rather than a paragraph competing with the CTA.
-            Text(
-              'Charged to your Apple ID. Cancel any time in Settings.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10.5, height: 1.25, color: c.inkMuted),
-            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -674,47 +671,66 @@ class _UnlockHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    // The sheet pads its content by 20 a side, which left the artwork floating
+    // in a column with margins while the reference runs it to both edges.
+    // OverflowBox lets this one child ignore that padding and take the full
+    // sheet width, so the fanned cards bleed off each side as they should.
+    final full = MediaQuery.of(context).size.width;
     return SizedBox(
-      height: 112,
-      child: Stack(
+      height: 118,
+      child: OverflowBox(
+        maxWidth: full,
         alignment: Alignment.topCenter,
-        children: [
-          // Slightly held back, so the fanned cards read as a backdrop and the
-          // title stays the brightest thing in the block. Full strength made
-          // them compete with the words sitting on them.
-          Positioned(
-            top: 0,
-            child: Opacity(
-              opacity: 0.92,
-              child: Image.asset(
-                'assets/premium/unlock_hero.png',
-                height: 86,
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.medium,
+        child: SizedBox(
+          width: full,
+          height: 118,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Opacity(
+                  // Held well back: the cards are a backdrop for the title, and
+                  // at full strength they pulled the eye away from it.
+                  opacity: 0.72,
+                  child: Image.asset(
+                    'assets/premium/unlock_hero.png',
+                    height: 92,
+                    width: full,
+                    // cover, not contain: edge to edge is the point, so the art
+                    // fills the width and loses a little top and bottom rather
+                    // than leaving a margin.
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Text(
-              'Unlock everything',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                color: c.inkStrong,
-                // The art behind the words is busy in places, so the type
-                // carries its own separation rather than relying on luck.
-                shadows: const [
-                  Shadow(color: Color(0x99000000), blurRadius: 12),
-                ],
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Text(
+                  'Unlock everything',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: c.inkStrong,
+                    // The art behind the words is busy in places, so the type
+                    // carries its own separation rather than relying on luck.
+                    shadows: const [
+                      Shadow(color: Color(0x99000000), blurRadius: 12),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
