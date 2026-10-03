@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
@@ -101,9 +102,16 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.inkSoft)),
                 ),
-              Column(
+              AnimationLimiter(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: AnimationConfiguration.toStaggeredList(
+                    duration: const Duration(milliseconds: 340),
+                    childAnimationBuilder: (w) => SlideAnimation(
+                      verticalOffset: 20,
+                      child: FadeInAnimation(child: w),
+                    ),
+                    children: [
                       for (final item in items)
                         if (item is _SectionHeader)
                           _ExamDivider(label: item.label)
@@ -115,7 +123,9 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
                               accent: _accents[item.accentIndex],
                             ),
                           ),
-                  ],
+                    ],
+                  ),
+                ),
               ),
             ],
           );

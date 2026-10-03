@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
@@ -157,8 +158,14 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
                     ),
                   )
                 else
-                  Column(
-                      children: [
+                  AnimationLimiter(
+                    child: Column(
+                      children: AnimationConfiguration.toStaggeredList(
+                        duration: const Duration(milliseconds: 320),
+                        childAnimationBuilder: (w) => SlideAnimation(
+                            verticalOffset: 18,
+                            child: FadeInAnimation(child: w)),
+                        children: [
                           for (final b in items)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 10),
@@ -216,7 +223,9 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
                                 ),
                               ),
                             ),
-                      ],
+                        ],
+                      ),
+                    ),
                   ),
               ],
             );
