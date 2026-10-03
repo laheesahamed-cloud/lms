@@ -35,6 +35,12 @@ class PaywallSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      // The sheet is inset from the status bar by the ROUTE, not by arithmetic
+      // inside it. Two attempts at computing this from MediaQuery were wrong on
+      // device — padding.top is zeroed inside a sheet, and viewPadding did not
+      // match what the phone actually uses either. This is the framework's own
+      // answer and it cannot drift from the real inset.
+      useSafeArea: true,
       builder: (_) => const PaywallSheet(),
     );
     return granted ?? false;
@@ -264,13 +270,6 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     return 'SAVE ${saved.round()}%';
   }
 
-  /// The status-bar inset, read from viewPadding so a sheet that has had its
-  /// padding consumed still sees the real value.
-  static double _topInset(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    return mq.viewPadding.top > 0 ? mq.viewPadding.top : mq.padding.top;
-  }
-
   @override
   Widget build(BuildContext context) {
     final c = context.c;
@@ -283,14 +282,9 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     final selected = _selectedProduct;
 
     return Container(
-      // viewPadding, NOT padding. Inside a modal bottom sheet Flutter zeroes
-      // MediaQuery.padding, so the previous fix subtracted nothing and the
-      // sheet still opened under the dynamic island — the close button landed
-      // on the clock. viewPadding reports the real inset regardless of who has
-      // consumed it.
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height - _topInset(context) - 8,
-      ),
+      // No height cap of its own: useSafeArea on the route already keeps the
+      // sheet below the status bar, and a second limit computed here is what
+      // kept fighting it.
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF0F121F) : const Color(0xFFFBFCFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -341,21 +335,12 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               ],
             ),
 
-            // The artwork carries the pitch. The one-line subtitle it replaces
-            // said what the crown, the cards and the four tiles below already
-            // show — and at 92pt the art costs more height than this sheet has
-            // spare, so something had to go and the sentence was the weakest
-            // of the three.
-            const SizedBox(height: 2),
-            const Center(child: _UnlockHero()),
-            const SizedBox(height: 6),
-            Text('Unlock everything',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    color: c.inkStrong)),
+            // Artwork and title as ONE block, the title sitting over the
+            // lower part of the art. Stacked rather than placed one above the
+            // other, which is what the reference does and why its crown reads
+            // as a crest over the words rather than a picture parked above
+            // them — and it costs less height than the two separately.
+            const _UnlockHeader(),
             const SizedBox(height: 12),
             // 2x2 rather than four rows: it halves the vertical space the
             // features take, which is what lets the plans sit above the fold.
@@ -683,14 +668,54 @@ class _FeatureTile extends StatelessWidget {
 /// Height-constrained, not width: the sheet's height is the scarce thing here,
 /// and at 92pt this still comes out ~196pt wide, comfortably inside the
 /// content column on any phone.
-class _UnlockHero extends StatelessWidget {
-  const _UnlockHero();
+class _UnlockHeader extends StatelessWidget {
+  const _UnlockHeader();
 
   @override
-  Widget build(BuildContext context) => Image.asset(
-        'assets/premium/unlock_hero.png',
-        height: 92,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.medium,
-      );
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return SizedBox(
+      height: 112,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          // Slightly held back, so the fanned cards read as a backdrop and the
+          // title stays the brightest thing in the block. Full strength made
+          // them compete with the words sitting on them.
+          Positioned(
+            top: 0,
+            child: Opacity(
+              opacity: 0.92,
+              child: Image.asset(
+                'assets/premium/unlock_hero.png',
+                height: 86,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Text(
+              'Unlock everything',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: c.inkStrong,
+                // The art behind the words is busy in places, so the type
+                // carries its own separation rather than relying on luck.
+                shadows: const [
+                  Shadow(color: Color(0x99000000), blurRadius: 12),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
