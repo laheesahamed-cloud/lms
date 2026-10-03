@@ -275,7 +275,7 @@ class _BottomNav extends StatelessWidget {
       borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
-        child: DecoratedBox(
+        child: Container(
           decoration: BoxDecoration(
             // Translucent, so the blur behind it reads as glass rather than
             // being hidden under an opaque fill.
@@ -288,6 +288,20 @@ class _BottomNav extends StatelessWidget {
                 ? Border.all(color: Colors.white.withValues(alpha: 0.10))
                 : null,
           ),
+          // The inner half of the rim, inside the glass and over the top edge
+          // only, fading out by 16% of the height — about 10pt at 64, well
+          // clear of the icons. As faint as it can be and still be there.
+          foregroundDecoration: dark
+              ? null
+              : BoxDecoration(
+                  borderRadius: BorderRadius.circular(26),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x080B1220), Color(0x000B1220)],
+                    stops: [0.0, 0.16],
+                  ),
+                ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             // LayoutBuilder (not Expanded/flex) so each tab's width is a real
