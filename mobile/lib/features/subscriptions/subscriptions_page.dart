@@ -86,6 +86,20 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             children: [
+              // The page is pushed from the dashboard and from Profile, and had
+              // no way back but the system swipe.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.arrow_back_ios_new_rounded,
+                      size: 20, color: c.inkMedium),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+              const SizedBox(height: 10),
               Text('PLAN',
                   style: TextStyle(
                       fontSize: 12,

@@ -475,7 +475,7 @@ class _PlanOption extends StatelessWidget {
               // Mixed into the page's black rather than a solid fill: the card
               // reads as the background warming toward the CTA, with the
               // gradient at full strength only on its edge.
-              color: selected ? null : (dark ? c.page : c.card),
+              color: selected ? null : (dark ? c.page : _kLightGround),
               gradient: selected ? _ctaWash(dark ? c.page : _kLightGround) : null,
               borderRadius: BorderRadius.circular(14),
             ),
@@ -705,7 +705,16 @@ class _UnlockHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = context.c;
     final w = MediaQuery.of(context).size.width;
+    // The shade that rises behind the words — the sheet's own ground, so the
+    // header always runs out into the sheet rather than ending on a line.
+    final feather = dark ? Colors.black : _kLightGround;
+    // A halo in the ground's colour, so black words read over the pale feather
+    // the same way white words read over the black one.
+    final halo = dark
+        ? const Color(0xCC000000)
+        : _kLightGround.withValues(alpha: 0.9);
     final art = w / _aspect;
     // Where the words start: just past the crown's middle, so the title
     // crosses it rather than clearing it. Taken as a fraction of the artwork so
@@ -727,16 +736,15 @@ class _UnlockHeader extends StatelessWidget {
       height: height,
       child: Stack(
         children: [
-          // The artwork is lit for a black ground. On the light sheet it would
-          // read as a grey smear with unreadable words over it, so the header
-          // carries its own dark band in BOTH themes and everything written on
-          // it stays white.
+          // The header's ground is the sheet's own: the app's black in dark,
+          // the near-white in light. Everything drawn on top of it below is
+          // the same treatment with white and black swapped.
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: art,
-            child: const ColoredBox(color: _kHeroGround),
+            child: ColoredBox(color: dark ? _kHeroGround : _kLightGround),
           ),
           Positioned(
             top: 0,
@@ -762,9 +770,10 @@ class _UnlockHeader extends StatelessWidget {
                 ).createShader(rect),
                 blendMode: BlendMode.dstIn,
                 child: Opacity(
-                  // Quieter again: the words sit across the crown now, and the
-                  // picture has to give way to them.
-                  opacity: 0.72,
+                  // The words sit across the crown, so the picture gives way to
+                  // them — but it is a DARK artwork, so the same 0.72 that
+                  // reads on black washes it out on the near-white ground.
+                  opacity: dark ? 0.72 : 0.95,
                   child: Image.asset(
                     'assets/premium/unlock_hero.png',
                     width: w,
@@ -790,9 +799,9 @@ class _UnlockHeader extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.0),
-                      Colors.black.withValues(alpha: 0.55),
-                      Colors.black.withValues(alpha: 0.78),
+                      feather.withValues(alpha: 0.0),
+                      feather.withValues(alpha: 0.62),
+                      feather.withValues(alpha: 0.88),
                     ],
                     stops: const [0.0, 0.55, 1.0],
                   ),
@@ -800,30 +809,6 @@ class _UnlockHeader extends StatelessWidget {
               ),
             ),
           ),
-          // In light mode the band would otherwise end in a hard dark-on-white
-          // line; this runs it out into the sheet. 26 high, which clears the
-          // subtitle.
-          if (!dark)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 26,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        _kLightGround.withValues(alpha: 0.0),
-                        _kLightGround,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
           // The sheet's own controls, over the top of the picture.
           Positioned(
             top: 10,
@@ -838,11 +823,12 @@ class _UnlockHeader extends StatelessWidget {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: (dark ? Colors.black : Colors.white)
+                          .withValues(alpha: 0.45),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close_rounded,
-                        size: 18, color: Colors.white),
+                    child: Icon(Icons.close_rounded,
+                        size: 18, color: dark ? Colors.white : c.inkStrong),
                   ),
                 ),
                 const Spacer(),
@@ -853,18 +839,21 @@ class _UnlockHeader extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     child: restoring
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 13,
                             height: 13,
                             child: CircularProgressIndicator(
-                                strokeWidth: 1.8, color: Colors.white70))
+                                strokeWidth: 1.8,
+                                color: dark ? Colors.white70 : c.inkMedium))
                         : Text('Restore',
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white.withValues(alpha: 0.85),
-                                shadows: const [
-                                  Shadow(color: Color(0xAA000000), blurRadius: 8)
+                                color: dark
+                                    ? Colors.white.withValues(alpha: 0.85)
+                                    : c.inkStrong,
+                                shadows: [
+                                  Shadow(color: halo, blurRadius: 8)
                                 ])),
                   ),
                 ),
@@ -895,10 +884,10 @@ class _UnlockHeader extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 12,
                       height: 1.35,
-                      color: Colors.white.withValues(alpha: 0.78),
-                      shadows: const [
-                        Shadow(color: Color(0xCC000000), blurRadius: 12),
-                      ]),
+                      color: dark
+                          ? Colors.white.withValues(alpha: 0.78)
+                          : c.inkStrong,
+                      shadows: [Shadow(color: halo, blurRadius: 12)]),
                 ),
               ],
             ),
