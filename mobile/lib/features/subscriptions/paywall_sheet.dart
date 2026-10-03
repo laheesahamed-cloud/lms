@@ -771,9 +771,9 @@ class _UnlockHeader extends StatelessWidget {
                 blendMode: BlendMode.dstIn,
                 child: Opacity(
                   // The words sit across the crown, so the picture gives way to
-                  // them — but it is a DARK artwork, so the same 0.72 that
-                  // reads on black washes it out on the near-white ground.
-                  opacity: dark ? 0.72 : 0.95,
+                  // them on black — but it is a DARK artwork, so on the
+                  // near-white ground it carries at full strength.
+                  opacity: dark ? 0.72 : 1.0,
                   child: Image.asset(
                     'assets/premium/unlock_hero.png',
                     width: w,

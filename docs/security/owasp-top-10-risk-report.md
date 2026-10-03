@@ -4,6 +4,13 @@ Date: 2026-05-23
 
 Scope: NestJS API, React/Vite frontend, auth/session handling, upload paths, CORS/CSRF boundaries, security headers, dependency audit, secret hygiene checks, and existing QA regression scripts.
 
+> **Status note (2026-10-01):** superseded in part by
+> [security-audit-2026-10-01.md](security-audit-2026-10-01.md). Two claims below
+> no longer hold: the dependency audits are **not** clean (14 vulnerabilities, 1
+> critical, 10 high) and `npm test` **fails** — the negative-security e2e suite
+> aborts before its last two test functions. The access-control, SQL, CSRF/CORS,
+> header and upload conclusions in this report were re-verified and still stand.
+
 ## Executive Summary
 
 Critical and high-risk issues found during this pass have been fixed and covered by regression checks. The app now has server-side route/permission enforcement, parameterized SQL helpers, cookie-origin CSRF protections, stricter file upload handling, stronger admin-created password policy, and clean dependency audits.
