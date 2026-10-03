@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../bookmarks/bookmark_button.dart';
 import 'quizzes_repository.dart';
+import '../../widgets/page_header.dart';
 
 /// One course's quiz sets — `/app/qbank/course/:courseId`.
 ///
@@ -86,31 +87,11 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                    color: c.inkMedium,
-                    onPressed: () => context.pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(_exam ? 'EXAM SETS' : 'PRACTICE SETS',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      color: c.accent)),
-              const SizedBox(height: 6),
-              Text(courseName,
-                  style: TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800,
-                      color: c.inkStrong,
-                      letterSpacing: -0.5,
-                      height: 1.15)),
+              PageHeader(title: courseName),
               const SizedBox(height: 4),
+              // Kept: examMode comes from the URL with no toggle on screen, so
+              // after the "EXAM SETS" eyebrow went this line is the only thing
+              // that still says which of the two you are looking at.
               Text(
                   '${groups.length} ${_scope.groupingNoun}${groups.length == 1 ? '' : 's'} · ${mine.length} ${_exam ? 'exam' : 'set'}${mine.length == 1 ? '' : 's'}',
                   style: TextStyle(fontSize: 14, color: c.inkSoft)),
@@ -316,13 +297,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
   Widget _back(BuildContext context, AppColors c, Widget child) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
         children: [
-          Row(children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-              color: c.inkMedium,
-              onPressed: () => context.pop(),
-            ),
-          ]),
+          const PageHeader(title: 'Q-Bank'),
           Padding(padding: const EdgeInsets.all(24), child: child),
         ],
       );
