@@ -10,12 +10,18 @@ class GlassCard extends StatelessWidget {
   final double radius;
   final VoidCallback? onTap;
 
+  /// Washes the card in one accent, over the usual surface rather than instead
+  /// of it — so a set of cards can carry a colour each and still be the same
+  /// card, with the same radius, shadow and glass.
+  final Color? tint;
+
   const GlassCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.radius = AppRadius.card,
     this.onTap,
+    this.tint,
   });
 
   @override
@@ -62,7 +68,22 @@ class GlassCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(radius),
           gradient: gradient,
         ),
-        child: Padding(padding: padding, child: child),
+        child: tint == null
+            ? Padding(padding: padding, child: child)
+            : DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(radius),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      tint!.withValues(alpha: dark ? 0.16 : 0.13),
+                      tint!.withValues(alpha: dark ? 0.05 : 0.04),
+                    ],
+                  ),
+                ),
+                child: Padding(padding: padding, child: child),
+              ),
       ),
     );
 

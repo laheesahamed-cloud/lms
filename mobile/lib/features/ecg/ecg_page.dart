@@ -145,46 +145,51 @@ class _ExploreHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return GlassCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(AppSpace.x4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      tint: c.primary,
+      padding: EdgeInsets.zero,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'SOMETHING TO LOOK AT',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.3,
-                    color: c.primary,
-                  ),
+          // The trace runs the full width behind everything and is masked to
+          // fade out before it reaches the words, so the card has artwork
+          // without needing an image to ship.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _EcgTracePainter(
+                  colour: c.primary.withValues(alpha: dark ? 0.55 : 0.42),
                 ),
               ),
-              if (topic.cardCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.surface2,
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: c.line),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.monitor_heart_outlined,
-                        size: 13,
-                        color: c.inkSoft,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpace.x4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 13,
+                      color: c.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'SOMETHING TO LOOK AT',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.4,
+                          color: c.primary,
+                        ),
                       ),
-                      const SizedBox(width: 5),
+                    ),
+                    if (topic.cardCount > 0)
                       Text(
                         '${topic.cardCount} ECG${topic.cardCount == 1 ? '' : 's'}',
                         style: TextStyle(
@@ -193,48 +198,125 @@ class _ExploreHero extends StatelessWidget {
                           color: c.inkSoft,
                         ),
                       ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Held off the right edge so the trace's tall R wave has room
+                // to read as artwork rather than as something behind the text.
+                FractionallySizedBox(
+                  widthFactor: 0.74,
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        topic.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 24,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.7,
+                          color: c.inkStrong,
+                        ),
+                      ),
+                      if (topic.description.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          topic.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.35,
+                            color: c.inkSoft,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            topic.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 22,
-              height: 1.15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              color: c.inkStrong,
-            ),
-          ),
-          if (topic.description.isNotEmpty) ...[
-            const SizedBox(height: 5),
-            Text(
-              topic.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, height: 1.35, color: c.inkSoft),
-            ),
-          ],
-          const SizedBox(height: AppSpace.x4),
-          AppButton(
-            'Explore',
-            kind: AppButtonKind.cta,
-            onPressed: onTap,
-            leading: const Icon(
-              Icons.auto_awesome_rounded,
-              size: 17,
-              color: Colors.white,
+                const SizedBox(height: AppSpace.x4),
+                AppButton(
+                  'Explore',
+                  kind: AppButtonKind.cta,
+                  onPressed: onTap,
+                  leading: const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 17,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// A rhythm strip, drawn rather than shipped as an image: baseline, P, QRS, T,
+/// repeating across the card, fading in from the left so it never competes
+/// with the words sitting on it.
+class _EcgTracePainter extends CustomPainter {
+  final Color colour;
+  const _EcgTracePainter({required this.colour});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final baseline = size.height * 0.60;
+    final amp = size.height * 0.42;
+    const beat = 108.0;
+
+    final path = Path()..moveTo(0, baseline);
+    for (var x = 0.0; x < size.width + beat; x += beat) {
+      // Fractions of one beat: a flat run, the P bump, the QRS spike, a flat
+      // run, then the broader T.
+      path.lineTo(x + beat * 0.10, baseline);
+      path.quadraticBezierTo(
+        x + beat * 0.14,
+        baseline - amp * 0.20,
+        x + beat * 0.18,
+        baseline,
+      );
+      path.lineTo(x + beat * 0.30, baseline);
+      path.lineTo(x + beat * 0.34, baseline + amp * 0.12); // Q
+      path.lineTo(x + beat * 0.38, baseline - amp); // R
+      path.lineTo(x + beat * 0.42, baseline + amp * 0.28); // S
+      path.lineTo(x + beat * 0.46, baseline);
+      path.lineTo(x + beat * 0.62, baseline);
+      path.quadraticBezierTo(
+        x + beat * 0.72,
+        baseline - amp * 0.34,
+        x + beat * 0.82,
+        baseline,
+      ); // T
+      path.lineTo(x + beat, baseline);
+    }
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..shader = LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [colour.withValues(alpha: 0), colour],
+          stops: const [0.28, 0.9],
+        ).createShader(Offset.zero & size),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_EcgTracePainter old) => old.colour != colour;
 }
 
 /// The topic list, filtered to one of the two groups. Same tiles the page used
@@ -327,9 +409,9 @@ class _HubTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return GlassCard(
       onTap: onTap,
+      tint: accent.color,
       padding: const EdgeInsets.all(AppSpace.x3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,9 +423,15 @@ class _HubTile extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.inner),
-              color: accent.tint(dark),
+              // Solid against the washed card behind it, or the chip
+              // disappears into its own tint.
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: accent.grad,
+              ),
             ),
-            child: Icon(icon, size: 20, color: accent.textOn(dark)),
+            child: Icon(icon, size: 20, color: Colors.white),
           ),
           const SizedBox(height: AppSpace.x3),
           Text(
