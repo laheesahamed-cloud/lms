@@ -57,58 +57,66 @@ class EcgPage extends ConsumerWidget {
             if (topicsAsync.hasError)
               _ErrorBox(c: c, onRetry: () => ref.refresh(ecgTopicsProvider))
             else ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _HubTile(
-                      icon: Icons.school_outlined,
-                      title: 'Basics of ECG',
-                      subtitle: 'Leads, axis and how to read a strip',
-                      badge: countLabel(basics),
-                      tint: c.primary,
-                      onTap: () => context.push('/app/ecg/topics/basics'),
+              // IntrinsicHeight, because stretch needs a bounded cross axis and a
+              // Row inside a vertical ListView has none — without it the two
+              // tiles fail to lay out and the page comes up blank. Same reason
+              // the dashboard wraps its side-by-side cards.
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _HubTile(
+                        icon: Icons.school_outlined,
+                        title: 'Basics of ECG',
+                        subtitle: 'Leads, axis and how to read a strip',
+                        badge: countLabel(basics),
+                        tint: c.primary,
+                        onTap: () => context.push('/app/ecg/topics/basics'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpace.x3),
-                  Expanded(
-                    child: _HubTile(
-                      icon: Icons.favorite_outline_rounded,
-                      title: 'Rhythm Library',
-                      subtitle: 'Common and complex arrhythmias',
-                      badge: countLabel(rhythms),
-                      tint: c.error,
-                      onTap: () => context.push('/app/ecg/topics/rhythms'),
+                    const SizedBox(width: AppSpace.x3),
+                    Expanded(
+                      child: _HubTile(
+                        icon: Icons.favorite_outline_rounded,
+                        title: 'Rhythm Library',
+                        subtitle: 'Common and complex arrhythmias',
+                        badge: countLabel(rhythms),
+                        tint: c.error,
+                        onTap: () => context.push('/app/ecg/topics/rhythms'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpace.x3),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _HubTile(
-                      icon: Icons.monitor_heart_outlined,
-                      title: 'Practice Cases',
-                      subtitle: 'Real ECGs with full explanations',
-                      badge: 'CLINICAL',
-                      tint: c.success,
-                      onTap: () => context.push('/app/ecg/quiz'),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _HubTile(
+                        icon: Icons.monitor_heart_outlined,
+                        title: 'Practice Cases',
+                        subtitle: 'Real ECGs with full explanations',
+                        badge: 'CLINICAL',
+                        tint: c.success,
+                        onTap: () => context.push('/app/ecg/quiz'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpace.x3),
-                  Expanded(
-                    child: _HubTile(
-                      icon: Icons.psychology_outlined,
-                      title: 'Quick Quiz',
-                      subtitle: 'Test your knowledge in minutes',
-                      badge: 'Q-BANK',
-                      tint: c.accent,
-                      onTap: () => context.push('/app/quizzes'),
+                    const SizedBox(width: AppSpace.x3),
+                    Expanded(
+                      child: _HubTile(
+                        icon: Icons.psychology_outlined,
+                        title: 'Quick Quiz',
+                        subtitle: 'Test your knowledge in minutes',
+                        badge: 'Q-BANK',
+                        tint: c.accent,
+                        onTap: () => context.push('/app/quizzes'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ],
@@ -140,8 +148,10 @@ class EcgTopicsPage extends ConsumerWidget {
             const SizedBox(height: 10),
             topicsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  _ErrorBox(c: c, onRetry: () => ref.refresh(ecgTopicsProvider)),
+              error: (e, _) => _ErrorBox(
+                c: c,
+                onRetry: () => ref.refresh(ecgTopicsProvider),
+              ),
               data: (all) {
                 final topics = all.where(group.matches).toList();
                 if (topics.isEmpty) {
@@ -168,8 +178,9 @@ class EcgTopicsPage extends ConsumerWidget {
                               index: i,
                               topic: topics[i],
                               c: c,
-                              onTap: () =>
-                                  context.push('/app/ecg/topic/${topics[i].id}'),
+                              onTap: () => context.push(
+                                '/app/ecg/topic/${topics[i].id}',
+                              ),
                             ),
                           ),
                       ],
@@ -224,30 +235,37 @@ class _HubTile extends StatelessWidget {
             child: Icon(icon, size: 22, color: tint),
           ),
           const SizedBox(height: AppSpace.x3),
-          Text(title,
-              style: TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
-                  color: c.inkStrong)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+              color: c.inkStrong,
+            ),
+          ),
           const SizedBox(height: 3),
-          Text(subtitle,
-              style: TextStyle(fontSize: 12.5, height: 1.3, color: c.inkSoft)),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 12.5, height: 1.3, color: c.inkSoft),
+          ),
           if (badge.isNotEmpty) ...[
             const SizedBox(height: AppSpace.x3),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
                 color: tint.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(99),
               ),
-              child: Text(badge,
-                  style: TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.7,
-                      color: tint)),
+              child: Text(
+                badge,
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.7,
+                  color: tint,
+                ),
+              ),
             ),
           ],
         ],
@@ -264,7 +282,10 @@ class _TopicTile extends StatelessWidget {
   final AppColors c;
   final VoidCallback onTap;
   const _TopicTile({
-    required this.index, required this.topic, required this.c, required this.onTap,
+    required this.index,
+    required this.topic,
+    required this.c,
+    required this.onTap,
   });
 
   @override
@@ -278,9 +299,15 @@ class _TopicTile extends StatelessWidget {
         children: [
           SizedBox(
             width: 38,
-            child: Text(num,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5, color: c.primary)),
+            child: Text(
+              num,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: c.primary,
+              ),
+            ),
           ),
           const SizedBox(width: AppSpace.x3),
           Expanded(
@@ -288,19 +315,38 @@ class _TopicTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(topic.title,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2, color: c.inkStrong)),
+                Text(
+                  topic.title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    color: c.inkStrong,
+                  ),
+                ),
                 if (topic.description.isNotEmpty) ...[
                   const SizedBox(height: 3),
-                  Text(topic.description,
-                      maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, height: 1.35, color: c.inkSoft)),
+                  Text(
+                    topic.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.35,
+                      color: c.inkSoft,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 6),
-                Text('${topic.cardCount} ECG${topic.cardCount == 1 ? '' : 's'}',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3, color: c.primary)),
+                Text(
+                  '${topic.cardCount} ECG${topic.cardCount == 1 ? '' : 's'}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                    color: c.primary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -323,8 +369,11 @@ class _EmptyBox extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Center(
-        child: Text(text, textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: c.inkSoft)),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: c.inkSoft),
+        ),
       ),
     );
   }
@@ -342,8 +391,10 @@ class _ErrorBox extends StatelessWidget {
         children: [
           Icon(Icons.cloud_off_rounded, size: 32, color: c.inkMuted),
           const SizedBox(height: 12),
-          Text("Couldn't load ECG topics",
-              style: TextStyle(fontSize: 14, color: c.inkSoft)),
+          Text(
+            "Couldn't load ECG topics",
+            style: TextStyle(fontSize: 14, color: c.inkSoft),
+          ),
           const SizedBox(height: 14),
           OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
         ],
