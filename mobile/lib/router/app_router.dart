@@ -289,6 +289,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        // The two learning tiles on the ECG hub — the same topic list, split.
+        path: '/app/ecg/topics/:group',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: EcgTopicsPage(
+            group: EcgGroupX.fromSlug(s.pathParameters['group']),
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/app/ecg/topic/:topicId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
