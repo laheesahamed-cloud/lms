@@ -43,3 +43,8 @@ release/
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# Compiled output from the .ts regression suites in backend/test/
+backend/test/*.js
+backend/test/*.js.map
+backend/test/*.d.ts
