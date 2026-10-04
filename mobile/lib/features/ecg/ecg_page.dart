@@ -1,9 +1,12 @@
+import 'dart:math' show Random;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/glass_card.dart';
 import 'ecg_repository.dart';
 import '../../widgets/page_header.dart';
@@ -31,19 +34,25 @@ extension EcgGroupX on EcgGroup {
   }
 }
 
-/// ECG landing — four ways in, two of them the topic list split in half.
-class EcgPage extends ConsumerWidget {
+/// ECG landing — four ways in, over a card that opens something at random.
+class EcgPage extends ConsumerStatefulWidget {
   const EcgPage({super.key});
+  @override
+  ConsumerState<EcgPage> createState() => _EcgPageState();
+}
+
+class _EcgPageState extends ConsumerState<EcgPage> {
+  /// Fixed for as long as the page is open, so the card does not pick a
+  /// different topic every time something above it rebuilds — but a new one
+  /// each time you come back to it.
+  final int _seed = Random().nextInt(1 << 30);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.c;
     final topicsAsync = ref.watch(ecgTopicsProvider);
     final topics = topicsAsync.asData?.value ?? const <EcgTopic>[];
-    final basics = topics.where(EcgGroup.basics.matches).length;
-    final rhythms = topics.where(EcgGroup.rhythms.matches).length;
-
-    String countLabel(int n) => n == 0 ? '' : '$n TOPIC${n == 1 ? '' : 'S'}';
+    final pick = topics.isEmpty ? null : topics[_seed % topics.length];
 
     return SafeArea(
       bottom: false,
@@ -57,10 +66,13 @@ class EcgPage extends ConsumerWidget {
             if (topicsAsync.hasError)
               _ErrorBox(c: c, onRetry: () => ref.refresh(ecgTopicsProvider))
             else ...[
-              // IntrinsicHeight, because stretch needs a bounded cross axis and a
-              // Row inside a vertical ListView has none — without it the two
-              // tiles fail to lay out and the page comes up blank. Same reason
-              // the dashboard wraps its side-by-side cards.
+              if (pick != null) ...[
+                _ExploreHero(
+                  topic: pick,
+                  onTap: () => context.push('/app/ecg/topic/${pick.id}'),
+                ),
+                const SizedBox(height: AppSpace.x3),
+              ],
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -69,9 +81,8 @@ class EcgPage extends ConsumerWidget {
                       child: _HubTile(
                         icon: Icons.school_outlined,
                         title: 'Basics of ECG',
-                        subtitle: 'Leads, axis and how to read a strip',
-                        badge: countLabel(basics),
-                        tint: c.primary,
+                        subtitle: 'Leads, axis and reading a strip',
+                        accent: DashAccents.blue,
                         onTap: () => context.push('/app/ecg/topics/basics'),
                       ),
                     ),
@@ -81,8 +92,7 @@ class EcgPage extends ConsumerWidget {
                         icon: Icons.favorite_outline_rounded,
                         title: 'Rhythm Library',
                         subtitle: 'Common and complex arrhythmias',
-                        badge: countLabel(rhythms),
-                        tint: c.error,
+                        accent: DashAccents.rose,
                         onTap: () => context.push('/app/ecg/topics/rhythms'),
                       ),
                     ),
@@ -99,8 +109,7 @@ class EcgPage extends ConsumerWidget {
                         icon: Icons.monitor_heart_outlined,
                         title: 'Practice Cases',
                         subtitle: 'Real ECGs with full explanations',
-                        badge: 'CLINICAL',
-                        tint: c.success,
+                        accent: DashAccents.green,
                         onTap: () => context.push('/app/ecg/quiz'),
                       ),
                     ),
@@ -110,8 +119,7 @@ class EcgPage extends ConsumerWidget {
                         icon: Icons.psychology_outlined,
                         title: 'Quick Quiz',
                         subtitle: 'Test your knowledge in minutes',
-                        badge: 'Q-BANK',
-                        tint: c.accent,
+                        accent: DashAccents.violet,
                         onTap: () => context.push('/app/quizzes'),
                       ),
                     ),
@@ -121,6 +129,109 @@ class EcgPage extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The full-width card over the grid. Nothing tracks ECG progress, so rather
+/// than pretend to know where you left off it offers a topic at random — and
+/// says so.
+class _ExploreHero extends StatelessWidget {
+  final EcgTopic topic;
+  final VoidCallback onTap;
+  const _ExploreHero({required this.topic, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return GlassCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppSpace.x4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'SOMETHING TO LOOK AT',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.3,
+                    color: c.primary,
+                  ),
+                ),
+              ),
+              if (topic.cardCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.surface2,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: c.line),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.monitor_heart_outlined,
+                        size: 13,
+                        color: c.inkSoft,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${topic.cardCount} ECG${topic.cardCount == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: c.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            topic.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 22,
+              height: 1.15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: c.inkStrong,
+            ),
+          ),
+          if (topic.description.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              topic.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, height: 1.35, color: c.inkSoft),
+            ),
+          ],
+          const SizedBox(height: AppSpace.x4),
+          AppButton(
+            'Explore',
+            kind: AppButtonKind.cta,
+            onPressed: onTap,
+            leading: const Icon(
+              Icons.auto_awesome_rounded,
+              size: 17,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -196,78 +307,63 @@ class EcgTopicsPage extends ConsumerWidget {
   }
 }
 
-/// One of the four ways in. Icon chip, title, one line of what it is, and a
-/// small label — the count where there is one, otherwise what kind of thing it
-/// is.
+/// One of the four ways in — the Study hub's own grid tile, to the point: the
+/// same x3 padding, 40pt icon chip, 14.5 title and 11.5 subtitle, so the two
+/// screens' cards are the same object.
 class _HubTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final String badge;
-  final Color tint;
+  final SectionAccent accent;
   final VoidCallback onTap;
   const _HubTile({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.badge,
-    required this.tint,
+    required this.accent,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return GlassCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(AppSpace.x4),
+      padding: const EdgeInsets.all(AppSpace.x3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(AppRadius.inner),
+              color: accent.tint(dark),
             ),
-            child: Icon(icon, size: 22, color: tint),
+            child: Icon(icon, size: 20, color: accent.textOn(dark)),
           ),
           const SizedBox(height: AppSpace.x3),
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 15.5,
-              fontWeight: FontWeight.w800,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w700,
               letterSpacing: -0.2,
               color: c.inkStrong,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             subtitle,
-            style: TextStyle(fontSize: 12.5, height: 1.3, color: c.inkSoft),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, height: 1.3, color: c.inkSoft),
           ),
-          if (badge.isNotEmpty) ...[
-            const SizedBox(height: AppSpace.x3),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(
-                color: tint.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                badge,
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.7,
-                  color: tint,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
