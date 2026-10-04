@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
+import { isStaffRole } from '../auth/role-permissions';
 import { TheoryRecapService } from './theory-recap.service';
 import { UpsertTheoryRecapDto } from './dto/upsert-theory-recap.dto';
 
@@ -17,7 +18,15 @@ export class TheoryRecapController {
     @Headers('authorization') authorization?: string,
     @Headers('x-app-client') appClient?: string
   ) {
-    await this.authService.requireAuthenticatedUser(authorization);
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    // Staff read it straight. The student path gates everything that is not in
+    // a free quiz behind the mobile app, which is right for students but meant
+    // the admin panel could not read a recap for any paid question — so the
+    // editor showed "no theory recap" for cards that exist, and the bulk run
+    // could never tell an existing card from a missing one.
+    if (isStaffRole(user.role)) {
+      return this.theoryRecapService.getByQuestionId(questionId);
+    }
     return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient);
   }
 

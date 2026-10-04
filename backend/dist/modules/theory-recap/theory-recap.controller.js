@@ -16,6 +16,7 @@ exports.TheoryRecapController = void 0;
 const common_1 = require("@nestjs/common");
 const auth_service_1 = require("../auth/auth.service");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
+const role_permissions_1 = require("../auth/role-permissions");
 const theory_recap_service_1 = require("./theory-recap.service");
 const upsert_theory_recap_dto_1 = require("./dto/upsert-theory-recap.dto");
 let TheoryRecapController = class TheoryRecapController {
@@ -24,7 +25,10 @@ let TheoryRecapController = class TheoryRecapController {
         this.authService = authService;
     }
     async getByQuestionId(questionId, authorization, appClient) {
-        await this.authService.requireAuthenticatedUser(authorization);
+        const user = await this.authService.requireAuthenticatedUser(authorization);
+        if ((0, role_permissions_1.isStaffRole)(user.role)) {
+            return this.theoryRecapService.getByQuestionId(questionId);
+        }
         return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient);
     }
     async upsert(questionId, dto, authorization) {

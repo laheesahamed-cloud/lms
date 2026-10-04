@@ -287,7 +287,9 @@ export function QuestionsPage() {
   // Off by default, like the importer and the quiz builder: it is another AI
   // call per question on top of the three this already makes, so a 40-question
   // batch gets noticeably longer for something not everyone wants.
-  const [bulkAiTheory, setBulkAiTheory] = useState(false);
+  // On by default: "fill in missing content" means all of it. Untick it to
+  // skip the theory cards, which are the slow part of the run.
+  const [bulkAiTheory, setBulkAiTheory] = useState(true);
   const [bulkAiRunning, setBulkAiRunning] = useState(false);
   // `errors` holds each distinct reason once, with a count. A run that fails
   // forty times almost always fails forty times for ONE reason, and a bare
@@ -1147,14 +1149,30 @@ export function QuestionsPage() {
         // and read back by id, so it has nothing to attach to until the
         // question itself has been written. (The other two bulk paths save
         // mid-run for exactly this reason; here the question already exists.)
+        //
+        // Its own try: by this point the explanation, the why-incorrects and
+        // the approach are written. A theory card that fails should be
+        // reported as a theory card that failed, not turn a question whose
+        // other three fields just saved into a failure.
         if (bulkAiTheory) {
-          const existingRecap = regenerate
-            ? null
-            : await fetchTheoryRecap(id).catch(() => null);
-          if (regenerate) {
-            await regenerateTheoryRecap(id);
-          } else if (!existingRecap) {
-            await generateTheoryRecap(id);
+          try {
+            setBulkAiProgress((cur) => ({ ...cur, label: `Question #${id} — theory card` }));
+            if (regenerate) {
+              await regenerateTheoryRecap(id);
+            } else {
+              const existingRecap = await fetchTheoryRecap(id).catch(() => null);
+              // A question with no recap comes back as null/empty rather than
+              // an error, so this is the real "is one already there" test.
+              if (!existingRecap || !existingRecap.id) {
+                await generateTheoryRecap(id);
+              }
+            }
+          } catch (theoryError) {
+            const why = `Theory card: ${getErrorMessage(theoryError, 'generation failed')}`;
+            setBulkAiProgress((cur) => ({
+              ...cur,
+              errors: { ...cur.errors, [why]: (cur.errors[why] || 0) + 1 },
+            }));
           }
         }
       } catch (bulkError) {
@@ -1615,7 +1633,7 @@ export function QuestionsPage() {
               <div className={ui.confirmModalHead}>
                 <div>
                   <h2>Generate AI content for selected questions</h2>
-                  <p>Generate Explanation, Why Incorrect, and Question Approach for {selectedVisibleIds.length} selected question(s).</p>
+                  <p>Generate Explanation, Why Incorrect, Question Approach{bulkAiTheory ? ', and the quick theory card' : ''} for {selectedVisibleIds.length} selected question(s).</p>
                 </div>
               </div>
               <div className={bulkKeywordGridClass}>
