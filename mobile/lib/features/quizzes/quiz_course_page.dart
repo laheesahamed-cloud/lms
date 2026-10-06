@@ -260,7 +260,10 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           ),
           AnimatedCrossFade(
             firstChild: const SizedBox(width: double.infinity, height: 0),
-            secondChild: Column(children: _groupRows(c, g)),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _groupRows(c, g),
+            ),
             crossFadeState:
                 collapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
             duration: AppDur.dropdown,
@@ -304,8 +307,11 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     }
 
     final rows = <Widget>[];
-    var index = 0;
     for (final key in order) {
+      // Restarts at every heading. Running straight through made the chip
+      // disagree with the row beside it — "3" next to "Quiz 1" — now that the
+      // topics are visibly separate groups.
+      var index = 0;
       // Nothing to separate when there is only one topic and it is what the
       // section is already called.
       if (key.isNotEmpty && !(order.length == 1 && key == g.label)) {
