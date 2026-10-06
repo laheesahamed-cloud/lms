@@ -236,6 +236,12 @@ class _CourseCard extends StatelessWidget {
         Row(children: <Widget>[
           Container(
             width: 48, height: 48,
+            // Without an alignment a sized Container hands its child TIGHT
+            // constraints, so the SVG was stretched to the full 48 and every
+            // width passed to it was ignored — which is why it kept coming out
+            // edge to edge. Icon never showed this because it paints its glyph
+            // inside whatever box it is given.
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(AppRadius.inner),

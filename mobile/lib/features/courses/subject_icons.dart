@@ -105,9 +105,11 @@ final List<(RegExp, String, Color)> _compiled = _rules
     .toList(growable: false);
 
 /// Nothing in the name to go on. Deliberately generic rather than a guess.
-/// Halved from 20 at the user's request.
-const double _kTablerSize = 10;
-const double _kHealthiconSize = 9;
+/// The glyph inside the 48 chip. It was rendering at the full 48 — the chip
+/// was handing it tight constraints — so these are sized against that: roughly
+/// half of what was actually on screen.
+const double _kTablerSize = 24;
+const double _kHealthiconSize = 22;
 
 const SubjectIcon _fallback =
     SubjectIcon('assets/icons/medical/book-2.svg', _slate, _kTablerSize);
