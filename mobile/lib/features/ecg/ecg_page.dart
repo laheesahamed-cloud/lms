@@ -47,18 +47,42 @@ class EcgPage extends ConsumerStatefulWidget {
 }
 
 class _EcgPageState extends ConsumerState<EcgPage> {
-  /// Fixed for as long as the page is open, so the card does not pick a
-  /// different topic every time something above it rebuilds — but a new one
-  /// each time you come back to it.
-  final int _seed = Random().nextInt(1 << 30);
+  /// True while a tap on the card is waiting for the topic list.
+  bool _opening = false;
+
+  /// The card used to show a topic it had picked from the list, which meant it
+  /// could not be drawn until that list arrived — so the page opened with a gap
+  /// where the card belonged and then shifted when the data landed. It says the
+  /// same thing every time now, and the topic is chosen when you tap it.
+  Future<void> _openRandomTopic() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    try {
+      final topics = await ref.read(ecgTopicsProvider.future);
+      if (!mounted) return;
+      if (topics.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No ECG topics yet.')),
+        );
+        return;
+      }
+      final pick = topics[Random().nextInt(topics.length)];
+      if (mounted) context.push('/app/ecg/topic/${pick.id}');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't load ECG topics.")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final c = context.c;
-    final topicsAsync = ref.watch(ecgTopicsProvider);
-    final topics = topicsAsync.asData?.value ?? const <EcgTopic>[];
-    final pick = topics.isEmpty ? null : topics[_seed % topics.length];
-
+    // Nothing on this page waits on a request any more: it is four fixed ways
+    // in, so it draws complete the moment it opens.
     return SafeArea(
       bottom: false,
       child: RefreshIndicator(
@@ -68,16 +92,9 @@ class _EcgPageState extends ConsumerState<EcgPage> {
           children: [
             const PageHeader(title: 'ECG'),
             const SizedBox(height: 12),
-            if (topicsAsync.hasError)
-              _ErrorBox(c: c, onRetry: () => ref.refresh(ecgTopicsProvider))
-            else ...[
-              if (pick != null) ...[
-                _ExploreHero(
-                  topic: pick,
-                  onTap: () => context.push('/app/ecg/topic/${pick.id}'),
-                ),
-                const SizedBox(height: AppSpace.x3),
-              ],
+            ...[
+              _ExploreHero(loading: _opening, onTap: _openRandomTopic),
+              const SizedBox(height: AppSpace.x3),
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,13 +156,14 @@ class _EcgPageState extends ConsumerState<EcgPage> {
   }
 }
 
-/// The full-width card over the grid. Nothing tracks ECG progress, so rather
-/// than pretend to know where you left off it offers a topic at random — and
-/// says so.
+/// The full-width card over the grid.
+///
+/// Says the same thing every time, so it needs no data to draw and the page has
+/// nothing to wait for. The topic is picked when you tap it.
 class _ExploreHero extends StatelessWidget {
-  final EcgTopic topic;
+  final bool loading;
   final VoidCallback onTap;
-  const _ExploreHero({required this.topic, required this.onTap});
+  const _ExploreHero({required this.loading, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -157,9 +175,6 @@ class _ExploreHero extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Stack(
         children: [
-          // The trace runs the full width behind everything and is masked to
-          // fade out before it reaches the words, so the card has artwork
-          // without needing an image to ship.
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
@@ -171,86 +186,54 @@ class _ExploreHero extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(AppSpace.x4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 13,
-                      color: c.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'SOMETHING TO LOOK AT',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.4,
-                          color: c.primary,
-                        ),
-                      ),
-                    ),
-                    if (topic.cardCount > 0)
-                      Text(
-                        '${topic.cardCount} ECG${topic.cardCount == 1 ? '' : 's'}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: c.inkSoft,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // Held off the right so the trace's tall R wave has room to
-                // read as artwork rather than as something behind the text.
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
                         children: [
-                          Text(
-                            topic.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                          Icon(Icons.auto_awesome_rounded,
+                              size: 13, color: c.primary),
+                          const SizedBox(width: 6),
+                          Text('SOMETHING TO LOOK AT',
+                              style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.4,
+                                  color: c.primary)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text('Open a random ECG',
+                          style: TextStyle(
                               fontSize: 24,
                               height: 1.1,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.7,
-                              color: c.inkStrong,
-                            ),
-                          ),
-                          if (topic.description.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              topic.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.35,
-                                color: c.inkSoft,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpace.x3),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 24,
-                      color: c.inkMuted,
-                    ),
-                  ],
+                              color: c.inkStrong)),
+                      const SizedBox(height: 6),
+                      Text('A strip you have not looked at in a while.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13, height: 1.35, color: c.inkSoft)),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: AppSpace.x3),
+                if (loading)
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.2, color: c.primary),
+                  )
+                else
+                  Icon(Icons.chevron_right_rounded,
+                      size: 24, color: c.inkMuted),
               ],
             ),
           ),
