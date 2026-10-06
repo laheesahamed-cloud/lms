@@ -33,6 +33,7 @@ export declare class CoursesService {
         courseCode: string;
         description: string;
         examType: string;
+        icon: string;
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
@@ -91,6 +92,7 @@ export declare class CoursesService {
         courseCode: string;
         description: string;
         examType: string;
+        icon: string;
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
@@ -106,6 +108,7 @@ export declare class CoursesService {
             courseCode: string;
             description: string;
             examType: string;
+            icon: string;
             status: "active" | "inactive";
             createdAt: string | null;
         };

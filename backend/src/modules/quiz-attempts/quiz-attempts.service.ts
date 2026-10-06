@@ -296,8 +296,13 @@ export class QuizAttemptsService {
         updatedAt: row.updated_at || row.created_at || null,
         courseTitle: row.course_title || '',
         examType: row.exam_type || '',
+        // The SELECT aliases topics.topic_name AS subject_name and
+        // subtopics.subtopic_name AS topic_name, so: subject is the course's
+        // topic, topic is its subtopic. topicName was reading subject_name —
+        // a copy-paste that made it a duplicate of subjectName, which is why
+        // nothing could group by it.
         subjectName: row.subject_name || '',
-        topicName: row.subject_name || '',
+        topicName: row.topic_name || '',
         subtopicName: row.topic_name || '',
         lessonTitle: row.lesson_title || '',
         examAttemptCount: Number(row.exam_attempt_count || 0),

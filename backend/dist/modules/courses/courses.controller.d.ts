@@ -29,6 +29,7 @@ export declare class CoursesController {
         courseCode: string;
         description: string;
         examType: string;
+        icon: string;
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
@@ -44,6 +45,7 @@ export declare class CoursesController {
             courseCode: string;
             description: string;
             examType: string;
+            icon: string;
             status: "active" | "inactive";
             createdAt: string | null;
         };
@@ -62,6 +64,7 @@ export declare class CoursesController {
         courseCode: string;
         description: string;
         examType: string;
+        icon: string;
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;

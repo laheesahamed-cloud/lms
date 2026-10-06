@@ -279,10 +279,23 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
   /// The numbering runs straight through the section rather than restarting at
   /// each topic, so scanning the whole subject reads as one list.
   List<Widget> _groupRows(AppColors c, QuizScopeGroup g) {
+    // Which field actually holds the topic depends on the server build. The
+    // list endpoint had topicName reading the SUBJECT's name, so it came back
+    // a duplicate of subjectName and was useless to group on; subtopicName
+    // carries the real one. Reading subtopic first works against both the old
+    // server and the fixed one, and the topicName fallback is ignored when it
+    // is still just the subject repeated.
+    String topicOf(QuizListItem q) {
+      final sub = q.subtopicName.trim();
+      if (sub.isNotEmpty) return sub;
+      final t = q.topicName.trim();
+      return t == q.subjectName.trim() ? '' : t;
+    }
+
     final order = <String>[];
     final byTopic = <String, List<QuizListItem>>{};
     for (final q in g.quizzes) {
-      final key = q.topicName.trim();
+      final key = topicOf(q);
       if (!byTopic.containsKey(key)) {
         order.add(key);
         byTopic[key] = [];

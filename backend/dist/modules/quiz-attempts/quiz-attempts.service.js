@@ -135,7 +135,7 @@ let QuizAttemptsService = class QuizAttemptsService {
                 courseTitle: row.course_title || '',
                 examType: row.exam_type || '',
                 subjectName: row.subject_name || '',
-                topicName: row.subject_name || '',
+                topicName: row.topic_name || '',
                 subtopicName: row.topic_name || '',
                 lessonTitle: row.lesson_title || '',
                 examAttemptCount: Number(row.exam_attempt_count || 0),

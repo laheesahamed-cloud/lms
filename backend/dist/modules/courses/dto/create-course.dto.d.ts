@@ -3,5 +3,6 @@ export declare class CreateCourseDto {
     courseCode: string;
     description?: string;
     examType: string;
+    icon?: string;
     status: 'active' | 'inactive';
 }
