@@ -242,8 +242,11 @@ class _CourseCard extends StatelessWidget {
             ),
             child: SvgPicture.asset(
               identity.asset,
-              width: 24,
-              height: 24,
+              // 20, not the 24 the Material glyph used: a Tabler icon's stroke
+              // runs much closer to the edge of its 24 box, so matching the
+              // number made it read noticeably bigger than what it replaced.
+              width: 20,
+              height: 20,
               colorFilter: ColorFilter.mode(accent, BlendMode.srcIn),
             ),
           ),
