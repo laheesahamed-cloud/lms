@@ -13,7 +13,12 @@ import 'package:flutter/material.dart';
 /// ("Paper 2 Revision") falls through to a neutral default rather than being
 /// given something misleading.
 class SubjectIcon {
-  /// Asset path of a Tabler SVG in assets/icons/medical/.
+  /// Asset path of an SVG in assets/icons/medical/.
+  ///
+  /// Mostly Tabler. The three named `hi-` are Healthicons, because Tabler has
+  /// no scalpel, no uterus and no baby — the stand-ins were a suture needle, a
+  /// venus symbol and a pram. Healthicons draws in filled shapes rather than
+  /// strokes, so those three sit slightly heavier than the rest.
   final String asset;
   final Color colour;
   const SubjectIcon(this.asset, this.colour);
@@ -38,8 +43,8 @@ const _gold = Color(0xFFF4B740);
 /// how "Paper 2 Revision" came out as an eyeball.
 const List<(String, String, Color)> _rules = [
   // ── specialties whose names contain another subject's word ──
-  (r'obstet|gyn[ae]ec|antenatal|obs\b', 'venus', _rose),
-  (r'p[ae]ediatric|neonat|child health', 'baby-carriage', _amber),
+  (r'obstet|gyn[ae]ec|antenatal|obs\b', 'hi-female-reproductive', _rose),
+  (r'p[ae]ediatric|neonat|child health', 'hi-baby', _amber),
   (r'forensic|medico.?legal', 'fingerprint', _gold),
   (r'community|public health|epidemiolog', 'users-group', _blue),
   (r'emergency|casualty|acute care|resus', 'ambulance', _rose),
@@ -73,7 +78,7 @@ const List<(String, String, Color)> _rules = [
   (r'statistic|research|biostat|\baudit\b|\bdata\b', 'chart-bar', _gold),
   (r'radiolog|imaging|x.?ray|ultrasound|\bscans?\b|\bct\b|\bmri\b', 'radioactive', _cyan),
   (r'oncolog|cancer|tumou?r|malignan', 'ribbon-health', _violet),
-  (r'surg|operat|theatre|suture|incision', 'needle-thread', _cyan),
+  (r'surg|operat|theatre|suture|incision', 'hi-surgery', _cyan),
 
   // ── last, because "medicine" appears inside many of the names above ──
   (r'medicine|medical|clinical|internal', 'stethoscope', _blue),
