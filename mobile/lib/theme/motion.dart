@@ -100,16 +100,20 @@ Page<T> studyToolPage<T>(
       : fadePage<T>(key: key, child: wrapped);
 }
 
-/// An opaque page-coloured ground, for screens that draw their own header and
-/// so skip [StudyToolChrome]. A screen with its own [Scaffold] does not need
-/// it, but one that is just a [ListView] does.
+/// An opaque page-coloured ground for a pushed screen that has no [Scaffold]
+/// of its own — just a [ListView], say.
+///
+/// Material, not a ColoredBox: it paints the same ground, but it is also the
+/// Material ancestor every [Text] needs. Without one Flutter draws its
+/// debug double underline under every string on the page, which is what the
+/// yellow lines on the pushed screens were.
 class _PageGround extends StatelessWidget {
   final Widget child;
   const _PageGround({required this.child});
 
   @override
   Widget build(BuildContext context) =>
-      ColoredBox(color: context.c.page, child: child);
+      Material(color: context.c.page, child: child);
 }
 
 /// Adds a leading back chevron above a study-tool screen, but only when the

@@ -6,7 +6,6 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/glass_card.dart';
 import 'ecg_repository.dart';
 import '../../widgets/page_header.dart';
@@ -18,17 +17,23 @@ import '../../widgets/shell_insets.dart';
 /// hand and the app has never read it, so the titles are the only thing we can
 /// rely on today. A topic whose title starts with "basic" — in any case — is a
 /// basics topic; everything else is a rhythm.
-enum EcgGroup { basics, rhythms }
+enum EcgGroup { basics, rhythms, all }
 
 extension EcgGroupX on EcgGroup {
-  String get slug => this == EcgGroup.basics ? 'basics' : 'rhythms';
-  String get title =>
-      this == EcgGroup.basics ? 'Basics of ECG' : 'Rhythm Library';
+  String get title => switch (this) {
+    EcgGroup.basics => 'Basics of ECG',
+    EcgGroup.rhythms => 'Rhythm Library',
+    EcgGroup.all => 'Practice Cases',
+  };
 
-  static EcgGroup fromSlug(String? slug) =>
-      slug == 'basics' ? EcgGroup.basics : EcgGroup.rhythms;
+  static EcgGroup fromSlug(String? slug) => switch (slug) {
+    'basics' => EcgGroup.basics,
+    'all' => EcgGroup.all,
+    _ => EcgGroup.rhythms,
+  };
 
   bool matches(EcgTopic t) {
+    if (this == EcgGroup.all) return true;
     final isBasics = t.title.trimLeft().toLowerCase().startsWith('basic');
     return this == EcgGroup.basics ? isBasics : !isBasics;
   }
@@ -110,7 +115,7 @@ class _EcgPageState extends ConsumerState<EcgPage> {
                         title: 'Practice Cases',
                         subtitle: 'Real ECGs with full explanations',
                         accent: DashAccents.green,
-                        onTap: () => context.push('/app/ecg/quiz'),
+                        onTap: () => context.push('/app/ecg/topics/all'),
                       ),
                     ),
                     const SizedBox(width: AppSpace.x3),
@@ -118,9 +123,9 @@ class _EcgPageState extends ConsumerState<EcgPage> {
                       child: _HubTile(
                         icon: Icons.psychology_outlined,
                         title: 'Quick Quiz',
-                        subtitle: 'Test your knowledge in minutes',
+                        subtitle: 'Identify the ECG from the strip',
                         accent: DashAccents.violet,
-                        onTap: () => context.push('/app/quizzes'),
+                        onTap: () => context.push('/app/ecg/quiz'),
                       ),
                     ),
                   ],
@@ -201,53 +206,50 @@ class _ExploreHero extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                // Held off the right edge so the trace's tall R wave has room
-                // to read as artwork rather than as something behind the text.
-                FractionallySizedBox(
-                  widthFactor: 0.74,
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        topic.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 24,
-                          height: 1.1,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.7,
-                          color: c.inkStrong,
-                        ),
-                      ),
-                      if (topic.description.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          topic.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.35,
-                            color: c.inkSoft,
+                // Held off the right so the trace's tall R wave has room to
+                // read as artwork rather than as something behind the text.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            topic.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 24,
+                              height: 1.1,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.7,
+                              color: c.inkStrong,
+                            ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpace.x4),
-                AppButton(
-                  'Explore',
-                  kind: AppButtonKind.cta,
-                  onPressed: onTap,
-                  leading: const Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 17,
-                    color: Colors.white,
-                  ),
+                          if (topic.description.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              topic.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.35,
+                                color: c.inkSoft,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpace.x3),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 24,
+                      color: c.inkMuted,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -352,7 +354,7 @@ class EcgTopicsPage extends ConsumerWidget {
                     c: c,
                     text: group == EcgGroup.basics
                         ? 'No basics topics yet. A topic goes here when its title starts with "Basics".'
-                        : 'No rhythm topics yet. Check back soon.',
+                        : 'No ECG topics yet. Check back soon.',
                   );
                 }
                 return AnimationLimiter(
