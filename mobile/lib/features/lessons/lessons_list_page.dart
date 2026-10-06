@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -9,6 +10,7 @@ import 'lesson_models.dart';
 import 'lessons_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
+import '../courses/subject_icons.dart';
 
 class LessonsListPage extends ConsumerStatefulWidget {
   const LessonsListPage({super.key});
@@ -20,14 +22,6 @@ class LessonsListPage extends ConsumerStatefulWidget {
 class _LessonsListPageState extends ConsumerState<LessonsListPage> {
   String? _examType; // null = All
 
-  static const List<Color> _accents = [
-    Color(0xFF6366F1),
-    Color(0xFFF43F5E),
-    Color(0xFF10B981),
-    Color(0xFFF59E0B),
-    Color(0xFF38BDF8),
-    Color(0xFF8B5CF6),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -73,12 +67,10 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
 
           // Flat item list
           final items = <_ListItem>[];
-          var globalIndex = 0;
           for (final entry in visibleEntries) {
             items.add(_SectionHeader(entry.key));
             for (final group in entry.value) {
-              items.add(_CourseItem(group, globalIndex % _accents.length));
-              globalIndex++;
+              items.add(_CourseItem(group));
             }
           }
 
@@ -122,7 +114,6 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _CourseCard(
                               group: item.group,
-                              accent: _accents[item.accentIndex],
                             ),
                           ),
                     ],
@@ -139,7 +130,7 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
 
 sealed class _ListItem {}
 class _SectionHeader extends _ListItem { final String label; _SectionHeader(this.label); }
-class _CourseItem extends _ListItem { final LessonCourseGroup group; final int accentIndex; _CourseItem(this.group, this.accentIndex); }
+class _CourseItem extends _ListItem { final LessonCourseGroup group; _CourseItem(this.group); }
 
 class _ExamDivider extends StatelessWidget {
   final String label;
@@ -227,12 +218,15 @@ class _ExamDropdown extends StatelessWidget {
 
 class _CourseCard extends StatelessWidget {
   final LessonCourseGroup group;
-  final Color accent;
-  const _CourseCard({required this.group, required this.accent});
+  const _CourseCard({required this.group});
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    // The same identity the Courses page gives this course, so one course does
+    // not arrive as a stethoscope on one screen and an open book on the other.
+    final identity = subjectIcon(group.courseTitle);
+    final accent = identity.colour;
     final key = group.courseId.isNotEmpty
         ? group.courseId
         : Uri.encodeComponent(group.courseTitle);
@@ -241,11 +235,19 @@ class _CourseCard extends StatelessWidget {
       child: Row(children: [
         Container(
           width: 48, height: 48,
+          // Sized Container with no alignment hands the child tight
+          // constraints, which stretches an SVG to fill the chip.
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: accent.withValues(alpha: 0.16),
             borderRadius: BorderRadius.circular(AppRadius.inner),
           ),
-          child: Icon(Icons.auto_stories_outlined, color: accent, size: 24),
+          child: SvgPicture.asset(
+            identity.asset,
+            width: identity.size,
+            height: identity.size,
+            colorFilter: ColorFilter.mode(accent, BlendMode.srcIn),
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(

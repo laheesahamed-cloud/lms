@@ -105,11 +105,12 @@ final List<(RegExp, String, Color)> _compiled = _rules
     .toList(growable: false);
 
 /// Nothing in the name to go on. Deliberately generic rather than a guess.
-/// The glyph inside the 48 chip. It was rendering at the full 48 — the chip
-/// was handing it tight constraints — so these are sized against that: roughly
-/// half of what was actually on screen.
-const double _kTablerSize = 24;
-const double _kHealthiconSize = 22;
+/// The glyph inside the 48 chip, in the proportion the rest of the app uses:
+/// the Study hub puts a 22 glyph in a 40 chip, which is 0.55, and 0.55 of 48
+/// is 26. Healthicons draw across a fuller box, so theirs comes down to match
+/// optically rather than numerically.
+const double _kTablerSize = 26;
+const double _kHealthiconSize = 24;
 
 const SubjectIcon _fallback =
     SubjectIcon('assets/icons/medical/book-2.svg', _slate, _kTablerSize);
