@@ -347,6 +347,28 @@ class _QuizRow extends StatelessWidget {
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: locked ? c.inkSoft : c.inkStrong)),
+                // Which lesson this set belongs to. The row's own label is
+                // usually just "Quiz 3", so without this there is nothing on
+                // it saying what the questions are actually about.
+                if (quiz.lessonTitle.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.menu_book_outlined,
+                          size: 13, color: locked ? c.inkMuted : c.primary),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(quiz.lessonTitle.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: locked ? c.inkMuted : c.primary)),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 3),
                 Text(meta, style: TextStyle(fontSize: 13, color: c.inkSoft)),
               ],
