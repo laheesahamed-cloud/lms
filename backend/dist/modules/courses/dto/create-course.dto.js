@@ -36,12 +36,6 @@ __decorate([
 ], CreateCourseDto.prototype, "examType", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(64),
-    __metadata("design:type", String)
-], CreateCourseDto.prototype, "icon", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsIn)(['active', 'inactive']),
     __metadata("design:type", String)
 ], CreateCourseDto.prototype, "status", void 0);

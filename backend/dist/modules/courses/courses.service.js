@@ -45,7 +45,7 @@ let CoursesService = class CoursesService {
         };
     }
     async findAll() {
-        const [rows] = await this.db.execute('SELECT id, course_title, course_code, description, exam_type, icon, status, created_at FROM courses ORDER BY course_title ASC');
+        const [rows] = await this.db.execute('SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses ORDER BY course_title ASC');
         return rows.map((row) => this.mapCourse(row));
     }
     async create(createCourseDto, actor) {
@@ -55,12 +55,11 @@ let CoursesService = class CoursesService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            const [result] = await connection.execute('INSERT INTO courses (course_title, course_code, description, exam_type, icon, status) VALUES (?, ?, ?, ?, ?, ?)', [
+            const [result] = await connection.execute('INSERT INTO courses (course_title, course_code, description, exam_type, status) VALUES (?, ?, ?, ?, ?)', [
                 snapshot.courseTitle,
                 snapshot.courseCode,
                 snapshot.description,
                 snapshot.examType,
-                snapshot.icon,
                 snapshot.status,
             ]);
             await this.recordContentVersion(connection, 'course', result.insertId, snapshot, this.getActorId(actor));
@@ -94,7 +93,6 @@ let CoursesService = class CoursesService {
             courseCode: updateCourseDto.courseCode ?? existing.courseCode,
             description: updateCourseDto.description ?? existing.description,
             examType: updateCourseDto.examType ?? existing.examType,
-            icon: updateCourseDto.icon ?? existing.icon,
             status: updateCourseDto.status ?? existing.status,
         });
         this.validateCoursePayload(snapshot);
@@ -251,7 +249,7 @@ let CoursesService = class CoursesService {
     }
     async findStudentCourses(authorization) {
         const student = await this.authService.requireStudent(authorization);
-        const [courseRows] = await this.db.execute(`SELECT id, course_title, course_code, description, exam_type, icon, status, created_at
+        const [courseRows] = await this.db.execute(`SELECT id, course_title, course_code, description, exam_type, status, created_at
        FROM courses
        WHERE status = 'active'
        ORDER BY course_title ASC`);
@@ -276,7 +274,7 @@ let CoursesService = class CoursesService {
     }
     async findStudentCourseDetail(courseId, authorization) {
         const student = await this.authService.requireStudent(authorization);
-        const [courseRows] = await this.db.execute(`SELECT id, course_title, course_code, description, exam_type, icon, status, created_at
+        const [courseRows] = await this.db.execute(`SELECT id, course_title, course_code, description, exam_type, status, created_at
        FROM courses
        WHERE id = ? AND status = 'active'
        LIMIT 1`, [courseId]);
@@ -388,7 +386,6 @@ let CoursesService = class CoursesService {
             courseCode: String(course.courseCode || '').trim(),
             description: String(course.description || '').trim(),
             examType: String(course.examType || '').trim(),
-            icon: String(course.icon || '').trim().slice(0, 64),
             status: course.status === 'active' ? 'active' : 'inactive',
         };
     }
@@ -398,17 +395,15 @@ let CoursesService = class CoursesService {
             courseCode: course.courseCode,
             description: course.description || '',
             examType: course.examType,
-            icon: course.icon || '',
             status,
         });
     }
     async writeCourseSnapshot(connection, id, course) {
-        await connection.execute('UPDATE courses SET course_title = ?, course_code = ?, description = ?, exam_type = ?, icon = ?, status = ? WHERE id = ?', [
+        await connection.execute('UPDATE courses SET course_title = ?, course_code = ?, description = ?, exam_type = ?, status = ? WHERE id = ?', [
             course.courseTitle,
             course.courseCode,
             course.description,
             course.examType,
-            course.icon,
             course.status,
             id,
         ]);
@@ -500,7 +495,7 @@ let CoursesService = class CoursesService {
         }
     }
     async findById(id) {
-        const [rows] = await this.db.execute('SELECT id, course_title, course_code, description, exam_type, icon, status, created_at FROM courses WHERE id = ? LIMIT 1', [id]);
+        const [rows] = await this.db.execute('SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses WHERE id = ? LIMIT 1', [id]);
         const row = rows[0];
         if (!row) {
             throw new common_1.NotFoundException('Course not found');
@@ -771,7 +766,6 @@ let CoursesService = class CoursesService {
             courseCode: row.course_code,
             description: row.description || '',
             examType: row.exam_type,
-            icon: row.icon || '',
             status: row.status,
             createdAt: row.created_at || null,
         };

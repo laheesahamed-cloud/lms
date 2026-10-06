@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -7,6 +8,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'courses_repository.dart';
 import '../../widgets/shell_insets.dart';
+import 'subject_icons.dart';
 
 /// Student course library — grouped by exam type, with a dropdown filter.
 class CoursesPage extends ConsumerStatefulWidget {
@@ -19,22 +21,6 @@ class CoursesPage extends ConsumerStatefulWidget {
 class _CoursesPageState extends ConsumerState<CoursesPage> {
   String? _examType; // null = All
 
-  static const List<Color> _accents = <Color>[
-    Color(0xFFF43F5E),
-    Color(0xFF38BDF8),
-    Color(0xFF8B5CF6),
-    Color(0xFFF59E0B),
-    Color(0xFF10B981),
-    Color(0xFF3B82F6),
-  ];
-  static const List<IconData> _icons = <IconData>[
-    Icons.favorite_outline_rounded,
-    Icons.air_rounded,
-    Icons.psychology_outlined,
-    Icons.water_drop_outlined,
-    Icons.bubble_chart_outlined,
-    Icons.healing_outlined,
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -68,13 +54,10 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
 
           // Flat item list: header + cards
           final items = <_ListItem>[];
-          var globalIndex = 0;
           for (final entry in visibleEntries) {
             items.add(_SectionHeader(entry.key));
             for (final course in entry.value) {
-              items.add(_CourseItem(
-                  course, globalIndex % _accents.length, globalIndex % _icons.length));
-              globalIndex++;
+              items.add(_CourseItem(course));
             }
           }
 
@@ -126,11 +109,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
                           else if (item is _CourseItem)
                             Padding(
                               padding: const EdgeInsets.only(bottom: AppSpace.x3),
-                              child: _CourseCard(
-                                course: item.course,
-                                accent: _accents[item.accentIndex],
-                                icon: _icons[item.iconIndex],
-                              ),
+                              child: _CourseCard(course: item.course),
                             ),
                       ],
                     ),
@@ -147,8 +126,8 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
 sealed class _ListItem {}
 class _SectionHeader extends _ListItem { final String label; _SectionHeader(this.label); }
 class _CourseItem extends _ListItem {
-  final CourseCard course; final int accentIndex; final int iconIndex;
-  _CourseItem(this.course, this.accentIndex, this.iconIndex);
+  final CourseCard course;
+  _CourseItem(this.course);
 }
 
 class _ExamDivider extends StatelessWidget {
@@ -237,14 +216,17 @@ class _ExamDropdown extends StatelessWidget {
 }
 
 class _CourseCard extends StatelessWidget {
-  const _CourseCard({required this.course, required this.accent, required this.icon});
+  const _CourseCard({required this.course});
   final CourseCard course;
-  final Color accent;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    // Both the glyph and the tint come from the course's name, so a course
+    // keeps the same identity wherever it appears and whatever else is in the
+    // list beside it.
+    final identity = subjectIcon(course.title);
+    final accent = identity.colour;
     final double frac = (course.progressPercent / 100).clamp(0.0, 1.0);
     final int pct = course.progressPercent.round();
 
@@ -258,7 +240,12 @@ class _CourseCard extends StatelessWidget {
               color: accent.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(AppRadius.inner),
             ),
-            child: Icon(icon, color: accent, size: 24),
+            child: SvgPicture.asset(
+              identity.asset,
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(accent, BlendMode.srcIn),
+            ),
           ),
           const SizedBox(width: AppSpace.x4),
           Expanded(

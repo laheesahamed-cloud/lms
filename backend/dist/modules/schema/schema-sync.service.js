@@ -734,7 +734,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             });
             await step('osce tables', () => this.ensureOsceTables(conn));
             await step('notification dismissals', () => this.ensureNotificationDismissalsTable(conn));
-            await step('courses.icon', () => this.ensureColumn(conn, 'courses', 'icon', "VARCHAR(64) NULL AFTER exam_type"));
         }
         finally {
             connection.release();
