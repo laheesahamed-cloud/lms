@@ -346,10 +346,14 @@ class _TopicDivider extends StatelessWidget {
         const SizedBox(width: 10),
         Flexible(
           child: Text(label.toUpperCase(),
-              maxLines: 1,
+              // A topic name is the whole point of the divider, so it wraps
+              // rather than being cut: two lines, centred over the rules.
+              maxLines: 2,
+              textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   fontSize: 10,
+                  height: 1.35,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                   color: c.inkMuted)),
