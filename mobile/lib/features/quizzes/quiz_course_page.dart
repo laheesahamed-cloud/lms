@@ -330,8 +330,9 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
       );
 }
 
-/// A labelled rule between topics. Mirrors the Lessons course page's divider
-/// so the two screens group a subject identically.
+/// The topic a run of quizzes belongs to. Just the label: flanking rules left
+/// it a narrow column in the middle of the row, which broke long names across
+/// lines mid-word ("UROGYNAECOLOG / Y").
 class _TopicDivider extends StatelessWidget {
   final String label;
   final AppColors c;
@@ -340,27 +341,17 @@ class _TopicDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 10),
-      child: Row(children: [
-        Expanded(child: Divider(color: c.line, thickness: 1)),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(label.toUpperCase(),
-              // A topic name is the whole point of the divider, so it wraps
-              // rather than being cut: two lines, centred over the rules.
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 10,
-                  height: 1.35,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                  color: c.inkMuted)),
+      padding: const EdgeInsets.only(top: 10, bottom: 10, left: 2),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          fontSize: 10.5,
+          height: 1.35,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+          color: c.inkMuted,
         ),
-        const SizedBox(width: 10),
-        Expanded(child: Divider(color: c.line, thickness: 1)),
-      ]),
+      ),
     );
   }
 }
