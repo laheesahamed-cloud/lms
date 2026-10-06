@@ -260,15 +260,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           ),
           AnimatedCrossFade(
             firstChild: const SizedBox(width: double.infinity, height: 0),
-            secondChild: Column(
-              children: [
-                for (var i = 0; i < g.quizzes.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _QuizRow(quiz: g.quizzes[i], index: i, exam: _exam),
-                  ),
-              ],
-            ),
+            secondChild: Column(children: _groupRows(c, g)),
             crossFadeState:
                 collapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
             duration: AppDur.dropdown,
@@ -280,6 +272,42 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     );
   }
 
+  /// The quizzes inside one section, with a topic divider wherever the topic
+  /// changes — the same shape the Lessons course page uses, so a subject reads
+  /// the same way in both places.
+  ///
+  /// The numbering runs straight through the section rather than restarting at
+  /// each topic, so scanning the whole subject reads as one list.
+  List<Widget> _groupRows(AppColors c, QuizScopeGroup g) {
+    final order = <String>[];
+    final byTopic = <String, List<QuizListItem>>{};
+    for (final q in g.quizzes) {
+      final key = q.topicName.trim();
+      if (!byTopic.containsKey(key)) {
+        order.add(key);
+        byTopic[key] = [];
+      }
+      byTopic[key]!.add(q);
+    }
+
+    final rows = <Widget>[];
+    var index = 0;
+    for (final key in order) {
+      // Nothing to separate when there is only one topic and it is what the
+      // section is already called.
+      if (key.isNotEmpty && !(order.length == 1 && key == g.label)) {
+        rows.add(_TopicDivider(label: key, c: c));
+      }
+      for (final quiz in byTopic[key]!) {
+        rows.add(Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _QuizRow(quiz: quiz, index: index++, exam: _exam),
+        ));
+      }
+    }
+    return rows;
+  }
+
   Widget _back(BuildContext context, AppColors c, Widget child) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
         children: [
@@ -287,6 +315,37 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           Padding(padding: const EdgeInsets.all(24), child: child),
         ],
       );
+}
+
+/// A labelled rule between topics. Mirrors the Lessons course page's divider
+/// so the two screens group a subject identically.
+class _TopicDivider extends StatelessWidget {
+  final String label;
+  final AppColors c;
+  const _TopicDivider({required this.label, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 10),
+      child: Row(children: [
+        Expanded(child: Divider(color: c.line, thickness: 1)),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: c.inkMuted)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Divider(color: c.line, thickness: 1)),
+      ]),
+    );
+  }
 }
 
 class _QuizRow extends StatelessWidget {
