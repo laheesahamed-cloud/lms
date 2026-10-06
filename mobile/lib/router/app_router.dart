@@ -7,6 +7,7 @@ import '../state/auth_controller.dart';
 import '../state/onboarding.dart';
 import '../features/onboarding/splash_page.dart';
 import '../features/onboarding/welcome_page.dart';
+import '../features/onboarding/profile_setup_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/auth/register_page.dart';
 import '../features/auth/forgot_password_page.dart';
@@ -58,6 +59,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(onboardingSeenProvider, (_, _) => refresh.value++);
+  ref.listen(profileSetupSeenProvider, (_, _) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
@@ -84,6 +86,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         if (!atAuth) return '/auth/login';
         return null;
       }
+      // Signed in with nothing to greet them by — ask once, then never again.
+      // After the auth redirect below, so it cannot strand anyone on a route
+      // they are not allowed to be on.
+      final user = auth.user;
+      final atSetup = loc == '/welcome/profile';
+      final needsSetup = user != null &&
+          !ref.read(profileSetupSeenProvider) &&
+          needsProfileSetup(fullName: user.fullName, email: user.email);
+      if (needsSetup) return atSetup ? null : '/welcome/profile';
+      if (atSetup) return '/app/dashboard';
+
       if (atWelcome || atAuth || loc == '/splash') return '/app/dashboard';
       return null;
     },
@@ -95,6 +108,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/welcome',
         pageBuilder: (c, s) => fadePage(key: s.pageKey, child: const WelcomePage()),
+      ),
+      GoRoute(
+        path: '/welcome/profile',
+        pageBuilder: (c, s) =>
+            fadePage(key: s.pageKey, child: const ProfileSetupPage()),
       ),
       GoRoute(
         path: '/auth/login',
