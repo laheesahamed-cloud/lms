@@ -300,15 +300,6 @@ class _QuizRow extends StatelessWidget {
     final c = context.c;
     final locked = quiz.locked;
     final label = quiz.rowLabel(index);
-    // Subject is already the group's heading, so the row fills in what sits
-    // between that and the quiz: topic, then subtopic, de-duplicated because
-    // a quiz filed directly under a topic repeats it as its subtopic.
-    final path = <String>[];
-    for (final part in [quiz.topicName, quiz.subtopicName]) {
-      final v = part.trim();
-      if (v.isNotEmpty && !path.contains(v)) path.add(v);
-    }
-
     final meta = '${quiz.totalQuestions} questions'
         '${exam && quiz.timeLimit > 0 ? ' · ${quiz.timeLimit} min' : ''}'
         '${quiz.isFree ? ' · Free' : ''}'
@@ -356,38 +347,6 @@ class _QuizRow extends StatelessWidget {
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: locked ? c.inkSoft : c.inkStrong)),
-                if (path.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(path.join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: c.inkMuted)),
-                ],
-                // Which lesson this set belongs to. The row's own label is
-                // usually just "Quiz 3", so without this there is nothing on
-                // it saying what the questions are actually about.
-                if (quiz.lessonTitle.trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.menu_book_outlined,
-                          size: 13, color: locked ? c.inkMuted : c.primary),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(quiz.lessonTitle.trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: locked ? c.inkMuted : c.primary)),
-                      ),
-                    ],
-                  ),
-                ],
                 const SizedBox(height: 3),
                 Text(meta, style: TextStyle(fontSize: 13, color: c.inkSoft)),
               ],
