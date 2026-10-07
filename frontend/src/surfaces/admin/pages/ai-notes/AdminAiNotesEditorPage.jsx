@@ -483,14 +483,16 @@ export function AdminAiNotesEditorPage({
   // Polls the background generation job until it finishes, appending each new
   // stage to the visible progress log instead of one long blind wait.
   async function pollGenerationJob(jobId) {
-    let seenCount = 0;
     for (;;) {
       const job = await adminGetAiNoteGenerationStatus(jobId, { engine: engineKey });
-      if (job.stages?.length > seenCount) {
-        const newStages = job.stages.slice(seenCount);
-        seenCount = job.stages.length;
-        setProgressLog(prev => [...prev, ...newStages]);
-        setProcessMsg(newStages[newStages.length - 1].message);
+      // Take the server's list wholesale instead of appending whatever is new
+      // past a seen count. The live "is writing… N characters" line UPDATES its
+      // own last entry rather than adding one, so a length comparison never
+      // noticed it changing — the counter was being written and then ignored.
+      const stages = job.stages || [];
+      if (stages.length) {
+        setProgressLog(stages);
+        setProcessMsg(stages[stages.length - 1].message);
       }
       if (job.status === 'done') return job.result;
       if (job.status === 'error') throw new Error(job.error || 'Generation failed');

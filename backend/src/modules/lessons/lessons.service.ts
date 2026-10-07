@@ -2780,7 +2780,25 @@ export class LessonsService {
           onProgress?.('writing',
             `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
         })).trim();
-        if (!raw) { errors.push(`${model}: empty`); onProgress?.('model', `${where}${model} returned nothing \u2014 trying the next model\u2026`); continue; }
+        if (!raw) {
+          // Streaming produced nothing. Rather than write the model off — and
+          // with it, potentially every model, leaving generation broken where
+          // it used to work — ask the same one again without streaming. The
+          // only thing lost is the live character count.
+          onProgress?.('model', `${where}${model} sent no stream \u2014 retrying it without streaming\u2026`);
+          const plain = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
+          if (plain.ok) {
+            const json = await plain.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+            const fallbackRaw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
+            if (fallbackRaw) {
+              onProgress?.('model', `${where}${model} replied (no stream) \u2014 reading it\u2026`);
+              return this.parseCanvasJson(fallbackRaw);
+            }
+          }
+          errors.push(`${model}: empty`);
+          onProgress?.('model', `${where}${model} returned nothing \u2014 trying the next model\u2026`);
+          continue;
+        }
         onProgress?.('model', `${where}${model} replied after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 reading it\u2026`);
         return this.parseCanvasJson(raw);
       } catch (err) {
