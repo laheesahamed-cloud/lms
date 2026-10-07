@@ -639,6 +639,7 @@ export declare class LessonsService {
     private requestBudget;
     private parseCanvasJson;
     private generateWithGeminiProvider;
+    private readGeminiStream;
     private generateWithChatProvider;
     private sendChatCanvasPrompt;
     private isUnsupportedOpenAiJsonModeError;

@@ -1790,7 +1790,16 @@ export class LessonsService {
 
     const stages: Array<{ stage: string; message: string; at: number }> = [];
     void this.canvasGenerate(text, token, (stage, message) => {
-      stages.push({ stage, message, at: Date.now() });
+      // The 'writing' stage ticks about once a second while a model streams,
+      // so it REPLACES its own last line instead of appending. Appending would
+      // leave hundreds of near-identical entries and grow stages_json for the
+      // whole run; this keeps one live counter that updates in place.
+      const last = stages[stages.length - 1];
+      if (stage === 'writing' && last?.stage === 'writing') {
+        last.message = message;
+      } else {
+        stages.push({ stage, message, at: Date.now() });
+      }
       // Best-effort progress write — a slow/failed write here should never
       // abort generation itself, only cost the client one stale poll.
       this.db.execute(
@@ -2759,10 +2768,18 @@ export class LessonsService {
       const startedAt = Date.now();
       const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), budget);
       try {
-        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
+        // STREAMED, not one blocking call. Non-streaming gave a single silent
+        // wait of up to four minutes per model with nothing to report in the
+        // middle — "Writing part 1 of 3…" and then nothing — so a slow model
+        // and a dead one looked exactly alike. Server-sent events let the text
+        // be counted as it arrives, which is the only honest progress there is
+        // while a model is mid-sentence.
+        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
         if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`); continue; }
-        const json = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-        const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
+        const raw = (await this.readGeminiStream(res, (chars, sections) => {
+          onProgress?.('writing',
+            `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
+        })).trim();
         if (!raw) { errors.push(`${model}: empty`); onProgress?.('model', `${where}${model} returned nothing \u2014 trying the next model\u2026`); continue; }
         onProgress?.('model', `${where}${model} replied after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 reading it\u2026`);
         return this.parseCanvasJson(raw);
@@ -2777,6 +2794,60 @@ export class LessonsService {
     }
     if (sawTruncation) throw new LessonJsonTruncatedError(errors.join(' | '));
     throw new ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
+  }
+
+  /// Reads a Gemini SSE stream, reporting how much has arrived as it goes.
+  ///
+  /// Called back about once a second rather than per packet — the progress log
+  /// is polled, and a line per chunk would be thousands of near-identical
+  /// entries. The card count comes from counting '"heading"' in what has
+  /// arrived so far: approximate by nature (a heading inside a string would
+  /// over-count), but it is the difference between "something is happening"
+  /// and watching the lesson actually take shape.
+  private async readGeminiStream(
+    res: Response,
+    onTick: (chars: number, sections: number) => void,
+  ): Promise<string> {
+    const body = res.body;
+    if (!body) return '';
+    const decoder = new TextDecoder();
+    let buffered = '';
+    let text = '';
+    let lastTick = 0;
+
+    const reader = (body as unknown as { getReader: () => ReadableStreamDefaultReader<Uint8Array> }).getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffered += decoder.decode(value, { stream: true });
+
+      // SSE frames are separated by a blank line; keep any partial tail for
+      // the next read rather than parsing half a frame.
+      const frames = buffered.split('\n\n');
+      buffered = frames.pop() ?? '';
+      for (const frame of frames) {
+        for (const line of frame.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(payload) as {
+              candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+            };
+            for (const part of parsed?.candidates?.[0]?.content?.parts ?? []) {
+              if (typeof part?.text === 'string') text += part.text;
+            }
+          } catch { /* a frame we cannot read is not worth failing the stream for */ }
+        }
+      }
+
+      const now = Date.now();
+      if (text && now - lastTick > 1000) {
+        lastTick = now;
+        onTick(text.length, (text.match(/"heading"\s*:/g) || []).length);
+      }
+    }
+    return text;
   }
 
   private async generateWithChatProvider(

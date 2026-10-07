@@ -1261,7 +1261,13 @@ let LessonsService = LessonsService_1 = class LessonsService {
         await this.db.execute(`INSERT INTO lesson_generation_jobs (id, status, stages_json) VALUES (?, 'running', '[]')`, [jobId]);
         const stages = [];
         void this.canvasGenerate(text, token, (stage, message) => {
-            stages.push({ stage, message, at: Date.now() });
+            const last = stages[stages.length - 1];
+            if (stage === 'writing' && last?.stage === 'writing') {
+                last.message = message;
+            }
+            else {
+                stages.push({ stage, message, at: Date.now() });
+            }
             this.db.execute(`UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`, [JSON.stringify(stages), jobId]).catch(() => { });
         }, sourceFormat)
             .then((result) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`, [JSON.stringify(result), jobId]))
@@ -2023,7 +2029,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), budget);
             try {
-                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
+                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
                 if (!res.ok) {
                     let d = '';
                     try {
@@ -2035,8 +2041,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`);
                     continue;
                 }
-                const json = await res.json();
-                const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
+                const raw = (await this.readGeminiStream(res, (chars, sections) => {
+                    onProgress?.('writing', `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
+                })).trim();
                 if (!raw) {
                     errors.push(`${model}: empty`);
                     onProgress?.('model', `${where}${model} returned nothing \u2014 trying the next model\u2026`);
@@ -2066,6 +2073,47 @@ let LessonsService = LessonsService_1 = class LessonsService {
         if (sawTruncation)
             throw new LessonJsonTruncatedError(errors.join(' | '));
         throw new common_1.ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
+    }
+    async readGeminiStream(res, onTick) {
+        const body = res.body;
+        if (!body)
+            return '';
+        const decoder = new TextDecoder();
+        let buffered = '';
+        let text = '';
+        let lastTick = 0;
+        const reader = body.getReader();
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            buffered += decoder.decode(value, { stream: true });
+            const frames = buffered.split('\n\n');
+            buffered = frames.pop() ?? '';
+            for (const frame of frames) {
+                for (const line of frame.split('\n')) {
+                    if (!line.startsWith('data:'))
+                        continue;
+                    const payload = line.slice(5).trim();
+                    if (!payload || payload === '[DONE]')
+                        continue;
+                    try {
+                        const parsed = JSON.parse(payload);
+                        for (const part of parsed?.candidates?.[0]?.content?.parts ?? []) {
+                            if (typeof part?.text === 'string')
+                                text += part.text;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            const now = Date.now();
+            if (text && now - lastTick > 1000) {
+                lastTick = now;
+                onTick(text.length, (text.match(/"heading"\s*:/g) || []).length);
+            }
+        }
+        return text;
     }
     async generateWithChatProvider(prompt, provider, deadline = Infinity, onProgress, label = '') {
         const where = label ? `${label} — ` : '';
