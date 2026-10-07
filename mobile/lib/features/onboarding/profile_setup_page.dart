@@ -48,9 +48,13 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
     _avatarKey = (user?.avatarKey.isNotEmpty ?? false)
         ? user!.avatarKey
         : resolveAvatar(seed: user?.id ?? user?.email ?? user?.fullName).key;
-    // Deliberately NOT prefilled: the only reason this screen is up is that
-    // the stored name is junk — usually an Apple relay address's prefix — and
-    // putting that in the field reads as the app getting it wrong.
+    // Prefilled when the stored name is worth showing, so someone who already
+    // has one can just carry on. Left empty when it is not — an Apple relay
+    // address's prefix in the box reads as the app getting it wrong.
+    if (user != null &&
+        !needsProfileSetup(fullName: user.fullName, email: user.email)) {
+      _name.text = user.fullName.trim();
+    }
     _name.addListener(() => setState(() {}));
   }
 

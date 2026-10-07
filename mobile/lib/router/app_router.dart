@@ -91,9 +91,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // they are not allowed to be on.
       final user = auth.user;
       final atSetup = loc == '/welcome/profile';
-      final needsSetup = user != null &&
-          !ref.read(profileSetupSeenProvider) &&
-          needsProfileSetup(fullName: user.fullName, email: user.email);
+      // Shown once to anyone who has not seen it, rather than only to accounts
+      // we have no usable name for. Gating it on the name meant a brand new
+      // user who typed one at signup — or arrived via Google, which supplies
+      // one — was never welcomed at all, which is the opposite of the point.
+      final needsSetup = user != null && !ref.read(profileSetupSeenProvider);
       if (needsSetup) return atSetup ? null : '/welcome/profile';
       // Deliberately NOT bouncing off /welcome/profile when it is not needed.
       // That guard was how the screen used to exit, and it also made the route
