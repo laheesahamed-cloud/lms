@@ -34,7 +34,7 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
     super.initState();
     _intro = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1150),
+      duration: const Duration(milliseconds: 1850),
     );
     // Started after the first frame so the curve is not eaten by the route's
     // own transition.
@@ -243,11 +243,6 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              "This is how we'll greet you in the app.",
-                              style: TextStyle(fontSize: 11, color: c.inkMuted),
                             ),
                             const SizedBox(height: 20),
 

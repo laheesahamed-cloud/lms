@@ -85,6 +85,11 @@ class ProfilePage extends ConsumerWidget {
                 () => context.push('/app/profile/edit')),
             _Row(Icons.lock_outline, 'Change password',
                 () => context.push('/app/profile/password')),
+            // TEMPORARY, for reviewing the first-run screen: it only appears
+            // by itself for an account with no usable name, which is hard to
+            // arrange on your own login. Remove once the design is settled.
+            _Row(Icons.auto_awesome_outlined, 'Preview welcome screen',
+                () => context.push('/welcome/profile')),
           ]),
           const SizedBox(height: 12),
           const _ThemeCard(),
