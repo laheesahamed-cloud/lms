@@ -2834,30 +2834,36 @@ export class LessonsService {
     let lastTick = 0;
 
     const reader = (body as unknown as { getReader: () => ReadableStreamDefaultReader<Uint8Array> }).getReader();
+
+    // Line by line, NOT frame by frame. The first version split on '\n\n' to
+    // find SSE frame boundaries, but Google sends CRLF — so '\r\n\r\n' never
+    // matched, the buffer just grew, nothing was ever parsed, and every model
+    // looked like it had "returned nothing" after answering perfectly well.
+    // A single 'data:' line is self-contained, so there is no reason to wait
+    // for a blank line at all.
+    const take = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) return;
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === '[DONE]') return;
+      try {
+        const parsed = JSON.parse(payload) as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        };
+        for (const part of parsed?.candidates?.[0]?.content?.parts ?? []) {
+          if (typeof part?.text === 'string') text += part.text;
+        }
+      } catch { /* a frame we cannot read is not worth failing the stream for */ }
+    };
+
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       buffered += decoder.decode(value, { stream: true });
-
-      // SSE frames are separated by a blank line; keep any partial tail for
-      // the next read rather than parsing half a frame.
-      const frames = buffered.split('\n\n');
-      buffered = frames.pop() ?? '';
-      for (const frame of frames) {
-        for (const line of frame.split('\n')) {
-          if (!line.startsWith('data:')) continue;
-          const payload = line.slice(5).trim();
-          if (!payload || payload === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(payload) as {
-              candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-            };
-            for (const part of parsed?.candidates?.[0]?.content?.parts ?? []) {
-              if (typeof part?.text === 'string') text += part.text;
-            }
-          } catch { /* a frame we cannot read is not worth failing the stream for */ }
-        }
-      }
+      const lines = buffered.split(/\r?\n/);
+      // The last piece may be half a line; hold it for the next read.
+      buffered = lines.pop() ?? '';
+      for (const line of lines) take(line);
 
       const now = Date.now();
       if (text && now - lastTick > 1000) {
@@ -2865,6 +2871,9 @@ export class LessonsService {
         onTick(text.length, (text.match(/"heading"\s*:/g) || []).length);
       }
     }
+    // Whatever is left when the stream ends is a complete line.
+    if (buffered) take(buffered);
+
     return text;
   }
 

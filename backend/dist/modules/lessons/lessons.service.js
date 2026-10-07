@@ -2093,36 +2093,39 @@ let LessonsService = LessonsService_1 = class LessonsService {
         let text = '';
         let lastTick = 0;
         const reader = body.getReader();
+        const take = (line) => {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:'))
+                return;
+            const payload = trimmed.slice(5).trim();
+            if (!payload || payload === '[DONE]')
+                return;
+            try {
+                const parsed = JSON.parse(payload);
+                for (const part of parsed?.candidates?.[0]?.content?.parts ?? []) {
+                    if (typeof part?.text === 'string')
+                        text += part.text;
+                }
+            }
+            catch { }
+        };
         for (;;) {
             const { done, value } = await reader.read();
             if (done)
                 break;
             buffered += decoder.decode(value, { stream: true });
-            const frames = buffered.split('\n\n');
-            buffered = frames.pop() ?? '';
-            for (const frame of frames) {
-                for (const line of frame.split('\n')) {
-                    if (!line.startsWith('data:'))
-                        continue;
-                    const payload = line.slice(5).trim();
-                    if (!payload || payload === '[DONE]')
-                        continue;
-                    try {
-                        const parsed = JSON.parse(payload);
-                        for (const part of parsed?.candidates?.[0]?.content?.parts ?? []) {
-                            if (typeof part?.text === 'string')
-                                text += part.text;
-                        }
-                    }
-                    catch { }
-                }
-            }
+            const lines = buffered.split(/\r?\n/);
+            buffered = lines.pop() ?? '';
+            for (const line of lines)
+                take(line);
             const now = Date.now();
             if (text && now - lastTick > 1000) {
                 lastTick = now;
                 onTick(text.length, (text.match(/"heading"\s*:/g) || []).length);
             }
         }
+        if (buffered)
+            take(buffered);
         return text;
     }
     async generateWithChatProvider(prompt, provider, deadline = Infinity, onProgress, label = '') {
