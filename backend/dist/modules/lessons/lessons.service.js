@@ -2139,7 +2139,17 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 }
             }, 1000);
             try {
-                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
+                let gotHeaders = false;
+                const headerTimer = setTimeout(() => { if (!gotHeaders)
+                    ctrl.abort(); }, firstByteLimit);
+                let res;
+                try {
+                    res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) }, 3, 1500, (n, max, why, waitMs) => onProgress?.('model', `${where}${model} \u2014 connection failed (${why}), retry ${n} of ${max} in ${Math.round(waitMs / 1000)}s\u2026`));
+                }
+                finally {
+                    gotHeaders = true;
+                    clearTimeout(headerTimer);
+                }
                 if (!res.ok) {
                     let d = '';
                     try {
@@ -2162,7 +2172,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 if (!raw) {
                     onProgress?.('model', `${where}${model} sent no stream after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 asking it again without streaming\u2026`);
                     phase = 'plain';
-                    const plain = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
+                    const plain = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) }, 3, 1500, (n, max, why, waitMs) => onProgress?.('model', `${where}${model} \u2014 connection failed (${why}), retry ${n} of ${max} in ${Math.round(waitMs / 1000)}s\u2026`));
                     if (plain.ok) {
                         const json = await plain.json();
                         const fallbackRaw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();

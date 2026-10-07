@@ -23,7 +23,7 @@ function isRetryableNetworkError(err) {
 function isAbortError(err) {
     return err instanceof Error && (err.name === 'AbortError' || err.message.toLowerCase().includes('abort'));
 }
-async function fetchWithRetry(url, init, maxRetries = 3, retryDelayMs = 1500) {
+async function fetchWithRetry(url, init, maxRetries = 3, retryDelayMs = 1500, onRetry) {
     let lastError;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -36,6 +36,7 @@ async function fetchWithRetry(url, init, maxRetries = 3, retryDelayMs = 1500) {
             }
             const backoffMs = retryDelayMs * 2 ** attempt;
             const jitterMs = Math.floor(Math.random() * 300);
+            onRetry?.(attempt + 1, maxRetries, err instanceof Error ? err.message : String(err), backoffMs + jitterMs);
             await new Promise((resolve) => setTimeout(resolve, backoffMs + jitterMs));
         }
     }

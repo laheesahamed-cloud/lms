@@ -28,6 +28,11 @@ export async function fetchWithRetry(
   init: RequestInit,
   maxRetries = 3,
   retryDelayMs = 1500,
+  /// Called before each wait-and-retry, so a caller that reports progress can
+  /// say so. Without it these retries are invisible: four attempts with
+  /// backoff can spend half a minute looking like one request that has simply
+  /// stopped responding.
+  onRetry?: (attempt: number, maxRetries: number, reason: string, waitMs: number) => void,
 ): Promise<Response> {
   let lastError: unknown;
 
@@ -41,6 +46,12 @@ export async function fetchWithRetry(
       }
       const backoffMs = retryDelayMs * 2 ** attempt;
       const jitterMs = Math.floor(Math.random() * 300);
+      onRetry?.(
+        attempt + 1,
+        maxRetries,
+        err instanceof Error ? err.message : String(err),
+        backoffMs + jitterMs,
+      );
       await new Promise((resolve) => setTimeout(resolve, backoffMs + jitterMs));
     }
   }

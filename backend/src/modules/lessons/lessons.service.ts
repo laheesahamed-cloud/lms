@@ -3022,7 +3022,32 @@ export class LessonsService {
         // and a dead one looked exactly alike. Server-sent events let the text
         // be counted as it arrives, which is the only honest progress there is
         // while a model is mid-sentence.
-        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
+        // The CONNECTION gets the first-byte limit too, not the whole request
+        // budget.
+        //
+        // A hanging connection is not an error — fetch simply never settles —
+        // so nothing here failed and nothing fired until the 240s request
+        // abort, with no log line in between. That is the 240s of silence:
+        // not a slow model, a connection that never answered, holding the
+        // whole budget and then failing with nothing to show.
+        let gotHeaders = false;
+        const headerTimer = setTimeout(() => { if (!gotHeaders) ctrl.abort(); }, firstByteLimit);
+        let res: Response;
+        try {
+          res = await fetchWithRetry(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`,
+            { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) },
+            3,
+            1500,
+            // Its retries were silent, so four attempts with backoff looked
+            // like one request that had stopped responding.
+            (n, max, why, waitMs) => onProgress?.('model',
+              `${where}${model} \u2014 connection failed (${why}), retry ${n} of ${max} in ${Math.round(waitMs / 1000)}s\u2026`),
+          );
+        } finally {
+          gotHeaders = true;
+          clearTimeout(headerTimer);
+        }
         if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`); continue; }
         phase = 'thinking';
         const raw = (await this.readGeminiStream(
@@ -3046,7 +3071,14 @@ export class LessonsService {
           // only thing lost is the live character count.
           onProgress?.('model', `${where}${model} sent no stream after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 asking it again without streaming\u2026`);
           phase = 'plain';
-          const plain = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
+          const plain = await fetchWithRetry(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`,
+            { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) },
+            3,
+            1500,
+            (n, max, why, waitMs) => onProgress?.('model',
+              `${where}${model} \u2014 connection failed (${why}), retry ${n} of ${max} in ${Math.round(waitMs / 1000)}s\u2026`),
+          );
           if (plain.ok) {
             const json = await plain.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
             const fallbackRaw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();

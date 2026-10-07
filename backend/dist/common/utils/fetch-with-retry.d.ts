@@ -1,1 +1,1 @@
-export declare function fetchWithRetry(url: string, init: RequestInit, maxRetries?: number, retryDelayMs?: number): Promise<Response>;
+export declare function fetchWithRetry(url: string, init: RequestInit, maxRetries?: number, retryDelayMs?: number, onRetry?: (attempt: number, maxRetries: number, reason: string, waitMs: number) => void): Promise<Response>;
