@@ -490,9 +490,12 @@ export declare class LessonsService {
         chunks: number;
         completenessLimit: number;
         completenessCapped: boolean;
+        budgetMinutes: number;
         preview: string;
         truncatedPreview: boolean;
     }>;
+    private cleanSource;
+    private countChunks;
     canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress, sourceFormat?: 'text' | 'html'): Promise<NoteCanvas>;
     private generateChunkResilient;
     startCanvasGenerate(text: string, token: string, sourceFormat?: 'text' | 'html'): Promise<{

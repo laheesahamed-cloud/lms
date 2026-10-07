@@ -36,7 +36,13 @@ class LessonJsonTruncatedError extends Error {
 class LessonStreamTimeoutError extends Error {
 }
 const STREAM_STALL_MS = 45_000;
-const JOB_HARD_LIMIT_MS = 7 * 60 * 1000;
+function generationBudgetMs(chunks) {
+    const sized = chunks * 120_000 + 120_000;
+    return Math.min(12 * 60 * 1000, Math.max(6 * 60 * 1000, sized));
+}
+function jobHardLimitMs(chunks) {
+    return generationBudgetMs(chunks) + 60_000;
+}
 let LessonsService = LessonsService_1 = class LessonsService {
     constructor(db, config, pushNotificationsService) {
         this.db = db;
@@ -1190,22 +1196,31 @@ let LessonsService = LessonsService_1 = class LessonsService {
             chunks,
             completenessLimit: LessonsService_1.COMPLETENESS_LIMIT,
             completenessCapped: cleaned.length > LessonsService_1.COMPLETENESS_LIMIT,
+            budgetMinutes: Math.round(generationBudgetMs(chunks) / 60000),
             preview: cleaned.slice(0, 4000),
             truncatedPreview: cleaned.length > 4000,
         };
     }
-    async canvasGenerate(text, token, onProgress, sourceFormat = 'text') {
-        await this.requireAdminToken(token);
+    cleanSource(text, sourceFormat) {
         const raw = String(text || '');
-        const trimmed = (sourceFormat === 'html' || this.looksLikeHtml(raw)
+        return (sourceFormat === 'html' || this.looksLikeHtml(raw)
             ? this.htmlToSourceText(raw)
             : raw).trim();
+    }
+    countChunks(cleaned) {
+        return cleaned.length <= LessonsService_1.CHUNK_LIMIT
+            ? 1
+            : this.splitSourceIntoChunks(cleaned, LessonsService_1.CHUNK_LIMIT).length;
+    }
+    async canvasGenerate(text, token, onProgress, sourceFormat = 'text') {
+        await this.requireAdminToken(token);
+        const trimmed = this.cleanSource(text, sourceFormat);
         if (trimmed.length < 10)
             throw new common_1.BadRequestException('Text must be at least 10 characters');
         onProgress?.('provider', 'Connecting to your AI provider…');
         const provider = await this.resolveActiveCanvasProvider();
-        const deadline = Date.now() + 6 * 60 * 1000;
         const CHUNK_LIMIT = LessonsService_1.CHUNK_LIMIT;
+        const deadline = Date.now() + generationBudgetMs(this.countChunks(trimmed));
         let canvas;
         if (trimmed.length <= CHUNK_LIMIT) {
             onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
@@ -1213,6 +1228,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         else {
             const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
+            onProgress?.('plan', `Long source — ${chunks.length} parts, up to ${Math.round(generationBudgetMs(chunks.length) / 60000)} minutes in total.`);
             const canvases = [];
             for (let i = 0; i < chunks.length; i += 1) {
                 if (Date.now() > deadline) {
@@ -1257,9 +1273,10 @@ let LessonsService = LessonsService_1 = class LessonsService {
     }
     async startCanvasGenerate(text, token, sourceFormat = 'text') {
         await this.requireAdminToken(token);
-        const trimmed = String(text || '').trim();
+        const trimmed = this.cleanSource(text, sourceFormat);
         if (trimmed.length < 10)
             throw new common_1.BadRequestException('Text must be at least 10 characters');
+        const chunkCount = this.countChunks(trimmed);
         await this.pruneOldGenerationJobs();
         const jobId = (0, crypto_1.randomUUID)();
         await this.db.execute(`INSERT INTO lesson_generation_jobs (id, status, stages_json) VALUES (?, 'running', '[]')`, [jobId]);
@@ -1274,8 +1291,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             this.db.execute(`UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`, [JSON.stringify(stages), jobId]).catch(() => { });
         }, sourceFormat);
-        const hardStop = new Promise((_, reject) => setTimeout(() => reject(new Error(`Generation passed ${Math.round(JOB_HARD_LIMIT_MS / 60000)} minutes and was stopped. `
-            + `The last thing it was doing: ${stages[stages.length - 1]?.message || 'connecting'}`)), JOB_HARD_LIMIT_MS));
+        const hardStop = new Promise((_, reject) => setTimeout(() => reject(new Error(`Generation passed ${Math.round(jobHardLimitMs(chunkCount) / 60000)} minutes and was stopped. `
+            + `The last thing it was doing: ${stages[stages.length - 1]?.message || 'connecting'}`)), jobHardLimitMs(chunkCount)));
         void Promise.race([running, hardStop])
             .then((result) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`, [JSON.stringify(result), jobId]))
             .catch((err) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [err instanceof Error ? err.message : String(err), jobId]).catch(() => { }));

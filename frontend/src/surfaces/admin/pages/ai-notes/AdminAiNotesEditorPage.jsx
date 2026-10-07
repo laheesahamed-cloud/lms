@@ -1061,6 +1061,7 @@ export function AdminAiNotesEditorPage({
                 ? ` (from ${rawText.length.toLocaleString()} of HTML)`
                 : ''}
               {sourceInfo?.chunks > 1 ? ` · ${sourceInfo.chunks} AI passes` : ''}
+              {sourceInfo?.chunks > 1 && sourceInfo?.budgetMinutes ? ` · up to ${sourceInfo.budgetMinutes} min` : ''}
             </span>
             <button className={cx(ui.primaryAction, 'gap-[7px]')} onClick={handleGenerate} disabled={processing}>
               {processing
@@ -1525,7 +1526,8 @@ export function AdminAiNotesEditorPage({
                     })}
                   </ol>
                   <div className="mt-1.5 text-[11px] tabular-nums opacity-60">
-                    {Math.round((nowTs - progressLog[0].at) / 1000)}s elapsed · the whole run is capped at 6 minutes
+                    {Math.round((nowTs - progressLog[0].at) / 1000)}s elapsed
+                    {sourceInfo?.budgetMinutes ? ` · capped at ${sourceInfo.budgetMinutes} minutes for this source` : ''}
                   </div>
                 </>
               ) : (

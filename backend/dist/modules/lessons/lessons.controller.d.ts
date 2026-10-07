@@ -198,6 +198,7 @@ export declare class LessonsController {
         chunks: number;
         completenessLimit: number;
         completenessCapped: boolean;
+        budgetMinutes: number;
         preview: string;
         truncatedPreview: boolean;
     }>;

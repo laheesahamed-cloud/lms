@@ -200,7 +200,23 @@ const STREAM_STALL_MS = 45_000;
 /// budget canvasGenerate works to, so the inner deadline reports a clean
 /// failure first where it can, and this only ever fires for a hang that got
 /// past it.
-const JOB_HARD_LIMIT_MS = 7 * 60 * 1000;
+/// How long a whole generation may take, given how many passes it needs.
+///
+/// Six minutes was chosen for a single pass and then kept when chunking
+/// arrived, which quietly made long sources impossible: at ~70s a part, three
+/// parts plus the completeness check is already ~340s of 360, so the last part
+/// got a budget too small to finish in and the run died or hung at the very
+/// end. One or two parts fit; three or more never did.
+function generationBudgetMs(chunks: number): number {
+  const sized = chunks * 120_000 + 120_000; // a part each, plus the completeness pass
+  return Math.min(12 * 60 * 1000, Math.max(6 * 60 * 1000, sized));
+}
+
+/// The outer wall clock, a minute past whatever the run was allowed, so a clean
+/// inner failure still reports itself first and this only fires for a hang.
+function jobHardLimitMs(chunks: number): number {
+  return generationBudgetMs(chunks) + 60_000;
+}
 
 export type LessonGenerationProgress = (stage: string, message: string) => void;
 
@@ -1673,11 +1689,26 @@ export class LessonsService {
       // Past this the completeness pass no longer sees the tail, so nothing
       // down there is checked for having been dropped.
       completenessCapped: cleaned.length > LessonsService.COMPLETENESS_LIMIT,
+      budgetMinutes: Math.round(generationBudgetMs(chunks) / 60000),
       // Enough to see whether a table survived the cleaning, without shipping
       // the whole thing back.
       preview: cleaned.slice(0, 4000),
       truncatedPreview: cleaned.length > 4000,
     };
+  }
+
+  private cleanSource(text: string, sourceFormat: 'text' | 'html'): string {
+    const raw = String(text || '');
+    return (sourceFormat === 'html' || this.looksLikeHtml(raw)
+      ? this.htmlToSourceText(raw)
+      : raw
+    ).trim();
+  }
+
+  private countChunks(cleaned: string): number {
+    return cleaned.length <= LessonsService.CHUNK_LIMIT
+      ? 1
+      : this.splitSourceIntoChunks(cleaned, LessonsService.CHUNK_LIMIT).length;
   }
 
   async canvasGenerate(
@@ -1690,11 +1721,7 @@ export class LessonsService {
     // Cleaned BEFORE anything else reads it, so the chunker measures the real
     // content and ensureCompleteness compares the draft against exactly what
     // the generator was given. Cleaning later would have those two disagree.
-    const raw = String(text || '');
-    const trimmed = (sourceFormat === 'html' || this.looksLikeHtml(raw)
-      ? this.htmlToSourceText(raw)
-      : raw
-    ).trim();
+    const trimmed = this.cleanSource(text, sourceFormat);
     if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
     onProgress?.('provider', 'Connecting to your AI provider…');
     const provider = await this.resolveActiveCanvasProvider();
@@ -1705,16 +1732,19 @@ export class LessonsService {
     // to 3 split levels, so an adverse/flaky provider could keep this
     // running far longer than anyone would wait, looking exactly like
     // "stuck loading, never generating" instead of a clear failure.
-    const deadline = Date.now() + 6 * 60 * 1000;
-
     // Item 3 — chunk very long pastes so the AI's output limit never truncates the tail.
     const CHUNK_LIMIT = LessonsService.CHUNK_LIMIT;
+    // Sized to the number of passes, not a flat six minutes — see
+    // generationBudgetMs for why a flat one made long sources impossible.
+    const deadline = Date.now() + generationBudgetMs(this.countChunks(trimmed));
     let canvas: NoteCanvas;
     if (trimmed.length <= CHUNK_LIMIT) {
       onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
       canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline, 'your lesson');
     } else {
       const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
+      onProgress?.('plan',
+        `Long source — ${chunks.length} parts, up to ${Math.round(generationBudgetMs(chunks.length) / 60000)} minutes in total.`);
       const canvases: NoteCanvas[] = [];
       for (let i = 0; i < chunks.length; i += 1) {
         if (Date.now() > deadline) {
@@ -1794,8 +1824,9 @@ export class LessonsService {
     sourceFormat: 'text' | 'html' = 'text',
   ): Promise<{ jobId: string }> {
     await this.requireAdminToken(token); // fail fast on bad auth/input before returning a job id
-    const trimmed = String(text || '').trim();
+    const trimmed = this.cleanSource(text, sourceFormat);
     if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
+    const chunkCount = this.countChunks(trimmed);
 
     await this.pruneOldGenerationJobs();
     const jobId = randomUUID();
@@ -1834,10 +1865,10 @@ export class LessonsService {
     const hardStop = new Promise<never>((_, reject) =>
       setTimeout(
         () => reject(new Error(
-          `Generation passed ${Math.round(JOB_HARD_LIMIT_MS / 60000)} minutes and was stopped. `
+          `Generation passed ${Math.round(jobHardLimitMs(chunkCount) / 60000)} minutes and was stopped. `
           + `The last thing it was doing: ${stages[stages.length - 1]?.message || 'connecting'}`,
         )),
-        JOB_HARD_LIMIT_MS,
+        jobHardLimitMs(chunkCount),
       ),
     );
 
