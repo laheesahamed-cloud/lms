@@ -1623,9 +1623,21 @@ export class LessonsService {
     return { ok: true, createdCount: fresh.length, provider: { key: provider.providerKey, label: provider.providerLabel, model: provider.model }, items: await this.findFlashcardsForLesson(id) };
   }
 
-  async canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress): Promise<NoteCanvas> {
+  async canvasGenerate(
+    text: string,
+    token: string,
+    onProgress?: LessonGenerationProgress,
+    sourceFormat: 'text' | 'html' = 'text',
+  ): Promise<NoteCanvas> {
     await this.requireAdminToken(token);
-    const trimmed = String(text || '').trim();
+    // Cleaned BEFORE anything else reads it, so the chunker measures the real
+    // content and ensureCompleteness compares the draft against exactly what
+    // the generator was given. Cleaning later would have those two disagree.
+    const raw = String(text || '');
+    const trimmed = (sourceFormat === 'html' || this.looksLikeHtml(raw)
+      ? this.htmlToSourceText(raw)
+      : raw
+    ).trim();
     if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
     onProgress?.('provider', 'Connecting to your AI provider…');
     const provider = await this.resolveActiveCanvasProvider();
@@ -1718,7 +1730,11 @@ export class LessonsService {
   // the job — an in-memory Map on one worker is invisible to the others,
   // which is exactly what caused "Generation job not found" for real jobs
   // that were still running just fine on a different worker.
-  async startCanvasGenerate(text: string, token: string): Promise<{ jobId: string }> {
+  async startCanvasGenerate(
+    text: string,
+    token: string,
+    sourceFormat: 'text' | 'html' = 'text',
+  ): Promise<{ jobId: string }> {
     await this.requireAdminToken(token); // fail fast on bad auth/input before returning a job id
     const trimmed = String(text || '').trim();
     if (trimmed.length < 10) throw new BadRequestException('Text must be at least 10 characters');
@@ -1739,7 +1755,7 @@ export class LessonsService {
         `UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`,
         [JSON.stringify(stages), jobId],
       ).catch(() => {});
-    })
+    }, sourceFormat)
       .then((result) => this.db.execute(
         `UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`,
         [JSON.stringify(result), jobId],
@@ -2862,6 +2878,81 @@ export class LessonsService {
   private normalizePalette(value: unknown): string[] {
     const colors = Array.isArray(value) ? value.map(c => String(c || '').trim()).filter(c => /^#[0-9a-f]{6}$/i.test(c)) : [];
     return Array.from(new Set([...colors, ...FALLBACK_COLORS])).slice(0, 8);
+  }
+
+  /// Enough of a tag soup to be worth cleaning rather than quoting verbatim.
+  private looksLikeHtml(text: string): boolean {
+    const tags = text.match(/<\/?(p|div|h[1-6]|li|ul|ol|table|tr|td|th|span|br)\b/gi);
+    return (tags?.length ?? 0) >= 3;
+  }
+
+  /// Turns pasted HTML into the plain, structured text the prompt expects.
+  ///
+  /// The point is the 60,000-character budget: a Word or Google Docs export
+  /// buries its content in `<span style="...">` and `class="MsoNormal"`, which
+  /// can triple the size and push real content past the cut — and silently
+  /// dropping the tail is the worst failure this feature has. Structure is
+  /// kept, as markers the prompt already understands (markdown headings,
+  /// "- " bullets, pipe tables); everything else goes.
+  private htmlToSourceText(html: string): string {
+    let out = html;
+
+    // Anything that is not content at all.
+    out = out.replace(/<!--[\s\S]*?-->/g, '');
+    out = out.replace(/<(script|style|noscript|head)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+
+    // Tables first, while the row/cell structure is still intact: one line per
+    // row, cells separated by pipes — the shape the prompt's TABLE RULE reads.
+    out = out.replace(/<t[hd]\b[^>]*>/gi, '\u0001');
+    out = out.replace(/<\/t[hd]>/gi, '');
+    out = out.replace(/<\/tr>/gi, '\n');
+
+    // Block structure, as markers the prompt already understands.
+    out = out.replace(/<h1\b[^>]*>/gi, '\n\n# ');
+    out = out.replace(/<h2\b[^>]*>/gi, '\n\n## ');
+    out = out.replace(/<h3\b[^>]*>/gi, '\n\n### ');
+    out = out.replace(/<h[456]\b[^>]*>/gi, '\n\n#### ');
+    out = out.replace(/<li\b[^>]*>/gi, '\n- ');
+    out = out.replace(/<(br|hr)\b[^>]*\/?>/gi, '\n');
+    out = out.replace(/<\/(p|div|h[1-6]|li|ul|ol|table|section|article)>/gi, '\n');
+
+    // Every remaining tag, and with it every style, class and data attribute.
+    out = out.replace(/<[^>]+>/g, '');
+
+    // Entities. Named ones first so &amp;lt; does not become a bare <.
+    out = out
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&apos;/gi, "'")
+      .replace(/&mdash;/gi, '\u2014')
+      .replace(/&ndash;/gi, '\u2013')
+      .replace(/&rsquo;/gi, '\u2019')
+      .replace(/&lsquo;/gi, '\u2018')
+      .replace(/&ldquo;/gi, '\u201c')
+      .replace(/&rdquo;/gi, '\u201d')
+      .replace(/&hellip;/gi, '\u2026')
+      .replace(/&deg;/gi, '\u00b0')
+      .replace(/&plusmn;/gi, '\u00b1')
+      .replace(/&times;/gi, '\u00d7')
+      .replace(/&#(\d+);/g, (_m, d: string) => String.fromCodePoint(Number(d)))
+      .replace(/&#x([0-9a-f]+);/gi, (_m, h: string) => String.fromCodePoint(parseInt(h, 16)));
+
+    // The cell marker becomes a pipe only now, so a literal | in the source
+    // cannot be mistaken for one.
+    out = out
+      .split('\n')
+      .map((line) => {
+        if (!line.includes('\u0001')) return line.replace(/[ \t]+/g, ' ').trimEnd();
+        const cells = line.split('\u0001').map((cell) => cell.replace(/\s+/g, ' ').trim());
+        return cells.filter((cell) => cell.length > 0).join(' | ');
+      })
+      .join('\n');
+
+    // Word leaves runs of empty paragraphs behind; collapse them.
+    return out.replace(/\n{3,}/g, '\n\n').replace(/^\s+/, '').trimEnd();
   }
 
   private buildPrompt(text: string): string {

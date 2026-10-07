@@ -290,16 +290,33 @@ export class LessonsController {
   // ─── Canvas (AI Notes) routes ────────────────────────────────────────────
 
   @Post('canvas/generate')
-  canvasGenerate(@Headers('authorization') auth: string, @Body('text') text: string) {
-    return this.lessonsService.canvasGenerate(text, this.bearerToken(auth));
+  canvasGenerate(
+    @Headers('authorization') auth: string,
+    @Body('text') text: string,
+    @Body('sourceFormat') sourceFormat?: string,
+  ) {
+    return this.lessonsService.canvasGenerate(
+      text,
+      this.bearerToken(auth),
+      undefined,
+      sourceFormat === 'html' ? 'html' : 'text',
+    );
   }
 
   // Progress-log variant: starts generation in the background and returns a
   // job id immediately; the admin UI polls canvasGenerateStatus for a running
   // log of stages instead of one long blocking wait with no visibility.
   @Post('canvas/generate/start')
-  canvasGenerateStart(@Headers('authorization') auth: string, @Body('text') text: string) {
-    return this.lessonsService.startCanvasGenerate(text, this.bearerToken(auth));
+  canvasGenerateStart(
+    @Headers('authorization') auth: string,
+    @Body('text') text: string,
+    @Body('sourceFormat') sourceFormat?: string,
+  ) {
+    return this.lessonsService.startCanvasGenerate(
+      text,
+      this.bearerToken(auth),
+      sourceFormat === 'html' ? 'html' : 'text',
+    );
   }
 
   @Get('canvas/generate/status/:jobId')

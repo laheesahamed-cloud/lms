@@ -1,1 +1,0 @@
-import{y as e}from"./vendor-DefyWfRq.js";export{e as LocalNotifications};

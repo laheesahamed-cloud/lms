@@ -223,6 +223,11 @@ export function AdminAiNotesEditorPage({
   const [linkedLessonId, setLinkedLessonId] = useState(null);
   const [title,      setTitle]      = useState('');
   const [rawText,    setRawText]    = useState('');
+  // 'text' or 'html' — the same choice the bulk question importer offers
+  // between pasted text and JSON. HTML is cleaned server-side before it
+  // reaches the model, which keeps headings, lists and tables intact without
+  // the tag noise eating the source-length budget.
+  const [sourceFormat, setSourceFormat] = useState('text');
   const [videoUrl,   setVideoUrl]   = useState('');
   const [noteData,   setNoteData]   = useState(null);
   const [savedData,  setSavedData]  = useState(null);
@@ -485,7 +490,7 @@ export function AdminAiNotesEditorPage({
     setError(''); setProcessing(true); setProcessMsg(`Sending to ${generatorLabel}…`); setProgressLog([]);
     try {
       await adminUpdateAiNote(Number(id), { title, rawText }, undefined, { engine: engineKey });
-      const { jobId } = await adminStartAiNoteGeneration(rawText, { engine: engineKey });
+      const { jobId } = await adminStartAiNoteGeneration(rawText, { engine: engineKey, sourceFormat });
       const result = await pollGenerationJob(jobId);
       const nd = normalizeNoteData(result);
       const cleanData = cleanNoteDataForSave(nd);
@@ -950,10 +955,27 @@ export function AdminAiNotesEditorPage({
 
         {/* input panel */}
         <div className={editorUi.inputPanel}>
-          <div className={editorUi.inputTitle}>Source Text</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className={editorUi.inputTitle}>Source</div>
+            <div className="flex items-center gap-1.5">
+              {[['text', 'Text'], ['html', 'HTML']].map(([value, label]) => (
+                <button key={value} type="button"
+                  onClick={() => setSourceFormat(value)}
+                  aria-pressed={sourceFormat === value}
+                  className={cx(
+                    'rounded-full px-3 py-1 text-[12px] font-extrabold transition',
+                    sourceFormat === value
+                      ? 'bg-primary text-white'
+                      : 'bg-surface-2 text-ink-soft hover:text-ink-strong',
+                  )}>{label}</button>
+              ))}
+            </div>
+          </div>
           <textarea className={editorUi.textarea}
             aria-label="Source text for generated lesson"
-            placeholder={`Paste the topic text here…\n\ne.g. Lecture notes, textbook content, clinical guidelines…`}
+            placeholder={sourceFormat === 'html'
+              ? `Paste the lesson's HTML here…\n\nHeadings, lists and tables are kept; styles, classes and scripts are stripped before the AI sees it.`
+              : `Paste the topic text here…\n\ne.g. Lecture notes, textbook content, clinical guidelines…`}
             value={rawText} onChange={handleRawChange}
           />
           <div className={editorUi.inputFooter}>

@@ -164,11 +164,11 @@ let LessonsController = class LessonsController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.rollback(id, versionNumber, actor);
     }
-    canvasGenerate(auth, text) {
-        return this.lessonsService.canvasGenerate(text, this.bearerToken(auth));
+    canvasGenerate(auth, text, sourceFormat) {
+        return this.lessonsService.canvasGenerate(text, this.bearerToken(auth), undefined, sourceFormat === 'html' ? 'html' : 'text');
     }
-    canvasGenerateStart(auth, text) {
-        return this.lessonsService.startCanvasGenerate(text, this.bearerToken(auth));
+    canvasGenerateStart(auth, text, sourceFormat) {
+        return this.lessonsService.startCanvasGenerate(text, this.bearerToken(auth), sourceFormat === 'html' ? 'html' : 'text');
     }
     canvasGenerateStatus(auth, jobId) {
         return this.lessonsService.getCanvasGenerateJob(jobId, this.bearerToken(auth));
@@ -449,16 +449,18 @@ __decorate([
     (0, common_1.Post)('canvas/generate'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Body)('text')),
+    __param(2, (0, common_1.Body)('sourceFormat')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasGenerate", null);
 __decorate([
     (0, common_1.Post)('canvas/generate/start'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Body)('text')),
+    __param(2, (0, common_1.Body)('sourceFormat')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasGenerateStart", null);
 __decorate([

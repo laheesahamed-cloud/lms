@@ -36,13 +36,13 @@ function tagStudentNoteEngine(note, engine) {
 }
 
 export const adminGenerateAiNotes = (text, options = {}) =>
-  apiClient.post('/admin/ai-notes/generate', { text }, withEngine({ timeout: 300000 }, options.engine)).then((r) => r.data);
+  apiClient.post('/admin/ai-notes/generate', { text, sourceFormat: options.sourceFormat || 'text' }, withEngine({ timeout: 300000 }, options.engine)).then((r) => r.data);
 
 // Progress-log variant: starts generation in the background and returns a job
 // id to poll, so the UI can show a running log of stages instead of one long
 // blocking wait — see adminGetAiNoteGenerationStatus.
 export const adminStartAiNoteGeneration = (text, options = {}) =>
-  apiClient.post('/admin/ai-notes/generate/start', { text }, withEngine({}, options.engine)).then((r) => r.data);
+  apiClient.post('/admin/ai-notes/generate/start', { text, sourceFormat: options.sourceFormat || 'text' }, withEngine({}, options.engine)).then((r) => r.data);
 export const adminGetAiNoteGenerationStatus = (jobId, options = {}) =>
   apiClient.get(`/admin/ai-notes/generate/status/${jobId}`, withEngine({}, options.engine)).then((r) => r.data);
 export const adminListAiNotes = (options = {}) =>

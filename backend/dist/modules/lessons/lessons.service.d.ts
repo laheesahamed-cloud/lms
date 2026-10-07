@@ -481,9 +481,9 @@ export declare class LessonsService {
             updatedAt: string;
         }[];
     }>;
-    canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress): Promise<NoteCanvas>;
+    canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress, sourceFormat?: 'text' | 'html'): Promise<NoteCanvas>;
     private generateChunkResilient;
-    startCanvasGenerate(text: string, token: string): Promise<{
+    startCanvasGenerate(text: string, token: string, sourceFormat?: 'text' | 'html'): Promise<{
         jobId: string;
     }>;
     getCanvasGenerateJob(jobId: string, token: string): Promise<LessonGenerationJob>;
@@ -646,6 +646,8 @@ export declare class LessonsService {
     private degluedBullets;
     private validate;
     private normalizePalette;
+    private looksLikeHtml;
+    private htmlToSourceText;
     private buildPrompt;
 }
 export {};

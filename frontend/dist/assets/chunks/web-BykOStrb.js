@@ -1,1 +1,0 @@
-import{S as e}from"./vendor-DefyWfRq.js";export{e as AppWeb};

@@ -190,8 +190,8 @@ export declare class LessonsController {
         status: "active" | "inactive";
         workflowState: "draft" | "published";
     }>;
-    canvasGenerate(auth: string, text: string): Promise<import("./lessons.service").NoteCanvas>;
-    canvasGenerateStart(auth: string, text: string): Promise<{
+    canvasGenerate(auth: string, text: string, sourceFormat?: string): Promise<import("./lessons.service").NoteCanvas>;
+    canvasGenerateStart(auth: string, text: string, sourceFormat?: string): Promise<{
         jobId: string;
     }>;
     canvasGenerateStatus(auth: string, jobId: string): Promise<import("./lessons.service").LessonGenerationJob>;
