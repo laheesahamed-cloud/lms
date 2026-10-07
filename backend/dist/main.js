@@ -196,6 +196,9 @@ function stableRequestActor(value) {
         return '';
     return (0, crypto_1.createHash)('sha256').update(clean).digest('hex').slice(0, 16);
 }
+function isGenerationStatusPath(path) {
+    return /^\/api\/lessons\/canvas\/generate\/status\//.test(normalizeRateLimitPath(path.replace(/\?.*$/, '')));
+}
 function getAuthRateLimitPolicy(path) {
     const normalizedPath = normalizeRateLimitPath(path.replace(/\?.*$/, ''));
     if (normalizedPath === '/api/auth/login' || normalizedPath === '/api/auth/google') {
@@ -206,6 +209,9 @@ function getAuthRateLimitPolicy(path) {
     }
     if (normalizedPath === '/api/auth/reset-password') {
         return { windowMs: 15 * 60_000, maxRequests: 10 };
+    }
+    if (/^\/api\/lessons\/canvas\/generate\/status\//.test(normalizedPath)) {
+        return { windowMs: 60_000, maxRequests: 300 };
     }
     return { windowMs: 60_000, maxRequests: 20 };
 }
@@ -565,7 +571,9 @@ async function configureApp(app) {
             next();
             return;
         }
-        const authPolicy = path.startsWith('/api/auth/') ? getAuthRateLimitPolicy(path) : null;
+        const authPolicy = path.startsWith('/api/auth/') || isGenerationStatusPath(path)
+            ? getAuthRateLimitPolicy(path)
+            : null;
         let rateLimitUser = null;
         if (!authPolicy && req.headers?.authorization) {
             try {

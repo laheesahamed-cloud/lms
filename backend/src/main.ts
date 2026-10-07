@@ -226,6 +226,14 @@ function stableRequestActor(value: string) {
   return createHash('sha256').update(clean).digest('hex').slice(0, 16);
 }
 
+/// A generation's progress endpoint. Polled for minutes by design, so it gets
+/// its own allowance rather than the ordinary content budget.
+function isGenerationStatusPath(path: string) {
+  return /^\/api\/lessons\/canvas\/generate\/status\//.test(
+    normalizeRateLimitPath(path.replace(/\?.*$/, '')),
+  );
+}
+
 function getAuthRateLimitPolicy(path: string) {
   const normalizedPath = normalizeRateLimitPath(path.replace(/\?.*$/, ''));
   if (normalizedPath === '/api/auth/login' || normalizedPath === '/api/auth/google') {
@@ -236,6 +244,13 @@ function getAuthRateLimitPolicy(path: string) {
   }
   if (normalizedPath === '/api/auth/reset-password') {
     return { windowMs: 15 * 60_000, maxRequests: 10 };
+  }
+  // A generation's progress is polled for minutes on end by design; it is a
+  // tiny read of one row, and counting it against the ordinary content budget
+  // is what let a long lesson exhaust the allowance and fail with "Too many
+  // content requests" partway through writing itself.
+  if (/^\/api\/lessons\/canvas\/generate\/status\//.test(normalizedPath)) {
+    return { windowMs: 60_000, maxRequests: 300 };
   }
   return { windowMs: 60_000, maxRequests: 20 };
 }
@@ -630,7 +645,13 @@ export async function configureApp(app: INestApplication) {
       return;
     }
 
-    const authPolicy = path.startsWith('/api/auth/') ? getAuthRateLimitPolicy(path) : null;
+    // The generation-status path is included so its own, larger allowance is
+    // actually consulted — this function is otherwise only reached for
+    // /api/auth/, which is where the first attempt at this silently did
+    // nothing at all.
+    const authPolicy = path.startsWith('/api/auth/') || isGenerationStatusPath(path)
+      ? getAuthRateLimitPolicy(path)
+      : null;
     let rateLimitUser: any = null;
     if (!authPolicy && req.headers?.authorization) {
       try {

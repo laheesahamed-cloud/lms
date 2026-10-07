@@ -496,9 +496,13 @@ export function AdminAiNotesEditorPage({
       }
       if (job.status === 'done') return job.result;
       if (job.status === 'error') throw new Error(job.error || 'Generation failed');
-      // Faster than the backend's 1s tick, so the live writing line never
-      // sits a beat behind what the server already knows.
-      await new Promise(resolve => setTimeout(resolve, 600));
+      // 1.2s, NOT the 600ms this briefly used. Admin requests are capped at
+      // 240/minute and 600ms spends 100 of them on polling alone — with
+      // autosave and the source preview alongside, that tripped the limiter
+      // and the run died with "Too many content requests". The live line is
+      // rewritten about once a second, so polling slightly slower costs
+      // nothing visible.
+      await new Promise(resolve => setTimeout(resolve, 1200));
     }
   }
 
