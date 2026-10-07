@@ -1623,6 +1623,47 @@ export class LessonsService {
     return { ok: true, createdCount: fresh.length, provider: { key: provider.providerKey, label: provider.providerLabel, model: provider.model }, items: await this.findFlashcardsForLesson(id) };
   }
 
+  /// Chunk size for a long paste, and the cap on what the completeness pass
+  /// can re-read. Public so the editor's preview reports the same numbers the
+  /// run will actually use rather than its own copy of them.
+  static readonly CHUNK_LIMIT = 9000;
+  static readonly COMPLETENESS_LIMIT = 40000;
+
+  /// What the model will actually be given, and what that means for it.
+  ///
+  /// With HTML accepted, a paste's visible length says little about its real
+  /// content — and the completeness pass silently stops re-reading past
+  /// COMPLETENESS_LIMIT, which is the one safety net against dropped content.
+  /// The editor shows this so neither is a surprise after a six-minute wait.
+  async previewSource(
+    text: string,
+    token: string,
+    sourceFormat: 'text' | 'html' = 'text',
+  ) {
+    await this.requireAdminToken(token);
+    const raw = String(text || '');
+    const wasHtml = sourceFormat === 'html' || this.looksLikeHtml(raw);
+    const cleaned = (wasHtml ? this.htmlToSourceText(raw) : raw).trim();
+    const chunks =
+      cleaned.length <= LessonsService.CHUNK_LIMIT
+        ? 1
+        : this.splitSourceIntoChunks(cleaned, LessonsService.CHUNK_LIMIT).length;
+    return {
+      wasHtml,
+      rawLength: raw.length,
+      cleanedLength: cleaned.length,
+      chunks,
+      completenessLimit: LessonsService.COMPLETENESS_LIMIT,
+      // Past this the completeness pass no longer sees the tail, so nothing
+      // down there is checked for having been dropped.
+      completenessCapped: cleaned.length > LessonsService.COMPLETENESS_LIMIT,
+      // Enough to see whether a table survived the cleaning, without shipping
+      // the whole thing back.
+      preview: cleaned.slice(0, 4000),
+      truncatedPreview: cleaned.length > 4000,
+    };
+  }
+
   async canvasGenerate(
     text: string,
     token: string,
@@ -1651,7 +1692,7 @@ export class LessonsService {
     const deadline = Date.now() + 6 * 60 * 1000;
 
     // Item 3 — chunk very long pastes so the AI's output limit never truncates the tail.
-    const CHUNK_LIMIT = 9000;
+    const CHUNK_LIMIT = LessonsService.CHUNK_LIMIT;
     let canvas: NoteCanvas;
     if (trimmed.length <= CHUNK_LIMIT) {
       onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
@@ -2247,6 +2288,98 @@ export class LessonsService {
     }
   }
 
+  /// Rewrites ONE card from the lesson's own source, leaving the rest alone.
+  ///
+  /// Without this, a lesson that is 90% right costs a full six-minute
+  /// regeneration — and the 90% that was fine comes back different too.
+  async regenerateSection(
+    noteId: number,
+    heading: string,
+    token: string,
+  ): Promise<NoteCanvas> {
+    await this.requireAdminToken(token);
+    const wanted = String(heading || '').trim();
+    if (!wanted) throw new BadRequestException('Which card should be rewritten?');
+
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT raw_text, note_data FROM lessons WHERE id = ? LIMIT 1',
+      [noteId],
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundException('Lesson not found');
+
+    const source = String(row.raw_text || '').trim();
+    if (source.length < 10) {
+      throw new BadRequestException(
+        'This lesson has no saved source text to rewrite the card from.',
+      );
+    }
+    const parsed =
+      typeof row.note_data === 'string' ? JSON.parse(row.note_data) : row.note_data;
+    const canvas: NoteCanvas = {
+      pages: Array.isArray(parsed?.pages) ? parsed.pages : [],
+    };
+    if (!canvas.pages.length) {
+      throw new BadRequestException('This lesson has no cards to rewrite yet.');
+    }
+
+    const provider = await this.resolveActiveCanvasProvider();
+    const target = this.normalizeTopicKey(this.stripHeadingNumber(wanted));
+    const fresh = await this.generateWithProvider(
+      this.buildSectionPrompt(source, wanted),
+      provider,
+    );
+    const replacements = fresh.pages.flatMap((p) => p.sections);
+    if (!replacements.length) {
+      throw new ServiceUnavailableException(
+        'The model returned nothing for that card. Try again.',
+      );
+    }
+
+    // Swap in place, so the card keeps its position in the lesson instead of
+    // being appended at the end.
+    let swapped = false;
+    for (const page of canvas.pages) {
+      const next: typeof page.sections = [];
+      for (const section of page.sections) {
+        const key = this.normalizeTopicKey(this.stripHeadingNumber(section.heading || ''));
+        if (key === target) {
+          if (!swapped) {
+            next.push(...replacements);
+            swapped = true;
+          }
+          continue; // drop the old card (and any duplicate of it)
+        }
+        next.push(section);
+      }
+      page.sections = next;
+    }
+    if (!swapped) {
+      throw new NotFoundException(`No card called "${wanted}" in this lesson.`);
+    }
+
+    // Same finishing passes the full generation ends with, so a rewritten card
+    // is grouped and numbered exactly like every other one.
+    return this.renumberSections(this.groupSectionFamilies(canvas));
+  }
+
+  private buildSectionPrompt(sourceText: string, heading: string): string {
+    return [
+      'You are a senior medical educator rewriting ONE card of an existing lesson.',
+      `Rewrite ONLY the card titled "${heading}". Ignore every other topic in the source.`,
+      'Return ONLY the JSON for that one card, in the same shape as a full lesson: {"title":"","subtitle":"","sections":[ ...one section... ]}.',
+      'Reproduce EVERY fact from the source that belongs to this topic — leaving content out is the worst error you can make.',
+      'Keep bullets SHORT, one idea each, with "→ " sub-bullets for lists, each starting with its key term in **bold** and a short reason in brackets.',
+      'Highlighting is not optional: ==highlight== every diagnosis, key term, mechanism word and cut-off, and **bold** every drug, dose and lab value — inside table cells too.',
+      'If the content is a comparison use {"type":"table"}; if it is a cause→effect chain use {"type":"flow"}; if it is one topic splitting into named sub-types use {"type":"branch"}.',
+      'Sub-parts (medical/surgical, first/second line, step 1/2/3) stay INSIDE this one card as labelled parent bullets — never as extra cards.',
+      'Do NOT put a number on the heading — the app numbers cards itself.',
+      '',
+      'SOURCE NOTES:',
+      sourceText.slice(0, LessonsService.COMPLETENESS_LIMIT),
+    ].join('\n');
+  }
+
   private buildCompletenessPrompt(sourceText: string, coveredText: string): string {
     return [
       'You are auditing a study lesson for completeness against its SOURCE notes.',
@@ -2278,7 +2411,7 @@ export class LessonsService {
       coveredText,
       '',
       'SOURCE (find anything here that is not covered above):',
-      sourceText.slice(0, 40000),
+      sourceText.slice(0, LessonsService.COMPLETENESS_LIMIT),
       '',
       'Return ONLY this JSON: {"title":"","subtitle":"","sections":[{"heading":"...","bullets":["..."]},{"heading":"Management","bullets":[],"embedded_flow":["step 1","step 2"],"embedded_label":"specific label"},{"type":"note","heading":"...","bullets":["..."],"anchor_topic":"Management"}],"summary_box":"","key_points":[]}',
     ].join('\n');

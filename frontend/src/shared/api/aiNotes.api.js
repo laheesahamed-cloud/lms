@@ -43,6 +43,16 @@ export const adminGenerateAiNotes = (text, options = {}) =>
 // blocking wait — see adminGetAiNoteGenerationStatus.
 export const adminStartAiNoteGeneration = (text, options = {}) =>
   apiClient.post('/admin/ai-notes/generate/start', { text, sourceFormat: options.sourceFormat || 'text' }, withEngine({}, options.engine)).then((r) => r.data);
+// What the model will actually be handed, and what that means — length after
+// HTML cleaning, how many passes it will take, and whether the tail falls past
+// the completeness check.
+export const adminPreviewAiNoteSource = (text, options = {}) =>
+  apiClient.post('/admin/ai-notes/source/preview', { text, sourceFormat: options.sourceFormat || 'text' }, withEngine({}, options.engine)).then((r) => r.data);
+
+// Rewrites a single card from the lesson's own saved source.
+export const adminRegenerateAiNoteSection = (noteId, heading, options = {}) =>
+  apiClient.post(`/admin/ai-notes/${noteId}/section/regenerate`, { heading }, withEngine({ timeout: 300000 }, options.engine)).then((r) => r.data);
+
 export const adminGetAiNoteGenerationStatus = (jobId, options = {}) =>
   apiClient.get(`/admin/ai-notes/generate/status/${jobId}`, withEngine({}, options.engine)).then((r) => r.data);
 export const adminListAiNotes = (options = {}) =>

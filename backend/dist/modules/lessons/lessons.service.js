@@ -1171,6 +1171,25 @@ let LessonsService = LessonsService_1 = class LessonsService {
             await this.insertGeneratedFlashcards(id, fresh);
         return { ok: true, createdCount: fresh.length, provider: { key: provider.providerKey, label: provider.providerLabel, model: provider.model }, items: await this.findFlashcardsForLesson(id) };
     }
+    async previewSource(text, token, sourceFormat = 'text') {
+        await this.requireAdminToken(token);
+        const raw = String(text || '');
+        const wasHtml = sourceFormat === 'html' || this.looksLikeHtml(raw);
+        const cleaned = (wasHtml ? this.htmlToSourceText(raw) : raw).trim();
+        const chunks = cleaned.length <= LessonsService_1.CHUNK_LIMIT
+            ? 1
+            : this.splitSourceIntoChunks(cleaned, LessonsService_1.CHUNK_LIMIT).length;
+        return {
+            wasHtml,
+            rawLength: raw.length,
+            cleanedLength: cleaned.length,
+            chunks,
+            completenessLimit: LessonsService_1.COMPLETENESS_LIMIT,
+            completenessCapped: cleaned.length > LessonsService_1.COMPLETENESS_LIMIT,
+            preview: cleaned.slice(0, 4000),
+            truncatedPreview: cleaned.length > 4000,
+        };
+    }
     async canvasGenerate(text, token, onProgress, sourceFormat = 'text') {
         await this.requireAdminToken(token);
         const raw = String(text || '');
@@ -1182,7 +1201,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         onProgress?.('provider', 'Connecting to your AI provider…');
         const provider = await this.resolveActiveCanvasProvider();
         const deadline = Date.now() + 6 * 60 * 1000;
-        const CHUNK_LIMIT = 9000;
+        const CHUNK_LIMIT = LessonsService_1.CHUNK_LIMIT;
         let canvas;
         if (trimmed.length <= CHUNK_LIMIT) {
             onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
@@ -1616,6 +1635,70 @@ let LessonsService = LessonsService_1 = class LessonsService {
             return canvas;
         }
     }
+    async regenerateSection(noteId, heading, token) {
+        await this.requireAdminToken(token);
+        const wanted = String(heading || '').trim();
+        if (!wanted)
+            throw new common_1.BadRequestException('Which card should be rewritten?');
+        const [rows] = await this.db.execute('SELECT raw_text, note_data FROM lessons WHERE id = ? LIMIT 1', [noteId]);
+        const row = rows[0];
+        if (!row)
+            throw new common_1.NotFoundException('Lesson not found');
+        const source = String(row.raw_text || '').trim();
+        if (source.length < 10) {
+            throw new common_1.BadRequestException('This lesson has no saved source text to rewrite the card from.');
+        }
+        const parsed = typeof row.note_data === 'string' ? JSON.parse(row.note_data) : row.note_data;
+        const canvas = {
+            pages: Array.isArray(parsed?.pages) ? parsed.pages : [],
+        };
+        if (!canvas.pages.length) {
+            throw new common_1.BadRequestException('This lesson has no cards to rewrite yet.');
+        }
+        const provider = await this.resolveActiveCanvasProvider();
+        const target = this.normalizeTopicKey(this.stripHeadingNumber(wanted));
+        const fresh = await this.generateWithProvider(this.buildSectionPrompt(source, wanted), provider);
+        const replacements = fresh.pages.flatMap((p) => p.sections);
+        if (!replacements.length) {
+            throw new common_1.ServiceUnavailableException('The model returned nothing for that card. Try again.');
+        }
+        let swapped = false;
+        for (const page of canvas.pages) {
+            const next = [];
+            for (const section of page.sections) {
+                const key = this.normalizeTopicKey(this.stripHeadingNumber(section.heading || ''));
+                if (key === target) {
+                    if (!swapped) {
+                        next.push(...replacements);
+                        swapped = true;
+                    }
+                    continue;
+                }
+                next.push(section);
+            }
+            page.sections = next;
+        }
+        if (!swapped) {
+            throw new common_1.NotFoundException(`No card called "${wanted}" in this lesson.`);
+        }
+        return this.renumberSections(this.groupSectionFamilies(canvas));
+    }
+    buildSectionPrompt(sourceText, heading) {
+        return [
+            'You are a senior medical educator rewriting ONE card of an existing lesson.',
+            `Rewrite ONLY the card titled "${heading}". Ignore every other topic in the source.`,
+            'Return ONLY the JSON for that one card, in the same shape as a full lesson: {"title":"","subtitle":"","sections":[ ...one section... ]}.',
+            'Reproduce EVERY fact from the source that belongs to this topic — leaving content out is the worst error you can make.',
+            'Keep bullets SHORT, one idea each, with "→ " sub-bullets for lists, each starting with its key term in **bold** and a short reason in brackets.',
+            'Highlighting is not optional: ==highlight== every diagnosis, key term, mechanism word and cut-off, and **bold** every drug, dose and lab value — inside table cells too.',
+            'If the content is a comparison use {"type":"table"}; if it is a cause→effect chain use {"type":"flow"}; if it is one topic splitting into named sub-types use {"type":"branch"}.',
+            'Sub-parts (medical/surgical, first/second line, step 1/2/3) stay INSIDE this one card as labelled parent bullets — never as extra cards.',
+            'Do NOT put a number on the heading — the app numbers cards itself.',
+            '',
+            'SOURCE NOTES:',
+            sourceText.slice(0, LessonsService_1.COMPLETENESS_LIMIT),
+        ].join('\n');
+    }
     buildCompletenessPrompt(sourceText, coveredText) {
         return [
             'You are auditing a study lesson for completeness against its SOURCE notes.',
@@ -1647,7 +1730,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             coveredText,
             '',
             'SOURCE (find anything here that is not covered above):',
-            sourceText.slice(0, 40000),
+            sourceText.slice(0, LessonsService_1.COMPLETENESS_LIMIT),
             '',
             'Return ONLY this JSON: {"title":"","subtitle":"","sections":[{"heading":"...","bullets":["..."]},{"heading":"Management","bullets":[],"embedded_flow":["step 1","step 2"],"embedded_label":"specific label"},{"type":"note","heading":"...","bullets":["..."],"anchor_topic":"Management"}],"summary_box":"","key_points":[]}',
         ].join('\n');
@@ -2356,6 +2439,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
     }
 };
 exports.LessonsService = LessonsService;
+LessonsService.CHUNK_LIMIT = 9000;
+LessonsService.COMPLETENESS_LIMIT = 40000;
 LessonsService.TOPIC_FAMILIES = [
     { key: 'definition', title: 'Definition', test: /definition|\bdefined\b/ },
     { key: 'differential', title: 'Differential diagnosis', test: /differential|\bddx\b/ },

@@ -481,6 +481,18 @@ export declare class LessonsService {
             updatedAt: string;
         }[];
     }>;
+    static readonly CHUNK_LIMIT = 9000;
+    static readonly COMPLETENESS_LIMIT = 40000;
+    previewSource(text: string, token: string, sourceFormat?: 'text' | 'html'): Promise<{
+        wasHtml: boolean;
+        rawLength: number;
+        cleanedLength: number;
+        chunks: number;
+        completenessLimit: number;
+        completenessCapped: boolean;
+        preview: string;
+        truncatedPreview: boolean;
+    }>;
     canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress, sourceFormat?: 'text' | 'html'): Promise<NoteCanvas>;
     private generateChunkResilient;
     startCanvasGenerate(text: string, token: string, sourceFormat?: 'text' | 'html'): Promise<{
@@ -503,6 +515,8 @@ export declare class LessonsService {
     private groupSectionFamilies;
     private mergeCanvases;
     private ensureCompleteness;
+    regenerateSection(noteId: number, heading: string, token: string): Promise<NoteCanvas>;
+    private buildSectionPrompt;
     private buildCompletenessPrompt;
     canvasStudentList(token: string, engineKey?: CanvasEngineKey, appClient?: string): Promise<{
         cardCount: number;

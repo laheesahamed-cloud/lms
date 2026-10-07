@@ -286,6 +286,10 @@ function rewriteApiBoundary(path: string, method: string) {
         return `/api/lessons/canvas/generate${sub}`;
       }
       if (rest[0] === 'hierarchy') return `/api/lessons/canvas${restPath}`;
+      // /admin/ai-notes/source/preview -> /api/lessons/canvas/source/preview
+      if (rest[0] === 'source') return `/api/lessons/canvas${restPath}`;
+      // /admin/ai-notes/:id/section/regenerate -> /api/lessons/canvas/:id/section/regenerate
+      if (rest[1] === 'section') return `/api/lessons/canvas${restPath}`;
       return `/api/lessons/canvas/admin${restPath}`;
     }
     if (resource === 'announcements') return `/api/announcements/admin${restPath}`;

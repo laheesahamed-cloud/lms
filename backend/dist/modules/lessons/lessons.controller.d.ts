@@ -190,6 +190,17 @@ export declare class LessonsController {
         status: "active" | "inactive";
         workflowState: "draft" | "published";
     }>;
+    canvasRegenerateSection(auth: string, id: number, heading: string): Promise<import("./lessons.service").NoteCanvas>;
+    canvasSourcePreview(auth: string, text: string, sourceFormat?: string): Promise<{
+        wasHtml: boolean;
+        rawLength: number;
+        cleanedLength: number;
+        chunks: number;
+        completenessLimit: number;
+        completenessCapped: boolean;
+        preview: string;
+        truncatedPreview: boolean;
+    }>;
     canvasGenerate(auth: string, text: string, sourceFormat?: string): Promise<import("./lessons.service").NoteCanvas>;
     canvasGenerateStart(auth: string, text: string, sourceFormat?: string): Promise<{
         jobId: string;

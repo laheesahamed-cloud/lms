@@ -6,6 +6,8 @@ import {
   adminCreateLessonFlashcard,
   adminDeleteLessonFlashcard,
   adminStartAiNoteGeneration,
+  adminPreviewAiNoteSource,
+  adminRegenerateAiNoteSection,
   adminGetAiNoteGenerationStatus,
   adminGenerateLessonFlashcards,
   adminGetAiNote,
@@ -228,6 +230,13 @@ export function AdminAiNotesEditorPage({
   // reaches the model, which keeps headings, lists and tables intact without
   // the tag noise eating the source-length budget.
   const [sourceFormat, setSourceFormat] = useState('text');
+  // What the model will actually be handed — length after HTML cleaning, how
+  // many passes it takes, and whether the tail falls past the completeness
+  // check. Fetched from the backend so it can never disagree with the run.
+  const [sourceInfo, setSourceInfo] = useState(null);
+  const [sourcePreviewOpen, setSourcePreviewOpen] = useState(false);
+  const [rewriteHeading, setRewriteHeading] = useState('');
+  const [rewriting, setRewriting] = useState(false);
   const [videoUrl,   setVideoUrl]   = useState('');
   const [noteData,   setNoteData]   = useState(null);
   const [savedData,  setSavedData]  = useState(null);
@@ -482,6 +491,38 @@ export function AdminAiNotesEditorPage({
       if (job.status === 'done') return job.result;
       if (job.status === 'error') throw new Error(job.error || 'Generation failed');
       await new Promise(resolve => setTimeout(resolve, 900));
+    }
+  }
+
+  useEffect(() => {
+    if (rawText.trim().length < 10) { setSourceInfo(null); return; }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      adminPreviewAiNoteSource(rawText, { engine: engineKey, sourceFormat })
+        .then((info) => { if (!cancelled) setSourceInfo(info); })
+        .catch(() => { if (!cancelled) setSourceInfo(null); });
+    }, 600);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [rawText, sourceFormat, engineKey]);
+
+  // Rewrites ONE card from the lesson's saved source, leaving the rest alone —
+  // a lesson that is 90% right no longer costs a full regeneration, and the
+  // 90% that was fine does not come back different.
+  async function handleRewriteSection() {
+    if (!rewriteHeading) return;
+    setError(''); setRewriting(true);
+    try {
+      const result = await adminRegenerateAiNoteSection(Number(id), rewriteHeading, { engine: engineKey });
+      const nd = normalizeNoteData(result);
+      const cleanData = cleanNoteDataForSave(nd);
+      setNoteData(cleanData);
+      await adminUpdateAiNote(Number(id), { noteData: cleanData }, { timeout: 60000 }, { engine: engineKey });
+      setSaveStatus(`"${rewriteHeading}" rewritten.`);
+      clearSaveStatusLater();
+    } catch (e) {
+      setError(e?.response?.data?.message || 'Could not rewrite that card.');
+    } finally {
+      setRewriting(false);
     }
   }
 
@@ -978,14 +1019,64 @@ export function AdminAiNotesEditorPage({
               : `Paste the topic text here…\n\ne.g. Lecture notes, textbook content, clinical guidelines…`}
             value={rawText} onChange={handleRawChange}
           />
+          {sourceInfo?.completenessCapped && (
+            <div className="mt-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[12px] leading-relaxed text-amber-200">
+              <b>Past {sourceInfo.completenessLimit.toLocaleString()} characters.</b>{' '}
+              The completeness pass — the check that catches anything the AI dropped —
+              only re-reads the first {sourceInfo.completenessLimit.toLocaleString()}.
+              Content beyond that still gets written, but nothing verifies it was kept.
+              Consider splitting this into two lessons.
+            </div>
+          )}
+          {sourceInfo?.wasHtml && (
+            <button type="button"
+              onClick={() => setSourcePreviewOpen((v) => !v)}
+              className="mt-2 self-start text-[12px] font-bold text-primary hover:underline">
+              {sourcePreviewOpen ? 'Hide' : 'See'} what the AI will read
+            </button>
+          )}
+          {sourcePreviewOpen && sourceInfo?.preview && (
+            <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-[11.5px] leading-relaxed text-ink-soft">
+              {sourceInfo.preview}
+              {sourceInfo.truncatedPreview ? '\n\n… (preview truncated)' : ''}
+            </pre>
+          )}
           <div className={editorUi.inputFooter}>
-            <span className={editorUi.charCount}>{rawText.length.toLocaleString()} / 12,000</span>
+            <span className={editorUi.charCount}>
+              {(sourceInfo?.cleanedLength ?? rawText.length).toLocaleString()} characters
+              {sourceInfo?.wasHtml && rawText.length !== sourceInfo.cleanedLength
+                ? ` (from ${rawText.length.toLocaleString()} of HTML)`
+                : ''}
+              {sourceInfo?.chunks > 1 ? ` · ${sourceInfo.chunks} AI passes` : ''}
+            </span>
             <button className={cx(ui.primaryAction, 'gap-[7px]')} onClick={handleGenerate} disabled={processing}>
               {processing
                 ? <span className={editorUi.spinner}>{processMsg || 'Working…'}</span>
                 : <><SparkleIcon/> Generate Lesson</>}
             </button>
           </div>
+
+          {/* Rewrite one card — cheaper than regenerating the whole lesson */}
+          {(noteData?.pages || []).some((pg) => (pg.sections || []).length > 0) && (
+            <div className="mt-3 flex items-center gap-2 border-t border-line-soft pt-3">
+              <select
+                className={cx(ui.input, 'flex-1 text-[12.5px]')}
+                value={rewriteHeading}
+                onChange={(e) => setRewriteHeading(e.target.value)}>
+                <option value="">Rewrite one card…</option>
+                {(noteData?.pages || [])
+                  .flatMap((pg) => pg.sections || [])
+                  .map((sec) => String(sec.heading || '').trim())
+                  .filter(Boolean)
+                  .map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+              <button className={ui.secondaryAction}
+                onClick={handleRewriteSection}
+                disabled={!rewriteHeading || rewriting}>
+                {rewriting ? 'Rewriting…' : 'Rewrite'}
+              </button>
+            </div>
+          )}
 
           {/* Category & status panel */}
           <div className={editorUi.categoryPanel}>

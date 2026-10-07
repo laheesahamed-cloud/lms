@@ -164,6 +164,12 @@ let LessonsController = class LessonsController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.rollback(id, versionNumber, actor);
     }
+    canvasRegenerateSection(auth, id, heading) {
+        return this.lessonsService.regenerateSection(id, heading, this.bearerToken(auth));
+    }
+    canvasSourcePreview(auth, text, sourceFormat) {
+        return this.lessonsService.previewSource(text, this.bearerToken(auth), sourceFormat === 'html' ? 'html' : 'text');
+    }
     canvasGenerate(auth, text, sourceFormat) {
         return this.lessonsService.canvasGenerate(text, this.bearerToken(auth), undefined, sourceFormat === 'html' ? 'html' : 'text');
     }
@@ -445,6 +451,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, Number]),
     __metadata("design:returntype", Promise)
 ], LessonsController.prototype, "rollback", null);
+__decorate([
+    (0, common_1.Post)('canvas/:id/section/regenerate'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)('heading')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasRegenerateSection", null);
+__decorate([
+    (0, common_1.Post)('canvas/source/preview'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)('text')),
+    __param(2, (0, common_1.Body)('sourceFormat')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasSourcePreview", null);
 __decorate([
     (0, common_1.Post)('canvas/generate'),
     __param(0, (0, common_1.Headers)('authorization')),

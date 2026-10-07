@@ -289,6 +289,28 @@ export class LessonsController {
 
   // ─── Canvas (AI Notes) routes ────────────────────────────────────────────
 
+  @Post('canvas/:id/section/regenerate')
+  canvasRegenerateSection(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Body('heading') heading: string,
+  ) {
+    return this.lessonsService.regenerateSection(id, heading, this.bearerToken(auth));
+  }
+
+  @Post('canvas/source/preview')
+  canvasSourcePreview(
+    @Headers('authorization') auth: string,
+    @Body('text') text: string,
+    @Body('sourceFormat') sourceFormat?: string,
+  ) {
+    return this.lessonsService.previewSource(
+      text,
+      this.bearerToken(auth),
+      sourceFormat === 'html' ? 'html' : 'text',
+    );
+  }
+
   @Post('canvas/generate')
   canvasGenerate(
     @Headers('authorization') auth: string,

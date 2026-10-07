@@ -252,6 +252,10 @@ function rewriteApiBoundary(path, method) {
             }
             if (rest[0] === 'hierarchy')
                 return `/api/lessons/canvas${restPath}`;
+            if (rest[0] === 'source')
+                return `/api/lessons/canvas${restPath}`;
+            if (rest[1] === 'section')
+                return `/api/lessons/canvas${restPath}`;
             return `/api/lessons/canvas/admin${restPath}`;
         }
         if (resource === 'announcements')
