@@ -36,6 +36,7 @@ class LessonJsonTruncatedError extends Error {
 class LessonStreamTimeoutError extends Error {
 }
 const STREAM_STALL_MS = 45_000;
+const JOB_ABANDONED_MS = 15 * 60 * 1000;
 function generationBudgetMs(chunks) {
     const sized = chunks * 120_000 + 120_000;
     return Math.min(12 * 60 * 1000, Math.max(6 * 60 * 1000, sized));
@@ -1313,6 +1314,18 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const row = rows[0];
         if (!row)
             throw new common_1.NotFoundException('Generation job not found — it may have expired.');
+        const startedAt = Number(row.created_at) || Date.now();
+        const age = Date.now() - startedAt;
+        if (row.status === 'running' && age > JOB_ABANDONED_MS) {
+            const message = 'Generation stopped responding — the server may have restarted. Nothing was saved; try again.';
+            await this.db.execute(`UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [message, jobId]).catch(() => { });
+            return {
+                status: 'error',
+                stages: JSON.parse(row.stages_json || '[]'),
+                error: message,
+                createdAt: startedAt,
+            };
+        }
         return {
             status: row.status,
             stages: JSON.parse(row.stages_json || '[]'),

@@ -196,6 +196,11 @@ class LessonStreamTimeoutError extends Error {}
 /// whole run's time without producing a character.
 const STREAM_STALL_MS = 45_000;
 
+/// Past this, a row still marked 'running' is treated as abandoned. Comfortably
+/// beyond the longest budget (12 min) and its wall clock, so it only ever
+/// catches a job whose process is gone.
+const JOB_ABANDONED_MS = 15 * 60 * 1000;
+
 /// The outer wall clock on a whole generation job. A little past the 6-minute
 /// budget canvasGenerate works to, so the inner deadline reports a clean
 /// failure first where it can, and this only ever fires for a hang that got
@@ -1907,6 +1912,29 @@ export class LessonsService {
     );
     const row = rows[0];
     if (!row) throw new NotFoundException('Generation job not found — it may have expired.');
+
+    // A job still marked 'running' long past any budget is not running at all.
+    // The wall clock that would have failed it lives in the Node process, so a
+    // restart — a deploy, a crash, the host recycling the app — takes the timer
+    // and the in-flight promise with it and leaves this row saying 'running'
+    // for ever, which the editor politely polls until someone gives up. The
+    // row's own age is the only evidence that survives a restart.
+    const startedAt = Number(row.created_at) || Date.now();
+    const age = Date.now() - startedAt;
+    if (row.status === 'running' && age > JOB_ABANDONED_MS) {
+      const message = 'Generation stopped responding — the server may have restarted. Nothing was saved; try again.';
+      await this.db.execute(
+        `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`,
+        [message, jobId],
+      ).catch(() => {});
+      return {
+        status: 'error',
+        stages: JSON.parse(row.stages_json || '[]'),
+        error: message,
+        createdAt: startedAt,
+      };
+    }
+
     return {
       status: row.status as LessonGenerationJob['status'],
       stages: JSON.parse(row.stages_json || '[]'),

@@ -483,6 +483,15 @@ export function AdminAiNotesEditorPage({
   // Polls the background generation job until it finishes, appending each new
   // stage to the visible progress log instead of one long blind wait.
   async function pollGenerationJob(jobId) {
+    // The editor used to poll a 'running' job for ever, trusting the server to
+    // end it. That trust is misplaced: the timers that fail a run live in the
+    // Node process, so a restart mid-generation leaves the row saying 'running'
+    // with nothing left to finish it — which is how a log sat untouched for
+    // sixteen minutes while this kept asking. Silence is now evidence.
+    const QUIET_LIMIT_MS = 150_000;
+    let lastChange = Date.now();
+    let lastSeen = '';
+
     for (;;) {
       const job = await adminGetAiNoteGenerationStatus(jobId, { engine: engineKey });
       // Take the server's list wholesale instead of appending whatever is new
@@ -494,8 +503,19 @@ export function AdminAiNotesEditorPage({
         setProgressLog(stages);
         setProcessMsg(stages[stages.length - 1].message);
       }
+      // Compared by content, not length: the live writing line rewrites its own
+      // last entry, so its message changing IS progress.
+      const fingerprint = `${stages.length}|${stages[stages.length - 1]?.message || ''}`;
+      if (fingerprint !== lastSeen) { lastSeen = fingerprint; lastChange = Date.now(); }
+
       if (job.status === 'done') return job.result;
       if (job.status === 'error') throw new Error(job.error || 'Generation failed');
+      if (Date.now() - lastChange > QUIET_LIMIT_MS) {
+        throw new Error(
+          `Generation stopped reporting ${Math.round((Date.now() - lastChange) / 1000)}s ago `
+          + `and was given up on. Last step: ${stages[stages.length - 1]?.message || 'connecting'}`,
+        );
+      }
       // 1.2s, NOT the 600ms this briefly used. Admin requests are capped at
       // 240/minute and 600ms spends 100 of them on polling alone — with
       // autosave and the source preview alongside, that tripped the limiter
