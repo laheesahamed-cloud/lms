@@ -4625,6 +4625,17 @@ class _SectionCard extends StatelessWidget {
             ),
           if (section.isTable) _tableBlock(accent),
           if (section.isFlow) _flowBlock(accent),
+          if (section.isBranch) _branchBlock(accent),
+          if (section.hasEmbeddedTable) ...[
+            _embeddedLabel(accent, section.embeddedLabel.isNotEmpty ? section.embeddedLabel : 'Comparison'),
+            _tableBlock(accent,
+                onlyHeaders: section.embeddedTableHeaders,
+                onlyRows: section.embeddedTableRows),
+          ],
+          if (section.hasEmbeddedFlow) ...[
+            _embeddedLabel(accent, section.embeddedLabel.isNotEmpty ? section.embeddedLabel : 'Mechanism'),
+            _flowBlock(accent, only: section.embeddedFlow),
+          ],
           if (section.callout.isNotEmpty) _callout(accent),
           if (section.mnemonic.isNotEmpty) _mnemonic(accent),
           if (section.stickyNote.isNotEmpty) _stickyNote(accent),
@@ -4642,8 +4653,8 @@ class _SectionCard extends StatelessWidget {
 
   // Flow block: cause → effect chain rendered as full-sentence steps stacked
   // vertically, connected by centered down-arrows. No per-step cards.
-  Widget _flowBlock(Color accent) {
-    final steps = section.steps;
+  Widget _flowBlock(Color accent, {List<String>? only}) {
+    final steps = only ?? section.steps;
     if (steps.isEmpty) return const SizedBox.shrink();
     final arrowColor = accent.withValues(alpha: dark ? 0.55 : 0.6);
     final children = <Widget>[];
@@ -4669,9 +4680,111 @@ class _SectionCard extends StatelessWidget {
     );
   }
 
-  Widget _tableBlock(Color accent) {
-    final headers = section.tableHeaders;
-    final rows = section.tableRows;
+  // The rule-and-label that separates an embedded table or flow from the
+  // bullets above it, so a drug's mechanism reads as part of this card rather
+  // than as loose steps appended to it.
+  Widget _embeddedLabel(Color accent, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(label.toUpperCase(),
+              style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent))),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: accent.withValues(alpha: dark ? 0.30 : 0.18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Classification chart: the thing being classified, then its named sub-types.
+  //
+  // The web draws a root box, a vertical trunk and a tick into each branch —
+  // and then hides the trunk and ticks below 520px and stacks everything into
+  // one column. A phone is always below that, so this is the stacked form; the
+  // trunk would be drawing a connector nobody sees.
+  Widget _branchBlock(Color accent) {
+    final branches = section.branches;
+    final root = section.branchRoot.isNotEmpty ? section.branchRoot : section.heading;
+    if (branches.isEmpty && root.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (root.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(root,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      height: 1.3,
+                      color: Colors.white)),
+            ),
+          for (var i = 0; i < branches.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(top: 7),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(11, 8, 11, 9),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: dark ? 0.16 : 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: accent.withValues(alpha: dark ? 0.38 : 0.22)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(branches[i].label,
+                        style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            height: 1.3,
+                            color: dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent))),
+                    if (branches[i].detail.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      _inlineText(
+                        branches[i].detail,
+                        TextStyle(fontSize: 12.5, height: 1.4, color: ink),
+                        accent: accent,
+                        // Continues the card's highlight cycle instead of
+                        // restarting it, so two branches never land on the
+                        // same colour.
+                        highlightIndex: i,
+                        dark: dark,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableBlock(Color accent, {List<String>? onlyHeaders, List<List<String>>? onlyRows}) {
+    final headers = onlyHeaders ?? section.tableHeaders;
+    final rows = onlyRows ?? section.tableRows;
     if (headers.isEmpty) return const SizedBox.shrink();
     final dividerColor = accent.withValues(alpha: dark ? 0.18 : 0.12);
     final headerColor = dark ? Color.lerp(accent, Colors.white, 0.35)! : _darken(accent);
@@ -4693,7 +4806,11 @@ class _SectionCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(5, 6, 5, 6),
               child: isHeader
-                  ? Text(text.toUpperCase(),
+                  // Markers STRIPPED, not rendered. A header is a small-caps
+                  // label — a highlight swatch in it would fight the column
+                  // rule — but leaving the markers in meant a cell reading
+                  // literally "==X==", which is what showed on the app.
+                  ? Text(plainInline(text).toUpperCase(),
                       style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: wide ? 9.0 : 10.0,

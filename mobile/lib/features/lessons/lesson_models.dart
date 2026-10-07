@@ -295,7 +295,7 @@ class LessonSection {
   final List<String> bullets;
   final String? accentColor; // hex like '#2563eb'
   final String span; // 'half' | 'wide' | 'full'
-  final String type; // 'text' | 'image' | 'image-explained' | 'table'
+  final String type; // 'text' | 'image' | 'image-explained' | 'table' | 'flow' | 'branch'
   final String callout;
   final String mnemonic;
   final String stickyNote;
@@ -309,6 +309,17 @@ class LessonSection {
   final List<String> tableHeaders; // for type == 'table'
   final List<List<String>> tableRows; // for type == 'table'
   final List<String> steps; // for type == 'flow' (cause → effect chain)
+  final String branchRoot; // for type == 'branch' — the thing being classified
+  final List<BranchItem> branches; // for type == 'branch' — its named sub-types
+  // A table or flow belonging to a SUB-PART of this text card — a drug's
+  // mechanism inside "Management", say. Not a section type of its own: any
+  // text section can carry one, and the generator is required to use this
+  // rather than give a drug mechanism its own card, so a reader that ignores
+  // these simply never shows that content.
+  final String embeddedLabel;
+  final List<String> embeddedFlow;
+  final List<String> embeddedTableHeaders;
+  final List<List<String>> embeddedTableRows;
 
   LessonSection({
     required this.heading,
@@ -329,6 +340,12 @@ class LessonSection {
     required this.tableHeaders,
     required this.tableRows,
     required this.steps,
+    required this.branchRoot,
+    required this.branches,
+    required this.embeddedLabel,
+    required this.embeddedFlow,
+    required this.embeddedTableHeaders,
+    required this.embeddedTableRows,
   });
 
   factory LessonSection.fromJson(dynamic raw) {
@@ -360,13 +377,56 @@ class LessonSection {
           ? rawRows.map<List<String>>((r) => r is List ? r.map((c) => c.toString()).toList() : []).toList()
           : [],
       steps: _strList(s['steps']),
+      branchRoot: _str(s['root']),
+      embeddedLabel: _str(s['embedded_label']),
+      embeddedFlow: _strList(s['embedded_flow']),
+      embeddedTableHeaders: _tableHeaders(s['embedded_table']),
+      embeddedTableRows: _tableRows(s['embedded_table']),
+      branches: s['branches'] is List
+          ? (s['branches'] as List).map(BranchItem.fromJson).toList()
+          : const [],
     );
   }
 
   bool get isImage => type == 'image' || type == 'image-explained';
   bool get isTable => type == 'table';
   bool get isFlow => type == 'flow';
+  bool get isBranch => type == 'branch';
+  bool get hasEmbeddedFlow => embeddedFlow.isNotEmpty;
+  bool get hasEmbeddedTable => embeddedTableHeaders.isNotEmpty;
 }
+
+List<String> _tableHeaders(dynamic table) {
+  final m = (table is Map) ? Map<String, dynamic>.from(table) : null;
+  final raw = m?['headers'];
+  return raw is List ? raw.map((e) => e.toString()).toList() : const [];
+}
+
+List<List<String>> _tableRows(dynamic table) {
+  final m = (table is Map) ? Map<String, dynamic>.from(table) : null;
+  final raw = m?['rows'];
+  return raw is List
+      ? raw.map<List<String>>((r) => r is List ? r.map((c) => c.toString()).toList() : <String>[]).toList()
+      : const [];
+}
+
+/// One named sub-type on a `branch` card — a classification's child.
+class BranchItem {
+  final String label;
+  final String detail;
+  const BranchItem({required this.label, required this.detail});
+
+  factory BranchItem.fromJson(dynamic raw) {
+    final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    return BranchItem(label: _str(m['label']), detail: _str(m['detail']));
+  }
+}
+
+/// The text of an inline-marked string with the markers removed.
+///
+/// For places that cannot show a highlight — a table header, a label — where
+/// the raw string would otherwise print its own markup.
+String plainInline(String input) => parseInline(input).map((r) => r.text).join();
 
 /// One run of inline text — `==highlight==` or `**bold**` or plain.
 class InlineRun {
