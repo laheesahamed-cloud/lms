@@ -1836,16 +1836,29 @@ export class LessonsService {
     );
 
     const stages: Array<{ stage: string; message: string; at: number }> = [];
+    let lastMilestoneAt = 0;
     const running = this.canvasGenerate(text, token, (stage, message) => {
       // The 'writing' stage ticks about once a second while a model streams,
       // so it REPLACES its own last line instead of appending. Appending would
       // leave hundreds of near-identical entries and grow stages_json for the
       // whole run; this keeps one live counter that updates in place.
+      const now = Date.now();
       const last = stages[stages.length - 1];
       if (stage === 'writing' && last?.stage === 'writing') {
+        // The live line is rewritten every second, so the character count and
+        // the elapsed seconds on it move continuously. It is NOT appended:
+        // a four-minute call would otherwise leave 240 near-identical rows,
+        // and the whole log is re-serialised to the database on every tick.
         last.message = message;
+        // A permanent trail every ten seconds, so the log still grows while a
+        // long part is being written instead of looking frozen at one line.
+        if (now - (lastMilestoneAt || last.at) >= 10_000 && stages.length < 400) {
+          lastMilestoneAt = now;
+          stages.push({ stage: 'writing', message, at: now });
+        }
       } else {
-        stages.push({ stage, message, at: Date.now() });
+        if (stage === 'writing') lastMilestoneAt = now;
+        stages.push({ stage, message, at: now });
       }
       // Best-effort progress write — a slow/failed write here should never
       // abort generation itself, only cost the client one stale poll.
@@ -2845,8 +2858,9 @@ export class LessonsService {
         const raw = (await this.readGeminiStream(
           res,
           (chars, sections) => {
+            const secs = Math.round((Date.now() - startedAt) / 1000);
             onProgress?.('writing',
-              `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
+              `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`);
           },
           startedAt + budget,
           (quietMs) => {

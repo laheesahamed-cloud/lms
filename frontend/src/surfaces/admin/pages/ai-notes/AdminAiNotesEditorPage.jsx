@@ -496,7 +496,9 @@ export function AdminAiNotesEditorPage({
       }
       if (job.status === 'done') return job.result;
       if (job.status === 'error') throw new Error(job.error || 'Generation failed');
-      await new Promise(resolve => setTimeout(resolve, 900));
+      // Faster than the backend's 1s tick, so the live writing line never
+      // sits a beat behind what the server already knows.
+      await new Promise(resolve => setTimeout(resolve, 600));
     }
   }
 

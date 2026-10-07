@@ -1281,13 +1281,21 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const jobId = (0, crypto_1.randomUUID)();
         await this.db.execute(`INSERT INTO lesson_generation_jobs (id, status, stages_json) VALUES (?, 'running', '[]')`, [jobId]);
         const stages = [];
+        let lastMilestoneAt = 0;
         const running = this.canvasGenerate(text, token, (stage, message) => {
+            const now = Date.now();
             const last = stages[stages.length - 1];
             if (stage === 'writing' && last?.stage === 'writing') {
                 last.message = message;
+                if (now - (lastMilestoneAt || last.at) >= 10_000 && stages.length < 400) {
+                    lastMilestoneAt = now;
+                    stages.push({ stage: 'writing', message, at: now });
+                }
             }
             else {
-                stages.push({ stage, message, at: Date.now() });
+                if (stage === 'writing')
+                    lastMilestoneAt = now;
+                stages.push({ stage, message, at: now });
             }
             this.db.execute(`UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`, [JSON.stringify(stages), jobId]).catch(() => { });
         }, sourceFormat);
@@ -2066,7 +2074,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     continue;
                 }
                 const raw = (await this.readGeminiStream(res, (chars, sections) => {
-                    onProgress?.('writing', `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
+                    const secs = Math.round((Date.now() - startedAt) / 1000);
+                    onProgress?.('writing', `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`);
                 }, startedAt + budget, (quietMs) => {
                     onProgress?.('model', `${where}${model} went quiet for ${Math.round(quietMs / 1000)}s \u2014 the connection stalled\u2026`);
                 })).trim();
