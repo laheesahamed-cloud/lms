@@ -1714,7 +1714,7 @@ export class LessonsService {
 
     // Item 2 — completeness self-check: ask the model what it left out and append it (best effort).
     onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
-    const completed = await this.ensureCompleteness(trimmed, canvas, provider);
+    const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline);
     // Always renumber last — guarantees flat "1., 2., 3." card numbers no matter
     // which path above produced the canvas, or whether the model followed the
     // numbering instruction exactly.
@@ -1741,7 +1741,7 @@ export class LessonsService {
     deadline = Infinity,
   ): Promise<NoteCanvas> {
     try {
-      return await this.generateWithProvider(this.buildPrompt(chunkText), provider);
+      return await this.generateWithProvider(this.buildPrompt(chunkText), provider, deadline);
     } catch (err) {
       if (
         !(err instanceof LessonJsonTruncatedError)
@@ -2272,14 +2272,14 @@ export class LessonsService {
 
   // Ask the model to name anything from the source that the lesson left out, then append it.
   // Best effort: any failure just returns the original canvas — never breaks generation.
-  private async ensureCompleteness(sourceText: string, canvas: NoteCanvas, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
+  private async ensureCompleteness(sourceText: string, canvas: NoteCanvas, provider: RuntimeCanvasProvider, deadline = Infinity): Promise<NoteCanvas> {
     try {
       const covered = canvas.pages.flatMap((p) => p.sections).map((s) => {
         if (s.type === 'table') return `${s.heading}: ${(s.headers || []).join(' | ')} ${(s.rows || []).map((r) => r.join(' | ')).join(' ; ')}`;
         if (s.type === 'flow') return `${s.heading}: ${(s.steps || []).join(' → ')}`;
         return `${s.heading}: ${(s.bullets || []).join(' ')} ${s.callout} ${s.sticky_note} ${s.mnemonic}`;
       }).join('\n').slice(0, 14000);
-      const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider);
+      const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider, deadline);
       const missingSections = missing.pages.flatMap((p) => p.sections);
       if (!missingSections.length) return canvas;
       return this.mergeCanvases([canvas, missing]);
@@ -2328,6 +2328,9 @@ export class LessonsService {
     const fresh = await this.generateWithProvider(
       this.buildSectionPrompt(source, wanted),
       provider,
+      // One card, one pass — it should never sit through the full six-minute
+      // budget a whole lesson gets.
+      Date.now() + 2 * 60 * 1000,
     );
     const replacements = fresh.pages.flatMap((p) => p.sections);
     if (!replacements.length) {
@@ -2691,10 +2694,25 @@ export class LessonsService {
     } catch { return ''; }
   }
 
-  private async generateWithProvider(prompt: string, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
+  private async generateWithProvider(
+    prompt: string,
+    provider: RuntimeCanvasProvider,
+    deadline = Infinity,
+  ): Promise<NoteCanvas> {
     if (!provider.apiKey) throw new ServiceUnavailableException(`No API key for ${provider.providerLabel}.`);
-    if (provider.providerKey === 'gemini') return this.generateWithGeminiProvider(prompt, provider);
-    return this.generateWithChatProvider(prompt, provider);
+    if (provider.providerKey === 'gemini') return this.generateWithGeminiProvider(prompt, provider, deadline);
+    return this.generateWithChatProvider(prompt, provider, deadline);
+  }
+
+  /// How long one request may take without overrunning the whole generation's
+  /// budget. The per-request timeout alone is not enough: the model loop runs
+  /// several candidates in sequence, so four models at four minutes each can
+  /// spend sixteen minutes inside one chunk while the deadline — checked only
+  /// BETWEEN chunks — never gets a look in. That is what left the UI sitting
+  /// on "Writing part 1 of 2…" long past the six minutes it promises.
+  private requestBudget(deadline: number): number {
+    const left = deadline - Date.now();
+    return Math.max(0, Math.min(AI_NOTES_REQUEST_TIMEOUT_MS, left));
   }
 
   // Cleans code-fence wrapping and parses the model's JSON response. A parse
@@ -2712,12 +2730,20 @@ export class LessonsService {
     return this.splitIntoPages(this.validate(parsed));
   }
 
-  private async generateWithGeminiProvider(prompt: string, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
+  private async generateWithGeminiProvider(
+    prompt: string,
+    provider: RuntimeCanvasProvider,
+    deadline = Infinity,
+  ): Promise<NoteCanvas> {
     const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || getDefaultModelForProvider('gemini')).trim()].filter(Boolean)));
     const errors: string[] = [];
     let sawTruncation = false;
     for (const model of modelCandidates) {
-      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+      // Stop before starting a candidate there is no time left for, rather
+      // than beginning another four-minute wait past the budget.
+      const budget = this.requestBudget(deadline);
+      if (budget <= 0) { errors.push('out of time before trying more models'); break; }
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), budget);
       try {
         const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
         if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); continue; }
@@ -2736,8 +2762,16 @@ export class LessonsService {
     throw new ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
   }
 
-  private async generateWithChatProvider(prompt: string, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
-    const ctrl = new AbortController(); const timeout = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+  private async generateWithChatProvider(
+    prompt: string,
+    provider: RuntimeCanvasProvider,
+    deadline = Infinity,
+  ): Promise<NoteCanvas> {
+    const budget = this.requestBudget(deadline);
+    if (budget <= 0) {
+      throw new ServiceUnavailableException('Generation ran out of time before this part could start.');
+    }
+    const ctrl = new AbortController(); const timeout = setTimeout(() => ctrl.abort(), budget);
     try {
       let text = '';
       try { text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, true); }

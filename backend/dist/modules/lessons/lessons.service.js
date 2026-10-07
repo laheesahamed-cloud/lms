@@ -1220,7 +1220,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             canvas = this.mergeCanvases(canvases);
         }
         onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
-        const completed = await this.ensureCompleteness(trimmed, canvas, provider);
+        const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline);
         onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
         const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
         onProgress?.('done', 'Lesson ready!');
@@ -1228,7 +1228,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
     }
     async generateChunkResilient(chunkText, provider, depth = 0, onProgress, deadline = Infinity) {
         try {
-            return await this.generateWithProvider(this.buildPrompt(chunkText), provider);
+            return await this.generateWithProvider(this.buildPrompt(chunkText), provider, deadline);
         }
         catch (err) {
             if (!(err instanceof LessonJsonTruncatedError)
@@ -1616,7 +1616,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         };
         return this.splitIntoPages(merged);
     }
-    async ensureCompleteness(sourceText, canvas, provider) {
+    async ensureCompleteness(sourceText, canvas, provider, deadline = Infinity) {
         try {
             const covered = canvas.pages.flatMap((p) => p.sections).map((s) => {
                 if (s.type === 'table')
@@ -1625,7 +1625,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     return `${s.heading}: ${(s.steps || []).join(' → ')}`;
                 return `${s.heading}: ${(s.bullets || []).join(' ')} ${s.callout} ${s.sticky_note} ${s.mnemonic}`;
             }).join('\n').slice(0, 14000);
-            const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider);
+            const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider, deadline);
             const missingSections = missing.pages.flatMap((p) => p.sections);
             if (!missingSections.length)
                 return canvas;
@@ -1657,7 +1657,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         const provider = await this.resolveActiveCanvasProvider();
         const target = this.normalizeTopicKey(this.stripHeadingNumber(wanted));
-        const fresh = await this.generateWithProvider(this.buildSectionPrompt(source, wanted), provider);
+        const fresh = await this.generateWithProvider(this.buildSectionPrompt(source, wanted), provider, Date.now() + 2 * 60 * 1000);
         const replacements = fresh.pages.flatMap((p) => p.sections);
         if (!replacements.length) {
             throw new common_1.ServiceUnavailableException('The model returned nothing for that card. Try again.');
@@ -1984,12 +1984,16 @@ let LessonsService = LessonsService_1 = class LessonsService {
             return '';
         }
     }
-    async generateWithProvider(prompt, provider) {
+    async generateWithProvider(prompt, provider, deadline = Infinity) {
         if (!provider.apiKey)
             throw new common_1.ServiceUnavailableException(`No API key for ${provider.providerLabel}.`);
         if (provider.providerKey === 'gemini')
-            return this.generateWithGeminiProvider(prompt, provider);
-        return this.generateWithChatProvider(prompt, provider);
+            return this.generateWithGeminiProvider(prompt, provider, deadline);
+        return this.generateWithChatProvider(prompt, provider, deadline);
+    }
+    requestBudget(deadline) {
+        const left = deadline - Date.now();
+        return Math.max(0, Math.min(AI_NOTES_REQUEST_TIMEOUT_MS, left));
     }
     parseCanvasJson(raw) {
         const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
@@ -2002,13 +2006,18 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         return this.splitIntoPages(this.validate(parsed));
     }
-    async generateWithGeminiProvider(prompt, provider) {
+    async generateWithGeminiProvider(prompt, provider, deadline = Infinity) {
         const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim()].filter(Boolean)));
         const errors = [];
         let sawTruncation = false;
         for (const model of modelCandidates) {
+            const budget = this.requestBudget(deadline);
+            if (budget <= 0) {
+                errors.push('out of time before trying more models');
+                break;
+            }
             const ctrl = new AbortController();
-            const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+            const t = setTimeout(() => ctrl.abort(), budget);
             try {
                 const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
                 if (!res.ok) {
@@ -2048,9 +2057,13 @@ let LessonsService = LessonsService_1 = class LessonsService {
             throw new LessonJsonTruncatedError(errors.join(' | '));
         throw new common_1.ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
     }
-    async generateWithChatProvider(prompt, provider) {
+    async generateWithChatProvider(prompt, provider, deadline = Infinity) {
+        const budget = this.requestBudget(deadline);
+        if (budget <= 0) {
+            throw new common_1.ServiceUnavailableException('Generation ran out of time before this part could start.');
+        }
         const ctrl = new AbortController();
-        const timeout = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+        const timeout = setTimeout(() => ctrl.abort(), budget);
         try {
             let text = '';
             try {

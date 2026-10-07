@@ -636,6 +636,7 @@ export declare class LessonsService {
     private resolveActiveCanvasProvider;
     private safeDecryptSecret;
     private generateWithProvider;
+    private requestBudget;
     private parseCanvasJson;
     private generateWithGeminiProvider;
     private generateWithChatProvider;
