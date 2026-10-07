@@ -3012,14 +3012,29 @@ export class LessonsService {
       // dropped for the next — so the wait is a wait, not a guess.
       const firstByteLimit = Math.min(FIRST_BYTE_MS, budget);
       let phase: 'connecting' | 'thinking' | 'plain' | 'writing' = 'connecting';
+      // Counters the stream records and the heartbeat reports. ONE emitter is
+      // what makes the line move every second in every phase: while the stream
+      // itself owned the writing line, a mid-answer stall froze it at whatever
+      // it last said — "1,802 characters, 2 cards, 30s", unchanged — while the
+      // connection was already dead.
+      let seenChars = 0;
+      let seenCards = 0;
+      let lastTextAt = startedAt;
       const heartbeat = setInterval(() => {
-        if (phase === 'writing') return; // the writing counter takes over from here
         const secs = Math.round((Date.now() - startedAt) / 1000);
         const left = Math.max(0, Math.round((firstByteLimit - (Date.now() - startedAt)) / 1000));
         if (phase === 'connecting') {
           onProgress?.('thinking', `${where}${model} \u2014 opening the connection… ${secs}s`);
         } else if (phase === 'plain') {
           onProgress?.('thinking', `${where}${model} is answering in one piece (no live count)… ${secs}s`);
+        } else if (phase === 'writing') {
+          const quiet = Math.round((Date.now() - lastTextAt) / 1000);
+          onProgress?.('writing',
+            `${where}${model} is writing\u2026 ${seenChars.toLocaleString()} characters`
+            + `${seenCards ? `, ${seenCards} card${seenCards === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`
+            // Named while it is happening, not only once the stall limit gives
+            // up, so a dying stream is visible as it dies.
+            + `${quiet >= 5 ? ` \u2014 nothing new for ${quiet}s` : ''}`);
         } else {
           onProgress?.('thinking',
             `${where}${model} is thinking… ${secs}s \u2014 it has ${left}s to start writing before we try another model`);
@@ -3063,10 +3078,12 @@ export class LessonsService {
         const raw = (await this.readGeminiStream(
           res,
           (chars, sections) => {
-            phase = 'writing'; // first real token: hand the line to the character count
-            const secs = Math.round((Date.now() - startedAt) / 1000);
-            onProgress?.('writing',
-              `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`);
+            // Records only — the heartbeat is the single thing that writes this
+            // line, once a second, whether or not anything arrived.
+            phase = 'writing';
+            seenChars = chars;
+            seenCards = sections;
+            lastTextAt = Date.now();
           },
           startedAt + budget,
           (quietMs) => {

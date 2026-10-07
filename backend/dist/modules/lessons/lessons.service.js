@@ -2123,9 +2123,10 @@ let LessonsService = LessonsService_1 = class LessonsService {
             const t = setTimeout(() => ctrl.abort(), budget);
             const firstByteLimit = Math.min(FIRST_BYTE_MS, budget);
             let phase = 'connecting';
+            let seenChars = 0;
+            let seenCards = 0;
+            let lastTextAt = startedAt;
             const heartbeat = setInterval(() => {
-                if (phase === 'writing')
-                    return;
                 const secs = Math.round((Date.now() - startedAt) / 1000);
                 const left = Math.max(0, Math.round((firstByteLimit - (Date.now() - startedAt)) / 1000));
                 if (phase === 'connecting') {
@@ -2133,6 +2134,12 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 }
                 else if (phase === 'plain') {
                     onProgress?.('thinking', `${where}${model} is answering in one piece (no live count)… ${secs}s`);
+                }
+                else if (phase === 'writing') {
+                    const quiet = Math.round((Date.now() - lastTextAt) / 1000);
+                    onProgress?.('writing', `${where}${model} is writing\u2026 ${seenChars.toLocaleString()} characters`
+                        + `${seenCards ? `, ${seenCards} card${seenCards === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`
+                        + `${quiet >= 5 ? ` \u2014 nothing new for ${quiet}s` : ''}`);
                 }
                 else {
                     onProgress?.('thinking', `${where}${model} is thinking… ${secs}s \u2014 it has ${left}s to start writing before we try another model`);
@@ -2164,8 +2171,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 phase = 'thinking';
                 const raw = (await this.readGeminiStream(res, (chars, sections) => {
                     phase = 'writing';
-                    const secs = Math.round((Date.now() - startedAt) / 1000);
-                    onProgress?.('writing', `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`);
+                    seenChars = chars;
+                    seenCards = sections;
+                    lastTextAt = Date.now();
                 }, startedAt + budget, (quietMs) => {
                     onProgress?.('model', `${where}${model} went quiet for ${Math.round(quietMs / 1000)}s \u2014 the connection stalled\u2026`);
                 })).trim();
