@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../state/auth_controller.dart';
 import '../../state/onboarding.dart';
@@ -83,6 +84,10 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
 
     // Marked seen either way — someone who skipped has answered the question.
     await ref.read(profileSetupSeenProvider.notifier).complete();
+    // The page leaves under its own power. The router used to do it, by
+    // redirecting anything on this route that no longer needed it, which meant
+    // the route could never be opened deliberately.
+    if (mounted) context.go('/app/dashboard');
   }
 
   @override

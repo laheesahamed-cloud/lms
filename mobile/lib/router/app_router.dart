@@ -95,7 +95,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           !ref.read(profileSetupSeenProvider) &&
           needsProfileSetup(fullName: user.fullName, email: user.email);
       if (needsSetup) return atSetup ? null : '/welcome/profile';
-      if (atSetup) return '/app/dashboard';
+      // Deliberately NOT bouncing off /welcome/profile when it is not needed.
+      // That guard was how the screen used to exit, and it also made the route
+      // impossible to open on purpose — every visit was thrown to the
+      // dashboard before it drew. The page sends itself on now.
 
       if (atWelcome || atAuth || loc == '/splash') return '/app/dashboard';
       return null;
