@@ -2957,12 +2957,33 @@ export class LessonsService {
   // English prose, so it's a safe, narrow signature of "two distinct items
   // got glued together" — split there instead of showing one run-on wall
   // of text. Doesn't touch content that's already well-formatted.
+  /// Splits a run-on bullet where the model jammed two facts together with no
+  /// separator ("...resectionIntramural (within the myometrial wall)...").
+  ///
+  /// The old rule cut at ANY lowercase-then-uppercase boundary, which is how
+  /// medical units are spelt: it tore "mOsm" into "m"+"Osm", "kPa" into
+  /// "k"+"Pa", "mEq" into "m"+"Eq" — and because the cut could land inside a
+  /// **bold** or ==highlight== span, it left orphaned markers rendering as
+  /// literal asterisks and equals signs.
+  ///
+  /// Now it needs THREE lowercase letters before the break, which a real word
+  /// has ("resection|Intramural") and a unit prefix never does — "m" and "k"
+  /// sit alone after a space. Anything that still comes out with unbalanced
+  /// markup is put back together rather than shipped broken.
   private degluedBullets(bullets: string[]): string[] {
+    const balanced = (t: string) =>
+      (t.split('**').length - 1) % 2 === 0 && (t.split('==').length - 1) % 2 === 0;
+
     const out: string[] = [];
     for (const raw of bullets) {
       const text = String(raw || '');
-      const parts = text.split(/(?<=[a-z0-9,)\/])(?=[A-Z][a-z])/g).map((p) => p.trim()).filter(Boolean);
-      if (parts.length > 1) out.push(...parts);
+      const parts = text
+        .split(/(?<=[a-z]{3}|[0-9)\],;])(?=[A-Z][a-z])/g)
+        .map((p) => p.trim())
+        .filter(Boolean);
+      // A split that breaks a **…** or ==…== pair across two bullets is worse
+      // than the run-on it was fixing — the markers render literally.
+      if (parts.length > 1 && parts.every(balanced)) out.push(...parts);
       else if (text.trim()) out.push(text.trim());
     }
     return out;

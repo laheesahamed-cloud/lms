@@ -2314,11 +2314,15 @@ let LessonsService = LessonsService_1 = class LessonsService {
         return { pages: [result] };
     }
     degluedBullets(bullets) {
+        const balanced = (t) => (t.split('**').length - 1) % 2 === 0 && (t.split('==').length - 1) % 2 === 0;
         const out = [];
         for (const raw of bullets) {
             const text = String(raw || '');
-            const parts = text.split(/(?<=[a-z0-9,)\/])(?=[A-Z][a-z])/g).map((p) => p.trim()).filter(Boolean);
-            if (parts.length > 1)
+            const parts = text
+                .split(/(?<=[a-z]{3}|[0-9)\],;])(?=[A-Z][a-z])/g)
+                .map((p) => p.trim())
+                .filter(Boolean);
+            if (parts.length > 1 && parts.every(balanced))
                 out.push(...parts);
             else if (text.trim())
                 out.push(text.trim());
