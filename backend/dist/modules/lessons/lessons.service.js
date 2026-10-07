@@ -36,6 +36,7 @@ class LessonJsonTruncatedError extends Error {
 class LessonStreamTimeoutError extends Error {
 }
 const STREAM_STALL_MS = 45_000;
+const FIRST_BYTE_MS = 75_000;
 const JOB_ABANDONED_MS = 15 * 60 * 1000;
 function generationBudgetMs(chunks) {
     const sized = chunks * 120_000 + 120_000;
@@ -1222,6 +1223,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const provider = await this.resolveActiveCanvasProvider();
         const CHUNK_LIMIT = LessonsService_1.CHUNK_LIMIT;
         const deadline = Date.now() + generationBudgetMs(this.countChunks(trimmed));
+        const skippedParts = [];
         let canvas;
         if (trimmed.length <= CHUNK_LIMIT) {
             onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
@@ -1237,8 +1239,20 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     throw new common_1.ServiceUnavailableException(`Generation is taking too long (source is very long — ${chunks.length} parts). Try a shorter paste, or generate it in smaller sections.`);
                 }
                 onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
-                canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
-                onPartial?.(this.renumberSections(this.groupSectionFamilies(this.mergeCanvases(canvases))));
+                try {
+                    canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
+                }
+                catch (error) {
+                    const why = error instanceof Error ? error.message : String(error);
+                    skippedParts.push(i + 1);
+                    onProgress?.('model', `Part ${i + 1} of ${chunks.length} could not be written (${why}) — carrying on with the other parts…`);
+                }
+                if (canvases.length) {
+                    onPartial?.(this.renumberSections(this.groupSectionFamilies(this.mergeCanvases(canvases))));
+                }
+            }
+            if (!canvases.length) {
+                throw new common_1.ServiceUnavailableException(`None of the ${chunks.length} parts could be written. The AI provider did not respond — check the key and try again.`);
             }
             canvas = this.mergeCanvases(canvases);
         }
@@ -1247,7 +1261,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
         onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
         const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
-        onProgress?.('done', 'Lesson ready!');
+        onProgress?.('done', skippedParts.length
+            ? `Lesson ready — but part${skippedParts.length === 1 ? '' : 's'} ${skippedParts.join(', ')} could not be written. Paste that section on its own to add it.`
+            : 'Lesson ready!');
         return finalCanvas;
     }
     async generateChunkResilient(chunkText, provider, depth = 0, onProgress, deadline = Infinity, label = '') {
@@ -2089,7 +2105,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 break;
             }
             const attempt = modelCandidates.indexOf(model) + 1;
-            onProgress?.('model', `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''}, up to ${Math.round(budget / 1000)}s…`);
+            onProgress?.('model', `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''} — waiting up to ${Math.round(Math.min(FIRST_BYTE_MS, budget) / 1000)}s for it to start…`);
             const startedAt = Date.now();
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), budget);
@@ -2184,7 +2200,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         };
         let lastDataAt = Date.now();
         for (;;) {
-            const quietBudget = Math.min(STREAM_STALL_MS, Math.max(0, endAt - Date.now()));
+            const quietBudget = Math.min(text ? STREAM_STALL_MS : FIRST_BYTE_MS, Math.max(0, endAt - Date.now()));
             if (quietBudget <= 0) {
                 await reader.cancel().catch(() => { });
                 throw new LessonStreamTimeoutError(`ran out of time after ${Math.round((Date.now() - lastDataAt) / 1000)}s`);
@@ -2194,12 +2210,12 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), quietBudget)),
             ]);
             if (read.timedOut) {
-                const quiet = Date.now() - lastDataAt;
+                const quiet = Math.round((Date.now() - lastDataAt) / 1000);
                 await reader.cancel().catch(() => { });
-                onStall?.(quiet);
+                onStall?.(Date.now() - lastDataAt);
                 if (text)
                     return text;
-                throw new LessonStreamTimeoutError(`no data for ${Math.round(quiet / 1000)}s`);
+                throw new LessonStreamTimeoutError(`sent nothing in ${quiet}s`);
             }
             const { done, value } = read.r;
             if (done)

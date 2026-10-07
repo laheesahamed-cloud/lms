@@ -196,6 +196,14 @@ class LessonStreamTimeoutError extends Error {}
 /// whole run's time without producing a character.
 const STREAM_STALL_MS = 45_000;
 
+/// How long a model gets to send its FIRST byte before we move on.
+///
+/// Separate from the per-request budget, and far shorter. A model that has sent
+/// nothing in 75s is not about to start, and giving it the full 240s meant one
+/// unresponsive model could eat most of a part's budget and leave no time to
+/// try another — which reads as "it just stopped, and never retried".
+const FIRST_BYTE_MS = 75_000;
+
 /// Past this, a row still marked 'running' is treated as abandoned. Comfortably
 /// beyond the longest budget (12 min) and its wall clock, so it only ever
 /// catches a job whose process is gone.
@@ -1751,6 +1759,10 @@ export class LessonsService {
     // Sized to the number of passes, not a flat six minutes — see
     // generationBudgetMs for why a flat one made long sources impossible.
     const deadline = Date.now() + generationBudgetMs(this.countChunks(trimmed));
+    // Parts that every model failed on. Function-scoped because the finishing
+    // message has to name them, and silently returning a lesson with a hole in
+    // it would be worse than the failure it replaced.
+    const skippedParts: number[] = [];
     let canvas: NoteCanvas;
     if (trimmed.length <= CHUNK_LIMIT) {
       onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
@@ -1768,10 +1780,31 @@ export class LessonsService {
           );
         }
         onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
-        canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
+        try {
+          canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
+        } catch (error) {
+          // One bad part does not throw away the good ones.
+          //
+          // This used to abort the whole generation, so two parts that had been
+          // written — and paid for — were lost to a third that stalled. Every
+          // model has already been tried for this part by the time we get here,
+          // so the honest move is to say which part is missing and write the
+          // rest, not to spend the same tokens again from scratch.
+          const why = error instanceof Error ? error.message : String(error);
+          skippedParts.push(i + 1);
+          onProgress?.('model',
+            `Part ${i + 1} of ${chunks.length} could not be written (${why}) — carrying on with the other parts…`);
+        }
         // Banked after every part, so three parts written and a fourth that
         // fails still leaves three parts' worth of work recoverable.
-        onPartial?.(this.renumberSections(this.groupSectionFamilies(this.mergeCanvases(canvases))));
+        if (canvases.length) {
+          onPartial?.(this.renumberSections(this.groupSectionFamilies(this.mergeCanvases(canvases))));
+        }
+      }
+      if (!canvases.length) {
+        throw new ServiceUnavailableException(
+          `None of the ${chunks.length} parts could be written. The AI provider did not respond — check the key and try again.`,
+        );
       }
       canvas = this.mergeCanvases(canvases);
     }
@@ -1785,7 +1818,10 @@ export class LessonsService {
     // numbering instruction exactly.
     onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
     const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
-    onProgress?.('done', 'Lesson ready!');
+    onProgress?.('done',
+      skippedParts.length
+        ? `Lesson ready — but part${skippedParts.length === 1 ? '' : 's'} ${skippedParts.join(', ')} could not be written. Paste that section on its own to add it.`
+        : 'Lesson ready!');
     return finalCanvas;
   }
 
@@ -2913,8 +2949,12 @@ export class LessonsService {
       const budget = this.requestBudget(deadline);
       if (budget <= 0) { errors.push('out of time before trying more models'); break; }
       const attempt = modelCandidates.indexOf(model) + 1;
+      // Quote the first-byte wait, not the whole request budget. "up to 240s"
+      // was true of the request and useless as a progress line: it told you to
+      // expect four minutes of silence when in fact a model that has not
+      // started inside FIRST_BYTE_MS is dropped and the next one tried.
       onProgress?.('model',
-        `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''}, up to ${Math.round(budget / 1000)}s…`);
+        `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''} — waiting up to ${Math.round(Math.min(FIRST_BYTE_MS, budget) / 1000)}s for it to start…`);
       const startedAt = Date.now();
       const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), budget);
       try {
@@ -3030,8 +3070,11 @@ export class LessonsService {
     // trusted to fire somewhere else.
     let lastDataAt = Date.now();
     for (;;) {
+      // Before any data has arrived the clock is the first-byte limit, which
+      // is deliberately shorter: waiting the full stall allowance for a model
+      // that never speaks spends time another model could have used.
       const quietBudget = Math.min(
-        STREAM_STALL_MS,
+        text ? STREAM_STALL_MS : FIRST_BYTE_MS,
         Math.max(0, endAt - Date.now()),
       );
       if (quietBudget <= 0) {
@@ -3049,14 +3092,14 @@ export class LessonsService {
       ]);
 
       if (read.timedOut) {
-        const quiet = Date.now() - lastDataAt;
+        const quiet = Math.round((Date.now() - lastDataAt) / 1000);
         await reader.cancel().catch(() => {});
-        onStall?.(quiet);
+        onStall?.(Date.now() - lastDataAt);
         // Anything already received is worth keeping — a truncated answer is
         // handled upstream by splitting and retrying, which beats discarding
         // thirteen thousand characters because the tail never came.
         if (text) return text;
-        throw new LessonStreamTimeoutError(`no data for ${Math.round(quiet / 1000)}s`);
+        throw new LessonStreamTimeoutError(`sent nothing in ${quiet}s`);
       }
 
       const { done, value } = read.r;

@@ -488,7 +488,13 @@ export function AdminAiNotesEditorPage({
     // Node process, so a restart mid-generation leaves the row saying 'running'
     // with nothing left to finish it — which is how a log sat untouched for
     // sixteen minutes while this kept asking. Silence is now evidence.
-    const QUIET_LIMIT_MS = 150_000;
+    // 240s, NOT the 150s this was. The server waits up to FIRST_BYTE_MS for a
+    // model to start, then fails over to the next one, and none of that waiting
+    // writes a log line — so a 150s limit here gave up on runs the server was
+    // still working through, which is precisely how two finished parts got
+    // thrown away. This must stay comfortably above the server's own longest
+    // silent gap; it is a backstop for a dead job, not a second deadline.
+    const QUIET_LIMIT_MS = 240_000;
     let lastChange = Date.now();
     let lastSeen = '';
 
