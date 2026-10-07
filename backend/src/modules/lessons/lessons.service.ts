@@ -196,6 +196,12 @@ class LessonStreamTimeoutError extends Error {}
 /// whole run's time without producing a character.
 const STREAM_STALL_MS = 45_000;
 
+/// The outer wall clock on a whole generation job. A little past the 6-minute
+/// budget canvasGenerate works to, so the inner deadline reports a clean
+/// failure first where it can, and this only ever fires for a hang that got
+/// past it.
+const JOB_HARD_LIMIT_MS = 7 * 60 * 1000;
+
 export type LessonGenerationProgress = (stage: string, message: string) => void;
 
 export interface LessonGenerationJob {
@@ -1799,7 +1805,7 @@ export class LessonsService {
     );
 
     const stages: Array<{ stage: string; message: string; at: number }> = [];
-    void this.canvasGenerate(text, token, (stage, message) => {
+    const running = this.canvasGenerate(text, token, (stage, message) => {
       // The 'writing' stage ticks about once a second while a model streams,
       // so it REPLACES its own last line instead of appending. Appending would
       // leave hundreds of near-identical entries and grow stages_json for the
@@ -1816,7 +1822,26 @@ export class LessonsService {
         `UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`,
         [JSON.stringify(stages), jobId],
       ).catch(() => {});
-    }, sourceFormat)
+    }, sourceFormat);
+
+    // One guarantee at the top, independent of every budget inside.
+    //
+    // Each fix so far bounds an INDIVIDUAL AI call — the per-request timeout,
+    // the per-model budget, the stream's stall limit. None of them bounds the
+    // job, so any hang they between them fail to catch left the row 'running'
+    // for ever and the editor polling an answer that was never coming. This
+    // cannot miss: whatever the cause, the job ends and says so.
+    const hardStop = new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(
+          `Generation passed ${Math.round(JOB_HARD_LIMIT_MS / 60000)} minutes and was stopped. `
+          + `The last thing it was doing: ${stages[stages.length - 1]?.message || 'connecting'}`,
+        )),
+        JOB_HARD_LIMIT_MS,
+      ),
+    );
+
+    void Promise.race([running, hardStop])
       .then((result) => this.db.execute(
         `UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`,
         [JSON.stringify(result), jobId],

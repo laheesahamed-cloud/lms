@@ -36,6 +36,7 @@ class LessonJsonTruncatedError extends Error {
 class LessonStreamTimeoutError extends Error {
 }
 const STREAM_STALL_MS = 45_000;
+const JOB_HARD_LIMIT_MS = 7 * 60 * 1000;
 let LessonsService = LessonsService_1 = class LessonsService {
     constructor(db, config, pushNotificationsService) {
         this.db = db;
@@ -1263,7 +1264,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const jobId = (0, crypto_1.randomUUID)();
         await this.db.execute(`INSERT INTO lesson_generation_jobs (id, status, stages_json) VALUES (?, 'running', '[]')`, [jobId]);
         const stages = [];
-        void this.canvasGenerate(text, token, (stage, message) => {
+        const running = this.canvasGenerate(text, token, (stage, message) => {
             const last = stages[stages.length - 1];
             if (stage === 'writing' && last?.stage === 'writing') {
                 last.message = message;
@@ -1272,7 +1273,10 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 stages.push({ stage, message, at: Date.now() });
             }
             this.db.execute(`UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`, [JSON.stringify(stages), jobId]).catch(() => { });
-        }, sourceFormat)
+        }, sourceFormat);
+        const hardStop = new Promise((_, reject) => setTimeout(() => reject(new Error(`Generation passed ${Math.round(JOB_HARD_LIMIT_MS / 60000)} minutes and was stopped. `
+            + `The last thing it was doing: ${stages[stages.length - 1]?.message || 'connecting'}`)), JOB_HARD_LIMIT_MS));
+        void Promise.race([running, hardStop])
             .then((result) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`, [JSON.stringify(result), jobId]))
             .catch((err) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [err instanceof Error ? err.message : String(err), jobId]).catch(() => { }));
         return { jobId };
