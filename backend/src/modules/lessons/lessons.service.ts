@@ -241,6 +241,10 @@ function jobHardLimitMs(chunks: number): number {
   return generationBudgetMs(chunks) + 60_000;
 }
 
+/// Stages that report once a second and therefore rewrite their own last log
+/// line rather than appending a new one.
+const LIVE_STAGES = new Set(['writing', 'thinking']);
+
 export type LessonGenerationProgress = (stage: string, message: string) => void;
 
 export interface LessonGenerationJob {
@@ -1925,7 +1929,10 @@ export class LessonsService {
       // whole run; this keeps one live counter that updates in place.
       const now = Date.now();
       const last = stages[stages.length - 1];
-      if (stage === 'writing' && last?.stage === 'writing') {
+      // Both live stages behave this way: 'thinking' counts up while a model
+      // reasons before it writes a byte, 'writing' counts characters once it
+      // starts. Each is a once-a-second line, so each replaces its own.
+      if (LIVE_STAGES.has(stage) && last?.stage === stage) {
         // The live line is rewritten every second, so the character count and
         // the elapsed seconds on it move continuously. It is NOT appended:
         // a four-minute call would otherwise leave 240 near-identical rows,
@@ -1935,10 +1942,10 @@ export class LessonsService {
         // long part is being written instead of looking frozen at one line.
         if (now - (lastMilestoneAt || last.at) >= 10_000 && stages.length < 400) {
           lastMilestoneAt = now;
-          stages.push({ stage: 'writing', message, at: now });
+          stages.push({ stage, message, at: now });
         }
       } else {
-        if (stage === 'writing') lastMilestoneAt = now;
+        if (LIVE_STAGES.has(stage)) lastMilestoneAt = now;
         stages.push({ stage, message, at: now });
       }
       // Best-effort progress write — a slow/failed write here should never
@@ -2983,6 +2990,31 @@ export class LessonsService {
         `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''} — it thinks before it writes, up to ${Math.round(Math.min(FIRST_BYTE_MS, budget) / 1000)}s…`);
       const startedAt = Date.now();
       const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), budget);
+
+      // A SECOND-BY-SECOND line through the silent phase.
+      //
+      // Everything before the model's first token used to print one static
+      // message and then nothing for up to two and a half minutes. Waiting is
+      // fine; waiting at a line that has not moved is indistinguishable from
+      // watching a hung job, so there was no way to tell whether to keep
+      // waiting or give up. This ticks the whole time, names which phase the
+      // silence belongs to, and counts down the point at which this model gets
+      // dropped for the next — so the wait is a wait, not a guess.
+      const firstByteLimit = Math.min(FIRST_BYTE_MS, budget);
+      let phase: 'connecting' | 'thinking' | 'plain' | 'writing' = 'connecting';
+      const heartbeat = setInterval(() => {
+        if (phase === 'writing') return; // the writing counter takes over from here
+        const secs = Math.round((Date.now() - startedAt) / 1000);
+        const left = Math.max(0, Math.round((firstByteLimit - (Date.now() - startedAt)) / 1000));
+        if (phase === 'connecting') {
+          onProgress?.('thinking', `${where}${model} \u2014 opening the connection… ${secs}s`);
+        } else if (phase === 'plain') {
+          onProgress?.('thinking', `${where}${model} is answering in one piece (no live count)… ${secs}s`);
+        } else {
+          onProgress?.('thinking',
+            `${where}${model} is thinking… ${secs}s \u2014 it has ${left}s to start writing before we try another model`);
+        }
+      }, 1000);
       try {
         // STREAMED, not one blocking call. Non-streaming gave a single silent
         // wait of up to four minutes per model with nothing to report in the
@@ -2992,9 +3024,11 @@ export class LessonsService {
         // while a model is mid-sentence.
         const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
         if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`); continue; }
+        phase = 'thinking';
         const raw = (await this.readGeminiStream(
           res,
           (chars, sections) => {
+            phase = 'writing'; // first real token: hand the line to the character count
             const secs = Math.round((Date.now() - startedAt) / 1000);
             onProgress?.('writing',
               `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`);
@@ -3011,6 +3045,7 @@ export class LessonsService {
           // it used to work — ask the same one again without streaming. The
           // only thing lost is the live character count.
           onProgress?.('model', `${where}${model} sent no stream after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 asking it again without streaming\u2026`);
+          phase = 'plain';
           const plain = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
           if (plain.ok) {
             const json = await plain.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
@@ -3038,7 +3073,7 @@ export class LessonsService {
         const timedOut = msg.includes('abort') || msg.includes('timeout');
         errors.push(`${model}: ${timedOut ? `timed out (${Math.round((Date.now() - startedAt) / 1000)}s)` : msg}`);
         onProgress?.('model', `${where}${model} ${timedOut ? `timed out after ${Math.round((Date.now() - startedAt) / 1000)}s` : 'failed'} \u2014 trying the next model\u2026`);
-      } finally { clearTimeout(t); }
+      } finally { clearTimeout(t); clearInterval(heartbeat); }
     }
     if (sawTruncation) throw new LessonJsonTruncatedError(errors.join(' | '));
     throw new ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
@@ -3165,20 +3200,31 @@ export class LessonsService {
     if (budget <= 0) {
       throw new ServiceUnavailableException('Generation ran out of time before this part could start.');
     }
-    onProgress?.('model',
-      `${where}asking ${provider.model || provider.providerLabel}, up to ${Math.round(budget / 1000)}s…`);
+    const who = provider.model || provider.providerLabel;
+    onProgress?.('model', `${where}asking ${who}, up to ${Math.round(budget / 1000)}s…`);
     const ctrl = new AbortController(); const timeout = setTimeout(() => ctrl.abort(), budget);
+    // Ticks for the same reason the Gemini path does: this one waits for the
+    // whole answer in a single call, so without a heartbeat it is minutes of a
+    // line that never moves, which reads as a hung job rather than a slow one.
+    const startedAt = Date.now();
+    const heartbeat = setInterval(() => {
+      const secs = Math.round((Date.now() - startedAt) / 1000);
+      const left = Math.max(0, Math.round((budget - (Date.now() - startedAt)) / 1000));
+      onProgress?.('thinking',
+        `${where}${who} is writing the whole answer at once… ${secs}s \u2014 ${left}s left`);
+    }, 1000);
     try {
       let text = '';
       try { text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, true); }
       catch (error) { const m = error instanceof Error ? error.message : String(error); if (!this.isUnsupportedOpenAiJsonModeError(m)) throw error; text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, false); }
       if (!text) throw new ServiceUnavailableException(`${provider.providerLabel} returned empty`);
+      onProgress?.('model', `${where}${who} replied after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 reading it…`);
       return this.parseCanvasJson(text);
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ServiceUnavailableException || error instanceof LessonJsonTruncatedError) throw error;
       const message = error instanceof Error ? error.message : String(error); const n = message.toLowerCase();
       throw new ServiceUnavailableException(n.includes('abort') || n.includes('timeout') ? `${provider.providerLabel} timed out` : n.includes('econnreset') || n.includes('fetch failed') ? `${provider.providerLabel} could not be reached` : `${provider.providerLabel} failed: ${message}`);
-    } finally { clearTimeout(timeout); }
+    } finally { clearTimeout(timeout); clearInterval(heartbeat); }
   }
 
   private async sendChatCanvasPrompt(provider: RuntimeCanvasProvider, prompt: string, signal: AbortSignal, useJsonMode: boolean): Promise<string> {

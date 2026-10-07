@@ -45,6 +45,7 @@ function generationBudgetMs(chunks) {
 function jobHardLimitMs(chunks) {
     return generationBudgetMs(chunks) + 60_000;
 }
+const LIVE_STAGES = new Set(['writing', 'thinking']);
 let LessonsService = LessonsService_1 = class LessonsService {
     constructor(db, config, pushNotificationsService) {
         this.db = db;
@@ -1316,15 +1317,15 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const running = this.canvasGenerate(text, token, (stage, message) => {
             const now = Date.now();
             const last = stages[stages.length - 1];
-            if (stage === 'writing' && last?.stage === 'writing') {
+            if (LIVE_STAGES.has(stage) && last?.stage === stage) {
                 last.message = message;
                 if (now - (lastMilestoneAt || last.at) >= 10_000 && stages.length < 400) {
                     lastMilestoneAt = now;
-                    stages.push({ stage: 'writing', message, at: now });
+                    stages.push({ stage, message, at: now });
                 }
             }
             else {
-                if (stage === 'writing')
+                if (LIVE_STAGES.has(stage))
                     lastMilestoneAt = now;
                 stages.push({ stage, message, at: now });
             }
@@ -2120,6 +2121,23 @@ let LessonsService = LessonsService_1 = class LessonsService {
             const startedAt = Date.now();
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), budget);
+            const firstByteLimit = Math.min(FIRST_BYTE_MS, budget);
+            let phase = 'connecting';
+            const heartbeat = setInterval(() => {
+                if (phase === 'writing')
+                    return;
+                const secs = Math.round((Date.now() - startedAt) / 1000);
+                const left = Math.max(0, Math.round((firstByteLimit - (Date.now() - startedAt)) / 1000));
+                if (phase === 'connecting') {
+                    onProgress?.('thinking', `${where}${model} \u2014 opening the connection… ${secs}s`);
+                }
+                else if (phase === 'plain') {
+                    onProgress?.('thinking', `${where}${model} is answering in one piece (no live count)… ${secs}s`);
+                }
+                else {
+                    onProgress?.('thinking', `${where}${model} is thinking… ${secs}s \u2014 it has ${left}s to start writing before we try another model`);
+                }
+            }, 1000);
             try {
                 const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
                 if (!res.ok) {
@@ -2133,7 +2151,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`);
                     continue;
                 }
+                phase = 'thinking';
                 const raw = (await this.readGeminiStream(res, (chars, sections) => {
+                    phase = 'writing';
                     const secs = Math.round((Date.now() - startedAt) / 1000);
                     onProgress?.('writing', `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'}` : ''} \u00b7 ${secs}s`);
                 }, startedAt + budget, (quietMs) => {
@@ -2141,6 +2161,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 })).trim();
                 if (!raw) {
                     onProgress?.('model', `${where}${model} sent no stream after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 asking it again without streaming\u2026`);
+                    phase = 'plain';
                     const plain = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
                     if (plain.ok) {
                         const json = await plain.json();
@@ -2178,6 +2199,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             finally {
                 clearTimeout(t);
+                clearInterval(heartbeat);
             }
         }
         if (sawTruncation)
@@ -2250,9 +2272,16 @@ let LessonsService = LessonsService_1 = class LessonsService {
         if (budget <= 0) {
             throw new common_1.ServiceUnavailableException('Generation ran out of time before this part could start.');
         }
-        onProgress?.('model', `${where}asking ${provider.model || provider.providerLabel}, up to ${Math.round(budget / 1000)}s…`);
+        const who = provider.model || provider.providerLabel;
+        onProgress?.('model', `${where}asking ${who}, up to ${Math.round(budget / 1000)}s…`);
         const ctrl = new AbortController();
         const timeout = setTimeout(() => ctrl.abort(), budget);
+        const startedAt = Date.now();
+        const heartbeat = setInterval(() => {
+            const secs = Math.round((Date.now() - startedAt) / 1000);
+            const left = Math.max(0, Math.round((budget - (Date.now() - startedAt)) / 1000));
+            onProgress?.('thinking', `${where}${who} is writing the whole answer at once… ${secs}s \u2014 ${left}s left`);
+        }, 1000);
         try {
             let text = '';
             try {
@@ -2266,6 +2295,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             if (!text)
                 throw new common_1.ServiceUnavailableException(`${provider.providerLabel} returned empty`);
+            onProgress?.('model', `${where}${who} replied after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 reading it…`);
             return this.parseCanvasJson(text);
         }
         catch (error) {
@@ -2277,6 +2307,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         finally {
             clearTimeout(timeout);
+            clearInterval(heartbeat);
         }
     }
     async sendChatCanvasPrompt(provider, prompt, signal, useJsonMode) {
