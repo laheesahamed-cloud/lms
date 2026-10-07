@@ -227,6 +227,9 @@ export type LessonGenerationProgress = (stage: string, message: string) => void;
 
 export interface LessonGenerationJob {
   status: 'running' | 'done' | 'error';
+  /// Finished, but not by the usual route — the content is real and the
+  /// finishing passes did not run.
+  partial?: boolean;
   stages: Array<{ stage: string; message: string; at: number }>;
   result?: NoteCanvas;
   error?: string;
@@ -1721,6 +1724,12 @@ export class LessonsService {
     token: string,
     onProgress?: LessonGenerationProgress,
     sourceFormat: 'text' | 'html' = 'text',
+    /// Called with the lesson as it stands after each part. Every one of those
+    /// parts cost real tokens, and until now a failure anywhere later threw all
+    /// of them away — the whole lesson could be written and still arrive as
+    /// nothing. Handing it over as it goes means a late failure costs the
+    /// finishing passes, not the content.
+    onPartial?: (canvas: NoteCanvas) => void,
   ): Promise<NoteCanvas> {
     await this.requireAdminToken(token);
     // Cleaned BEFORE anything else reads it, so the chunker measures the real
@@ -1746,6 +1755,7 @@ export class LessonsService {
     if (trimmed.length <= CHUNK_LIMIT) {
       onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
       canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline, 'your lesson');
+      onPartial?.(this.renumberSections(this.groupSectionFamilies(canvas)));
     } else {
       const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
       onProgress?.('plan',
@@ -1759,12 +1769,16 @@ export class LessonsService {
         }
         onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
         canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
+        // Banked after every part, so three parts written and a fourth that
+        // fails still leaves three parts' worth of work recoverable.
+        onPartial?.(this.renumberSections(this.groupSectionFamilies(this.mergeCanvases(canvases))));
       }
       canvas = this.mergeCanvases(canvases);
     }
 
     // Item 2 — completeness self-check: ask the model what it left out and append it (best effort).
     onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
+    onPartial?.(this.renumberSections(this.groupSectionFamilies(canvas)));
     const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
     // Always renumber last — guarantees flat "1., 2., 3." card numbers no matter
     // which path above produced the canvas, or whether the model followed the
@@ -1871,7 +1885,16 @@ export class LessonsService {
         `UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`,
         [JSON.stringify(stages), jobId],
       ).catch(() => {});
-    }, sourceFormat);
+    }, sourceFormat, (partial) => {
+      // Written as it goes, while the job is still 'running'. If anything after
+      // this point fails — a stalled model, a restart, the wall clock — the
+      // last banked draft is still sitting in the row and can be handed over
+      // instead of discarded.
+      this.db.execute(
+        `UPDATE lesson_generation_jobs SET result_json = ? WHERE id = ?`,
+        [JSON.stringify(partial), jobId],
+      ).catch(() => {});
+    });
 
     // One guarantee at the top, independent of every budget inside.
     //
@@ -1895,10 +1918,22 @@ export class LessonsService {
         `UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`,
         [JSON.stringify(result), jobId],
       ))
-      .catch((err) => this.db.execute(
-        `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`,
-        [err instanceof Error ? err.message : String(err), jobId],
-      ).catch(() => {}));
+      .catch(async (err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        // A banked draft outranks the failure. The tokens are spent either way;
+        // handing back what was written beats making someone pay for it twice.
+        const [rows] = await this.db.execute<RowDataPacket[]>(
+          `SELECT result_json FROM lesson_generation_jobs WHERE id = ? LIMIT 1`,
+          [jobId],
+        ).catch(() => [[]] as unknown as [RowDataPacket[], unknown]);
+        const banked = rows?.[0]?.result_json;
+        await this.db.execute(
+          banked
+            ? `UPDATE lesson_generation_jobs SET status = 'done', partial = 1, error_text = ? WHERE id = ?`
+            : `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`,
+          [message, jobId],
+        ).catch(() => {});
+      });
 
     return { jobId };
   }
@@ -1906,7 +1941,7 @@ export class LessonsService {
   async getCanvasGenerateJob(jobId: string, token: string): Promise<LessonGenerationJob> {
     await this.requireAdminToken(token);
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT status, stages_json, result_json, error_text, UNIX_TIMESTAMP(created_at) * 1000 AS created_at
+      `SELECT status, partial, stages_json, result_json, error_text, UNIX_TIMESTAMP(created_at) * 1000 AS created_at
        FROM lesson_generation_jobs WHERE id = ? LIMIT 1`,
       [jobId],
     );
@@ -1922,13 +1957,20 @@ export class LessonsService {
     const startedAt = Number(row.created_at) || Date.now();
     const age = Date.now() - startedAt;
     if (row.status === 'running' && age > JOB_ABANDONED_MS) {
-      const message = 'Generation stopped responding — the server may have restarted. Nothing was saved; try again.';
+      const banked = row.result_json ? JSON.parse(row.result_json) : undefined;
+      const message = banked
+        ? 'Generation stopped responding — the server may have restarted. What had been written is below; the finishing passes did not run.'
+        : 'Generation stopped responding — the server may have restarted. Nothing was saved; try again.';
       await this.db.execute(
-        `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`,
+        banked
+          ? `UPDATE lesson_generation_jobs SET status = 'done', partial = 1, error_text = ? WHERE id = ?`
+          : `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`,
         [message, jobId],
       ).catch(() => {});
       return {
-        status: 'error',
+        status: banked ? 'done' : 'error',
+        partial: banked ? true : undefined,
+        result: banked,
         stages: JSON.parse(row.stages_json || '[]'),
         error: message,
         createdAt: startedAt,
@@ -1937,6 +1979,7 @@ export class LessonsService {
 
     return {
       status: row.status as LessonGenerationJob['status'],
+      partial: Number(row.partial) === 1 ? true : undefined,
       stages: JSON.parse(row.stages_json || '[]'),
       result: row.result_json ? JSON.parse(row.result_json) : undefined,
       error: row.error_text || undefined,

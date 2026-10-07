@@ -508,9 +508,23 @@ export function AdminAiNotesEditorPage({
       const fingerprint = `${stages.length}|${stages[stages.length - 1]?.message || ''}`;
       if (fingerprint !== lastSeen) { lastSeen = fingerprint; lastChange = Date.now(); }
 
-      if (job.status === 'done') return job.result;
+      if (job.status === 'done') {
+        // Finished with banked work rather than a clean run: the content is
+        // real, the finishing passes did not run. Say so, but keep it — those
+        // parts cost tokens whether or not the ending went wrong.
+        if (job.partial) setSaveStatus(job.error || 'Generation ended early — keeping what was written.');
+        return job.result;
+      }
       if (job.status === 'error') throw new Error(job.error || 'Generation failed');
       if (Date.now() - lastChange > QUIET_LIMIT_MS) {
+        // One last read before giving up: a draft may have been banked between
+        // polls, and throwing it away for a timing accident is the one outcome
+        // worth avoiding.
+        const final = await adminGetAiNoteGenerationStatus(jobId, { engine: engineKey }).catch(() => null);
+        if (final?.result) {
+          setSaveStatus('Generation stopped early — keeping what was written.');
+          return final.result;
+        }
         throw new Error(
           `Generation stopped reporting ${Math.round((Date.now() - lastChange) / 1000)}s ago `
           + `and was given up on. Last step: ${stages[stages.length - 1]?.message || 'connecting'}`,

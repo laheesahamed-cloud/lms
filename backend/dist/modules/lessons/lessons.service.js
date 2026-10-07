@@ -1213,7 +1213,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             ? 1
             : this.splitSourceIntoChunks(cleaned, LessonsService_1.CHUNK_LIMIT).length;
     }
-    async canvasGenerate(text, token, onProgress, sourceFormat = 'text') {
+    async canvasGenerate(text, token, onProgress, sourceFormat = 'text', onPartial) {
         await this.requireAdminToken(token);
         const trimmed = this.cleanSource(text, sourceFormat);
         if (trimmed.length < 10)
@@ -1226,6 +1226,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         if (trimmed.length <= CHUNK_LIMIT) {
             onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
             canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline, 'your lesson');
+            onPartial?.(this.renumberSections(this.groupSectionFamilies(canvas)));
         }
         else {
             const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
@@ -1237,10 +1238,12 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 }
                 onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
                 canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
+                onPartial?.(this.renumberSections(this.groupSectionFamilies(this.mergeCanvases(canvases))));
             }
             canvas = this.mergeCanvases(canvases);
         }
         onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
+        onPartial?.(this.renumberSections(this.groupSectionFamilies(canvas)));
         const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
         onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
         const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
@@ -1299,17 +1302,26 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 stages.push({ stage, message, at: now });
             }
             this.db.execute(`UPDATE lesson_generation_jobs SET stages_json = ? WHERE id = ?`, [JSON.stringify(stages), jobId]).catch(() => { });
-        }, sourceFormat);
+        }, sourceFormat, (partial) => {
+            this.db.execute(`UPDATE lesson_generation_jobs SET result_json = ? WHERE id = ?`, [JSON.stringify(partial), jobId]).catch(() => { });
+        });
         const hardStop = new Promise((_, reject) => setTimeout(() => reject(new Error(`Generation passed ${Math.round(jobHardLimitMs(chunkCount) / 60000)} minutes and was stopped. `
             + `The last thing it was doing: ${stages[stages.length - 1]?.message || 'connecting'}`)), jobHardLimitMs(chunkCount)));
         void Promise.race([running, hardStop])
             .then((result) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'done', result_json = ? WHERE id = ?`, [JSON.stringify(result), jobId]))
-            .catch((err) => this.db.execute(`UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [err instanceof Error ? err.message : String(err), jobId]).catch(() => { }));
+            .catch(async (err) => {
+            const message = err instanceof Error ? err.message : String(err);
+            const [rows] = await this.db.execute(`SELECT result_json FROM lesson_generation_jobs WHERE id = ? LIMIT 1`, [jobId]).catch(() => [[]]);
+            const banked = rows?.[0]?.result_json;
+            await this.db.execute(banked
+                ? `UPDATE lesson_generation_jobs SET status = 'done', partial = 1, error_text = ? WHERE id = ?`
+                : `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [message, jobId]).catch(() => { });
+        });
         return { jobId };
     }
     async getCanvasGenerateJob(jobId, token) {
         await this.requireAdminToken(token);
-        const [rows] = await this.db.execute(`SELECT status, stages_json, result_json, error_text, UNIX_TIMESTAMP(created_at) * 1000 AS created_at
+        const [rows] = await this.db.execute(`SELECT status, partial, stages_json, result_json, error_text, UNIX_TIMESTAMP(created_at) * 1000 AS created_at
        FROM lesson_generation_jobs WHERE id = ? LIMIT 1`, [jobId]);
         const row = rows[0];
         if (!row)
@@ -1317,10 +1329,17 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const startedAt = Number(row.created_at) || Date.now();
         const age = Date.now() - startedAt;
         if (row.status === 'running' && age > JOB_ABANDONED_MS) {
-            const message = 'Generation stopped responding — the server may have restarted. Nothing was saved; try again.';
-            await this.db.execute(`UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [message, jobId]).catch(() => { });
+            const banked = row.result_json ? JSON.parse(row.result_json) : undefined;
+            const message = banked
+                ? 'Generation stopped responding — the server may have restarted. What had been written is below; the finishing passes did not run.'
+                : 'Generation stopped responding — the server may have restarted. Nothing was saved; try again.';
+            await this.db.execute(banked
+                ? `UPDATE lesson_generation_jobs SET status = 'done', partial = 1, error_text = ? WHERE id = ?`
+                : `UPDATE lesson_generation_jobs SET status = 'error', error_text = ? WHERE id = ?`, [message, jobId]).catch(() => { });
             return {
-                status: 'error',
+                status: banked ? 'done' : 'error',
+                partial: banked ? true : undefined,
+                result: banked,
                 stages: JSON.parse(row.stages_json || '[]'),
                 error: message,
                 createdAt: startedAt,
@@ -1328,6 +1347,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         return {
             status: row.status,
+            partial: Number(row.partial) === 1 ? true : undefined,
             stages: JSON.parse(row.stages_json || '[]'),
             result: row.result_json ? JSON.parse(row.result_json) : undefined,
             error: row.error_text || undefined,

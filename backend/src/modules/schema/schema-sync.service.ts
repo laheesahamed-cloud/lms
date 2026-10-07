@@ -592,6 +592,8 @@ export class SchemaSyncService implements OnModuleInit {
     // generated lesson's real content, including emoji like the "🚨 Red flags"
     // section heading, which needs 4-byte utf8mb4 or the INSERT throws
     // "Incorrect string value". CONVERT TO is a no-op (fast) if already utf8mb4.
+    // Marks a job that finished with banked work rather than a clean run.
+    await this.ensureColumn(connection, 'lesson_generation_jobs', 'partial', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status');
     try {
       await connection.execute(`
         ALTER TABLE lesson_generation_jobs CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci

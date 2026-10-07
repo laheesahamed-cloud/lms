@@ -59,6 +59,7 @@ export interface NoteCanvas {
 export type LessonGenerationProgress = (stage: string, message: string) => void;
 export interface LessonGenerationJob {
     status: 'running' | 'done' | 'error';
+    partial?: boolean;
     stages: Array<{
         stage: string;
         message: string;
@@ -496,7 +497,7 @@ export declare class LessonsService {
     }>;
     private cleanSource;
     private countChunks;
-    canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress, sourceFormat?: 'text' | 'html'): Promise<NoteCanvas>;
+    canvasGenerate(text: string, token: string, onProgress?: LessonGenerationProgress, sourceFormat?: 'text' | 'html', onPartial?: (canvas: NoteCanvas) => void): Promise<NoteCanvas>;
     private generateChunkResilient;
     startCanvasGenerate(text: string, token: string, sourceFormat?: 'text' | 'html'): Promise<{
         jobId: string;

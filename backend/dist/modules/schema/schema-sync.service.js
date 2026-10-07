@@ -532,6 +532,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_lesson_generation_jobs_created (created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+        await this.ensureColumn(connection, 'lesson_generation_jobs', 'partial', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status');
         try {
             await connection.execute(`
         ALTER TABLE lesson_generation_jobs CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
