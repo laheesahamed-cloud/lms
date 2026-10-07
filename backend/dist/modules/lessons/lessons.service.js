@@ -33,6 +33,9 @@ const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview'
 const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
 class LessonJsonTruncatedError extends Error {
 }
+class LessonStreamTimeoutError extends Error {
+}
+const STREAM_STALL_MS = 45_000;
 let LessonsService = LessonsService_1 = class LessonsService {
     constructor(db, config, pushNotificationsService) {
         this.db = db;
@@ -2043,6 +2046,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 }
                 const raw = (await this.readGeminiStream(res, (chars, sections) => {
                     onProgress?.('writing', `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
+                }, startedAt + budget, (quietMs) => {
+                    onProgress?.('model', `${where}${model} went quiet for ${Math.round(quietMs / 1000)}s \u2014 the connection stalled\u2026`);
                 })).trim();
                 if (!raw) {
                     onProgress?.('model', `${where}${model} sent no stream \u2014 retrying it without streaming\u2026`);
@@ -2071,6 +2076,11 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     onProgress?.('model', `${where}${model} was cut off mid-answer \u2014 trying the next model\u2026`);
                     continue;
                 }
+                if (err instanceof LessonStreamTimeoutError) {
+                    errors.push(`${model}: ${err.message}`);
+                    onProgress?.('model', `${where}${model} ${err.message} \u2014 trying the next model\u2026`);
+                    continue;
+                }
                 const msg = err instanceof Error ? err.message : String(err);
                 const timedOut = msg.includes('abort') || msg.includes('timeout');
                 errors.push(`${model}: ${timedOut ? `timed out (${Math.round((Date.now() - startedAt) / 1000)}s)` : msg}`);
@@ -2084,7 +2094,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             throw new LessonJsonTruncatedError(errors.join(' | '));
         throw new common_1.ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
     }
-    async readGeminiStream(res, onTick) {
+    async readGeminiStream(res, onTick, endAt = Infinity, onStall) {
         const body = res.body;
         if (!body)
             return '';
@@ -2109,10 +2119,29 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             catch { }
         };
+        let lastDataAt = Date.now();
         for (;;) {
-            const { done, value } = await reader.read();
+            const quietBudget = Math.min(STREAM_STALL_MS, Math.max(0, endAt - Date.now()));
+            if (quietBudget <= 0) {
+                await reader.cancel().catch(() => { });
+                throw new LessonStreamTimeoutError(`ran out of time after ${Math.round((Date.now() - lastDataAt) / 1000)}s`);
+            }
+            const read = await Promise.race([
+                reader.read().then((r) => ({ timedOut: false, r })),
+                new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), quietBudget)),
+            ]);
+            if (read.timedOut) {
+                const quiet = Date.now() - lastDataAt;
+                await reader.cancel().catch(() => { });
+                onStall?.(quiet);
+                if (text)
+                    return text;
+                throw new LessonStreamTimeoutError(`no data for ${Math.round(quiet / 1000)}s`);
+            }
+            const { done, value } = read.r;
             if (done)
                 break;
+            lastDataAt = Date.now();
             buffered += decoder.decode(value, { stream: true });
             const lines = buffered.split(/\r?\n/);
             buffered = lines.pop() ?? '';

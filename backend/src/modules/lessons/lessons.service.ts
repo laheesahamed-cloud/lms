@@ -186,6 +186,16 @@ const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', 
 // can react by splitting the source into smaller pieces instead of giving up.
 class LessonJsonTruncatedError extends Error {}
 
+/// A model that stopped sending rather than one that refused. Separate so the
+/// loop can say "the connection went quiet" instead of "returned nothing",
+/// which sent people looking for a problem with their API key.
+class LessonStreamTimeoutError extends Error {}
+
+/// How long a stream may go quiet before that model is given up on. Well under
+/// the per-request budget, because a stalled connection otherwise eats the
+/// whole run's time without producing a character.
+const STREAM_STALL_MS = 45_000;
+
 export type LessonGenerationProgress = (stage: string, message: string) => void;
 
 export interface LessonGenerationJob {
@@ -2776,10 +2786,18 @@ export class LessonsService {
         // while a model is mid-sentence.
         const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
         if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`); continue; }
-        const raw = (await this.readGeminiStream(res, (chars, sections) => {
-          onProgress?.('writing',
-            `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
-        })).trim();
+        const raw = (await this.readGeminiStream(
+          res,
+          (chars, sections) => {
+            onProgress?.('writing',
+              `${where}${model} is writing\u2026 ${chars.toLocaleString()} characters${sections ? `, ${sections} card${sections === 1 ? '' : 's'} so far` : ''}`);
+          },
+          startedAt + budget,
+          (quietMs) => {
+            onProgress?.('model',
+              `${where}${model} went quiet for ${Math.round(quietMs / 1000)}s \u2014 the connection stalled\u2026`);
+          },
+        )).trim();
         if (!raw) {
           // Streaming produced nothing. Rather than write the model off — and
           // with it, potentially every model, leaving generation broken where
@@ -2804,6 +2822,11 @@ export class LessonsService {
       } catch (err) {
         if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
         if (err instanceof LessonJsonTruncatedError) { sawTruncation = true; errors.push(`${model}: truncated response`); onProgress?.('model', `${where}${model} was cut off mid-answer \u2014 trying the next model\u2026`); continue; }
+        if (err instanceof LessonStreamTimeoutError) {
+          errors.push(`${model}: ${err.message}`);
+          onProgress?.('model', `${where}${model} ${err.message} \u2014 trying the next model\u2026`);
+          continue;
+        }
         const msg = err instanceof Error ? err.message : String(err);
         const timedOut = msg.includes('abort') || msg.includes('timeout');
         errors.push(`${model}: ${timedOut ? `timed out (${Math.round((Date.now() - startedAt) / 1000)}s)` : msg}`);
@@ -2825,6 +2848,8 @@ export class LessonsService {
   private async readGeminiStream(
     res: Response,
     onTick: (chars: number, sections: number) => void,
+    endAt = Infinity,
+    onStall?: (quietMs: number) => void,
   ): Promise<string> {
     const body = res.body;
     if (!body) return '';
@@ -2856,9 +2881,46 @@ export class LessonsService {
       } catch { /* a frame we cannot read is not worth failing the stream for */ }
     };
 
+    // The AbortController alone is not enough. `reader.read()` can hang for as
+    // long as the far end keeps the socket open without sending — which is
+    // exactly what an unstable connection does — and a signal set before the
+    // response arrived does not reliably kill a body already being read. So
+    // every read races a clock, and the limit is enforced here rather than
+    // trusted to fire somewhere else.
+    let lastDataAt = Date.now();
     for (;;) {
-      const { done, value } = await reader.read();
+      const quietBudget = Math.min(
+        STREAM_STALL_MS,
+        Math.max(0, endAt - Date.now()),
+      );
+      if (quietBudget <= 0) {
+        await reader.cancel().catch(() => {});
+        throw new LessonStreamTimeoutError(
+          `ran out of time after ${Math.round((Date.now() - lastDataAt) / 1000)}s`,
+        );
+      }
+
+      const read = await Promise.race([
+        reader.read().then((r) => ({ timedOut: false as const, r })),
+        new Promise<{ timedOut: true }>((resolve) =>
+          setTimeout(() => resolve({ timedOut: true }), quietBudget),
+        ),
+      ]);
+
+      if (read.timedOut) {
+        const quiet = Date.now() - lastDataAt;
+        await reader.cancel().catch(() => {});
+        onStall?.(quiet);
+        // Anything already received is worth keeping — a truncated answer is
+        // handled upstream by splitting and retrying, which beats discarding
+        // thirteen thousand characters because the tail never came.
+        if (text) return text;
+        throw new LessonStreamTimeoutError(`no data for ${Math.round(quiet / 1000)}s`);
+      }
+
+      const { done, value } = read.r;
       if (done) break;
+      lastDataAt = Date.now();
       buffered += decoder.decode(value, { stream: true });
       const lines = buffered.split(/\r?\n/);
       // The last piece may be half a line; hold it for the next read.
