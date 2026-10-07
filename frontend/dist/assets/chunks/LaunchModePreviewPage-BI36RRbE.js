@@ -1,1 +1,0 @@
-import{Lo as e,No as t,To as n}from"./app-shared-B12fvsPI.js";import{t as r}from"./LaunchModePage-1h3SB3OC.js";/* empty css                        */var i=e();function a(){let{mode:e}=t();return e!==`maintenance`&&e!==`coming-soon`?(0,i.jsx)(n,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:e,preview:!0})}export{a as LaunchModePreviewPage};

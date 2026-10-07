@@ -812,6 +812,7 @@ export class SchemaSyncService implements OnModuleInit {
         const added = await this.ensureColumn(conn, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
         await this.ensureIndex(conn, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
         if (added) await this.backfillLessonSortOrder(conn);
+        await this.flattenLessonSortOrder(conn);
       });
       // Same as above, one level up the hierarchy — subjects (topics) within a
       // course, and topics (subtopics) within a subject, also need an
@@ -837,6 +838,49 @@ export class SchemaSyncService implements OnModuleInit {
     } finally {
       connection.release();
     }
+  }
+
+  /// Makes lessons.sort_order a FLAT order across the whole course.
+  ///
+  /// It used to be scoped per group — the admin list renumbered each subtopic's
+  /// lessons from 10 independently — so a course had many lessons sharing
+  /// sort_order 10, and the only thing keeping the list stable was ordering by
+  /// topic and subtopic first. That is exactly what made a topic un-movable:
+  /// its lessons were welded into a block by the sort itself, so no value could
+  /// place the group between two other lessons.
+  ///
+  /// Renumbering is done in the order the lists CURRENTLY produce, so nothing
+  /// appears to move when this first runs; only the ability to reorder changes.
+  ///
+  /// Self-guarding, so it costs one cheap query per boot and never clobbers a
+  /// later manual order: it only touches courses that still have duplicate
+  /// sort_order values, and renumbering removes the duplicates.
+  private async flattenLessonSortOrder(connection: PoolConnection) {
+    const [dupes] = await connection.execute<RowDataPacket[]>(`
+      SELECT COALESCE(course_id, 0) AS course_key
+      FROM lessons
+      GROUP BY COALESCE(course_id, 0), sort_order
+      HAVING COUNT(*) > 1`);
+    const courseKeys = Array.from(new Set(dupes.map((r) => Number(r.course_key))));
+    if (!courseKeys.length) return;
+
+    for (const courseKey of courseKeys) {
+      const [rows] = await connection.execute<RowDataPacket[]>(`
+        SELECT l.id
+        FROM lessons l
+        LEFT JOIN topics t ON t.id = l.topic_id
+        LEFT JOIN subtopics s ON s.id = l.subtopic_id
+        WHERE COALESCE(l.course_id, 0) = ?
+        ORDER BY t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`,
+        [courseKey]);
+      for (let i = 0; i < rows.length; i += 1) {
+        await connection.execute(
+          `UPDATE lessons SET sort_order = ? WHERE id = ?`,
+          [(i + 1) * 10, Number(rows[i].id)],
+        );
+      }
+    }
+    this.logger.log(`Flattened lesson order for ${courseKeys.length} course(s).`);
   }
 
   /// Per-user "I have cleared this" marks.

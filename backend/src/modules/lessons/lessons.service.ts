@@ -369,7 +369,7 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       ${whereClause}
-      ORDER BY l.topic_id ASC, l.subtopic_id ASC, l.sort_order ASC, l.id ASC
+      ORDER BY l.sort_order ASC, l.id ASC
       LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -401,7 +401,7 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.status = 'active'
-      ORDER BY l.topic_id ASC, l.subtopic_id ASC, l.sort_order ASC, l.id ASC`
+      ORDER BY l.sort_order ASC, l.id ASC`
     );
 
     return rows.map((row) => this.mapStudentLesson(row, accessProfile));
@@ -1480,7 +1480,7 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND l.engine_key = ?
-      ORDER BY c.course_title ASC, t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
+      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
     return rows.map(r => this.deserializeCanvas(r));
   }
 
@@ -2649,6 +2649,16 @@ export class LessonsService {
     ].join('\n');
   }
 
+  // Ordered FLAT across the course — by l.sort_order alone, not by topic and
+  // subtopic first.
+  //
+  // Grouping in the ORDER BY welded each topic's lessons into a block that
+  // nothing could break, so a topic heading could never sit between two other
+  // lessons and the admin's move up/down could only shuffle whole blocks past
+  // one another. The heading is now derived from where a lesson's topic
+  // changes, so moving a group really does mean moving its lessons. Existing
+  // rows are renumbered once at boot in their current visible order — see
+  // flattenLessonSortOrder in schema-sync — so nothing moves on deploy.
   async canvasStudentList(token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
     const student = await this.requireStudentToken(token);
     const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
@@ -2662,7 +2672,7 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
+      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
     return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
   }
 

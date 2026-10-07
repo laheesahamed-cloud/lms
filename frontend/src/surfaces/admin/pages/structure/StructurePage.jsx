@@ -384,7 +384,7 @@ function LoadingGrid() {
   );
 }
 
-function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, onDelete, extraAction, onMoveUp, onMoveDown }) {
+function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, onDelete, extraAction, onMoveUp, onMoveDown, children }) {
   const canReorder = typeof onMoveUp === 'function' || typeof onMoveDown === 'function';
   const moveButtons = canReorder ? (
     <span className="flex items-center gap-0.5">
@@ -416,7 +416,35 @@ function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, 
         </span>
       </button>
       <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} extraAction={moveButtons || extraAction} className={structureUi.inlineActions} />
+      {children}
     </article>
+  );
+}
+
+/// The lessons sitting under one hierarchy row, listed in place.
+///
+/// Every level shows them, because drilling three folders deep just to learn
+/// whether a subject has any lessons made the hierarchy hard to read — and
+/// ordering only makes sense when you can see what you are ordering.
+function LessonPeek({ lessons, onOpen }) {
+  if (!lessons.length) return null;
+  return (
+    <ol className="mx-3 mb-2.5 grid gap-1 border-t border-line-soft pt-2">
+      {lessons.map((lesson, index) => (
+        <li key={lesson.id}>
+          <button type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-surface-muted"
+                  onClick={(event) => stopAndRun(event, () => onOpen(lesson))}>
+            <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-ink-muted">
+              {index + 1}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-soft">
+              {lesson.title || 'Untitled lesson'}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -982,7 +1010,10 @@ export function StructurePage() {
                       <FolderCard
                         key={course.id}
                         title={title}
-                        meta={course.description || `${course.examType} • ${course.courseCode}`}
+                        meta={[
+                          course.description || `${course.examType} • ${course.courseCode}`,
+                          `${aiLessons.filter((note) => String(note.courseId || '') === String(course.id || '')).length} lessons`,
+                        ].join(' • ')}
                         count={subjectCount}
                         countLabel={subjectCount === 1 ? 'subject' : 'subjects'}
                         status={course.status || 'active'}
@@ -1014,6 +1045,8 @@ export function StructurePage() {
                 <div className={structureUi.rowList}>
                   {subjects.map((subject, index) => {
                     const topicCount = Number(subject.subtopicCount || 0);
+                    const subjectLessons = aiLessons.filter((note) =>
+                      String(note.topicId || '') === String(subject.id || ''));
                     const title = subject.topicName || 'Untitled subject';
                     return (
                       <StructureRow
@@ -1021,14 +1054,16 @@ export function StructurePage() {
                         index={index}
                         title={title}
                         meta={`In ${selectedCourse?.courseTitle || 'course'}`}
-                        countLabel={`${topicCount} topic${topicCount === 1 ? '' : 's'}`}
+                        countLabel={`${topicCount} topic${topicCount === 1 ? '' : 's'} · ${subjectLessons.length} lesson${subjectLessons.length === 1 ? '' : 's'}`}
                         status={subject.status || 'active'}
                         onOpen={() => openSubjectFolder(subject)}
                         onEdit={(event) => stopAndRun(event, () => openSubjectEdit(subject, event))}
                         onDelete={(event) => stopAndRun(event, () => handleSubjectDelete(subject, event))}
                         onMoveUp={index > 0 ? () => moveSubject(index, -1) : null}
                         onMoveDown={index < subjects.length - 1 ? () => moveSubject(index, 1) : null}
-                      />
+                      >
+                        <LessonPeek lessons={subjectLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`)} />
+                      </StructureRow>
                     );
                   })}
                 </div>
@@ -1071,7 +1106,9 @@ export function StructurePage() {
                         onDelete={(event) => stopAndRun(event, () => handleTopicDelete(topic, event))}
                         onMoveUp={index > 0 ? () => moveTopic(index, -1) : null}
                         onMoveDown={index < topics.length - 1 ? () => moveTopic(index, 1) : null}
-                      />
+                      >
+                        <LessonPeek lessons={topicLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`)} />
+                      </StructureRow>
                     );
                   })}
                 </div>

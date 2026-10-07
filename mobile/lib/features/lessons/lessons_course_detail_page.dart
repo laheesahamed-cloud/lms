@@ -161,32 +161,35 @@ class _NotesCourseDetailPageState
       {required int startIndex}) {
     final collapsed = _collapsed.contains(g.subjectName);
 
-    // Group lessons by topicName to show dividers
-    final topicOrder = <String>[];
-    final topicMap = <String, List<LessonListItem>>{};
-    for (final lesson in g.lessons) {
-      final key = lesson.topicName.isNotEmpty ? lesson.topicName : '';
-      if (!topicMap.containsKey(key)) {
-        topicOrder.add(key);
-        topicMap[key] = [];
-      }
-      topicMap[key]!.add(lesson);
-    }
-
+    // A divider WHERE THE TOPIC CHANGES, walking the list in the order the
+    // server sent it — not a bucket per topic name.
+    //
+    // Bucketing pulled every lesson sharing a topic back together wherever it
+    // sat, so a topic placed between two other lessons in the admin collapsed
+    // back to one block here and the move looked like it had done nothing.
+    // Walking in order means the server's order is what shows, and a topic
+    // that genuinely appears in two runs gets a heading for each.
     var globalIndex = startIndex;
     final lessonWidgets = <Widget>[];
-    for (final topicKey in topicOrder) {
-      final topicLessons = topicMap[topicKey]!;
-      if (topicKey.isNotEmpty) {
-        lessonWidgets.add(_TopicDivider(label: topicKey, c: c));
+    String? shownTopic;
+    for (final lesson in g.lessons) {
+      final topic = lesson.topicName;
+      if (topic != shownTopic) {
+        final isFirstRun = shownTopic == null;
+        shownTopic = topic;
+        if (topic.isNotEmpty) {
+          lessonWidgets.add(_TopicDivider(label: topic, c: c));
+        } else if (!isFirstRun) {
+          // Lessons with no topic that FOLLOW one need a rule of their own, or
+          // they read as part of the topic above them.
+          lessonWidgets.add(_TopicDivider(label: '', c: c));
+        }
       }
-      for (final lesson in topicLessons) {
-        final idx = globalIndex++;
-        lessonWidgets.add(Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _LessonRow(lesson: lesson, index: idx),
-        ));
-      }
+      final idx = globalIndex++;
+      lessonWidgets.add(Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: _LessonRow(lesson: lesson, index: idx),
+      ));
     }
 
     return Padding(
@@ -284,14 +287,18 @@ class _TopicDivider extends StatelessWidget {
       padding: const EdgeInsets.only(top: 14, bottom: 8),
       child: Row(children: [
         Expanded(child: Divider(color: c.line, thickness: 1)),
-        const SizedBox(width: 10),
-        Text(label.toUpperCase(),
-            style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-                color: c.inkMuted)),
-        const SizedBox(width: 10),
+        // An empty label is a deliberate case: a plain rule closing off the
+        // topic above, with no text and no gaps around it.
+        if (label.isNotEmpty) ...[
+          const SizedBox(width: 10),
+          Text(label.toUpperCase(),
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: c.inkMuted)),
+          const SizedBox(width: 10),
+        ],
         Expanded(child: Divider(color: c.line, thickness: 1)),
       ]),
     );

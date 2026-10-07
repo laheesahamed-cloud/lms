@@ -1,0 +1,1 @@
+import{Lo as e,No as t,To as n}from"./app-shared-D3xSue63.js";import{t as r}from"./LaunchModePage-BDjvlkdA.js";/* empty css                        */var i=e();function a(){let{mode:e}=t();return e!==`maintenance`&&e!==`coming-soon`?(0,i.jsx)(n,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:e,preview:!0})}export{a as LaunchModePreviewPage};

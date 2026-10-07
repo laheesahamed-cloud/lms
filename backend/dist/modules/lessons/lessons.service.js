@@ -126,7 +126,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       ${whereClause}
-      ORDER BY l.topic_id ASC, l.subtopic_id ASC, l.sort_order ASC, l.id ASC
+      ORDER BY l.sort_order ASC, l.id ASC
       LIMIT ? OFFSET ?`, [...params, limit, offset]);
         return rows.map((row) => this.mapLesson(row));
     }
@@ -152,7 +152,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.status = 'active'
-      ORDER BY l.topic_id ASC, l.subtopic_id ASC, l.sort_order ASC, l.id ASC`);
+      ORDER BY l.sort_order ASC, l.id ASC`);
         return rows.map((row) => this.mapStudentLesson(row, accessProfile));
     }
     async findStudentLesson(id, authorization, appClient) {
@@ -1001,7 +1001,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND l.engine_key = ?
-      ORDER BY c.course_title ASC, t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
+      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
         return rows.map(r => this.deserializeCanvas(r));
     }
     async canvasReorderLessons(orderedIds, token) {
@@ -1847,7 +1847,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
+      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
         return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
     }
     async canvasStudentFindNote(id, token, engineKey = 'gemini', appClient) {

@@ -93,11 +93,18 @@ function buildHierarchy(notes) {
     if (!map.has(ck)) map.set(ck, { label: n.courseTitle || null, examType: n.examType || null, subjects: new Map() });
     const course = map.get(ck);
     const sk = n.topicName || '__none__';
-    if (!course.subjects.has(sk)) course.subjects.set(sk, { label: n.topicName || null, topics: new Map() });
+    if (!course.subjects.has(sk)) course.subjects.set(sk, { label: n.topicName || null, topics: [] });
     const subject = course.subjects.get(sk);
+    // A RUN, not a bucket. Keyed by map, a topic collected every lesson that
+    // shared its name wherever that lesson sat, so a topic the admin placed
+    // between two other lessons snapped back into one block and the move
+    // looked like it had done nothing. Starting a new run when the topic
+    // changes keeps the server's order, and a topic that really does appear
+    // twice gets a heading each time.
     const tk = n.subtopicName || '__none__';
-    if (!subject.topics.has(tk)) subject.topics.set(tk, { label: n.subtopicName || null, notes: [] });
-    subject.topics.get(tk).notes.push(n);
+    const run = subject.topics[subject.topics.length - 1];
+    if (!run || run.key !== tk) subject.topics.push({ key: tk, label: n.subtopicName || null, notes: [] });
+    subject.topics[subject.topics.length - 1].notes.push(n);
   }
   return [...map.entries()]
     .sort(([a], [b]) => a === '__none__' ? 1 : b === '__none__' ? -1 : a.localeCompare(b))
@@ -340,12 +347,21 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
                 <div className="student-lessons-lesson-list">
                   {topics.map((topic, topicIndex) => {
                     let runningIndex = topics.slice(0, topicIndex).reduce((sum, t) => sum + t.notes.length, 0);
+                    // Index is part of the key because a topic can now appear
+                    // in more than one run, and keying on the label alone
+                    // would collide.
                     return (
-                      <div key={topic.label || `topic-${topicIndex}`}>
+                      <div key={`${topic.label || 'general'}-${topicIndex}`}>
                         {topic.label ? (
                           <div className="student-lessons-topic-divider">
                             <span>{topic.label}</span>
                           </div>
+                        ) : topicIndex > 0 ? (
+                          // A run with no topic that FOLLOWS one needs a rule
+                          // of its own, or the lessons after a topic read as
+                          // part of it. Same element without its label, so the
+                          // two halves meet as a plain hairline.
+                          <div className="student-lessons-topic-divider" aria-hidden="true" />
                         ) : null}
                         {topic.notes.map((note, noteIndex) => (
                           <LessonTextRow key={note.id} note={note} index={runningIndex + noteIndex}

@@ -720,6 +720,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
                 await this.ensureIndex(conn, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
                 if (added)
                     await this.backfillLessonSortOrder(conn);
+                await this.flattenLessonSortOrder(conn);
             });
             await step('topics.sort_order', async () => {
                 const added = await this.ensureColumn(conn, 'topics', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER course_id');
@@ -739,6 +740,29 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         finally {
             connection.release();
         }
+    }
+    async flattenLessonSortOrder(connection) {
+        const [dupes] = await connection.execute(`
+      SELECT COALESCE(course_id, 0) AS course_key
+      FROM lessons
+      GROUP BY COALESCE(course_id, 0), sort_order
+      HAVING COUNT(*) > 1`);
+        const courseKeys = Array.from(new Set(dupes.map((r) => Number(r.course_key))));
+        if (!courseKeys.length)
+            return;
+        for (const courseKey of courseKeys) {
+            const [rows] = await connection.execute(`
+        SELECT l.id
+        FROM lessons l
+        LEFT JOIN topics t ON t.id = l.topic_id
+        LEFT JOIN subtopics s ON s.id = l.subtopic_id
+        WHERE COALESCE(l.course_id, 0) = ?
+        ORDER BY t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`, [courseKey]);
+            for (let i = 0; i < rows.length; i += 1) {
+                await connection.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [(i + 1) * 10, Number(rows[i].id)]);
+            }
+        }
+        this.logger.log(`Flattened lesson order for ${courseKeys.length} course(s).`);
     }
     async ensureNotificationDismissalsTable(connection) {
         await connection.execute(`

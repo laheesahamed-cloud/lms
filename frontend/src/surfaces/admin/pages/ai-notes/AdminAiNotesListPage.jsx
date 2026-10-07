@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminListAiNotes, adminCreateAiNote, adminDeleteAiNote, adminUpdateAiNote, adminGetCourses, adminGetTopics, adminGetSubtopics, adminReorderLessons } from '../../../../shared/api/aiNotes.api.js';
-import { reorderSubtopics } from '../../../../shared/api/subtopics.api.js';
 import { createLesson } from '../../../../shared/api/lessons.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
@@ -85,9 +84,6 @@ export function AdminAiNotesListPage({
   const [roCourse,     setRoCourse]     = useState('');
   const [roTopic,      setRoTopic]      = useState('');
   const [roTopics,     setRoTopics]     = useState([]);
-  // The subject's topics in their saved order — this is what makes the group
-  // headings reorderable rather than stuck alphabetically.
-  const [roSubtopics,  setRoSubtopics]  = useState([]);
   const [reordering,   setReordering]   = useState(false);
 
   const load = useCallback(async () => {
@@ -124,84 +120,60 @@ export function AdminAiNotesListPage({
     adminGetTopics(Number(roCourse)).then(setRoTopics).catch(() => {});
   }, [roCourse]);
 
-  const loadRoSubtopics = useCallback(() => {
-    if (!roTopic) { setRoSubtopics([]); return; }
-    adminGetSubtopics(Number(roTopic)).then(setRoSubtopics).catch(() => setRoSubtopics([]));
-  }, [roTopic]);
 
-  useEffect(() => { loadRoSubtopics(); }, [loadRoSubtopics]);
-
-  // Lessons for the picked subject, grouped by topic (subtopic) the same way
-  // students see them — a "General" bucket for lessons with no topic, then
-  // each named topic — each group its own independently-ordered scope.
-  const reorderGroups = useMemo(() => {
+  // ONE flat, ordered list for the picked subject — the same order students
+  // see. It used to be a map of per-topic buckets, each ordered within itself,
+  // which is precisely what made a topic impossible to place: its lessons were
+  // held together by the grouping, not by their order.
+  const flatRows = useMemo(() => {
     if (!roTopic) return [];
     const topicId = Number(roTopic);
-    const inScope = notes.filter((n) => Number(n.topicId) === topicId);
-    const groups = new Map();
-    for (const note of inScope) {
+    return notes
+      .filter((n) => Number(n.topicId) === topicId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+  }, [notes, roTopic]);
+
+  // Runs of consecutive lessons sharing a topic. A run is what gets a heading
+  // and what moves as one piece; a topic that appears in two places on purpose
+  // is two runs, which the grouped version could not represent at all.
+  const runs = useMemo(() => {
+    const out = [];
+    flatRows.forEach((note, index) => {
       const key = note.subtopicId == null ? GENERAL_GROUP : String(note.subtopicId);
-      if (!groups.has(key)) {
-        groups.set(key, {
+      const last = out[out.length - 1];
+      if (!last || last.key !== key) {
+        out.push({
           key,
           label: note.subtopicId == null ? 'General (no topic)' : (note.subtopicName || 'Topic'),
-          items: [],
+          start: index,
+          items: [note],
         });
+      } else {
+        last.items.push(note);
       }
-      groups.get(key).items.push(note);
-    }
-    for (const group of groups.values()) {
-      group.items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
-    }
-    // Follow the subject's saved topic order (roSubtopics arrives already
-    // sorted by sort_order), not the alphabet. "General" has no subtopic row
-    // to order, so it stays pinned first.
-    const rank = new Map(roSubtopics.map((s, i) => [String(s.id), i]));
-    return Array.from(groups.values()).sort((a, b) => {
-      if (a.key === GENERAL_GROUP) return -1;
-      if (b.key === GENERAL_GROUP) return 1;
-      const ra = rank.has(a.key) ? rank.get(a.key) : Number.MAX_SAFE_INTEGER;
-      const rb = rank.has(b.key) ? rank.get(b.key) : Number.MAX_SAFE_INTEGER;
-      return ra - rb || a.label.localeCompare(b.label);
     });
-  }, [notes, roTopic, roSubtopics]);
+    return out;
+  }, [flatRows]);
 
-  // Moving a group heading reorders the subtopics themselves, so the new order
-  // shows up for students too — same rows the course hierarchy reads.
-  async function moveTopicGroup(index, direction) {
-    const ordered = reorderGroups.filter((g) => g.key !== GENERAL_GROUP).map((g) => Number(g.key));
-    const target = index + direction;
-    if (target < 0 || target >= ordered.length) return;
-    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
-
-    // Optimistic: reflect the swap before the round trip so the arrow feels instant.
-    const byId = new Map(roSubtopics.map((s) => [Number(s.id), s]));
-    setRoSubtopics(ordered.map((id) => byId.get(id)).filter(Boolean));
-
-    setReordering(true);
-    try {
-      await reorderSubtopics(ordered);
-    } catch {
-      setError('Failed to save the new topic order.');
-      loadRoSubtopics();
-    } finally {
-      setReordering(false);
-    }
-  }
-
-  async function moveLesson(group, index, direction) {
-    const target = index + direction;
-    if (target < 0 || target >= group.items.length) return;
-    const reordered = [...group.items];
-    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-    const orderedIds = reordered.map((n) => n.id);
-
-    // Optimistic local update so the arrow feels instant.
-    setNotes((prev) => {
-      const orderById = new Map(orderedIds.map((id, i) => [id, (i + 1) * 10]));
-      return prev.map((n) => (orderById.has(n.id) ? { ...n, sortOrder: orderById.get(n.id) } : n));
-    });
-
+  // One place that writes an order, so every arrow saves the same way.
+  //
+  // It sends the WHOLE COURSE, not just the subject being edited. sort_order is
+  // now flat across a course, so renumbering one subject's lessons from 10
+  // would hand them the same numbers another subject already holds and the two
+  // would interleave at random. The edited lessons are dropped back into the
+  // slots that subject's lessons already occupied, which leaves every other
+  // subject exactly where it was.
+  async function saveFlatOrder(nextRows) {
+    const courseRows = notes
+      .filter((n) => String(n.courseId || '') === String(roCourse || ''))
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+    const moved = new Map(nextRows.map((n) => [n.id, n]));
+    let next = 0;
+    const merged = courseRows.map((n) => (moved.has(n.id) ? nextRows[next++] : n));
+    const orderedIds = merged.map((n) => n.id);
+    const orderById = new Map(orderedIds.map((id, i) => [id, (i + 1) * 10]));
+    // Optimistic, so the arrow feels instant.
+    setNotes((prev) => prev.map((n) => (orderById.has(n.id) ? { ...n, sortOrder: orderById.get(n.id) } : n)));
     setReordering(true);
     try {
       await adminReorderLessons(orderedIds);
@@ -211,6 +183,37 @@ export function AdminAiNotesListPage({
     } finally {
       setReordering(false);
     }
+  }
+
+  function moveLesson(index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= flatRows.length) return;
+    const next = [...flatRows];
+    [next[index], next[target]] = [next[target], next[index]];
+    saveFlatOrder(next);
+  }
+
+  // A whole run steps over ONE lesson at a time, carrying its lessons with it.
+  //
+  // Stepping over the neighbouring RUN would be fewer clicks but could never
+  // land a topic inside another run — "put ATLS after the first lesson" needs
+  // the block of ungrouped lessons to be split, which only a per-lesson step
+  // can do. So the lesson the run passes is simply lifted over it.
+  function moveRun(runIndex, direction) {
+    const run = runs[runIndex];
+    if (!run) return;
+    const first = run.start;
+    const last = first + run.items.length - 1;
+    const donorIndex = direction < 0 ? first - 1 : last + 1;
+    if (donorIndex < 0 || donorIndex >= flatRows.length) return;
+
+    const next = [...flatRows];
+    const [donor] = next.splice(donorIndex, 1);
+    // After the splice the run has shifted by one when the donor came from
+    // above it; inserting on the far side is the same move either way.
+    const insertAt = direction < 0 ? first - 1 + run.items.length : last + 1 - run.items.length;
+    next.splice(insertAt, 0, donor);
+    saveFlatOrder(next);
   }
 
   async function handleCreate(e) {
@@ -379,53 +382,54 @@ export function AdminAiNotesListPage({
             </select>
           </div>
 
-          {roTopic && reorderGroups.length === 0 && (
+          {roTopic && flatRows.length === 0 && (
             <p className="mt-3 text-[13px] text-ink-muted">No lessons in this subject yet.</p>
           )}
 
-          {reorderGroups.map((group) => {
-            const movable = group.key !== GENERAL_GROUP;
-            // "General" is pinned first and isn't a real subtopic row, so the
-            // arrow indices count only the movable groups.
-            const movableIndex = reorderGroups.filter((g) => g.key !== GENERAL_GROUP).findIndex((g) => g.key === group.key);
-            const movableCount = reorderGroups.filter((g) => g.key !== GENERAL_GROUP).length;
+          {runs.map((run, runIndex) => {
+            const runStart = run.start;
+            const runEnd = runStart + run.items.length - 1;
             return (
-            <div key={group.key} className="mt-4">
+            <div key={`${run.key}-${runStart}`} className="mt-4">
               <div className="mb-1.5 flex items-center gap-1.5">
-                <span className="min-w-0 flex-1 truncate text-xs font-extrabold uppercase tracking-wide text-ink-soft">{group.label}</span>
-                {movable && movableCount > 1 && (
-                  <>
-                    <button type="button" className={ui.iconButton} disabled={reordering || movableIndex === 0}
-                            aria-label={`Move topic ${group.label} up`}
-                            onClick={() => moveTopicGroup(movableIndex, -1)}>
-                      <UpIcon/>
-                    </button>
-                    <button type="button" className={ui.iconButton} disabled={reordering || movableIndex === movableCount - 1}
-                            aria-label={`Move topic ${group.label} down`}
-                            onClick={() => moveTopicGroup(movableIndex, 1)}>
-                      <DownIcon/>
-                    </button>
-                  </>
-                )}
+                <span className="min-w-0 flex-1 truncate text-xs font-extrabold uppercase tracking-wide text-ink-soft">{run.label}</span>
+                {/* The heading's arrows move the whole topic, lessons and all,
+                    one lesson at a time — so it can land between two lessons
+                    rather than only above or below another topic. */}
+                <button type="button" className={ui.iconButton} disabled={reordering || runStart === 0}
+                        aria-label={`Move topic ${run.label} and its lessons up`}
+                        onClick={() => moveRun(runIndex, -1)}>
+                  <UpIcon/>
+                </button>
+                <button type="button" className={ui.iconButton} disabled={reordering || runEnd === flatRows.length - 1}
+                        aria-label={`Move topic ${run.label} and its lessons down`}
+                        onClick={() => moveRun(runIndex, 1)}>
+                  <DownIcon/>
+                </button>
               </div>
               <ol className="grid gap-1.5">
-                {group.items.map((note, index) => (
+                {run.items.map((note, i) => {
+                  const flatIndex = runStart + i;
+                  return (
                   <li key={note.id}
                       className="flex items-center gap-2.5 rounded-lg border border-line-soft bg-surface-card px-3 py-2">
-                    <span className="w-5 shrink-0 text-center text-xs font-bold text-ink-muted">{index + 1}</span>
+                    {/* Numbered across the whole subject, matching what the
+                        student sees, not restarted per topic. */}
+                    <span className="w-5 shrink-0 text-center text-xs font-bold text-ink-muted">{flatIndex + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-strong">{note.title || 'Untitled Lesson'}</span>
-                    <button type="button" className={ui.iconButton} disabled={reordering || index === 0}
+                    <button type="button" className={ui.iconButton} disabled={reordering || flatIndex === 0}
                             aria-label={`Move ${note.title} up`}
-                            onClick={() => moveLesson(group, index, -1)}>
+                            onClick={() => moveLesson(flatIndex, -1)}>
                       <UpIcon/>
                     </button>
-                    <button type="button" className={ui.iconButton} disabled={reordering || index === group.items.length - 1}
+                    <button type="button" className={ui.iconButton} disabled={reordering || flatIndex === flatRows.length - 1}
                             aria-label={`Move ${note.title} down`}
-                            onClick={() => moveLesson(group, index, 1)}>
+                            onClick={() => moveLesson(flatIndex, 1)}>
                       <DownIcon/>
                     </button>
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             </div>
             );
