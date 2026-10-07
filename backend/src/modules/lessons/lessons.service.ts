@@ -196,13 +196,17 @@ class LessonStreamTimeoutError extends Error {}
 /// whole run's time without producing a character.
 const STREAM_STALL_MS = 45_000;
 
-/// How long a model gets to send its FIRST byte before we move on.
+/// How long a model gets to send its FIRST byte before we stop waiting on the
+/// stream.
 ///
-/// Separate from the per-request budget, and far shorter. A model that has sent
-/// nothing in 75s is not about to start, and giving it the full 240s meant one
-/// unresponsive model could eat most of a part's budget and leave no time to
-/// try another — which reads as "it just stopped, and never retried".
-const FIRST_BYTE_MS = 75_000;
+/// A DEAD-CONNECTION detector, not a performance gate — which is the mistake
+/// the first version of this made at 75s. The reasoning models here think
+/// before they emit anything, and that silence can run well past a minute on a
+/// long part, so a tight limit dropped every model before any of them had
+/// started and no part could be written at all. Generous enough that only a
+/// genuinely dead stream trips it, and still short enough to leave the
+/// non-streaming retry below real time to answer.
+const FIRST_BYTE_MS = 150_000;
 
 /// Past this, a row still marked 'running' is treated as abandoned. Comfortably
 /// beyond the longest budget (12 min) and its wall clock, so it only ever
@@ -221,7 +225,13 @@ const JOB_ABANDONED_MS = 15 * 60 * 1000;
 /// got a budget too small to finish in and the run died or hung at the very
 /// end. One or two parts fit; three or more never did.
 function generationBudgetMs(chunks: number): number {
-  const sized = chunks * 120_000 + 120_000; // a part each, plus the completeness pass
+  // 180s a part, not the 120s this assumed. A part is a think and then a
+  // write, and the thinking alone can run most of a minute on a long one — so
+  // the old figure budgeted for the writing and left the reasoning unfunded,
+  // which is how a three-part run reached its deadline mid-way with two parts
+  // done. Overrunning is no longer fatal (the remaining parts are skipped and
+  // named), but the budget should still be the honest cost of the work.
+  const sized = chunks * 180_000 + 120_000; // a part each, plus the completeness pass
   return Math.min(12 * 60 * 1000, Math.max(6 * 60 * 1000, sized));
 }
 
@@ -1775,9 +1785,14 @@ export class LessonsService {
       const canvases: NoteCanvas[] = [];
       for (let i = 0; i < chunks.length; i += 1) {
         if (Date.now() > deadline) {
-          throw new ServiceUnavailableException(
-            `Generation is taking too long (source is very long — ${chunks.length} parts). Try a shorter paste, or generate it in smaller sections.`,
-          );
+          // Stop WRITING, don't fail the run. Throwing here discarded every
+          // finished part over a clock the earlier parts had already spent, so
+          // out of time now means the same as a part that could not be
+          // written: record it, keep what exists, and finish properly.
+          for (let rest = i; rest < chunks.length; rest += 1) skippedParts.push(rest + 1);
+          onProgress?.('model',
+            `Out of time with ${chunks.length - i} part${chunks.length - i === 1 ? '' : 's'} still to write — finishing with what is written…`);
+          break;
         }
         onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
         try {
@@ -1810,9 +1825,20 @@ export class LessonsService {
     }
 
     // Item 2 — completeness self-check: ask the model what it left out and append it (best effort).
-    onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
     onPartial?.(this.renumberSections(this.groupSectionFamilies(canvas)));
-    const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
+    // Skipped outright when the clock is already gone, rather than announced
+    // and then silently swallowed by its own catch — a log line for a pass
+    // that cannot run is the kind of thing that makes a finished job look
+    // stuck.
+    const outOfTime = Date.now() > deadline;
+    if (outOfTime) {
+      onProgress?.('completeness', 'Out of time — skipping the final check for anything missed.');
+    } else {
+      onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
+    }
+    const completed = outOfTime
+      ? canvas
+      : await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
     // Always renumber last — guarantees flat "1., 2., 3." card numbers no matter
     // which path above produced the canvas, or whether the model followed the
     // numbering instruction exactly.
@@ -2949,12 +2975,12 @@ export class LessonsService {
       const budget = this.requestBudget(deadline);
       if (budget <= 0) { errors.push('out of time before trying more models'); break; }
       const attempt = modelCandidates.indexOf(model) + 1;
-      // Quote the first-byte wait, not the whole request budget. "up to 240s"
-      // was true of the request and useless as a progress line: it told you to
-      // expect four minutes of silence when in fact a model that has not
-      // started inside FIRST_BYTE_MS is dropped and the next one tried.
+      // Say that thinking time is expected. This line used to read "up to
+      // 240s", which is the request budget and says nothing about what is
+      // happening; the silence here is the model reasoning before it writes,
+      // and naming that is the difference between waiting and giving up.
       onProgress?.('model',
-        `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''} — waiting up to ${Math.round(Math.min(FIRST_BYTE_MS, budget) / 1000)}s for it to start…`);
+        `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''} — it thinks before it writes, up to ${Math.round(Math.min(FIRST_BYTE_MS, budget) / 1000)}s…`);
       const startedAt = Date.now();
       const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), budget);
       try {
@@ -2984,7 +3010,7 @@ export class LessonsService {
           // with it, potentially every model, leaving generation broken where
           // it used to work — ask the same one again without streaming. The
           // only thing lost is the live character count.
-          onProgress?.('model', `${where}${model} sent no stream \u2014 retrying it without streaming\u2026`);
+          onProgress?.('model', `${where}${model} sent no stream after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 asking it again without streaming\u2026`);
           const plain = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
           if (plain.ok) {
             const json = await plain.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
@@ -3092,14 +3118,18 @@ export class LessonsService {
       ]);
 
       if (read.timedOut) {
-        const quiet = Math.round((Date.now() - lastDataAt) / 1000);
         await reader.cancel().catch(() => {});
         onStall?.(Date.now() - lastDataAt);
         // Anything already received is worth keeping — a truncated answer is
         // handled upstream by splitting and retrying, which beats discarding
         // thirteen thousand characters because the tail never came.
-        if (text) return text;
-        throw new LessonStreamTimeoutError(`sent nothing in ${quiet}s`);
+        //
+        // And nothing received returns EMPTY rather than throwing. Throwing
+        // here skipped the caller's non-streaming retry of this same model and
+        // went straight to the next one — removing the recovery that had been
+        // quietly saving these runs. A model whose stream never opened may
+        // still answer a plain request, so let the caller try that first.
+        return text;
       }
 
       const { done, value } = read.r;

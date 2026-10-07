@@ -36,10 +36,10 @@ class LessonJsonTruncatedError extends Error {
 class LessonStreamTimeoutError extends Error {
 }
 const STREAM_STALL_MS = 45_000;
-const FIRST_BYTE_MS = 75_000;
+const FIRST_BYTE_MS = 150_000;
 const JOB_ABANDONED_MS = 15 * 60 * 1000;
 function generationBudgetMs(chunks) {
-    const sized = chunks * 120_000 + 120_000;
+    const sized = chunks * 180_000 + 120_000;
     return Math.min(12 * 60 * 1000, Math.max(6 * 60 * 1000, sized));
 }
 function jobHardLimitMs(chunks) {
@@ -1236,7 +1236,10 @@ let LessonsService = LessonsService_1 = class LessonsService {
             const canvases = [];
             for (let i = 0; i < chunks.length; i += 1) {
                 if (Date.now() > deadline) {
-                    throw new common_1.ServiceUnavailableException(`Generation is taking too long (source is very long — ${chunks.length} parts). Try a shorter paste, or generate it in smaller sections.`);
+                    for (let rest = i; rest < chunks.length; rest += 1)
+                        skippedParts.push(rest + 1);
+                    onProgress?.('model', `Out of time with ${chunks.length - i} part${chunks.length - i === 1 ? '' : 's'} still to write — finishing with what is written…`);
+                    break;
                 }
                 onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
                 try {
@@ -1256,9 +1259,17 @@ let LessonsService = LessonsService_1 = class LessonsService {
             }
             canvas = this.mergeCanvases(canvases);
         }
-        onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
         onPartial?.(this.renumberSections(this.groupSectionFamilies(canvas)));
-        const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
+        const outOfTime = Date.now() > deadline;
+        if (outOfTime) {
+            onProgress?.('completeness', 'Out of time — skipping the final check for anything missed.');
+        }
+        else {
+            onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
+        }
+        const completed = outOfTime
+            ? canvas
+            : await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
         onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
         const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
         onProgress?.('done', skippedParts.length
@@ -2105,7 +2116,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 break;
             }
             const attempt = modelCandidates.indexOf(model) + 1;
-            onProgress?.('model', `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''} — waiting up to ${Math.round(Math.min(FIRST_BYTE_MS, budget) / 1000)}s for it to start…`);
+            onProgress?.('model', `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''} — it thinks before it writes, up to ${Math.round(Math.min(FIRST_BYTE_MS, budget) / 1000)}s…`);
             const startedAt = Date.now();
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), budget);
@@ -2129,7 +2140,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     onProgress?.('model', `${where}${model} went quiet for ${Math.round(quietMs / 1000)}s \u2014 the connection stalled\u2026`);
                 })).trim();
                 if (!raw) {
-                    onProgress?.('model', `${where}${model} sent no stream \u2014 retrying it without streaming\u2026`);
+                    onProgress?.('model', `${where}${model} sent no stream after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 asking it again without streaming\u2026`);
                     const plain = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
                     if (plain.ok) {
                         const json = await plain.json();
@@ -2210,12 +2221,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), quietBudget)),
             ]);
             if (read.timedOut) {
-                const quiet = Math.round((Date.now() - lastDataAt) / 1000);
                 await reader.cancel().catch(() => { });
                 onStall?.(Date.now() - lastDataAt);
-                if (text)
-                    return text;
-                throw new LessonStreamTimeoutError(`sent nothing in ${quiet}s`);
+                return text;
             }
             const { done, value } = read.r;
             if (done)
