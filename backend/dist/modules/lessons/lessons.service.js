@@ -1205,7 +1205,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         let canvas;
         if (trimmed.length <= CHUNK_LIMIT) {
             onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
-            canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline);
+            canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline, 'your lesson');
         }
         else {
             const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
@@ -1215,20 +1215,20 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     throw new common_1.ServiceUnavailableException(`Generation is taking too long (source is very long — ${chunks.length} parts). Try a shorter paste, or generate it in smaller sections.`);
                 }
                 onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
-                canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline));
+                canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
             }
             canvas = this.mergeCanvases(canvases);
         }
         onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
-        const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline);
+        const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
         onProgress?.('finalize', 'Grouping each topic into one card and numbering…');
         const finalCanvas = this.renumberSections(this.groupSectionFamilies(completed));
         onProgress?.('done', 'Lesson ready!');
         return finalCanvas;
     }
-    async generateChunkResilient(chunkText, provider, depth = 0, onProgress, deadline = Infinity) {
+    async generateChunkResilient(chunkText, provider, depth = 0, onProgress, deadline = Infinity, label = '') {
         try {
-            return await this.generateWithProvider(this.buildPrompt(chunkText), provider, deadline);
+            return await this.generateWithProvider(this.buildPrompt(chunkText), provider, deadline, onProgress, label);
         }
         catch (err) {
             if (!(err instanceof LessonJsonTruncatedError)
@@ -1246,7 +1246,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 if (Date.now() > deadline)
                     throw err;
                 onProgress?.('split', `Writing piece ${i + 1} of ${pieces.length}…`);
-                results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress, deadline));
+                results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress, deadline, `piece ${i + 1} of ${pieces.length}`));
             }
             return this.mergeCanvases(results);
         }
@@ -1616,7 +1616,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         };
         return this.splitIntoPages(merged);
     }
-    async ensureCompleteness(sourceText, canvas, provider, deadline = Infinity) {
+    async ensureCompleteness(sourceText, canvas, provider, deadline = Infinity, onProgress) {
         try {
             const covered = canvas.pages.flatMap((p) => p.sections).map((s) => {
                 if (s.type === 'table')
@@ -1625,7 +1625,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     return `${s.heading}: ${(s.steps || []).join(' → ')}`;
                 return `${s.heading}: ${(s.bullets || []).join(' ')} ${s.callout} ${s.sticky_note} ${s.mnemonic}`;
             }).join('\n').slice(0, 14000);
-            const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider, deadline);
+            const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider, deadline, onProgress, 'completeness check');
             const missingSections = missing.pages.flatMap((p) => p.sections);
             if (!missingSections.length)
                 return canvas;
@@ -1984,12 +1984,12 @@ let LessonsService = LessonsService_1 = class LessonsService {
             return '';
         }
     }
-    async generateWithProvider(prompt, provider, deadline = Infinity) {
+    async generateWithProvider(prompt, provider, deadline = Infinity, onProgress, label = '') {
         if (!provider.apiKey)
             throw new common_1.ServiceUnavailableException(`No API key for ${provider.providerLabel}.`);
         if (provider.providerKey === 'gemini')
-            return this.generateWithGeminiProvider(prompt, provider, deadline);
-        return this.generateWithChatProvider(prompt, provider, deadline);
+            return this.generateWithGeminiProvider(prompt, provider, deadline, onProgress, label);
+        return this.generateWithChatProvider(prompt, provider, deadline, onProgress, label);
     }
     requestBudget(deadline) {
         const left = deadline - Date.now();
@@ -2006,7 +2006,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         return this.splitIntoPages(this.validate(parsed));
     }
-    async generateWithGeminiProvider(prompt, provider, deadline = Infinity) {
+    async generateWithGeminiProvider(prompt, provider, deadline = Infinity, onProgress, label = '') {
+        const where = label ? `${label} — ` : '';
         const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim()].filter(Boolean)));
         const errors = [];
         let sawTruncation = false;
@@ -2016,6 +2017,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 errors.push('out of time before trying more models');
                 break;
             }
+            const attempt = modelCandidates.indexOf(model) + 1;
+            onProgress?.('model', `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''}, up to ${Math.round(budget / 1000)}s…`);
+            const startedAt = Date.now();
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), budget);
             try {
@@ -2028,14 +2032,17 @@ let LessonsService = LessonsService_1 = class LessonsService {
                     }
                     catch { }
                     errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`);
+                    onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`);
                     continue;
                 }
                 const json = await res.json();
                 const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
                 if (!raw) {
                     errors.push(`${model}: empty`);
+                    onProgress?.('model', `${where}${model} returned nothing \u2014 trying the next model\u2026`);
                     continue;
                 }
+                onProgress?.('model', `${where}${model} replied after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 reading it\u2026`);
                 return this.parseCanvasJson(raw);
             }
             catch (err) {
@@ -2044,10 +2051,13 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 if (err instanceof LessonJsonTruncatedError) {
                     sawTruncation = true;
                     errors.push(`${model}: truncated response`);
+                    onProgress?.('model', `${where}${model} was cut off mid-answer \u2014 trying the next model\u2026`);
                     continue;
                 }
                 const msg = err instanceof Error ? err.message : String(err);
-                errors.push(`${model}: ${msg.includes('abort') || msg.includes('timeout') ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
+                const timedOut = msg.includes('abort') || msg.includes('timeout');
+                errors.push(`${model}: ${timedOut ? `timed out (${Math.round((Date.now() - startedAt) / 1000)}s)` : msg}`);
+                onProgress?.('model', `${where}${model} ${timedOut ? `timed out after ${Math.round((Date.now() - startedAt) / 1000)}s` : 'failed'} \u2014 trying the next model\u2026`);
             }
             finally {
                 clearTimeout(t);
@@ -2057,11 +2067,13 @@ let LessonsService = LessonsService_1 = class LessonsService {
             throw new LessonJsonTruncatedError(errors.join(' | '));
         throw new common_1.ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
     }
-    async generateWithChatProvider(prompt, provider, deadline = Infinity) {
+    async generateWithChatProvider(prompt, provider, deadline = Infinity, onProgress, label = '') {
+        const where = label ? `${label} — ` : '';
         const budget = this.requestBudget(deadline);
         if (budget <= 0) {
             throw new common_1.ServiceUnavailableException('Generation ran out of time before this part could start.');
         }
+        onProgress?.('model', `${where}asking ${provider.model || provider.providerLabel}, up to ${Math.round(budget / 1000)}s…`);
         const ctrl = new AbortController();
         const timeout = setTimeout(() => ctrl.abort(), budget);
         try {

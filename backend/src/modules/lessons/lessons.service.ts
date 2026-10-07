@@ -1696,7 +1696,7 @@ export class LessonsService {
     let canvas: NoteCanvas;
     if (trimmed.length <= CHUNK_LIMIT) {
       onProgress?.('generate', `Writing your lesson with ${provider.providerLabel}…`);
-      canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline);
+      canvas = await this.generateChunkResilient(trimmed, provider, 0, onProgress, deadline, 'your lesson');
     } else {
       const chunks = this.splitSourceIntoChunks(trimmed, CHUNK_LIMIT);
       const canvases: NoteCanvas[] = [];
@@ -1707,14 +1707,14 @@ export class LessonsService {
           );
         }
         onProgress?.('generate', `Writing part ${i + 1} of ${chunks.length}…`);
-        canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline));
+        canvases.push(await this.generateChunkResilient(chunks[i], provider, 0, onProgress, deadline, `part ${i + 1} of ${chunks.length}`));
       }
       canvas = this.mergeCanvases(canvases);
     }
 
     // Item 2 — completeness self-check: ask the model what it left out and append it (best effort).
     onProgress?.('completeness', 'Checking your source for anything the lesson missed…');
-    const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline);
+    const completed = await this.ensureCompleteness(trimmed, canvas, provider, deadline, onProgress);
     // Always renumber last — guarantees flat "1., 2., 3." card numbers no matter
     // which path above produced the canvas, or whether the model followed the
     // numbering instruction exactly.
@@ -1739,9 +1739,10 @@ export class LessonsService {
     depth = 0,
     onProgress?: LessonGenerationProgress,
     deadline = Infinity,
+    label = '',
   ): Promise<NoteCanvas> {
     try {
-      return await this.generateWithProvider(this.buildPrompt(chunkText), provider, deadline);
+      return await this.generateWithProvider(this.buildPrompt(chunkText), provider, deadline, onProgress, label);
     } catch (err) {
       if (
         !(err instanceof LessonJsonTruncatedError)
@@ -1757,7 +1758,7 @@ export class LessonsService {
       for (let i = 0; i < pieces.length; i += 1) {
         if (Date.now() > deadline) throw err; // give up cleanly rather than start another slow attempt
         onProgress?.('split', `Writing piece ${i + 1} of ${pieces.length}…`);
-        results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress, deadline));
+        results.push(await this.generateChunkResilient(pieces[i], provider, depth + 1, onProgress, deadline, `piece ${i + 1} of ${pieces.length}`));
       }
       return this.mergeCanvases(results);
     }
@@ -2272,14 +2273,14 @@ export class LessonsService {
 
   // Ask the model to name anything from the source that the lesson left out, then append it.
   // Best effort: any failure just returns the original canvas — never breaks generation.
-  private async ensureCompleteness(sourceText: string, canvas: NoteCanvas, provider: RuntimeCanvasProvider, deadline = Infinity): Promise<NoteCanvas> {
+  private async ensureCompleteness(sourceText: string, canvas: NoteCanvas, provider: RuntimeCanvasProvider, deadline = Infinity, onProgress?: LessonGenerationProgress): Promise<NoteCanvas> {
     try {
       const covered = canvas.pages.flatMap((p) => p.sections).map((s) => {
         if (s.type === 'table') return `${s.heading}: ${(s.headers || []).join(' | ')} ${(s.rows || []).map((r) => r.join(' | ')).join(' ; ')}`;
         if (s.type === 'flow') return `${s.heading}: ${(s.steps || []).join(' → ')}`;
         return `${s.heading}: ${(s.bullets || []).join(' ')} ${s.callout} ${s.sticky_note} ${s.mnemonic}`;
       }).join('\n').slice(0, 14000);
-      const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider, deadline);
+      const missing = await this.generateWithProvider(this.buildCompletenessPrompt(sourceText, covered), provider, deadline, onProgress, 'completeness check');
       const missingSections = missing.pages.flatMap((p) => p.sections);
       if (!missingSections.length) return canvas;
       return this.mergeCanvases([canvas, missing]);
@@ -2698,10 +2699,12 @@ export class LessonsService {
     prompt: string,
     provider: RuntimeCanvasProvider,
     deadline = Infinity,
+    onProgress?: LessonGenerationProgress,
+    label = '',
   ): Promise<NoteCanvas> {
     if (!provider.apiKey) throw new ServiceUnavailableException(`No API key for ${provider.providerLabel}.`);
-    if (provider.providerKey === 'gemini') return this.generateWithGeminiProvider(prompt, provider, deadline);
-    return this.generateWithChatProvider(prompt, provider, deadline);
+    if (provider.providerKey === 'gemini') return this.generateWithGeminiProvider(prompt, provider, deadline, onProgress, label);
+    return this.generateWithChatProvider(prompt, provider, deadline, onProgress, label);
   }
 
   /// How long one request may take without overrunning the whole generation's
@@ -2734,7 +2737,14 @@ export class LessonsService {
     prompt: string,
     provider: RuntimeCanvasProvider,
     deadline = Infinity,
+    onProgress?: LessonGenerationProgress,
+    label = '',
   ): Promise<NoteCanvas> {
+    // Said before each attempt, not just once at the start: this loop can run
+    // several models back to back, and with one message for the whole thing a
+    // caller has no way to tell a model still thinking from one that has
+    // already failed over twice.
+    const where = label ? `${label} — ` : '';
     const modelCandidates = Array.from(new Set([...GEMINI_MODELS, String(provider.model || getDefaultModelForProvider('gemini')).trim()].filter(Boolean)));
     const errors: string[] = [];
     let sawTruncation = false;
@@ -2743,19 +2753,26 @@ export class LessonsService {
       // than beginning another four-minute wait past the budget.
       const budget = this.requestBudget(deadline);
       if (budget <= 0) { errors.push('out of time before trying more models'); break; }
+      const attempt = modelCandidates.indexOf(model) + 1;
+      onProgress?.('model',
+        `${where}asking ${model}${attempt > 1 ? ` (attempt ${attempt} of ${modelCandidates.length})` : ''}, up to ${Math.round(budget / 1000)}s…`);
+      const startedAt = Date.now();
       const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), budget);
       try {
         const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 16384 }, contents: [{ parts: [{ text: prompt }] }] }) });
-        if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); continue; }
+        if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); onProgress?.('model', `${where}${model} refused (HTTP ${res.status}) \u2014 trying the next model\u2026`); continue; }
         const json = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
         const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
-        if (!raw) { errors.push(`${model}: empty`); continue; }
+        if (!raw) { errors.push(`${model}: empty`); onProgress?.('model', `${where}${model} returned nothing \u2014 trying the next model\u2026`); continue; }
+        onProgress?.('model', `${where}${model} replied after ${Math.round((Date.now() - startedAt) / 1000)}s \u2014 reading it\u2026`);
         return this.parseCanvasJson(raw);
       } catch (err) {
         if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
-        if (err instanceof LessonJsonTruncatedError) { sawTruncation = true; errors.push(`${model}: truncated response`); continue; }
+        if (err instanceof LessonJsonTruncatedError) { sawTruncation = true; errors.push(`${model}: truncated response`); onProgress?.('model', `${where}${model} was cut off mid-answer \u2014 trying the next model\u2026`); continue; }
         const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`${model}: ${msg.includes('abort') || msg.includes('timeout') ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
+        const timedOut = msg.includes('abort') || msg.includes('timeout');
+        errors.push(`${model}: ${timedOut ? `timed out (${Math.round((Date.now() - startedAt) / 1000)}s)` : msg}`);
+        onProgress?.('model', `${where}${model} ${timedOut ? `timed out after ${Math.round((Date.now() - startedAt) / 1000)}s` : 'failed'} \u2014 trying the next model\u2026`);
       } finally { clearTimeout(t); }
     }
     if (sawTruncation) throw new LessonJsonTruncatedError(errors.join(' | '));
@@ -2766,11 +2783,16 @@ export class LessonsService {
     prompt: string,
     provider: RuntimeCanvasProvider,
     deadline = Infinity,
+    onProgress?: LessonGenerationProgress,
+    label = '',
   ): Promise<NoteCanvas> {
+    const where = label ? `${label} — ` : '';
     const budget = this.requestBudget(deadline);
     if (budget <= 0) {
       throw new ServiceUnavailableException('Generation ran out of time before this part could start.');
     }
+    onProgress?.('model',
+      `${where}asking ${provider.model || provider.providerLabel}, up to ${Math.round(budget / 1000)}s…`);
     const ctrl = new AbortController(); const timeout = setTimeout(() => ctrl.abort(), budget);
     try {
       let text = '';

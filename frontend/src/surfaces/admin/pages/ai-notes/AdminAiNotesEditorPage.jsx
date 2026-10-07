@@ -237,6 +237,10 @@ export function AdminAiNotesEditorPage({
   const [sourcePreviewOpen, setSourcePreviewOpen] = useState(false);
   const [rewriteHeading, setRewriteHeading] = useState('');
   const [rewriting, setRewriting] = useState(false);
+  // Ticks while a generation runs. Without a clock a four-minute model call and
+  // a hung request look identical, which is what made a long wait feel like
+  // nothing was happening.
+  const [nowTs, setNowTs] = useState(Date.now());
   const [videoUrl,   setVideoUrl]   = useState('');
   const [noteData,   setNoteData]   = useState(null);
   const [savedData,  setSavedData]  = useState(null);
@@ -508,6 +512,13 @@ export function AdminAiNotesEditorPage({
   // Rewrites ONE card from the lesson's saved source, leaving the rest alone —
   // a lesson that is 90% right no longer costs a full regeneration, and the
   // 90% that was fine does not come back different.
+  useEffect(() => {
+    if (!processing) return undefined;
+    setNowTs(Date.now());
+    const t = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [processing]);
+
   async function handleRewriteSection() {
     if (!rewriteHeading) return;
     setError(''); setRewriting(true);
@@ -1491,13 +1502,30 @@ export function AdminAiNotesEditorPage({
               <div className={editorUi.loadingSpinner}/>
               <p>{processMsg || 'Generating…'}</p>
               {progressLog.length > 0 ? (
-                <ol className={editorUi.progressLogList}>
-                  {progressLog.map((entry, i) => (
-                    <li key={`${entry.at}-${i}`} className={i === progressLog.length - 1 ? editorUi.progressLogCurrent : ''}>
-                      {entry.message}
-                    </li>
-                  ))}
-                </ol>
+                <>
+                  <ol className={editorUi.progressLogList}>
+                    {progressLog.map((entry, i) => {
+                      const last = i === progressLog.length - 1;
+                      // A finished step shows how long it took; the one still
+                      // running counts up, so you can see it is alive.
+                      const endedAt = last ? nowTs : progressLog[i + 1].at;
+                      const secs = Math.max(0, Math.round((endedAt - entry.at) / 1000));
+                      return (
+                        <li key={`${entry.at}-${i}`} className={last ? editorUi.progressLogCurrent : ''}>
+                          {entry.message}
+                          {secs > 0 && (
+                            <span className="ml-1.5 tabular-nums opacity-60">
+                              {last ? `${secs}s…` : `${secs}s`}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  <div className="mt-1.5 text-[11px] tabular-nums opacity-60">
+                    {Math.round((nowTs - progressLog[0].at) / 1000)}s elapsed · the whole run is capped at 6 minutes
+                  </div>
+                </>
               ) : (
                 <span>Connecting…</span>
               )}
