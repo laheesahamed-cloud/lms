@@ -530,11 +530,17 @@ export class LessonsService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
-      // New lessons land at the end of their subject/topic — admin then drags
-      // it into position (e.g. moves "Introduction" up to #1) from the list.
+      // New lessons land at the end of the COURSE — the admin then moves them
+      // into position from the list.
+      //
+      // Scoped to the course, not to the subtopic. sort_order is a flat order
+      // across a course now, so a per-subtopic MAX handed the new lesson a
+      // number another subtopic already held: it would appear somewhere in the
+      // middle of the list, and the duplicate would make the boot-time
+      // flattener think the course still needed converting.
       const [orderRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`,
-        [snapshot.topicId, snapshot.subtopicId || null]
+        `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE course_id <=> ?`,
+        [snapshot.courseId]
       );
       const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
       const [result] = await connection.execute<ResultSetHeader>(

@@ -852,16 +852,43 @@ export class SchemaSyncService implements OnModuleInit {
   /// Renumbering is done in the order the lists CURRENTLY produce, so nothing
   /// appears to move when this first runs; only the ability to reorder changes.
   ///
-  /// Self-guarding, so it costs one cheap query per boot and never clobbers a
-  /// later manual order: it only touches courses that still have duplicate
-  /// sort_order values, and renumbering removes the duplicates.
+  /// Runs exactly ONCE, recorded in system_settings.
+  ///
+  /// The first version guarded itself by looking for duplicate sort_order
+  /// values, on the reasoning that renumbering removes them. That is true but
+  /// not safe: this renumbers in TOPIC order, so if anything ever reintroduced
+  /// a duplicate — a newly created lesson, an import — the next boot would
+  /// re-group the whole course and silently undo exactly the manual arrangement
+  /// the flat order exists to allow. A conversion that destroys hand-placed
+  /// ordering must not be able to run twice.
   private async flattenLessonSortOrder(connection: PoolConnection) {
+    // Ensured here rather than trusted: this step runs unconditionally, while
+    // the table itself is created behind the full schema sync, which prod skips.
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
+        setting_value TEXT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    const [done] = await connection.execute<RowDataPacket[]>(
+      `SELECT setting_value FROM system_settings WHERE setting_key = 'lessons_sort_order_flattened' LIMIT 1`,
+    );
+    if (done.length) return;
+
     const [dupes] = await connection.execute<RowDataPacket[]>(`
       SELECT COALESCE(course_id, 0) AS course_key
       FROM lessons
       GROUP BY COALESCE(course_id, 0), sort_order
       HAVING COUNT(*) > 1`);
     const courseKeys = Array.from(new Set(dupes.map((r) => Number(r.course_key))));
+    // Marked even with nothing to convert — a fresh database is already flat,
+    // and the mark is what stops this looking at the data again.
+    await connection.execute(
+      `INSERT INTO system_settings (setting_key, setting_value) VALUES ('lessons_sort_order_flattened', ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [new Date().toISOString()],
+    );
     if (!courseKeys.length) return;
 
     for (const courseKey of courseKeys) {

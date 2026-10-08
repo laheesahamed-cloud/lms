@@ -246,7 +246,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`, [snapshot.topicId, snapshot.subtopicId || null]);
+            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE course_id <=> ?`, [snapshot.courseId]);
             const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
             const [result] = await connection.execute(`INSERT INTO lessons
           (course_id, topic_id, subtopic_id, lesson_title, lesson_content, video_url, is_free, status, sort_order)

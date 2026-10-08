@@ -742,12 +742,24 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         }
     }
     async flattenLessonSortOrder(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
+        setting_value TEXT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+        const [done] = await connection.execute(`SELECT setting_value FROM system_settings WHERE setting_key = 'lessons_sort_order_flattened' LIMIT 1`);
+        if (done.length)
+            return;
         const [dupes] = await connection.execute(`
       SELECT COALESCE(course_id, 0) AS course_key
       FROM lessons
       GROUP BY COALESCE(course_id, 0), sort_order
       HAVING COUNT(*) > 1`);
         const courseKeys = Array.from(new Set(dupes.map((r) => Number(r.course_key))));
+        await connection.execute(`INSERT INTO system_settings (setting_key, setting_value) VALUES ('lessons_sort_order_flattened', ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`, [new Date().toISOString()]);
         if (!courseKeys.length)
             return;
         for (const courseKey of courseKeys) {
