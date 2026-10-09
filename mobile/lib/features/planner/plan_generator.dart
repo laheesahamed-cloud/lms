@@ -40,6 +40,9 @@ Future<List<int>> generateStudyPlan(
   // then groups them by subject instead of by day. hoursPerDay/untilDate
   // are meaningless in that mode and ignored.
   bool organizeByDay = true,
+  // Called as each task lands, so the screen can count real work instead of
+  // playing a fixed-length animation over an upload of unknown size.
+  void Function(int done, int total)? onProgress,
 }) async {
   final queue = <_PlanItem>[];
 
@@ -132,7 +135,7 @@ Future<List<int>> generateStudyPlan(
         description: item.description,
       ));
     }
-    return Future.wait(creates);
+    return _awaitCounted(creates, onProgress);
   }
 
   // Pack the queue into consecutive days, starting tomorrow, under the
@@ -165,5 +168,26 @@ Future<List<int>> generateStudyPlan(
     ));
   }
 
-  return Future.wait(creates);
+  return _awaitCounted(creates, onProgress);
+}
+
+/// Waits for every create, reporting how many have landed.
+///
+/// The requests are already in flight by the time this is called — attaching a
+/// counter to each one only observes them, so nothing about how they are
+/// issued changes. The total is known up front, which is what lets the screen
+/// say "47 of 180" instead of animating for a fixed 1.8 seconds over an upload
+/// that takes much longer than that.
+Future<List<int>> _awaitCounted(
+  List<Future<int>> creates,
+  void Function(int done, int total)? onProgress,
+) {
+  final total = creates.length;
+  var done = 0;
+  onProgress?.call(0, total);
+  return Future.wait(creates.map((f) => f.then((id) {
+        done += 1;
+        onProgress?.call(done, total);
+        return id;
+      })));
 }

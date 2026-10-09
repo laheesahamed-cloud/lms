@@ -58,6 +58,12 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
     super.dispose();
   }
 
+  // How much of the plan has actually been saved. -1 total means the work has
+  // not reported yet: it is still reading courses and deciding what to
+  // schedule, with no number to show.
+  int _saved = 0;
+  int _toSave = -1;
+
   Future<void> _generate() async {
     if (_selectedCourseIds.isEmpty) return;
     HapticFeedback.mediumImpact();
@@ -73,6 +79,10 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
       hoursPerDay: _hoursPerDay,
       untilDate: _until,
       organizeByDay: _organizeByDay,
+      onProgress: (done, total) {
+        if (!mounted) return;
+        setState(() { _saved = done; _toSave = total; });
+      },
     );
     // Reminder time chosen here feeds the SAME prefs the Planner's own
     // Reminders sheet reads/writes — no separate reminder mechanism.
@@ -80,9 +90,11 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
     await StudyReminders.savePrefs(
         prefs.copyWith(customEnabled: true, customTime: _reminderTime));
 
-    // Let the animation play its minimum length even if generation itself
-    // finishes fast (cached data) — and never dismiss before generation
-    // actually completes if it's slower than the animation.
+    // The delay is a MINIMUM, not a limit: Future.wait returns when the slower
+    // of the two finishes, so a long upload keeps the screen up for as long as
+    // it takes. The animation used to run out after 1.8s and sit frozen on a
+    // green tick while a few hundred tasks were still uploading, which read as
+    // finished-but-stuck; the screen now counts them instead.
     var createdIds = <int>[];
     await Future.wait<void>([
       work.then((ids) => createdIds = ids),
@@ -318,11 +330,38 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
                 opacity: stage(3),
                 child: Column(
                   children: [
-                    Icon(Icons.check_circle_rounded, size: 40, color: c.primary),
-                    const SizedBox(height: 10),
-                    Text('Building your plan…',
+                    // A SPINNER, not a tick. The tick was drawn the moment the
+                    // reveal finished, so the screen announced success while
+                    // the tasks were still being uploaded — the one thing a
+                    // progress screen must never do.
+                    SizedBox(
+                      width: 34,
+                      height: 34,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        // Determinate once the count is known, so a long upload
+                        // shows how far along it is rather than spinning
+                        // forever at the same speed.
+                        value: _toSave > 0 ? (_saved / _toSave).clamp(0.0, 1.0) : null,
+                        valueColor: AlwaysStoppedAnimation(c.primary),
+                        backgroundColor: c.primary.withValues(alpha: 0.16),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                        _toSave > 0
+                            ? 'Saving your plan…'
+                            : 'Building your plan…',
                         style: TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w700, color: c.inkStrong)),
+                    if (_toSave > 0) ...[
+                      const SizedBox(height: 4),
+                      Text('$_saved of $_toSave task${_toSave == 1 ? '' : 's'}',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: c.inkSoft)),
+                    ],
                   ],
                 ),
               ),
