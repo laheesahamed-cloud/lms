@@ -11,6 +11,8 @@ import '../../services/study_reminders.dart';
 import 'add_task_page.dart';
 import 'generate_plan_page.dart';
 import 'planner_repository.dart';
+import '../subscriptions/paywall_sheet.dart';
+import '../subscriptions/subscriptions_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
 
@@ -84,6 +86,12 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   // ── Layout: a central progress hub branching into day (or subject) groups,
   // each branching into swipe-to-complete, shape-identified task cards. ──
   Widget _mindMap(AppColors c, List<PlannerTask> tasks) {
+    // Watched, not stored: billingProvider is kept alive across pages, so it is
+    // usually already resolved and needs no loading state of its own. While it
+    // is still unknown the PRO marker stays hidden, rather than flashing at a
+    // subscriber who simply has not been read back yet.
+    final subscribed =
+        ref.watch(billingProvider).asData?.value.current?.isActive == true;
     final total = tasks.length;
     final doneCount = tasks.where((t) => t.done).length;
 
@@ -171,6 +179,24 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                     ],
                   ),
                 ),
+                // Says it is paid BEFORE the tap. A feature that looks free
+                // and then opens a paywall reads as a trick; a marker on the
+                // card is the honest version of the same gate.
+                if (!subscribed)
+                  Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: c.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('PRO',
+                        style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: c.primary)),
+                  ),
                 Icon(Icons.chevron_right_rounded, size: 20, color: c.inkMuted),
               ],
             ),
@@ -504,6 +530,10 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 
   Future<void> _generatePlan() async {
+    // Generating a plan is a subscriber feature. Adding tasks by hand stays
+    // free — what is being paid for is having the whole course laid out for
+    // you, not the planner itself.
+    if (!await _ensureSubscribed()) return;
     final created = await Navigator.of(context).push<List<int>>(
       CupertinoPageRoute(builder: (_) => const GeneratePlanPage()),
     );
@@ -513,6 +543,32 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     _toast(created.isEmpty
         ? 'Nothing left to schedule for that selection.'
         : 'Added ${created.length} task${created.length == 1 ? '' : 's'} to your planner.');
+  }
+
+  /// True if the student may generate — already subscribed, or subscribed
+  /// just now through the paywall.
+  ///
+  /// Reads the billing state rather than trusting a cached flag, and treats a
+  /// failed read as "not subscribed" so a network error cannot hand out the
+  /// feature. The paywall's own result decides the retry: it returns true only
+  /// when a purchase actually granted access.
+  Future<bool> _ensureSubscribed() async {
+    Billing? billing;
+    try {
+      billing = await ref.read(billingProvider.future);
+    } catch (_) {
+      billing = null;
+    }
+    if (billing?.current?.isActive == true) return true;
+    if (!mounted) return false;
+    final granted = await PaywallSheet.show(context);
+    if (granted == true) {
+      // The purchase changes what the rest of the app may show, so the cached
+      // billing state has to go with it.
+      ref.invalidate(billingProvider);
+      return true;
+    }
+    return false;
   }
 
   Future<void> _showAddSheet() async {
