@@ -243,14 +243,14 @@ let QuizAttemptsService = class QuizAttemptsService {
             questions: practiceQuestions.map((question) => this.mapQuestionForPracticeAttempt(question)),
         };
     }
-    async authorizeQuizForExam(authorization, quizId) {
+    async authorizeQuizForExam(authorization, quizId, appClient) {
         const [user, quiz] = await Promise.all([
             this.requireStudent(authorization),
             this.loadActiveQuiz(quizId),
         ]);
         const isFreeQuiz = Number(quiz.is_free) === 1;
         await Promise.all([
-            this.ensureStudentCanAccessQuiz(user.id, quiz),
+            this.ensureStudentCanAccessQuiz(user.id, quiz, appClient),
             this.ensureStudentCanUseDynamicQuiz(user.id, quiz),
             isFreeQuiz
                 ? Promise.resolve()
@@ -261,8 +261,8 @@ let QuizAttemptsService = class QuizAttemptsService {
         ]);
         return { user, quiz };
     }
-    async saveExamProgress(authorization, quizId, dto) {
-        const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
+    async saveExamProgress(authorization, quizId, dto, appClient) {
+        const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId, appClient);
         const latestSession = await this.getLatestExamSession(user.id, quizId);
         if (latestSession && latestSession.status !== 'in_progress') {
             return {
@@ -316,8 +316,8 @@ let QuizAttemptsService = class QuizAttemptsService {
             secondsRemaining: remainingSeconds,
         };
     }
-    async submitExam(authorization, quizId, dto) {
-        const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
+    async submitExam(authorization, quizId, dto, appClient) {
+        const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId, appClient);
         const examState = await this.ensureExamSession(user.id, quizId, quiz);
         const connection = await this.db.getConnection();
         try {

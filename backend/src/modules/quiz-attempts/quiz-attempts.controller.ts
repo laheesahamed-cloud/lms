@@ -28,22 +28,29 @@ export class QuizAttemptsController {
     return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null, appClient);
   }
 
+  // x-app-client is forwarded here for the same reason loadQuiz forwards it:
+  // the access check treats a premium quiz as app-only, and a request without
+  // the header looks like the website. Omitting it meant a student could open
+  // and sit an exam in the app and then be refused at the very end — a 403 on
+  // submit, with the answers still unsaved.
   @Post('exam/:quizId/submit')
   submitExam(
     @Param('quizId', ParseIntPipe) quizId: number,
     @Headers('authorization') authorization: string | undefined,
-    @Body() submitExamDto: SubmitExamDto
+    @Body() submitExamDto: SubmitExamDto,
+    @Headers('x-app-client') appClient?: string
   ) {
-    return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto);
+    return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto, appClient);
   }
 
   @Post('exam/:quizId/save')
   saveExamProgress(
     @Param('quizId', ParseIntPipe) quizId: number,
     @Headers('authorization') authorization: string | undefined,
-    @Body() saveExamProgressDto: SaveExamProgressDto
+    @Body() saveExamProgressDto: SaveExamProgressDto,
+    @Headers('x-app-client') appClient?: string
   ) {
-    return this.quizAttemptsService.saveExamProgress(authorization, quizId, saveExamProgressDto);
+    return this.quizAttemptsService.saveExamProgress(authorization, quizId, saveExamProgressDto, appClient);
   }
 
   @Get('result/:attemptId')

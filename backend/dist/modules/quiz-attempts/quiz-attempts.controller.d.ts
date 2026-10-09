@@ -195,11 +195,11 @@ export declare class QuizAttemptsController {
         }[];
         examSession?: undefined;
     }>;
-    submitExam(quizId: number, authorization: string | undefined, submitExamDto: SubmitExamDto): Promise<{
+    submitExam(quizId: number, authorization: string | undefined, submitExamDto: SubmitExamDto, appClient?: string): Promise<{
         success: boolean;
         attemptId: number;
     }>;
-    saveExamProgress(quizId: number, authorization: string | undefined, saveExamProgressDto: SaveExamProgressDto): Promise<{
+    saveExamProgress(quizId: number, authorization: string | undefined, saveExamProgressDto: SaveExamProgressDto, appClient?: string): Promise<{
         success: boolean;
         submitted: boolean;
         attemptId: number | null;

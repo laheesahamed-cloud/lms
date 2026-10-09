@@ -30,11 +30,11 @@ let QuizAttemptsController = class QuizAttemptsController {
     loadQuiz(quizId, mode, questionId, authorization, appClient) {
         return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null, appClient);
     }
-    submitExam(quizId, authorization, submitExamDto) {
-        return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto);
+    submitExam(quizId, authorization, submitExamDto, appClient) {
+        return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto, appClient);
     }
-    saveExamProgress(quizId, authorization, saveExamProgressDto) {
-        return this.quizAttemptsService.saveExamProgress(authorization, quizId, saveExamProgressDto);
+    saveExamProgress(quizId, authorization, saveExamProgressDto, appClient) {
+        return this.quizAttemptsService.saveExamProgress(authorization, quizId, saveExamProgressDto, appClient);
     }
     result(attemptId, authorization) {
         return this.quizAttemptsService.result(authorization, attemptId);
@@ -77,8 +77,9 @@ __decorate([
     __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Headers)('authorization')),
     __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, submit_exam_dto_1.SubmitExamDto]),
+    __metadata("design:paramtypes", [Number, Object, submit_exam_dto_1.SubmitExamDto, String]),
     __metadata("design:returntype", void 0)
 ], QuizAttemptsController.prototype, "submitExam", null);
 __decorate([
@@ -86,8 +87,9 @@ __decorate([
     __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Headers)('authorization')),
     __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, save_exam_progress_dto_1.SaveExamProgressDto]),
+    __metadata("design:paramtypes", [Number, Object, save_exam_progress_dto_1.SaveExamProgressDto, String]),
     __metadata("design:returntype", void 0)
 ], QuizAttemptsController.prototype, "saveExamProgress", null);
 __decorate([

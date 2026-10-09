@@ -202,7 +202,7 @@ export declare class QuizAttemptsService {
         examSession?: undefined;
     }>;
     private authorizeQuizForExam;
-    saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto): Promise<{
+    saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto, appClient?: string): Promise<{
         success: boolean;
         submitted: boolean;
         attemptId: number | null;
@@ -227,7 +227,7 @@ export declare class QuizAttemptsService {
         attemptId?: undefined;
         timeExpired?: undefined;
     }>;
-    submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto): Promise<{
+    submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto, appClient?: string): Promise<{
         success: boolean;
         attemptId: number;
     }>;

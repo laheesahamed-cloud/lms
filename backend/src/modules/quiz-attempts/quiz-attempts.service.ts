@@ -440,14 +440,17 @@ export class QuizAttemptsService {
   // requireStudent and loadActiveQuiz are independent; the three checks each depend
   // only on (user, quiz) and not on each other — so two parallel waves replace the
   // ~5 serial round-trips that otherwise dominate exam submit/save on shared hosting.
-  private async authorizeQuizForExam(authorization: string | undefined, quizId: number) {
+  private async authorizeQuizForExam(authorization: string | undefined, quizId: number, appClient?: string) {
     const [user, quiz] = await Promise.all([
       this.requireStudent(authorization),
       this.loadActiveQuiz(quizId),
     ]);
     const isFreeQuiz = Number(quiz.is_free) === 1;
     await Promise.all([
-      this.ensureStudentCanAccessQuiz(user.id, quiz),
+      // Passed through, exactly as loadQuiz does. Dropping it here made every
+      // exam write look like a website request, so a premium exam could be
+      // started but never saved or submitted.
+      this.ensureStudentCanAccessQuiz(user.id, quiz, appClient),
       this.ensureStudentCanUseDynamicQuiz(user.id, quiz),
       isFreeQuiz
         ? Promise.resolve()
@@ -458,8 +461,8 @@ export class QuizAttemptsService {
     return { user, quiz };
   }
 
-  async saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto) {
-    const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
+  async saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto, appClient?: string) {
+    const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId, appClient);
 
     const latestSession = await this.getLatestExamSession(user.id, quizId);
     if (latestSession && latestSession.status !== 'in_progress') {
@@ -522,8 +525,8 @@ export class QuizAttemptsService {
     };
   }
 
-  async submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto) {
-    const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
+  async submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto, appClient?: string) {
+    const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId, appClient);
     const examState = await this.ensureExamSession(user.id, quizId, quiz);
 
     const connection = await this.db.getConnection();
