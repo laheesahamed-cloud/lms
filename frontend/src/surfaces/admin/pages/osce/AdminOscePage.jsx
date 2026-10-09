@@ -25,6 +25,7 @@ const SHORT_TABS = [
   ['chain', 'Pathophysiology'],
   ['ix', 'Investigations'],
   ['sounds', 'Sounds'],
+  ['treatment', 'Treatment'],
   ['practice', 'Practice'],
   ['summary', 'Summary'],
   ['links', 'Links'],
@@ -36,6 +37,7 @@ const LONG_TABS = [
   ['preview', 'Preview'],
   ['history', 'History'],
   ['images', 'Cover'],
+  ['treatment', 'Treatment'],
   ['practice', 'Practice'],
   ['links', 'Links'],
 ];
@@ -552,6 +554,52 @@ function CaseEditor({ caseId, onBack, onChanged }) {
             }
           }}
         />
+      ) : null}
+
+      {tab === 'treatment' ? (
+        <div className="osce-list">
+          <p className="osce-hint">
+            What you do about it, in the order you would do it. Group by phase —
+            Immediate, Definitive, Long-term — so a student reads what comes
+            first rather than a flat list of everything. On a long case this sits
+            after &ldquo;Initial management&rdquo;, which stays the first steps at
+            the bedside.
+          </p>
+          {(doc.treatment || []).map((group, i) => (
+            <div key={i} className="osce-card">
+              <div className="osce-card-head">
+                <input className="osce-input osce-input--title" value={group.group}
+                       placeholder="Immediate"
+                       onChange={(e) => {
+                         const next = (doc.treatment || []).map((g, j) => (j === i ? { ...g, group: e.target.value } : g));
+                         patchDoc({ treatment: next });
+                       }} />
+                <button type="button" className="osce-btn-danger"
+                        onClick={() => patchDoc({ treatment: (doc.treatment || []).filter((_, j) => j !== i) })}>
+                  Remove
+                </button>
+              </div>
+              {(group.items || []).map((item, k) => (
+                <TextRow key={k} value={item} placeholder="High-flow oxygen, sit upright"
+                         onChange={(v) => {
+                           const next = (doc.treatment || []).map((g, j) => (j === i ? { ...g, items: (g.items || []).map((y, z) => (z === k ? v : y)) } : g));
+                           patchDoc({ treatment: next });
+                         }}
+                         onRemove={() => {
+                           const next = (doc.treatment || []).map((g, j) => (j === i ? { ...g, items: (g.items || []).filter((_, z) => z !== k) } : g));
+                           patchDoc({ treatment: next });
+                         }} />
+              ))}
+              <button type="button" className="osce-add osce-add--sm" onClick={() => {
+                const next = (doc.treatment || []).map((g, j) => (j === i ? { ...g, items: [...(g.items || []), ''] } : g));
+                patchDoc({ treatment: next });
+              }}>+ Step</button>
+            </div>
+          ))}
+          <button type="button" className="osce-add" onClick={() => patchDoc({
+            treatment: [...(doc.treatment || []), { group: '', items: [''] }],
+          })}>+ Group</button>
+        </div>
       ) : null}
 
       {tab === 'practice' ? (

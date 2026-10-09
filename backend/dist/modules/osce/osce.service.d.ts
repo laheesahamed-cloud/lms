@@ -81,6 +81,10 @@ export interface CaseDocument {
             to: number;
         }>;
     };
+    treatment?: Array<{
+        group: string;
+        items: string[];
+    }>;
     related?: Array<{
         rel: 'cause' | 'complication' | 'differential';
         case: string;
@@ -645,6 +649,10 @@ export declare class OsceService {
                 osceTips?: string[];
             };
             version: number;
+            treatment?: Array<{
+                group: string;
+                items: string[];
+            }>;
             practice: {
                 checklist: Array<{
                     section: string;

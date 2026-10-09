@@ -360,6 +360,10 @@ export declare class OsceAdminController {
                 osceTips?: string[];
             };
             version: number;
+            treatment?: Array<{
+                group: string;
+                items: string[];
+            }>;
             practice: {
                 checklist: Array<{
                     section: string;

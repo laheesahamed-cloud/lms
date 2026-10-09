@@ -85,6 +85,7 @@ const EMPTY_DOC = {
     investigations: [],
     sounds: [],
     summary: {},
+    treatment: [],
     related: [],
     practice: { checklist: [], questions: [] },
 };

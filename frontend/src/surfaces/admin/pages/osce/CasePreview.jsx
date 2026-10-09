@@ -15,6 +15,9 @@ const STEPS = [
   ['exam', 'Exam', 'Examine the patient'],
   ['chain', 'Mechanism', 'How it happens'],
   ['ix', 'Ix', 'Investigations'],
+  // After the investigations and before the summary — you decide what to do
+  // once you know what it is, and before you pull the case together.
+  ['treatment', 'Treatment', 'What you do about it'],
   ['summary', 'Summary', 'Pull it together'],
   ['practice', 'OSCE', 'Practise the station'],
 ];
@@ -271,6 +274,21 @@ export function CasePreview({ caseId, reloadKey }) {
                 <ul>{(doc.summary?.keyPoints || []).map((k, i) => <li key={i}>{k}</li>)}</ul>
                 <b className="osce-pv-h">OSCE tips</b>
                 <ul>{(doc.summary?.osceTips || []).map((k, i) => <li key={i}>{k}</li>)}</ul>
+              </>
+            ) : null}
+
+            {step === 'treatment' ? (
+              <>
+                <p className="osce-pv-purpose">What you do about it, in the order you do it.</p>
+                {(doc.treatment || []).length === 0 ? (
+                  <p className="osce-hint osce-hint--muted">No treatment written for this case yet.</p>
+                ) : null}
+                {(doc.treatment || []).map((group, i) => (
+                  <div key={i}>
+                    <b className="osce-pv-h">{group.group || 'Management'}</b>
+                    <ul>{(group.items || []).map((it, k) => <li key={k}>{it}</li>)}</ul>
+                  </div>
+                ))}
               </>
             ) : null}
 

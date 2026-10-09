@@ -68,6 +68,13 @@ export interface CaseDocument {
     // from = a sign id, to = a chain step number.
     connect?: Array<{ from: string; to: number }>;
   };
+  // What you actually DO about it — the step every case was missing.
+  //
+  // Grouped rather than one flat list, because management is taught and
+  // examined in phases ("Immediate", "Definitive", "Long-term") and a single
+  // run of bullets loses the thing that matters: what comes first. Same shape
+  // as practice.checklist, which already has an editor and a renderer.
+  treatment?: Array<{ group: string; items: string[] }>;
   related?: Array<{ rel: 'cause' | 'complication' | 'differential'; case: string; note?: string }>;
   practice: {
     checklist: Array<{ section: string; items: string[] }>;
@@ -172,6 +179,7 @@ const EMPTY_DOC: CaseDocument = {
   investigations: [],
   sounds: [],
   summary: {},
+  treatment: [],
   related: [],
   practice: { checklist: [], questions: [] },
 };

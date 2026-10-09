@@ -215,6 +215,10 @@ export declare class OsceController {
                 osceTips?: string[];
             };
             version: number;
+            treatment?: Array<{
+                group: string;
+                items: string[];
+            }>;
             practice: {
                 checklist: Array<{
                     section: string;

@@ -12,12 +12,13 @@ import 'widgets/zoomable_hotspot_image.dart';
 import 'widgets/osce_practice.dart';
 import 'widgets/osce_media_view.dart';
 
-enum _Stop { exam, chain, investigations, summary, practice }
+enum _Stop { exam, chain, investigations, treatment, summary, practice }
 
 const _stopLabels = {
   _Stop.exam: 'EXAM',
   _Stop.chain: 'MECHANISM',
   _Stop.investigations: 'IX',
+  _Stop.treatment: 'TREAT',
   _Stop.summary: 'SUMMARY',
   _Stop.practice: 'OSCE',
 };
@@ -28,6 +29,7 @@ const _stopTitles = {
   _Stop.exam: 'Examine the patient',
   _Stop.chain: 'How it happens',
   _Stop.investigations: 'Investigations',
+  _Stop.treatment: 'What you do about it',
   _Stop.summary: 'Pull it together',
   _Stop.practice: 'Practise the station',
 };
@@ -36,6 +38,7 @@ const _stopPurpose = {
   _Stop.exam: 'Work head to toe. Tap each finding to examine it properly.',
   _Stop.chain: 'Follow the mechanism from cause to the signs you just found.',
   _Stop.investigations: 'Read each investigation and name the findings.',
+  _Stop.treatment: 'Now you know what it is — what you do, in the order you do it.',
   _Stop.summary: 'The points an examiner is listening for.',
   _Stop.practice: 'Tick off the examination, then answer the viva questions.',
 };
@@ -118,6 +121,7 @@ class _OsceCasePageState extends ConsumerState<OsceCasePage> {
         if (kase.scenes.isNotEmpty) _Stop.exam,
         if (kase.chain.isNotEmpty) _Stop.chain,
         if (kase.investigations.isNotEmpty) _Stop.investigations,
+        if (kase.treatment.isNotEmpty) _Stop.treatment,
         if (kase.keyPoints.isNotEmpty || kase.osceTips.isNotEmpty || kase.related.isNotEmpty)
           _Stop.summary,
         if (kase.checklist.isNotEmpty || kase.questions.isNotEmpty) _Stop.practice,
@@ -146,6 +150,9 @@ class _OsceCasePageState extends ConsumerState<OsceCasePage> {
       case _Stop.investigations:
         return _InvestigationsStop(
             kase: kase, purpose: _stopPurpose[_Stop.investigations]!, nextStep: nextButton);
+      case _Stop.treatment:
+        return _TreatmentStop(
+            kase: kase, purpose: _stopPurpose[_Stop.treatment]!, nextStep: nextButton);
       case _Stop.summary:
         return _SummaryStop(
             kase: kase, purpose: _stopPurpose[_Stop.summary]!, nextStep: nextButton);
@@ -1139,6 +1146,41 @@ void _openConnectSign(BuildContext context, OsceCase kase, String signId) {
       sound: kase.sounds.isEmpty ? null : kase.sounds.first,
     ),
   ));
+}
+
+/// Management, one panel per phase, in the order the author wrote them.
+///
+/// Grouped rather than one long list because the phase IS the teaching point:
+/// what you do in the first five minutes is not what you do on discharge, and
+/// an examiner asks for them in that order.
+class _TreatmentStop extends StatelessWidget {
+  final OsceCase kase;
+  final String purpose;
+  final Widget? nextStep;
+  const _TreatmentStop({required this.kase, required this.purpose, this.nextStep});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final groups = kase.treatment.where((g) => g.items.isNotEmpty).toList();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      children: [
+        _Purpose(purpose),
+        for (var i = 0; i < groups.length; i++) ...[
+          _Panel(
+            // An unnamed group still needs a heading, or its steps read as a
+            // continuation of the panel above.
+            title: groups[i].group.isNotEmpty ? groups[i].group : 'Management',
+            tint: c.primary,
+            items: groups[i].items,
+          ),
+          if (i < groups.length - 1) const SizedBox(height: 12),
+        ],
+        ?nextStep,
+      ],
+    );
+  }
 }
 
 class _SummaryStop extends StatelessWidget {

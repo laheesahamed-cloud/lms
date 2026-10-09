@@ -495,6 +495,55 @@ class _Wrap extends StatelessWidget {
             ),
         ],
 
+        // Management belongs at the end of a long case, after the history has
+        // actually led somewhere — same content as a short case's treatment
+        // stop, laid out inline because a long case is one continuous read
+        // rather than a set of stops.
+        if (kase.treatment.any((g) => g.items.isNotEmpty)) ...[
+          const SizedBox(height: 18),
+          Divider(color: c.line, height: 1),
+          const SizedBox(height: 18),
+          Text('TREATMENT',
+              style: TextStyle(
+                  fontSize: 10.5,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w800,
+                  color: c.accent)),
+          const SizedBox(height: 4),
+          Text('Beyond the first steps — the plan, by phase.',
+              style: TextStyle(fontSize: 12.5, height: 1.5, color: c.inkSoft)),
+          const SizedBox(height: 14),
+          for (final group in kase.treatment.where((g) => g.items.isNotEmpty)) ...[
+            Text(group.group.isNotEmpty ? group.group : 'Management',
+                style: TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w800, color: c.inkStrong)),
+            const SizedBox(height: 6),
+            for (final item in group.items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 7, right: 9),
+                      child: Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(item,
+                          style: TextStyle(
+                              fontSize: 13.5, height: 1.5, color: c.inkMedium)),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 10),
+          ],
+        ],
+
         // The history is only half the station — the checklist and viva are how
         // you rehearse it, same as a short case.
         if (kase.checklist.isNotEmpty || kase.questions.isNotEmpty) ...[

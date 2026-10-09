@@ -67,6 +67,7 @@ Return ONLY JSON, no prose, no code fences:
   "differentials": [ { "diagnosis": "Most likely first", "supporting": "What in the history points here",
                        "against": "What argues against it" } ],
   "initialManagement": ["Short, ordered first steps"],
+  "treatment": [ { "group": "Immediate | Definitive | Long-term", "items": ["One management step"] } ],
   "summaryBlock": { "keyPoints": ["..."], "osceTips": ["..."] },
   "practice": {
     "checklist": [ { "section": "introduction | presenting-complaint | systemic-review | past-medical | past-surgical | drugs-allergies | family-social",
@@ -128,6 +129,12 @@ ${notes ? `\nAdditional instructions from the author: ${notes}` : ''}`;
                 osceTips: (parsed?.summaryBlock?.osceTips || []).map((t) => String(t)),
                 connect: [],
             },
+            treatment: (Array.isArray(parsed?.treatment) ? parsed.treatment : [])
+                .map((g) => ({
+                group: String(g?.group || ''),
+                items: Array.isArray(g?.items) ? g.items.map((i) => String(i)) : [],
+            }))
+                .filter((g) => g.items.length),
             related: [],
             practice: {
                 checklist: (Array.isArray(parsed?.practice?.checklist) ? parsed.practice.checklist : [])
@@ -257,6 +264,7 @@ Return ONLY JSON matching this schema — no prose, no code fences:
     "osceTips": ["..."],
     "connect": [ { "from": "malar-flush", "to": 2 } ]
   },
+  "treatment": [ { "group": "Immediate | Definitive | Long-term", "items": ["One management step"] } ],
   "related": [ { "rel": "cause | complication | differential", "case": "kebab-case-name", "note": "short" } ],
   "practice": {
     "checklist": [ { "section": "history | general | system_exam | investigations | diagnosis",
@@ -407,6 +415,12 @@ ${notes ? `\nAdditional instructions from the author: ${notes}` : ''}`;
                     ? parsed.summaryBlock.osceTips.map((t) => String(t)) : [],
                 connect,
             },
+            treatment: (Array.isArray(parsed?.treatment) ? parsed.treatment : [])
+                .map((g) => ({
+                group: String(g?.group || ''),
+                items: Array.isArray(g?.items) ? g.items.map((i) => String(i)) : [],
+            }))
+                .filter((g) => g.items.length),
             related: (Array.isArray(parsed?.related) ? parsed.related : []).map((r) => ({
                 rel: ['cause', 'complication', 'differential'].includes(String(r?.rel)) ? r.rel : 'differential',
                 case: slug(r?.case),

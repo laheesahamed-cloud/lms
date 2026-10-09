@@ -418,6 +418,20 @@ class OsceChecklistSection {
   }
 }
 
+/// One phase of management — "Immediate", "Definitive" — and its steps.
+class OsceTreatmentGroup {
+  final String group;
+  final List<String> items;
+  OsceTreatmentGroup({required this.group, required this.items});
+  factory OsceTreatmentGroup.fromJson(dynamic raw) {
+    final m = _m(raw);
+    return OsceTreatmentGroup(
+      group: _s(m['group']),
+      items: _l(m['items']).map(_s).toList(),
+    );
+  }
+}
+
 class OsceQuestion {
   final String q;
   final String a;
@@ -460,6 +474,7 @@ class OsceCase {
   final List<String> osceTips;
   final List<OsceConnectStep> connect;
   final List<OsceRelated> related;
+  final List<OsceTreatmentGroup> treatment;
   final List<OsceChecklistSection> checklist;
   final List<OsceQuestion> questions;
 
@@ -478,6 +493,7 @@ class OsceCase {
     required this.osceTips,
     required this.connect,
     required this.related,
+    required this.treatment,
     required this.checklist,
     required this.questions,
   });
@@ -502,6 +518,7 @@ class OsceCase {
       osceTips: _l(summaryBlock['osceTips']).map(_s).toList(),
       connect: _l(summaryBlock['graph']).map(OsceConnectStep.fromJson).toList(),
       related: _l(doc['related']).map(OsceRelated.fromJson).toList(),
+      treatment: _l(doc['treatment']).map(OsceTreatmentGroup.fromJson).toList(),
       checklist: _l(practice['checklist']).map(OsceChecklistSection.fromJson).toList(),
       questions: _l(practice['questions']).map(OsceQuestion.fromJson).toList(),
     );
@@ -636,7 +653,10 @@ class OsceLongCase {
   final OsceCast cast;
   final List<OsceHistorySection> sections;
   final List<OsceDifferential> differentials;
+  // The first steps at the bedside. `treatment` below is the rest of the plan,
+  // grouped by phase — they are different questions, not duplicates.
   final List<String> initialManagement;
+  final List<OsceTreatmentGroup> treatment;
   final List<OsceChecklistSection> checklist;
   final List<OsceQuestion> questions;
   final List<OsceRelated> related;
@@ -651,6 +671,7 @@ class OsceLongCase {
     required this.sections,
     required this.differentials,
     required this.initialManagement,
+    required this.treatment,
     required this.checklist,
     required this.questions,
     required this.related,
@@ -670,6 +691,7 @@ class OsceLongCase {
       sections: _l(doc['sections']).map(OsceHistorySection.fromJson).toList(),
       differentials: _l(doc['differentials']).map(OsceDifferential.fromJson).toList(),
       initialManagement: _l(doc['initialManagement']).map(_s).toList(),
+      treatment: _l(doc['treatment']).map(OsceTreatmentGroup.fromJson).toList(),
       checklist: _l(practice['checklist']).map(OsceChecklistSection.fromJson).toList(),
       questions: _l(practice['questions']).map(OsceQuestion.fromJson).toList(),
       related: _l(doc['related']).map(OsceRelated.fromJson).toList(),
