@@ -56,6 +56,9 @@ let WorkspaceController = class WorkspaceController {
     createPlannerTask(authorization, body) {
         return this.workspaceService.createPlannerTask(authorization, body);
     }
+    createPlannerTasksBulk(authorization, body) {
+        return this.workspaceService.createPlannerTasksBulk(authorization, body);
+    }
     updatePlannerTask(authorization, id, body) {
         return this.workspaceService.updatePlannerTask(authorization, id, body);
     }
@@ -180,6 +183,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], WorkspaceController.prototype, "createPlannerTask", null);
+__decorate([
+    (0, common_1.Post)('study-planner/bulk'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], WorkspaceController.prototype, "createPlannerTasksBulk", null);
 __decorate([
     (0, common_1.Patch)('study-planner/:id'),
     __param(0, (0, common_1.Headers)('authorization')),

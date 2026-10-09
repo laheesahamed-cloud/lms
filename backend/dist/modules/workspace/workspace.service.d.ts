@@ -1,5 +1,6 @@
 import { Pool } from 'mysql2/promise';
 import { AuthService } from '../auth/auth.service';
+import { PlansService } from '../plans/plans.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 type AdminReportFilterInput = {
     startDate?: string;
@@ -33,8 +34,9 @@ type PlannerTaskPriority = 'low' | 'medium' | 'high';
 export declare class WorkspaceService {
     private readonly db;
     private readonly authService;
+    private readonly plansService;
     private readonly pushNotificationsService;
-    constructor(db: Pool, authService: AuthService, pushNotificationsService: PushNotificationsService);
+    constructor(db: Pool, authService: AuthService, plansService: PlansService, pushNotificationsService: PushNotificationsService);
     listAdminAnnouncements(authorization?: string): Promise<{
         id: number;
         title: string;
@@ -134,6 +136,10 @@ export declare class WorkspaceService {
     createPlannerTask(authorization: string | undefined, input: any): Promise<{
         ok: boolean;
         id: number;
+    }>;
+    createPlannerTasksBulk(authorization: string | undefined, input: any): Promise<{
+        ok: boolean;
+        ids: number[];
     }>;
     updatePlannerTask(authorization: string | undefined, id: number, input: any): Promise<{
         ok: boolean;

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/api_client.dart';
 import '../courses/courses_repository.dart';
 import '../flashcards/flashcards_repository.dart';
 import '../quizzes/quizzes_repository.dart';
@@ -120,22 +121,25 @@ Future<List<int>> generateStudyPlan(
   }
 
   final api = ref.read(plannerApiProvider);
-  final creates = <Future<int>>[];
+  // Built as DATA first, then sent in one request. This list used to be
+  // futures: every task was POSTed separately and all of them at once, which
+  // is what put a few hundred simultaneous requests on an eight-connection
+  // pool and made a half-created plan possible.
+  final creates = <NewPlannerTask>[];
 
   if (!organizeByDay) {
     // No day packing at all — every item goes straight in with no due date.
     // The Planner then falls back to grouping by subject (item.description)
     // since there's no date to branch on.
     for (final item in queue) {
-      creates.add(createPlannerTask(
-        api,
+      creates.add(NewPlannerTask(
         title: item.title,
         dueDate: null,
         category: item.category,
         description: item.description,
       ));
     }
-    return _awaitCounted(creates, onProgress);
+    return _send(api, creates, onProgress);
   }
 
   // Pack the queue into consecutive days, starting tomorrow, under the
@@ -159,8 +163,7 @@ Future<List<int>> generateStudyPlan(
 
     final dueStr =
         '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-    creates.add(createPlannerTask(
-      api,
+    creates.add(NewPlannerTask(
       title: item.title,
       dueDate: dueStr,
       category: item.category,
@@ -168,26 +171,41 @@ Future<List<int>> generateStudyPlan(
     ));
   }
 
-  return _awaitCounted(creates, onProgress);
+  return _send(api, creates, onProgress);
 }
 
-/// Waits for every create, reporting how many have landed.
+/// Sends the plan — one request, with the old path kept as a fallback.
 ///
-/// The requests are already in flight by the time this is called — attaching a
-/// counter to each one only observes them, so nothing about how they are
-/// issued changes. The total is known up front, which is what lets the screen
-/// say "47 of 180" instead of animating for a fixed 1.8 seconds over an upload
-/// that takes much longer than that.
-Future<List<int>> _awaitCounted(
-  List<Future<int>> creates,
+/// The app and the backend are deployed separately here, so a phone can be
+/// newer than the server it talks to. If the bulk endpoint is not there yet
+/// the plan still gets created the slow way rather than failing in front of
+/// the student; that path reports each task as it lands, which is the only
+/// case where the progress count moves gradually.
+Future<List<int>> _send(
+  ApiClient api,
+  List<NewPlannerTask> tasks,
   void Function(int done, int total)? onProgress,
-) {
-  final total = creates.length;
-  var done = 0;
+) async {
+  if (tasks.isEmpty) return const [];
+  final total = tasks.length;
   onProgress?.call(0, total);
-  return Future.wait(creates.map((f) => f.then((id) {
-        done += 1;
-        onProgress?.call(done, total);
-        return id;
-      })));
+  try {
+    final ids = await createPlannerTasksBulk(api, tasks);
+    onProgress?.call(total, total);
+    return ids;
+  } on PlannerBulkUnsupported {
+    var done = 0;
+    return Future.wait(tasks.map((t) => createPlannerTask(
+          api,
+          title: t.title,
+          dueDate: t.dueDate,
+          category: t.category,
+          priority: t.priority,
+          description: t.description,
+        ).then((id) {
+          done += 1;
+          onProgress?.call(done, total);
+          return id;
+        })));
+  }
 }

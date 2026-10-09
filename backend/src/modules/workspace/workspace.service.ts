@@ -4,7 +4,13 @@ import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { allowedSqlFragment } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
+import { PlansService } from '../plans/plans.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+
+/// Ceiling on one generated plan. A plan covering every course is in the low
+/// hundreds of items; this is clear of that and still stops a single request
+/// becoming an unbounded insert.
+const MAX_BULK_PLANNER_TASKS = 600;
 
 type AdminReportFilterInput = {
   startDate?: string;
@@ -84,6 +90,7 @@ export class WorkspaceService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly authService: AuthService,
+    private readonly plansService: PlansService,
     private readonly pushNotificationsService: PushNotificationsService
   ) {}
 
@@ -452,6 +459,78 @@ export class WorkspaceService {
       [student.id, title, description, dueDate, category, priority, estimatedMinutes]
     );
     return { ok: true, id: result.insertId };
+  }
+
+  /// Creates a whole generated plan in ONE request.
+  ///
+  /// The app used to POST one task per item, all at once — a few hundred
+  /// simultaneous requests from a single phone against a pool of eight
+  /// connections, which queued everyone else behind it and could leave half a
+  /// plan behind if the connection dropped part way. One statement in one
+  /// transaction replaces all of that: it is all-or-nothing, and it holds one
+  /// connection instead of fighting for every one of them.
+  ///
+  /// This is also the only place generation can be gated. The planning itself
+  /// runs on the device, and a single hand-added task is free, so the server
+  /// cannot tell a generated task from a manual one on the per-task endpoint —
+  /// but nothing except generation calls this.
+  async createPlannerTasksBulk(authorization: string | undefined, input: any) {
+    const student = await this.authService.requireStudent(authorization);
+    if (!(await this.plansService.hasFeatureAccess(student.id, 'study_plan_generator'))) {
+      throw new ForbiddenException('Generating a study plan is included with a subscription.');
+    }
+
+    const raw = Array.isArray(input?.tasks) ? input.tasks : null;
+    if (!raw || !raw.length) throw new BadRequestException('No tasks to create');
+    // Capped so one request cannot be turned into an unbounded insert. A real
+    // plan over every course is in the low hundreds; this is well clear of
+    // that and still bounded.
+    if (raw.length > MAX_BULK_PLANNER_TASKS) {
+      throw new BadRequestException(
+        `A plan can create at most ${MAX_BULK_PLANNER_TASKS} tasks at once.`,
+      );
+    }
+
+    // Validated BEFORE the insert, every row, so a bad item fails the request
+    // rather than writing the rows before it and stopping half way.
+    const rows = raw.map((task: any) => [
+      student.id,
+      this.requiredString(task?.title, 'Task title'),
+      this.optionalString(task?.description),
+      this.optionalDate(task?.dueDate),
+      this.normalizePlannerTaskCategory(task?.category),
+      this.normalizePlannerTaskPriority(task?.priority),
+      this.optionalPlannerEstimatedMinutes(task?.estimatedMinutes),
+    ]);
+
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      // status is written explicitly, as the single-task insert does, rather
+      // than left to the column default — the two paths should not diverge if
+      // that default ever changes.
+      const placeholders = rows.map(() => "(?, ?, ?, ?, 'todo', ?, ?, ?)").join(', ');
+      const [result] = await connection.query<ResultSetHeader>(
+        `INSERT INTO study_planner_tasks
+           (user_id, title, description, due_date, status, category, priority, estimated_minutes)
+         VALUES ${placeholders}`,
+        rows.flat()
+      );
+      await connection.commit();
+      // A single multi-row INSERT gets a consecutive block of auto-increment
+      // ids, and insertId is the first of them — so the caller can badge the
+      // tasks it just made without reading them back.
+      const firstId = Number(result.insertId);
+      return {
+        ok: true,
+        ids: Array.from({ length: rows.length }, (_, i) => firstId + i),
+      };
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async updatePlannerTask(authorization: string | undefined, id: number, input: any) {

@@ -18,7 +18,9 @@ const node_crypto_1 = require("node:crypto");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
+const plans_service_1 = require("../plans/plans.service");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
+const MAX_BULK_PLANNER_TASKS = 600;
 const PLANNER_TASK_CATEGORIES = ['general', 'lesson', 'quiz', 'exam', 'review', 'flashcards'];
 const PLANNER_TASK_PRIORITIES = ['low', 'medium', 'high'];
 const ADMIN_REPORT_FILTER_COLUMNS = [
@@ -39,9 +41,10 @@ const ADMIN_REPORT_FILTER_COLUMNS = [
     'pt.user_id',
 ];
 let WorkspaceService = class WorkspaceService {
-    constructor(db, authService, pushNotificationsService) {
+    constructor(db, authService, plansService, pushNotificationsService) {
         this.db = db;
         this.authService = authService;
+        this.plansService = plansService;
         this.pushNotificationsService = pushNotificationsService;
     }
     async listAdminAnnouncements(authorization) {
@@ -331,6 +334,48 @@ let WorkspaceService = class WorkspaceService {
          (user_id, title, description, due_date, status, category, priority, estimated_minutes)
        VALUES (?, ?, ?, ?, 'todo', ?, ?, ?)`, [student.id, title, description, dueDate, category, priority, estimatedMinutes]);
         return { ok: true, id: result.insertId };
+    }
+    async createPlannerTasksBulk(authorization, input) {
+        const student = await this.authService.requireStudent(authorization);
+        if (!(await this.plansService.hasFeatureAccess(student.id, 'study_plan_generator'))) {
+            throw new common_1.ForbiddenException('Generating a study plan is included with a subscription.');
+        }
+        const raw = Array.isArray(input?.tasks) ? input.tasks : null;
+        if (!raw || !raw.length)
+            throw new common_1.BadRequestException('No tasks to create');
+        if (raw.length > MAX_BULK_PLANNER_TASKS) {
+            throw new common_1.BadRequestException(`A plan can create at most ${MAX_BULK_PLANNER_TASKS} tasks at once.`);
+        }
+        const rows = raw.map((task) => [
+            student.id,
+            this.requiredString(task?.title, 'Task title'),
+            this.optionalString(task?.description),
+            this.optionalDate(task?.dueDate),
+            this.normalizePlannerTaskCategory(task?.category),
+            this.normalizePlannerTaskPriority(task?.priority),
+            this.optionalPlannerEstimatedMinutes(task?.estimatedMinutes),
+        ]);
+        const connection = await this.db.getConnection();
+        try {
+            await connection.beginTransaction();
+            const placeholders = rows.map(() => "(?, ?, ?, ?, 'todo', ?, ?, ?)").join(', ');
+            const [result] = await connection.query(`INSERT INTO study_planner_tasks
+           (user_id, title, description, due_date, status, category, priority, estimated_minutes)
+         VALUES ${placeholders}`, rows.flat());
+            await connection.commit();
+            const firstId = Number(result.insertId);
+            return {
+                ok: true,
+                ids: Array.from({ length: rows.length }, (_, i) => firstId + i),
+            };
+        }
+        catch (error) {
+            await connection.rollback().catch(() => { });
+            throw error;
+        }
+        finally {
+            connection.release();
+        }
     }
     async updatePlannerTask(authorization, id, input) {
         const student = await this.authService.requireStudent(authorization);
@@ -1099,6 +1144,7 @@ exports.WorkspaceService = WorkspaceService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,
+        plans_service_1.PlansService,
         push_notifications_service_1.PushNotificationsService])
 ], WorkspaceService);
 //# sourceMappingURL=workspace.service.js.map

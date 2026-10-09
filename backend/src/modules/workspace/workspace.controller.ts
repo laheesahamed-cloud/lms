@@ -82,6 +82,16 @@ export class WorkspaceController {
     return this.workspaceService.createPlannerTask(authorization, body);
   }
 
+  // Declared before the ':id' routes it shares a prefix with, so 'bulk' is
+  // never read as an id.
+  @Post('study-planner/bulk')
+  createPlannerTasksBulk(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() body: any
+  ) {
+    return this.workspaceService.createPlannerTasksBulk(authorization, body);
+  }
+
   @Patch('study-planner/:id')
   updatePlannerTask(
     @Headers('authorization') authorization: string | undefined,

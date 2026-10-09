@@ -119,6 +119,10 @@ export declare class WorkspaceController {
         ok: boolean;
         id: number;
     }>;
+    createPlannerTasksBulk(authorization: string | undefined, body: any): Promise<{
+        ok: boolean;
+        ids: number[];
+    }>;
     updatePlannerTask(authorization: string | undefined, id: number, body: any): Promise<{
         ok: boolean;
         id: number;

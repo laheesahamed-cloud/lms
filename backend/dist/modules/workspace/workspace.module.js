@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkspaceModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
+const plans_module_1 = require("../plans/plans.module");
 const push_notifications_module_1 = require("../push-notifications/push-notifications.module");
 const workspace_controller_1 = require("./workspace.controller");
 const workspace_service_1 = require("./workspace.service");
@@ -17,7 +18,7 @@ let WorkspaceModule = class WorkspaceModule {
 exports.WorkspaceModule = WorkspaceModule;
 exports.WorkspaceModule = WorkspaceModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, push_notifications_module_1.PushNotificationsModule],
+        imports: [auth_module_1.AuthModule, plans_module_1.PlansModule, push_notifications_module_1.PushNotificationsModule],
         controllers: [workspace_controller_1.WorkspaceController],
         providers: [workspace_service_1.WorkspaceService],
         exports: [workspace_service_1.WorkspaceService],

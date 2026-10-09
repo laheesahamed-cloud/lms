@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
@@ -81,6 +82,64 @@ Future<int> createPlannerTask(
   });
   final d = res.data;
   return d is Map ? _i(d['id']) : 0;
+}
+
+/// One task as the bulk endpoint wants it.
+class NewPlannerTask {
+  final String title;
+  final String? dueDate; // 'YYYY-MM-DD'
+  final String category;
+  final String priority;
+  final String? description;
+  const NewPlannerTask({
+    required this.title,
+    this.dueDate,
+    this.category = 'general',
+    this.priority = 'medium',
+    this.description,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        if (dueDate != null && dueDate!.isNotEmpty) 'dueDate': dueDate,
+        'category': category,
+        'priority': priority,
+        if (description != null && description!.isNotEmpty) 'description': description,
+      };
+}
+
+/// Creates a whole generated plan in ONE request.
+///
+/// The old path was one POST per task, every one fired at once: a few hundred
+/// simultaneous requests from one phone, which queued other students behind
+/// them and could leave half a plan if the connection dropped. This is one
+/// request, one transaction, all-or-nothing.
+///
+/// Throws [PlannerBulkUnsupported] if the server has not been updated yet, so
+/// the caller can fall back rather than failing in front of the student —
+/// the app and the backend are deployed separately here.
+Future<List<int>> createPlannerTasksBulk(
+  ApiClient api,
+  List<NewPlannerTask> tasks,
+) async {
+  try {
+    final res = await api.dio.post('/student/planner/bulk', data: {
+      'tasks': tasks.map((t) => t.toJson()).toList(),
+    });
+    final d = res.data;
+    final ids = (d is Map && d['ids'] is List) ? d['ids'] as List : const [];
+    return ids.map(_i).toList();
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 404) throw const PlannerBulkUnsupported();
+    rethrow;
+  }
+}
+
+/// The server predates the bulk endpoint.
+class PlannerBulkUnsupported implements Exception {
+  const PlannerBulkUnsupported();
+  @override
+  String toString() => 'Planner bulk endpoint not available on this server';
 }
 
 Future<void> setPlannerTaskDone(ApiClient api, int id, bool done) async {
