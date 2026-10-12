@@ -88,6 +88,15 @@ class CurrentSub {
 
   bool get isActive => status == 'active';
 
+  /// A PAID, active subscription — which is not the same as an active one.
+  ///
+  /// A free plan is stored as an ordinary subscription with status 'active'
+  /// and an unlimited end date, so `isActive` is true for someone who has
+  /// never paid. Anything gating a premium feature has to ask this instead.
+  /// (The server sets isUnlimitedAccess to the same value as isFreePlan; both
+  /// are checked so a future split cannot quietly open the gate.)
+  bool get isPaid => isActive && !isFreePlan && !isUnlimitedAccess;
+
   factory CurrentSub.fromJson(dynamic raw) {
     final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     return CurrentSub(

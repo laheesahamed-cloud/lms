@@ -270,8 +270,10 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
   /// signup gets by default (see [CurrentSub.isFreePlan]) — it must NOT count
   /// as access here, or the purchase button would be permanently invisible for
   /// every user, since everyone starts on it.
-  bool _hasAccess(CurrentSub? cur) =>
-      cur != null && cur.isActive && !cur.isFreePlan && !cur.isUnlimitedAccess;
+  // One definition, on the model, so this page and the planner's premium gate
+  // cannot drift apart — they already had, which is how a free user could
+  // generate a study plan.
+  bool _hasAccess(CurrentSub? cur) => cur?.isPaid ?? false;
 
   Widget _statusCard(AppColors c, CurrentSub? cur) {
     if (cur == null) {

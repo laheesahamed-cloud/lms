@@ -200,6 +200,22 @@ let PlansService = class PlansService {
       `, [userId]);
         return Array.from(new Set(rows.map((row) => String(row.feature_key || '').trim()).filter(Boolean)));
     }
+    async hasPaidSubscription(userId) {
+        const [rows] = await this.db.execute(`
+        SELECT us.id
+        FROM user_subscriptions us
+        LEFT JOIN plans p ON p.id = us.plan_id
+        WHERE us.user_id = ?
+          AND us.status = 'active'
+          AND us.start_date <= CURDATE()
+          AND us.end_date >= CURDATE()
+          AND LOWER(COALESCE(us.payment_status, '')) NOT IN ('waived', 'free', 'free_plan')
+          AND LOWER(COALESCE(p.slug, '')) <> 'free'
+          AND NOT (LOWER(TRIM(COALESCE(p.name, ''))) = 'free' AND COALESCE(p.price, 0) <= 0)
+        LIMIT 1
+      `, [userId]);
+        return rows.length > 0;
+    }
     async hasFeatureAccess(userId, _featureKey) {
         const [rows] = await this.db.execute(`
         SELECT us.id

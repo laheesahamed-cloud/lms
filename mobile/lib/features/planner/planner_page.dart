@@ -92,7 +92,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     // is still unknown the PRO marker stays hidden, rather than flashing at a
     // subscriber who simply has not been read back yet.
     final subscribed =
-        ref.watch(billingProvider).asData?.value.current?.isActive == true;
+        ref.watch(billingProvider).asData?.value.current?.isPaid == true;
     final total = tasks.length;
     final doneCount = tasks.where((t) => t.done).length;
 
@@ -560,7 +560,10 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     } catch (_) {
       billing = null;
     }
-    if (billing?.current?.isActive == true) return true;
+    // isPaid, NOT isActive. A free plan is an ordinary subscription row with
+    // status 'active' and an unlimited end date, so isActive was true for
+    // every free user and the gate let all of them straight through.
+    if (billing?.current?.isPaid == true) return true;
     if (!mounted) return false;
     final granted = await PaywallSheet.show(context);
     if (granted == true) {

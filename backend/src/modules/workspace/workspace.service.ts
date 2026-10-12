@@ -476,7 +476,10 @@ export class WorkspaceService {
   /// but nothing except generation calls this.
   async createPlannerTasksBulk(authorization: string | undefined, input: any) {
     const student = await this.authService.requireStudent(authorization);
-    if (!(await this.plansService.hasFeatureAccess(student.id, 'study_plan_generator'))) {
+    // hasPaidSubscription, NOT hasFeatureAccess. The latter only asks whether
+    // a subscription row is active, and a free plan IS one — so it was true
+    // for every free user and this gate never closed.
+    if (!(await this.plansService.hasPaidSubscription(student.id))) {
       throw new ForbiddenException('Generating a study plan is included with a subscription.');
     }
 

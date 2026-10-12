@@ -287,6 +287,40 @@ export class PlansService {
   // only by the subscription's course/lesson scope, not by per-feature flags, so
   // this resolves purely to "does the user have an active subscription?".
   // The featureKey is kept for call-site compatibility but no longer consulted.
+  /// A PAID, active subscription — which is not what hasFeatureAccess means.
+  ///
+  /// A free plan is stored as an ordinary subscription row: status 'active',
+  /// an unlimited end date, and payment_status 'free_plan'. So the check below
+  /// is true for every free user, and anything gating a PREMIUM feature has to
+  /// ask this instead. hasFeatureAccess deliberately stays as it is — free
+  /// users are meant to have the app's ordinary content.
+  ///
+  /// Free is identified the same two ways the subscriptions service does it
+  /// (isFreePlanAssignment): a waived/free payment status, or a plan called
+  /// "free" with no price. Both, because either alone misses cases — a paid
+  /// plan can be waived for a student, and a 'free' slug can exist without the
+  /// payment status being set.
+  async hasPaidSubscription(userId: number) {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `
+        SELECT us.id
+        FROM user_subscriptions us
+        LEFT JOIN plans p ON p.id = us.plan_id
+        WHERE us.user_id = ?
+          AND us.status = 'active'
+          AND us.start_date <= CURDATE()
+          AND us.end_date >= CURDATE()
+          AND LOWER(COALESCE(us.payment_status, '')) NOT IN ('waived', 'free', 'free_plan')
+          AND LOWER(COALESCE(p.slug, '')) <> 'free'
+          AND NOT (LOWER(TRIM(COALESCE(p.name, ''))) = 'free' AND COALESCE(p.price, 0) <= 0)
+        LIMIT 1
+      `,
+      [userId]
+    );
+
+    return rows.length > 0;
+  }
+
   async hasFeatureAccess(userId: number, _featureKey: string) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `

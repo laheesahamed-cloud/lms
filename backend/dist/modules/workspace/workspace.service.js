@@ -337,7 +337,7 @@ let WorkspaceService = class WorkspaceService {
     }
     async createPlannerTasksBulk(authorization, input) {
         const student = await this.authService.requireStudent(authorization);
-        if (!(await this.plansService.hasFeatureAccess(student.id, 'study_plan_generator'))) {
+        if (!(await this.plansService.hasPaidSubscription(student.id))) {
             throw new common_1.ForbiddenException('Generating a study plan is included with a subscription.');
         }
         const raw = Array.isArray(input?.tasks) ? input.tasks : null;
