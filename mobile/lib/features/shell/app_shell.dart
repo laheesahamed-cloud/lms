@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -231,16 +232,35 @@ class _BottomNav extends StatelessWidget {
               ),
             ),
           ),
+          // WIDTH-CAPPED on a tablet, centred.
+          //
+          // left/right 16 is right on a phone and absurd on an iPad: five
+          // items stretched across 1200pt, with the first and last a hand's
+          // width apart. Past the tablet threshold the bar becomes half the
+          // screen — floored so it can never squeeze the five items, and
+          // never wider than the phone layout would have been anyway.
           Positioned(
-            left: 16,
-            right: 16,
+            left: 0,
+            right: 0,
             bottom: kShellPillMargin + safe,
             height: kShellPillHeight,
-            child: _pill(c, dark),
+            child: Center(
+              child: SizedBox(
+                width: _pillWidth(MediaQuery.sizeOf(context).width),
+                child: _pill(c, dark),
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  /// How wide the bar should be for a screen of [screenWidth].
+  static double _pillWidth(double screenWidth) {
+    final full = screenWidth - 32;
+    if (screenWidth < 700) return full; // phone: unchanged
+    return math.max(screenWidth / 2, 420.0).clamp(0.0, full);
   }
 
   Widget _pill(AppColors c, bool dark) {

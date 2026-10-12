@@ -29,12 +29,46 @@ const String _termsUrl = 'https://xyndrome.lk/lms/frontend/dist/terms';
 const String _privacyUrl = 'https://xyndrome.lk/lms/frontend/dist/privacy-policy';
 
 class PaywallSheet extends ConsumerStatefulWidget {
-  const PaywallSheet({super.key});
+  const PaywallSheet({super.key, this.asDialog = false});
 
   /// Opens the paywall. Resolves to true when access was granted, so callers
   /// can refresh the content the user was blocked from.
+  /// Past this, a sheet that slides up from the bottom edge is the wrong
+  /// shape: it spans the whole width of an iPad and leaves the controls a
+  /// thumb-stretch apart. The same content becomes a centred card instead.
+  static const double _dialogFrom = 600;
+
+  /// The card's width as a dialog. Wide enough for two feature columns, narrow
+  /// enough that the plan rows stay a glanceable list rather than a banner.
+  static const double _dialogWidth = 460;
+
   static Future<bool> show(BuildContext context) async {
     if (!iapSupported) return false;
+    if (MediaQuery.sizeOf(context).shortestSide >= _dialogFrom) {
+      return await showDialog<bool>(
+            useRootNavigator: true,
+            context: context,
+            barrierDismissible: true,
+            builder: (dialogContext) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22)),
+              child: ConstrainedBox(
+                // Height is capped so the card never runs past the screen in
+                // landscape, where there is far less of it — the content
+                // scrolls inside instead.
+                constraints: BoxConstraints(
+                  maxWidth: _dialogWidth,
+                  maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.9,
+                ),
+                child: const PaywallSheet(asDialog: true),
+              ),
+            ),
+          ) ??
+          false;
+    }
     final granted = await showModalBottomSheet<bool>(
       useRootNavigator: true,
       context: context,
@@ -50,6 +84,10 @@ class PaywallSheet extends ConsumerStatefulWidget {
     );
     return granted ?? false;
   }
+
+  /// Rounded on all four corners and with no bottom safe-area inset: a
+  /// centred card is not attached to the bottom edge of the screen.
+  final bool asDialog;
 
   @override
   ConsumerState<PaywallSheet> createState() => _PaywallSheetState();
@@ -286,26 +324,39 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     final busy = _busyProductId != null || _restoring;
     final selected = _selectedProduct;
 
+    // A dialog is a card in the middle of the screen: rounded all round, and
+    // with no home-indicator inset to clear.
+    final radius = widget.asDialog
+        ? BorderRadius.circular(22)
+        : const BorderRadius.vertical(top: Radius.circular(20));
+    final bottomInset = widget.asDialog ? 20.0 : bottom + 16;
+
     return Container(
       // No height cap of its own: useSafeArea on the route already keeps the
       // sheet below the status bar, and a second limit computed here is what
       // kept fighting it.
       decoration: BoxDecoration(
         color: dark ? c.page : _kLightGround,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: radius,
       ),
       child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: radius,
         child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 0, 20, bottom + 16),
+        padding: EdgeInsets.fromLTRB(20, 0, 20, bottomInset),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _UnlockHeader(
-              onClose: () => Navigator.of(context).maybePop(),
-              onRestore: busy ? null : _restore,
-              restoring: _restoring,
+            // Measured, not taken from MediaQuery: as a dialog this sheet is
+            // a centred card, so the screen's width is not its own. +40 puts
+            // back the horizontal padding the artwork steps outside of.
+            LayoutBuilder(
+              builder: (context, box) => _UnlockHeader(
+                onClose: () => Navigator.of(context).maybePop(),
+                onRestore: busy ? null : _restore,
+                restoring: _restoring,
+                width: box.maxWidth + 40,
+              ),
             ),
             const SizedBox(height: 14),
             // 2x2 rather than four rows: it halves the vertical space the
@@ -692,36 +743,36 @@ class _UnlockHeader extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback? onRestore;
   final bool restoring;
+  /// The width the artwork has to fill — the SHEET's, which on a tablet is a
+  /// centred card and nothing like the screen's.
+  final double width;
   const _UnlockHeader({
     required this.onClose,
     required this.onRestore,
     required this.restoring,
+    required this.width,
   });
 
   /// The picture's own proportions — height follows width, so it is stretched
   /// edge to edge and cropped in neither direction.
-  static const double _aspect = 2.13;
+  static const double _aspect = 4 / 3;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = context.c;
-    final w = MediaQuery.of(context).size.width;
-    // The shade that rises behind the words — the sheet's own ground, so the
-    // header always runs out into the sheet rather than ending on a line.
-    final feather = dark ? Colors.black : _kLightGround;
-    // A halo in the ground's colour, so black words read over the pale feather
-    // the same way white words read over the black one.
+    // The sheet's own width, not the screen's: as a centred dialog on a tablet
+    // the two are nothing like the same, and sizing the artwork to the screen
+    // is what made it overflow its card there.
+    final w = width;
+    // The ground the picture melts into at its lower edge.
+    final feather = dark ? _kHeroGround : _kLightGround;
+    // A halo behind the close and Restore controls, which sit ON the artwork
+    // and have no shade of their own to read against.
     final halo = dark
         ? const Color(0xCC000000)
         : _kLightGround.withValues(alpha: 0.9);
     final art = w / _aspect;
-    // Where the words start: just past the crown's middle, so the title
-    // crosses it rather than clearing it. Taken as a fraction of the artwork so
-    // it holds at any width.
-    final textTop = art * 0.46;
-    // The block ends with the subtitle, which now finishes inside the picture
-    // — so the header is the artwork's own height and no taller.
     final height = art;
 
     return SizedBox(
@@ -753,34 +804,21 @@ class _UnlockHeader extends StatelessWidget {
             child: SizedBox(
               width: w,
               height: art,
-              child: ShaderMask(
-                // radius is a fraction of the SHORTEST side, so it must exceed
-                // 1 to reach the corners of a wide box — at 0.8 it was erasing
-                // the outer quarter of the artwork.
-                shaderCallback: (rect) => const RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.25,
-                  colors: [
-                    Colors.white,
-                    Colors.white,
-                    Color(0x88FFFFFF),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 0.76, 0.92, 1.0],
-                ).createShader(rect),
-                blendMode: BlendMode.dstIn,
-                child: Opacity(
-                  // The words sit across the crown, so the picture gives way to
-                  // them on black — but it is a DARK artwork, so on the
-                  // near-white ground it carries at full strength.
-                  opacity: dark ? 0.72 : 1.0,
-                  child: Image.asset(
-                    'assets/premium/unlock_hero.png',
-                    width: w,
-                    fit: BoxFit.fitWidth,
-                    filterQuality: FilterQuality.medium,
-                  ),
-                ),
+              // ONE ARTWORK PER THEME, carrying its own words.
+              //
+              // There used to be a single dark picture shown on both grounds,
+              // dimmed to 72% in dark so the title could be read across the
+              // crown, and masked radially so its corners did not end on a
+              // hard edge. None of that is needed now: each theme has a
+              // picture drawn for its own ground, the words are part of the
+              // picture, and the only join left to hide is the bottom edge.
+              child: Image.asset(
+                dark
+                    ? 'assets/premium/unlock_hero_dark.jpg'
+                    : 'assets/premium/unlock_hero_light.jpg',
+                width: w,
+                fit: BoxFit.fitWidth,
+                filterQuality: FilterQuality.medium,
               ),
             ),
           ),
@@ -856,38 +894,6 @@ class _UnlockHeader extends StatelessWidget {
                                   Shadow(color: halo, blurRadius: 8)
                                 ])),
                   ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            left: 20,
-            right: 20,
-            top: textTop,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Unlock everything',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: Colors.white,
-                        shadows: const [
-                          Shadow(color: Color(0xDD000000), blurRadius: 16),
-                        ])),
-                const SizedBox(height: 5),
-                Text(
-                  'Get complete access to all courses, practice materials and premium features.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 12,
-                      height: 1.35,
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.78)
-                          : c.inkStrong,
-                      shadows: [Shadow(color: halo, blurRadius: 12)]),
                 ),
               ],
             ),
