@@ -253,22 +253,32 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
   /// Title plus a short caption, so each one can sit as a tile in a 2x2 grid.
   /// Four full-width rows of small text read as fine print; four tiles read as
   /// four things you get.
-  static const List<({IconData icon, String title, String caption})> _features = [
+  /// One soft colour each, rather than the same blue gradient four times.
+  ///
+  /// Four identical filled blue tiles read as one repeated element; a distinct
+  /// pastel per benefit lets them be told apart at a glance. Laid over the
+  /// sheet at low opacity, so they tint rather than block — which also means
+  /// one set of hues works on both grounds.
+  static const List<({IconData icon, String title, String caption, Color tint})> _features = [
     // Short enough to sit on ONE line in half a phone's width. The longer
     // wording wrapped to two lines, and its caption to two more — four lines
     // in a tile built for two, which is most of why this still scrolled.
     (icon: Icons.menu_book_rounded,
      title: 'All courses',
-     caption: 'Every lesson and note'),
+     caption: 'Every lesson and note',
+     tint: Color(0xFF3B82F6)), // blue
     (icon: Icons.timer_rounded,
      title: 'Timed mock exams',
-     caption: 'Real exam conditions'),
+     caption: 'Real exam conditions',
+     tint: Color(0xFFF59E0B)), // amber
     (icon: Icons.quiz_rounded,
      title: 'Full question bank',
-     caption: 'Explained answers'),
+     caption: 'Explained answers',
+     tint: Color(0xFF8B5CF6)), // violet
     (icon: Icons.insights_rounded,
      title: 'Progress analytics',
-     caption: 'Track improvement'),
+     caption: 'Track improvement',
+     tint: Color(0xFF10B981)), // green
   ];
 
   /// Roughly how many days a product's billing period covers, for comparing
@@ -674,12 +684,13 @@ class _LegalLink extends StatelessWidget {
 
 /// One of the four things a subscription buys, as a tile.
 class _FeatureTile extends StatelessWidget {
-  final ({IconData icon, String title, String caption}) f;
+  final ({IconData icon, String title, String caption, Color tint}) f;
   const _FeatureTile({required this.f});
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     // No card behind it. Four bordered boxes stacked two-by-two made a grid of
     // containers rather than a list of benefits, and the borders cost height
     // this sheet does not have. The icon tile is enough of an anchor.
@@ -690,10 +701,15 @@ class _FeatureTile extends StatelessWidget {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              gradient: kHeroGradient,
+              // A WASH, not a fill. The glyph takes the same hue at full
+              // strength, so the pair reads as one soft colour instead of a
+              // saturated block with a white cut-out in it.
+              color: f.tint.withValues(alpha: dark ? 0.22 : 0.14),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(f.icon, size: 15, color: Colors.white),
+            child: Icon(f.icon,
+                size: 15,
+                color: dark ? Color.lerp(f.tint, Colors.white, 0.25)! : f.tint),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -757,6 +773,11 @@ class _UnlockHeader extends StatelessWidget {
   /// edge to edge and cropped in neither direction.
   static const double _aspect = 4 / 3;
 
+  /// How much of the artwork's height the header reserves in the layout. The
+  /// remainder has already faded to the sheet's colour, so the content below
+  /// can sit over it without covering anything you can see.
+  static const double _occupies = 0.78;
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -773,7 +794,16 @@ class _UnlockHeader extends StatelessWidget {
         ? const Color(0xCC000000)
         : _kLightGround.withValues(alpha: 0.9);
     final art = w / _aspect;
-    final height = art;
+    // THE PICTURE IS WHOLE; THE SPACE IT RESERVES IS NOT.
+    //
+    // The subject — the lock, the key, the books — sits in the top two thirds
+    // of a 4:3 frame, and the rest is empty desk. Reserving the full height
+    // left a band of blank white between the artwork and the first row of
+    // benefits, which is the dead space. The fade is timed to finish exactly
+    // at this line, so every pixel past it is already solid ground: clipping
+    // it removes nothing you could see, and the content below moves up to
+    // meet the picture instead of sitting under a band of blank white.
+    final height = art * _occupies;
 
     return SizedBox(
       height: height,
@@ -830,11 +860,14 @@ class _UnlockHeader extends StatelessWidget {
           // sheet. The words are part of the artwork now, so this has only one
           // job left — run the lower third out to exactly the sheet's own
           // colour, so there is no line where the photograph stops.
+          // Reaches the sheet's colour exactly where the header stops
+          // reserving height, so the first row of benefits lands on flat
+          // ground and never on a visible piece of desk.
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
-            height: height * 0.42,
+            top: 0,
+            height: art,
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -843,10 +876,12 @@ class _UnlockHeader extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       feather.withValues(alpha: 0.0),
+                      feather.withValues(alpha: 0.0),
                       feather.withValues(alpha: 0.55),
                       feather,
+                      feather,
                     ],
-                    stops: const [0.0, 0.62, 1.0],
+                    stops: const [0.0, 0.52, 0.68, _occupies, 1.0],
                   ),
                 ),
               ),
