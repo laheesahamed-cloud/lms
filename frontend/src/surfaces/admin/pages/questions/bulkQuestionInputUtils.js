@@ -907,16 +907,22 @@ export function validateQuestion(question, resolved, duplicateMap) {
     errors.push('Course is required.');
   }
 
-  // Two things are filed against a whole course rather than one subject: a
-  // past paper, and an assessment whose own scope is course-wide. Neither can
-  // be made to name a subject it does not have. questions.topic_id is nullable
-  // in the schema and always has been; only this check insisted.
+  // A WARNING, never an error. questions.topic_id is nullable in the schema
+  // and always has been — a question filed against the course alone is a valid
+  // row, not a broken one.
   //
-  // courseWide is passed explicitly because an empty subjectId cannot say
-  // which it is — deliberately course-wide, or simply not filled in.
-  const subjectOptional = resolved.category === 'past_paper' || resolved.courseWide;
-  if (!resolved.subjectId && !subjectOptional) {
-    errors.push('Subject is required.');
+  // This was an error, and then an error with exceptions for a past paper and
+  // for a course-wide assessment. Each exception was added after a real case
+  // it had blocked, which is the tell: the rule was being discovered one
+  // obstruction at a time rather than known. The cases it kept missing are all
+  // the same case — content that belongs to a course rather than a subject —
+  // and the database agrees with them. So it nudges and gets out of the way.
+  //
+  // It stays silent where the omission is plainly deliberate, to keep the
+  // queue's warnings worth reading.
+  const subjectExpected = resolved.category !== 'past_paper' && !resolved.courseWide;
+  if (!resolved.subjectId && subjectExpected) {
+    warnings.push('No subject — this question will be filed under its course only.');
   }
 
   if (!resolved.category) {
