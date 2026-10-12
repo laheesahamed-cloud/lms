@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,27 +47,74 @@ class PaywallSheet extends ConsumerStatefulWidget {
   static Future<bool> show(BuildContext context) async {
     if (!iapSupported) return false;
     if (MediaQuery.sizeOf(context).shortestSide >= _dialogFrom) {
-      return await showDialog<bool>(
-            useRootNavigator: true,
+      // showGeneralDialog, not showDialog, for the BACKDROP.
+      //
+      // showDialog's barrier is a flat 54% black wash: the page behind stays
+      // perfectly legible through it, so the card reads as a box dropped on
+      // top of a page rather than something the page has stepped back for.
+      // This draws its own barrier — frosted AND dimmed, both easing in with
+      // the card — which is what makes it feel like a considered moment
+      // instead of an alert.
+      return await showGeneralDialog<bool>(
             context: context,
+            useRootNavigator: true,
             barrierDismissible: true,
-            builder: (dialogContext) => Dialog(
-              backgroundColor: Colors.transparent,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(22)),
-              child: ConstrainedBox(
-                // Height is capped so the card never runs past the screen in
-                // landscape, where there is far less of it — the content
-                // scrolls inside instead.
-                constraints: BoxConstraints(
-                  maxWidth: _dialogWidth,
-                  maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.9,
-                ),
-                child: const PaywallSheet(asDialog: true),
-              ),
-            ),
+            barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+            // Transparent, because the dim is painted below along with the
+            // blur — one surface, one fade, rather than two that can drift.
+            barrierColor: Colors.transparent,
+            transitionDuration: const Duration(milliseconds: 280),
+            pageBuilder: (dialogContext, _, _) => const SizedBox.shrink(),
+            transitionBuilder: (dialogContext, anim, _, _) {
+              final t = Curves.easeOutCubic.transform(anim.value);
+              return Stack(
+                children: [
+                  // IgnorePointer, so a tap still reaches the barrier beneath
+                  // and closes the sheet — a full-screen filter would
+                  // otherwise swallow every tap outside the card.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(
+                            sigmaX: 22 * t, sigmaY: 22 * t),
+                        child: ColoredBox(
+                          color: Colors.black.withValues(alpha: 0.42 * t),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Opacity(
+                      opacity: t,
+                      // Settles in from very slightly small. Any more reads as
+                      // a bounce; this just stops it appearing from nowhere.
+                      child: Transform.scale(
+                        scale: 0.97 + 0.03 * t,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 32),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: ConstrainedBox(
+                              // Capped so the card never runs past the screen
+                              // in landscape, where there is far less of it —
+                              // the content scrolls inside instead.
+                              constraints: BoxConstraints(
+                                maxWidth: _dialogWidth,
+                                maxHeight:
+                                    MediaQuery.sizeOf(dialogContext).height *
+                                        0.9,
+                              ),
+                              child: const PaywallSheet(asDialog: true),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ) ??
           false;
     }
