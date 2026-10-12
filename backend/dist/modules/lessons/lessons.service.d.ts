@@ -250,6 +250,11 @@ export declare class LessonsService {
         id: number;
         pdfUrl: string;
     }>;
+    uploadCanvasImage(id: number, file: Express.Multer.File, token: string): Promise<{
+        ok: boolean;
+        url: string;
+    }>;
+    static readonly CANVAS_IMAGE_TYPES: Record<string, string>;
     removePdf(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;

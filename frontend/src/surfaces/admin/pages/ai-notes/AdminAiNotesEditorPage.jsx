@@ -1631,6 +1631,9 @@ export function AdminAiNotesEditorPage({
                       layout: pageData.layout || '1col',
                     }}
                     editable={editMode}
+                    // Lets a pasted or picked figure be stored as a file
+                    // against this lesson instead of as base64 in its row.
+                    lessonId={id}
                     onDataChange={newData => handlePageDataChange(i, newData)}
                     pageIndex={i}
                     pageCount={pages.length}

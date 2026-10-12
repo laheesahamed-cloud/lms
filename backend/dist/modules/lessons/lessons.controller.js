@@ -131,6 +131,17 @@ let LessonsController = class LessonsController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.uploadPdf(id, file, actor);
     }
+    async uploadCanvasImage(authorization, id, file) {
+        if (!file)
+            throw new common_1.BadRequestException('No file uploaded');
+        if (!file.mimetype.startsWith('image/')) {
+            throw new common_1.BadRequestException('Only image files are allowed');
+        }
+        if (file.size > 8 * 1024 * 1024) {
+            throw new common_1.BadRequestException('Image must be under 8 MB');
+        }
+        return this.lessonsService.uploadCanvasImage(id, file, this.bearerToken(authorization));
+    }
     async removePdf(authorization, id) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.removePdf(id, actor);
@@ -368,6 +379,18 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, Object]),
     __metadata("design:returntype", Promise)
 ], LessonsController.prototype, "uploadPdf", null);
+__decorate([
+    (0, common_1.Post)(':id/canvas-image'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { storage: (0, multer_1.memoryStorage)() })),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number, Object]),
+    __metadata("design:returntype", Promise)
+], LessonsController.prototype, "uploadCanvasImage", null);
 __decorate([
     (0, common_1.Delete)(':id/pdf'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),

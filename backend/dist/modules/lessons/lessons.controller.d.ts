@@ -145,6 +145,10 @@ export declare class LessonsController {
         id: number;
         pdfUrl: string;
     }>;
+    uploadCanvasImage(authorization: string | undefined, id: number, file: Express.Multer.File): Promise<{
+        ok: boolean;
+        url: string;
+    }>;
     removePdf(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;

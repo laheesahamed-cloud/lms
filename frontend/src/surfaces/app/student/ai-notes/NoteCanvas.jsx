@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useThemeStore } from '../../../../shared/stores/themeStore.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
+import { uploadLessonCanvasImage } from '../../../../shared/api/lessons.api.js';
 
 
 function confirmCanvasRemoval(message) {
@@ -1615,10 +1616,17 @@ function smartArrangeSections(sections) {
 
 /* ══════════════════════════════════════════════════════════════
    IMAGE COMPRESSION  (browser Canvas API — no extra deps)
-   Resizes to max 1400px, converts to WebP @ 0.88 quality.
+   Resizes to max 2000px, converts to WebP @ 0.94 quality.
    Falls back to JPEG if the browser doesn't support WebP output.
+
+   The old 1400px @ 0.88 was not a judgement about how figures should
+   look — it was the size a base64 data: URI could be before it made the
+   lesson row unwieldy, since the picture travelled inside note_data on
+   every fetch, save and backup. Figures are files now (uploadCanvasImage),
+   so the only thing a few hundred KB costs is one cached request, and the
+   resolution can be what a zoomed-in diagram actually needs.
 ══════════════════════════════════════════════════════════════ */
-function compressImage(file, { maxWidth = 1400, quality = 0.88 } = {}) {
+function compressImage(file, { maxWidth = 2000, quality = 0.94 } = {}) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -1639,6 +1647,25 @@ function compressImage(file, { maxWidth = 1400, quality = 0.88 } = {}) {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
     img.src = url;
   });
+}
+
+/// Compresses, then stores the picture as a FILE and returns its URL.
+///
+/// Falls back to the data: URI when there is no lesson to attach it to (a
+/// page that has not been saved yet) or when the upload fails — an image the
+/// author can see is worth more than a tidy row, and both clients render
+/// either form, so a fallback is never broken, only larger.
+async function compressAndStore(file, lessonId) {
+  const image = await compressImage(file);
+  if (!lessonId) return image;
+  try {
+    const blob = await (await fetch(image.src)).blob();
+    const name = `figure.${(blob.type.split('/')[1] || 'webp').replace('jpeg', 'jpg')}`;
+    const { url } = await uploadLessonCanvasImage(lessonId, new File([blob], name, { type: blob.type }));
+    return url ? { ...image, src: url } : image;
+  } catch {
+    return image;
+  }
 }
 
 function readFileAsImage(file) {
@@ -3143,7 +3170,7 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onA
 /* ══════════════════════════════════════════════════════════════
    MAIN CANVAS
 ══════════════════════════════════════════════════════════════ */
-export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable = false, onDataChange, pageIndex = 0, pageCount = 1, onMoveSectionToPage }, ref) {
+export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable = false, onDataChange, pageIndex = 0, pageCount = 1, onMoveSectionToPage, lessonId = null }, ref) {
   const theme    = useThemeStore(s => s.theme);
   const colors   = theme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   const highlightColors = normalizeVisualStyleColors(data?.visual_style?.colors);
@@ -3324,7 +3351,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
     setFileError('');
     setCompressing(true);
     try {
-      const image = await compressImage(file);
+      const image = await compressAndStore(file, lessonId);
       if (addImgTypeRef.current === 'image-explained') {
         addImageExplainedSection(image.src, { imageWidth: image.imageWidth, imageHeight: image.imageHeight });
       } else {
@@ -3353,7 +3380,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
     setFileError('');
     setCompressing(true);
     try {
-      const image = await compressImage(file);
+      const image = await compressAndStore(file, lessonId);
       patch({ sections: sections.map((s, i) => i === idx ? { ...s, src: image.src, imageWidth: image.imageWidth, imageHeight: image.imageHeight } : s) });
     } catch {
       const image = await readFileAsImage(file);
@@ -3383,7 +3410,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
     setFileError('');
     setCompressing(true);
     try {
-      const image = await compressImage(file);
+      const image = await compressAndStore(file, lessonId);
       patchSection(idx, 'sectionImage', { src: image.src, imageWidth: image.imageWidth, imageHeight: image.imageHeight, caption: sections[idx]?.sectionImage?.caption || '', height: sections[idx]?.sectionImage?.height || 180, imageFit: sections[idx]?.sectionImage?.imageFit || 'contain' });
     } catch {
       const image = await readFileAsImage(file);

@@ -52,6 +52,18 @@ export async function uploadLessonPdf(id, file, onProgress) {
   return response.data;
 }
 
+/// Stores a canvas figure as a FILE and returns its URL.
+///
+/// Canvas images used to be embedded in note_data as base64, which put the
+/// pictures inside the lesson row and is why they were compressed so hard.
+export async function uploadLessonCanvasImage(id, file, onProgress) {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await apiClient.post(
+    `/admin/lessons/${id}/canvas-image`, form, uploadOptions(onProgress));
+  return response.data;
+}
+
 export async function removeLessonPdf(id) {
   const response = await apiClient.delete(`/admin/lessons/${id}/pdf`);
   return response.data;

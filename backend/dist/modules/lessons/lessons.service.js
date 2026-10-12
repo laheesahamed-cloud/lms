@@ -483,6 +483,22 @@ let LessonsService = LessonsService_1 = class LessonsService {
         await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'pdf_uploaded', this.getActorId(actor) || null, `PDF uploaded for lesson ${id}`]);
         return { ok: true, id, pdfUrl };
     }
+    async uploadCanvasImage(id, file, token) {
+        await this.requireAdminToken(token);
+        const dir = path.join(process.cwd(), 'uploads', 'lesson-notes', String(id));
+        if (!fs.existsSync(dir))
+            fs.mkdirSync(dir, { recursive: true });
+        const ext = LessonsService_1.CANVAS_IMAGE_TYPES[file.mimetype];
+        if (!ext) {
+            throw new common_1.BadRequestException('Image must be WebP, PNG, JPEG or GIF');
+        }
+        const hash = (0, crypto_1.createHash)('sha1').update(file.buffer).digest('hex').slice(0, 16);
+        const name = `${hash}.${ext}`;
+        const filePath = path.join(dir, name);
+        if (!fs.existsSync(filePath))
+            fs.writeFileSync(filePath, file.buffer);
+        return { ok: true, url: `/api/uploads/lesson-notes/${id}/${name}` };
+    }
     async removePdf(id, actor) {
         const lesson = await this.findById(id);
         if (!lesson.pdfUrl)
@@ -2694,6 +2710,12 @@ let LessonsService = LessonsService_1 = class LessonsService {
     }
 };
 exports.LessonsService = LessonsService;
+LessonsService.CANVAS_IMAGE_TYPES = {
+    'image/webp': 'webp',
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/gif': 'gif',
+};
 LessonsService.CHUNK_LIMIT = 9000;
 LessonsService.COMPLETENESS_LIMIT = 40000;
 LessonsService.TOPIC_FAMILIES = [

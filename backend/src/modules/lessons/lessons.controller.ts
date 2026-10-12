@@ -207,6 +207,30 @@ export class LessonsController {
     return this.lessonsService.uploadPdf(id, file, actor);
   }
 
+  // Canvas figures are files now, not base64 inside note_data — see
+  // uploadCanvasImage. Same guard as the PDF upload: only someone who can
+  // manage content can put a picture on a lesson.
+  @Post(':id/canvas-image')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async uploadCanvasImage(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image files are allowed');
+    }
+    // Generous, because the point of moving off base64 is that quality no
+    // longer has to be traded against the size of a database row.
+    if (file.size > 8 * 1024 * 1024) {
+      throw new BadRequestException('Image must be under 8 MB');
+    }
+    return this.lessonsService.uploadCanvasImage(id, file, this.bearerToken(authorization));
+  }
+
   @Delete(':id/pdf')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')

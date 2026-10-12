@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as fs from 'fs';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
@@ -808,6 +808,51 @@ export class LessonsService {
 
     return { ok: true, id, pdfUrl };
   }
+
+  /// Stores a canvas image as a FILE and hands back its URL.
+  ///
+  /// Canvas images used to be embedded in note_data as base64 data: URIs. That
+  /// put the pictures inside the lesson row, which is read whole on every
+  /// open: a note with a dozen figures carried megabytes of base64 through
+  /// every fetch, every save and every backup, and it is why the editor
+  /// compressed so hard — the quality was being traded against a row size that
+  /// should never have held images at all. A file is served once, cached by
+  /// the browser and the app, and costs the row 40 characters.
+  ///
+  /// Existing base64 notes are untouched and still render: both clients accept
+  /// either form, so this only changes what NEW images become.
+  async uploadCanvasImage(id: number, file: Express.Multer.File, token: string) {
+    await this.requireAdminToken(token);
+
+    // Grouped per lesson so a deleted lesson's pictures can be found later,
+    // and content-hashed so re-uploading the same figure reuses one file
+    // instead of filling the disk with copies.
+    const dir = path.join(process.cwd(), 'uploads', 'lesson-notes', String(id));
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const ext = LessonsService.CANVAS_IMAGE_TYPES[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException('Image must be WebP, PNG, JPEG or GIF');
+    }
+    const hash = createHash('sha1').update(file.buffer).digest('hex').slice(0, 16);
+    const name = `${hash}.${ext}`;
+    const filePath = path.join(dir, name);
+    if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, file.buffer);
+
+    // `/api/uploads`, not `/uploads`. Both are mounted, but only `/api` is
+    // forwarded to this process in production — a bare `/uploads/...` reaches
+    // the static site and comes back as a 404 page, which an <img> shows as a
+    // broken image. The app resolves either form; the web resolves it against
+    // the page origin, where only this one works.
+    return { ok: true, url: `/api/uploads/lesson-notes/${id}/${name}` };
+  }
+
+  static readonly CANVAS_IMAGE_TYPES: Record<string, string> = {
+    'image/webp': 'webp',
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/gif': 'gif',
+  };
 
   async removePdf(id: number, actor?: ContentActorInput) {
     const lesson = await this.findById(id);
