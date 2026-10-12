@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'quizzes_repository.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/app_error.dart';
 
 class QuizzesPage extends ConsumerStatefulWidget {
   final bool examMode;
@@ -41,7 +42,7 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Could not load quizzes.\n$e',
+            child: Text('Could not load quizzes.\n${appError(e).display}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: c.inkSoft, fontSize: 14)),
           ),

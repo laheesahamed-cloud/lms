@@ -7,6 +7,7 @@ import '../../widgets/glass_card.dart';
 import 'notifications_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/app_error.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -163,7 +164,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Could not load notifications.\n$e',
+            child: Text('Could not load notifications.\n${appError(e).display}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: c.inkSoft, fontSize: 14)),
           ),

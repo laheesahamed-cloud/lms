@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../lessons/lesson_canvas_page.dart';
 import 'pdf_import.dart';
 import 'personal_notes_store.dart';
+import '../../data/app_error.dart';
 
 /// One continuous tall canvas for a personal note.
 /// Pages appear stacked vertically — scroll down to reach the next page.
@@ -139,7 +140,7 @@ class _PersonalNoteCanvasPageState extends State<PersonalNoteCanvasPage> {
       // nothing happens", with no visible sign anything went wrong at all.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open the file picker: $e')),
+          SnackBar(content: Text('Could not open the file picker. ${appError(e).message}')),
         );
       }
       return;

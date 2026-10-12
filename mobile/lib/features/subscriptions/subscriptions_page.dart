@@ -10,6 +10,7 @@ import 'paywall_sheet.dart';
 import 'subscriptions_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/app_error.dart';
 
 /// Subscription screen — the user's current plan/status, what each plan
 /// includes, and (on iOS) the way to subscribe.
@@ -72,7 +73,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Could not load your plan.\n$e',
+            child: Text('Could not load your plan.\n${appError(e).display}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: c.inkSoft, fontSize: 14)),
           ),

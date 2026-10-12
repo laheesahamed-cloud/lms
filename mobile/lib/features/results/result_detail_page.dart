@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/score_ring.dart';
 import '../quizzes/quizzes_repository.dart';
+import '../../data/app_error.dart';
 
 /// Result detail for a single attempt — real, server-graded score
 /// (`GET /quiz-attempts/result/:attemptId`).
@@ -31,7 +32,7 @@ class ResultDetailPage extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load this result.\n$e',
+                Text('Could not load this result.\n${appError(e).display}',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: c.inkSoft)),
                 const SizedBox(height: 16),

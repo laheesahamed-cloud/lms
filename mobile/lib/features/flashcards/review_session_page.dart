@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import 'flashcards_repository.dart';
+import '../../data/app_error.dart';
 
 /// FSRS review session: front → reveal answer → grade (Again/Hard/Good/Easy),
 /// each button labelled with its predicted interval. Grades sync to the server.
@@ -110,7 +111,7 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Could not load cards.\n$e',
+                  Text('Could not load cards.\n${appError(e).display}',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.inkSoft)),
                   const SizedBox(height: 16),

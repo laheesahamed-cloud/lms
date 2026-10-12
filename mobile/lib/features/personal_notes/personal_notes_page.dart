@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/tokens.dart';
 import 'pdf_import.dart';
 import 'personal_notes_store.dart';
+import '../../data/app_error.dart';
 
 /// Remembered on-device, not scoped per-user: it's a display preference, not
 /// content, so there's no reason a second account on the same phone shouldn't
@@ -254,7 +255,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
       // nothing happens", with no visible sign anything went wrong at all.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open the file picker: $e')),
+          SnackBar(content: Text('Could not open the file picker. ${appError(e).message}')),
         );
       }
       return;

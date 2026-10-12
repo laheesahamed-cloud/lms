@@ -7,6 +7,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/score_ring.dart';
 import 'quizzes_repository.dart';
+import '../../data/app_error.dart';
 
 /// Shown after an exam is submitted to the backend — the real, server-graded
 /// result with a per-bucket breakdown, plus Review answers / Done.
@@ -33,7 +34,7 @@ class ExamCompletePage extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Your exam was submitted, but the result could not be '
-                      'loaded.\n$e',
+                      'loaded.\n${appError(e).display}',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.inkSoft)),
                   const SizedBox(height: 16),

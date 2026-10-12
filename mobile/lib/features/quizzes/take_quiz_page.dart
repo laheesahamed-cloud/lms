@@ -15,6 +15,7 @@ import '../dashboard/dashboard_repository.dart';
 import 'quizzes_repository.dart';
 import 'quiz_dialogs.dart';
 import 'submit_transition_overlay.dart';
+import '../../data/app_error.dart';
 
 TextStyle _stemTextStyle(AppColors c) => TextStyle(
     fontSize: 17, height: 1.45, fontWeight: FontWeight.w600, color: c.inkStrong);
@@ -777,7 +778,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Could not load this quiz.\n$e',
+            Text('Could not load this quiz.\n${appError(e).display}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: c.inkSoft)),
             const SizedBox(height: 16),

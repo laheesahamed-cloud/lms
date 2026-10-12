@@ -15,6 +15,7 @@ import '../subscriptions/paywall_sheet.dart';
 import '../subscriptions/subscriptions_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/app_error.dart';
 
 class PlannerPage extends ConsumerStatefulWidget {
   const PlannerPage({super.key});
@@ -69,7 +70,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Could not load your planner.\n$e',
+              child: Text('Could not load your planner.\n${appError(e).display}',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: c.inkSoft, fontSize: 14)),
             ),

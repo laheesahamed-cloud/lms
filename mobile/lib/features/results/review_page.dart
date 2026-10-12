@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import '../dashboard/dashboard_repository.dart';
 import '../quizzes/quizzes_repository.dart';
 import 'reviewed_attempts.dart';
+import '../../data/app_error.dart';
 
 /// Per-question review of a submitted attempt — real answers + explanations
 /// (`GET /quiz-attempts/review/:attemptId`).
@@ -76,7 +77,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load the review.\n$e',
+                Text('Could not load the review.\n${appError(e).display}',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: c.inkSoft)),
                 const SizedBox(height: 16),

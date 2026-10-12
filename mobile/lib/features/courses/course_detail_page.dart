@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/score_ring.dart';
 import 'courses_repository.dart';
+import '../../data/app_error.dart';
 
 /// Course summary — mirrors the web `CourseDetailPage` (`csum-*`) core: a hero
 /// progress ring + "Continue", at-a-glance stats, a progress breakdown, and the
@@ -53,7 +54,7 @@ class CourseDetailPage extends ConsumerWidget {
         error: (e, _) => _back(
           context,
           c,
-          Text('Could not load this course.\n$e',
+          Text('Could not load this course.\n${appError(e).display}',
               textAlign: TextAlign.center,
               style: TextStyle(color: c.inkSoft, fontSize: 14)),
         ),

@@ -8,6 +8,7 @@ import '../../services/flashcard_reminders.dart';
 import 'flashcards_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/app_error.dart';
 
 /// Anki-style flashcards: a deck list with New / Learning / Due counts.
 /// Tap a deck to start an FSRS review session.
@@ -74,7 +75,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Could not load flashcards.\n$e',
+            child: Text('Could not load flashcards.\n${appError(e).display}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: c.inkSoft, fontSize: 14)),
           ),

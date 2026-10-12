@@ -9,6 +9,7 @@ import '../quizzes/quizzes_repository.dart';
 import 'bookmarks_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/app_error.dart';
 
 class BookmarksPage extends ConsumerStatefulWidget {
   const BookmarksPage({super.key});
@@ -95,7 +96,7 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text('Could not load your saved items.\n$e',
+                  child: Text('Could not load your saved items.\n${appError(e).display}',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.inkSoft, fontSize: 14)),
                 ),

@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../quizzes/quizzes_repository.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/app_error.dart';
 
 /// Quiz/exam attempt history — real attempts from the backend
 /// (`GET /quiz-attempts/results`).
@@ -30,7 +31,7 @@ class ResultsPage extends ConsumerWidget {
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text('Could not load your results.\n$e',
+                  child: Text('Could not load your results.\n${appError(e).display}',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.inkSoft, fontSize: 14)),
                 ),

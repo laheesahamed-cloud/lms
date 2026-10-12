@@ -27,6 +27,7 @@ import 'pdf_lesson_page.dart';
 import 'topic_icons.dart';
 import 'watch_video_modal.dart';
 import '../personal_notes/personal_notes_store.dart';
+import '../../data/app_error.dart';
 
 // TEMPORARY: file-based tracing for diagnosing a writing-time jump/flicker
 // that's specific to My Notes. Live device logging (both `flutter run
@@ -3000,7 +3001,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Widget _error(AppColors c, Object e) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Could not load this note.\n$e',
+          child: Text('Could not load this note.\n${appError(e).display}',
               textAlign: TextAlign.center, style: TextStyle(color: c.inkSoft, fontSize: 15.5)),
         ),
       );

@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'lesson_models.dart';
 import 'lessons_repository.dart';
+import '../../data/app_error.dart';
 
 /// Lessons inside one course grouped by subject — `/app/ai-notes/course/:courseKey`.
 /// Mirrors the Q-Bank `QuizCoursePage` pattern: collapsible subject sections
@@ -44,7 +45,7 @@ class _NotesCourseDetailPageState
         error: (e, _) => _backWrap(
           context,
           c,
-          Text('Could not load lessons.\n$e',
+          Text('Could not load lessons.\n${appError(e).display}',
               textAlign: TextAlign.center,
               style: TextStyle(color: c.inkSoft, fontSize: 14)),
         ),

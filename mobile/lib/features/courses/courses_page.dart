@@ -9,6 +9,7 @@ import '../../widgets/glass_card.dart';
 import 'courses_repository.dart';
 import '../../widgets/shell_insets.dart';
 import 'subject_icons.dart';
+import '../../data/app_error.dart';
 
 /// Student course library — grouped by exam type, with a dropdown filter.
 class CoursesPage extends ConsumerStatefulWidget {
@@ -33,7 +34,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Could not load courses.\n$e',
+          child: Text('Could not load courses.\n${appError(e).display}',
               textAlign: TextAlign.center,
               style: TextStyle(color: c.inkSoft, fontSize: 14)),
         ),

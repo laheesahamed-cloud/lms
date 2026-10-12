@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import '../bookmarks/bookmark_button.dart';
 import 'quizzes_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../data/app_error.dart';
 
 /// One course's quiz sets — `/app/qbank/course/:courseId`.
 ///
@@ -67,7 +68,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
         error: (e, _) => _back(
           context,
           c,
-          Text('Could not load this course.\n$e',
+          Text('Could not load this course.\n${appError(e).display}',
               textAlign: TextAlign.center,
               style: TextStyle(color: c.inkSoft, fontSize: 14)),
         ),
