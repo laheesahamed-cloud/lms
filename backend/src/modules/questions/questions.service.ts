@@ -855,7 +855,11 @@ export class QuestionsService {
         `,
         [
           createQuestionDto.courseId,
-          createQuestionDto.subjectId,
+          // ?? null like its siblings. questions.topic_id is nullable — a past
+          // paper spans a whole course rather than one subject — and mysql2
+          // refuses to bind undefined, so a payload that simply omits it would
+          // throw rather than store nothing.
+          createQuestionDto.subjectId ?? null,
           createQuestionDto.topicId ?? null,
           createQuestionDto.lessonId ?? null,
           createQuestionDto.paperId ?? null,
@@ -964,7 +968,7 @@ export class QuestionsService {
         `,
         [
           merged.courseId,
-          merged.subjectId,
+          merged.subjectId ?? null, // nullable: see the insert above
           merged.topicId ?? null,
           merged.lessonId ?? null,
           merged.paperId ?? null,

@@ -661,7 +661,7 @@ let QuestionsService = class QuestionsService {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
                 createQuestionDto.courseId,
-                createQuestionDto.subjectId,
+                createQuestionDto.subjectId ?? null,
                 createQuestionDto.topicId ?? null,
                 createQuestionDto.lessonId ?? null,
                 createQuestionDto.paperId ?? null,
@@ -759,7 +759,7 @@ let QuestionsService = class QuestionsService {
           WHERE id = ?
         `, [
                 merged.courseId,
-                merged.subjectId,
+                merged.subjectId ?? null,
                 merged.topicId ?? null,
                 merged.lessonId ?? null,
                 merged.paperId ?? null,

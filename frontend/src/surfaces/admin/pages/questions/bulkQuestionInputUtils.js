@@ -903,7 +903,11 @@ export function validateQuestion(question, resolved, duplicateMap) {
     errors.push('Course is required.');
   }
 
-  if (!resolved.subjectId) {
+  // A past paper is sat across a WHOLE COURSE, not one subject, so its
+  // questions do not have to belong to one — questions.topic_id is nullable in
+  // the schema and always has been; only this check insisted. It stays
+  // available for anyone who does want to file a paper question by subject.
+  if (!resolved.subjectId && resolved.category !== 'past_paper') {
     errors.push('Subject is required.');
   }
 
@@ -991,7 +995,10 @@ export function buildQuestionSignature(question, resolved) {
 export async function saveQuestionRecord({ question, resolved }) {
   const payload = {
     courseId: Number(resolved.courseId),
-    subjectId: Number(resolved.subjectId),
+    // null, not 0. Number('') is 0, and a past-paper question saved without a
+    // subject would otherwise store topic_id = 0 — an id pointing at no row,
+    // which reads as "has a subject" to every query that checks for one.
+    subjectId: resolved.subjectId ? Number(resolved.subjectId) : null,
     topicId: resolved.topicId ? Number(resolved.topicId) : null,
     lessonId: resolved.lessonId ? Number(resolved.lessonId) : null,
     paperId: resolved.paperId ? Number(resolved.paperId) : null,

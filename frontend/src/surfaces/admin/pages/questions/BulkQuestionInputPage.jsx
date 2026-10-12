@@ -843,6 +843,10 @@ export function BulkQuestionInputPage() {
         question: currentQuestion,
         resolved: currentDiagnostics.resolved,
       });
+      // Surfaced, not swallowed. The recap is a second request after the
+      // question is already saved, so a failure there used to leave the
+      // author believing the theory had gone in with it.
+      if (saveResult.theoryWarning) setError(saveResult.theoryWarning);
       applyQuestionPatch(setQuestions, currentQuestion.clientId, (question) => ({
         ...question,
         savedId: saveResult.savedId,
@@ -886,6 +890,7 @@ export function BulkQuestionInputPage() {
           question: item.question,
           resolved: item.resolved,
         });
+        if (saveResult.theoryWarning) issues.push(saveResult.theoryWarning);
         const targetIndex = nextQuestions.findIndex((question) => question.clientId === item.question.clientId);
         if (targetIndex >= 0) {
           nextQuestions[targetIndex] = {
@@ -1428,6 +1433,19 @@ E) Option E`}
                           </div>
                           <p className="m-0 line-clamp-3 break-words text-[13px] leading-[1.55] text-ink-soft [-webkit-box-orient:vertical] [display:-webkit-box]">{summary || 'Untitled question'}</p>
                           <small className="text-[11px] leading-tight text-ink-muted">{question.autoDetectedAnswer ? `Detected answer: ${question.autoDetectedAnswer}` : 'Answer not detected'}</small>
+                          {/* Says what the JSON actually carried, BEFORE you
+                              save. Without it a theory block the parser never
+                              recognised looked identical to one it did, and
+                              the only way to find out was to save and go
+                              looking for the card. */}
+                          {(question.questionApproach || question.theoryRecap) && (
+                            <small className="text-[11px] leading-tight text-emerald-600">
+                              {[
+                                question.questionApproach ? 'approach' : null,
+                                question.theoryRecap ? 'quick theory' : null,
+                              ].filter(Boolean).join(' · ')} included
+                            </small>
+                          )}
                         </button>
                       );
                     })}
