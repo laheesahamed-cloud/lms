@@ -3,71 +3,161 @@ import { upsertTheoryRecap } from '../../../../shared/api/theoryRecap.api.js';
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 
-/// THE FULL FORMAT: a question, how to approach it, and its quick theory.
+/// THE FULL FORMAT — the brief AND an example, because it is copied to the
+/// clipboard to brief an author or an AI, not just to show a shape.
 ///
-/// A superset of [sampleJsonFormat], not a replacement. Both are accepted by
-/// the same parser and always will be — `approach` and `theory` are read when
-/// present and ignored when absent, so every file written against the older
-/// shape keeps importing unchanged.
+/// A SUPERSET of [sampleJsonFormat], never a replacement. `approach` and
+/// `theory` are read when present and ignored when absent, so every file
+/// written against the older shape keeps importing unchanged.
 ///
-/// `theory` maps onto question_theory_recaps, which is a SEPARATE table keyed
-/// by question_id. It therefore cannot be written in the same request that
-/// creates the question — the id does not exist yet — so the bulk tool saves
-/// the question first and then upserts the recap against the id it gets back.
-export const fullJsonFormat = JSON.stringify([
+/// The rules below are not invented here. They are what the app's own
+/// generators ask for — buildApproachPrompt and buildTheoryRecapPrompt in
+/// ai.service.ts — so a hand-written or externally generated file produces the
+/// same thing the Generate buttons would, and the two cannot drift.
+///
+/// The leading prose is safe: extractJsonPayload finds the first bracket, so
+/// this whole block can be pasted straight back into the input box.
+export const fullJsonFormat = `HOW TO WRITE THIS FILE
+======================
+Return a JSON array of question objects. Everything below is one object.
+
+QUESTION
+  question_type   "sba" or "true_false"
+  options         SBA: A-E, each with is_correct and why_incorrect.
+                  why_incorrect is required on every WRONG option - it is
+                  what the student reads after answering.
+  statements      true_false only: 5 statements, each with answer True/False
+                  and its own explanation.
+  explanation     Why the correct answer is correct, overall.
+
+APPROACH  (how to read the stem - NOT why the options are right or wrong)
+  approach              A NUMBERED LIST: "1. ...\\n2. ...\\n3. ..."
+                        Walk the stem CLUE BY CLUE, in the order the details
+                        appear in the question. For each clue say what it
+                        signals and why the examiner put it there. Call out
+                        anything that is a red herring or a distractor rather
+                        than a real clue. Finish by chaining the clues to the
+                        answer - do not restate the answer explanation.
+  approach_highlights   3 to 8 short phrases copied VERBATIM from the question
+                        text, as exact substrings. The app finds them in the
+                        stem and highlights them, so a paraphrase is silently
+                        dropped - it must match character for character.
+
+QUICK THEORY  (the concept behind the question, not the question)
+  theory.concept        The disease or concept being tested.
+  theory lists          etiology, pathophysiology, clinical_features,
+                        investigations, treatment, key_points.
+                        3 to 6 bullets each. Short, exam-focused.
+                        clinical_features covers symptoms, signs AND
+                        examination findings.
+  theory.mnemonic       One short memory aid, or omit it.
+  Do NOT repeat the question or the options here - summarise the concept.
+
+A list may be a JSON array or one item per line. Omit anything you have not
+written; an empty theory block is ignored rather than saved as a blank card.
+
+EXAMPLE
+=======
+${JSON.stringify([
   {
     question_number: 1,
     question_type: 'sba',
     topic: 'Acute coronary syndrome',
     question:
-      'A 58-year-old man has 40 minutes of crushing central chest pain with '
-      + 'ST elevation in leads II, III and aVF. What is the single best '
-      + 'immediate management?',
+      'A 58-year-old man has 40 minutes of crushing central chest pain radiating '
+      + 'to the jaw. His ECG shows ST elevation in leads II, III and aVF. He took '
+      + 'sublingual GTN with no relief. He is otherwise well and the nearest PCI '
+      + 'centre is 30 minutes away. What is the single best immediate management?',
     options: [
-      { label: 'A', text: 'Primary PCI', is_correct: true, why_incorrect: null },
-      { label: 'B', text: 'Thrombolysis', is_correct: false, why_incorrect: 'Reserved for when primary PCI is not available within 120 minutes.' },
-      { label: 'C', text: 'Oral beta blocker alone', is_correct: false, why_incorrect: 'Does not reopen the occluded artery.' },
-      { label: 'D', text: 'Exercise tolerance test', is_correct: false, why_incorrect: 'Contraindicated in an acute coronary syndrome.' },
-      { label: 'E', text: 'Discharge with outpatient follow-up', is_correct: false, why_incorrect: 'This is a time-critical emergency.' },
+      { label: 'A', text: 'Primary percutaneous coronary intervention', is_correct: true, why_incorrect: null },
+      { label: 'B', text: 'Thrombolysis', is_correct: false, why_incorrect: 'Only when primary PCI cannot be delivered within 120 minutes of diagnosis. Here it can.' },
+      { label: 'C', text: 'Oral beta blocker and discharge', is_correct: false, why_incorrect: 'Does not reopen the occluded artery, and discharge in an evolving STEMI risks death.' },
+      { label: 'D', text: 'Exercise tolerance test', is_correct: false, why_incorrect: 'Contraindicated in an acute coronary syndrome - it provokes ischaemia in an already occluded territory.' },
+      { label: 'E', text: 'Repeat the ECG in 6 hours', is_correct: false, why_incorrect: 'ST elevation with ongoing pain is already diagnostic. Waiting loses viable myocardium.' },
     ],
     correct_answer: 'A',
     explanation:
-      'Inferior ST elevation with ongoing pain is a STEMI. Primary PCI is the '
-      + 'reperfusion strategy of choice when it can be delivered promptly.',
+      'Inferior ST elevation with ongoing ischaemic pain is a STEMI. Primary PCI '
+      + 'is the reperfusion strategy of choice whenever it can be delivered within '
+      + '120 minutes of diagnosis.',
     keywords: ['STEMI', 'reperfusion', 'inferior MI'],
 
-    // ── How to approach this question ──────────────────────────────────────
-    // Saved on the question row itself. `highlights` are the phrases the
-    // reader sees emphasised inside the text above.
     approach:
-      'Identify the territory from the leads, confirm this is a STEMI rather '
-      + 'than an NSTEMI, then choose reperfusion on the basis of how quickly '
-      + 'PCI can be delivered.',
-    approach_highlights: ['leads II, III and aVF', 'within 120 minutes'],
+      '1. "A 58-year-old man" - age and sex put him in the group where '
+      + 'atherosclerotic coronary disease is the first thing to consider, so the '
+      + 'examiner is steering you towards an ischaemic cause from the first line.\n'
+      + '2. "40 minutes of crushing central chest pain" - the character and the '
+      + 'duration matter. Beyond about 20 minutes this is no longer stable angina; '
+      + 'the examiner is telling you infarction is underway.\n'
+      + '3. "ST elevation in leads II, III and aVF" - the single decisive clue. '
+      + 'Those three leads are the inferior territory, so this is an inferior '
+      + 'STEMI, usually a right coronary artery occlusion.\n'
+      + '4. "sublingual GTN with no relief" - confirms it. Stable angina settles '
+      + 'with GTN; an occluded artery does not.\n'
+      + '5. "he is otherwise well" - a red herring. It tempts you towards a less '
+      + 'urgent answer, but it changes nothing about an evolving infarct.\n'
+      + '6. "the nearest PCI centre is 30 minutes away" - this is what the question '
+      + 'is really testing. Thrombolysis is only for when PCI is out of reach '
+      + 'within 120 minutes. It is reachable, so the chain ends at primary PCI.',
+    approach_highlights: [
+      '40 minutes of crushing central chest pain',
+      'ST elevation in leads II, III and aVF',
+      'sublingual GTN with no relief',
+      'he is otherwise well',
+      'nearest PCI centre is 30 minutes away',
+    ],
 
-    // ── Quick theory ───────────────────────────────────────────────────────
-    // Every field is optional. Arrays may be written as arrays, or as one
-    // string per line — both are accepted.
     theory: {
       concept: 'ST-elevation myocardial infarction',
       course: 'Medicine',
       subject: 'Cardiology',
       topic: 'Acute coronary syndrome',
       lesson: 'STEMI',
-      etiology: ['Atherosclerotic plaque rupture', 'Coronary thrombosis'],
-      pathophysiology: [
-        'Plaque rupture exposes thrombogenic core',
-        'Occlusive thrombus forms',
-        'Transmural ischaemia produces ST elevation',
+      etiology: [
+        'Atherosclerotic plaque rupture or erosion (the great majority)',
+        'Coronary embolism, for example from atrial fibrillation or endocarditis',
+        'Coronary dissection, including spontaneous dissection in younger women',
+        'Coronary spasm, classically cocaine-related',
       ],
-      clinical_features: ['Crushing central chest pain', 'Sweating and nausea'],
-      investigations: ['12-lead ECG', 'Troponin', 'Coronary angiography'],
-      treatment: ['Primary PCI', 'Dual antiplatelet therapy', 'Statin'],
-      key_points: ['Time is muscle', 'Inferior MI: check right-sided leads'],
+      pathophysiology: [
+        'A vulnerable plaque ruptures and exposes its thrombogenic lipid core',
+        'Platelets adhere and aggregate, and the clotting cascade is activated',
+        'An occlusive thrombus forms and blood flow stops distally',
+        'Ischaemia spreads from endocardium to epicardium, giving transmural injury',
+        'Transmural injury produces ST elevation in the leads facing that territory',
+        'Myocyte necrosis begins within 20-30 minutes and spreads with every minute',
+      ],
+      clinical_features: [
+        'Crushing or heavy central chest pain, often radiating to jaw or left arm',
+        'Lasting more than 20 minutes and not relieved by rest or GTN',
+        'Autonomic features: sweating, nausea, vomiting, breathlessness',
+        'Signs of failure: raised JVP, basal crackles, third heart sound',
+        'Inferior infarcts may show bradycardia or hypotension from vagal tone or RV involvement',
+      ],
+      investigations: [
+        '12-lead ECG within 10 minutes of arrival - the decision-making test',
+        'Right-sided leads V4R in an inferior STEMI, to catch RV infarction',
+        'High-sensitivity troponin, which confirms but must never delay reperfusion',
+        'Bedside echocardiography for regional wall motion abnormality',
+        'Coronary angiography, both diagnostic and the route to treatment',
+      ],
+      treatment: [
+        'Primary PCI if it can be delivered within 120 minutes of diagnosis',
+        'Thrombolysis if it cannot, followed by transfer for angiography',
+        'Dual antiplatelet therapy: aspirin plus a P2Y12 inhibitor',
+        'Anticoagulation during the procedure',
+        'Secondary prevention: statin, ACE inhibitor, beta blocker, cardiac rehabilitation',
+      ],
+      key_points: [
+        'Time is muscle - every minute of delay costs viable myocardium',
+        'II, III and aVF means inferior, and inferior means check the right side',
+        'Avoid nitrates and be careful with opiates if the right ventricle is involved',
+        'A normal troponin early does not exclude a STEMI; the ECG decides',
+      ],
       mnemonic: 'MONA-B is supportive, reperfusion is definitive',
     },
   },
-], null, 2);
+], null, 2)}`;
 
 export const sampleJsonFormat = JSON.stringify([
   {
