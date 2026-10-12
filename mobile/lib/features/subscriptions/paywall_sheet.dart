@@ -822,14 +822,19 @@ class _UnlockHeader extends StatelessWidget {
               ),
             ),
           ),
-          // A shade rising from the bottom, so the words have something to sit
-          // on rather than relying on whatever part of the picture happens to
-          // fall behind each letter.
+          // The picture ends WITHOUT AN EDGE — the same treatment as the
+          // Study Hub artwork.
+          //
+          // It used to be a shade for words to sit on, so it started high and
+          // ended at 88%: enough to darken letters, not enough to meet the
+          // sheet. The words are part of the artwork now, so this has only one
+          // job left — run the lower third out to exactly the sheet's own
+          // colour, so there is no line where the photograph stops.
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            height: height * 0.72,
+            height: height * 0.42,
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -838,10 +843,33 @@ class _UnlockHeader extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       feather.withValues(alpha: 0.0),
-                      feather.withValues(alpha: 0.62),
-                      feather.withValues(alpha: 0.88),
+                      feather.withValues(alpha: 0.55),
+                      feather,
                     ],
-                    stops: const [0.0, 0.55, 1.0],
+                    stops: const [0.0, 0.62, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // And a shorter one down from the top, so the close and Restore
+          // controls have something to read against wherever the picture
+          // happens to be light behind them.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: height * 0.22,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      feather.withValues(alpha: 0.42),
+                      feather.withValues(alpha: 0.0),
+                    ],
                   ),
                 ),
               ),
