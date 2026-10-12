@@ -1306,9 +1306,6 @@ let QuestionsService = class QuestionsService {
         if (!question.courseId || question.courseId <= 0) {
             throw new common_1.BadRequestException('Please select a course');
         }
-        if (!question.subjectId || question.subjectId <= 0) {
-            throw new common_1.BadRequestException('Please select a subject');
-        }
         if (!question.questionText.trim()) {
             throw new common_1.BadRequestException('Question text is required');
         }

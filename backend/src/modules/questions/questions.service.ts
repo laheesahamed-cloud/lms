@@ -1651,9 +1651,16 @@ export class QuestionsService {
       throw new BadRequestException('Please select a course');
     }
 
-    if (!question.subjectId || question.subjectId <= 0) {
-      throw new BadRequestException('Please select a subject');
-    }
+    // No subject check. A question belongs to a COURSE; the subject is how it
+    // is filed within one, and questions.topic_id is nullable precisely so a
+    // past paper or a course-wide assessment can leave it out.
+    //
+    // This is the fourth place the same rule was written — the client
+    // validator, the DTO's @IsInt(), ensureHierarchyExists, and here — and it
+    // is the one that kept throwing after the other three were relaxed,
+    // because nothing connects them. A value this check rejects, 0, can no
+    // longer be produced either: the client sends null for "no subject" now,
+    // since 0 is an id pointing at no row.
 
     if (!question.questionText.trim()) {
       throw new BadRequestException('Question text is required');
