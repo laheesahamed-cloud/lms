@@ -75,8 +75,11 @@ class PaywallSheet extends ConsumerStatefulWidget {
                   Positioned.fill(
                     child: IgnorePointer(
                       child: BackdropFilter(
+                        // 10, not 22. At 22 the page behind was erased
+                        // rather than set back, which loses the sense of the
+                        // card sitting over something.
                         filter: ImageFilter.blur(
-                            sigmaX: 22 * t, sigmaY: 22 * t),
+                            sigmaX: 10 * t, sigmaY: 10 * t),
                         child: ColoredBox(
                           color: Colors.black.withValues(alpha: 0.42 * t),
                         ),
@@ -93,7 +96,14 @@ class PaywallSheet extends ConsumerStatefulWidget {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 32),
-                          child: ClipRRect(
+                          // MATERIAL, which showDialog used to supply via
+                          // Dialog and showGeneralDialog does not. Without an
+                          // ancestor Material every Text in the card falls
+                          // back to the debug style and draws those yellow
+                          // double underlines.
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: ClipRRect(
                             borderRadius: BorderRadius.circular(22),
                             child: ConstrainedBox(
                               // Capped so the card never runs past the screen
@@ -107,6 +117,7 @@ class PaywallSheet extends ConsumerStatefulWidget {
                               ),
                               child: const PaywallSheet(asDialog: true),
                             ),
+                          ),
                           ),
                         ),
                       ),
