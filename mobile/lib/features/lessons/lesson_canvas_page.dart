@@ -819,6 +819,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _saveTimer?.cancel();
     _metricsDebounce?.cancel();
     if (_inkDirty) _saveInk(); // flush any pending ink before leaving
+    _lassoAnim?.dispose();
     _tick.dispose();
     _inkGen.dispose();
     _xform.dispose();
@@ -1697,6 +1698,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _endStroke({required bool commit}) {
     if (_selectMode) { _selectUp(); return; }
     if (_tool == _Tool.eraser) {
+      _eraserAt = null; // hides the ring
+      _tick.value++;
       // One rub = one undo step, however many strokes it cut through.
       if (_eraseStarted) {
         _eraseStarted = false;
@@ -2025,6 +2028,33 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   /// paper does not push an undo step or trigger a save.
   bool _eraseStarted = false;
 
+  /// Drives the lasso's marching dashes. Only runs while the lasso is active —
+  /// a controller repeating behind a hidden tool is a frame of work per frame
+  /// for nothing.
+  AnimationController? _lassoAnim;
+
+  void _setLassoAnimating(bool on) {
+    if (on) {
+      _lassoAnim ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      );
+      if (!_lassoAnim!.isAnimating) _lassoAnim!.repeat();
+    } else {
+      _lassoAnim?.stop();
+    }
+  }
+
+  /// Where the eraser is while it is down, for the ring that shows its edge.
+  /// Null when it is up, which is what hides the ring.
+  Offset? _eraserAt;
+
+  /// Doc-space radius, so the ring and the cut are always the same size and
+  /// the on-screen size stays constant at whatever zoom you are working at —
+  /// the same compensation the pen does for its width.
+  double get _eraserRadius =>
+      _erSizes[_erSizeSel] / 2 / _matrix.getMaxScaleOnAxis();
+
   /// Cuts every stroke passing within the eraser's radius of [p].
   ///
   /// SPLITS rather than deleting whole strokes: rubbing the middle of a line
@@ -2032,9 +2062,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   /// would be a line or two less code, but one touch anywhere along a long
   /// sweeping line would take all of it.
   void _eraseAt(Offset p) {
-    // Doc-space radius, so the on-screen size of the eraser stays constant at
-    // whatever zoom you are working at — same compensation the pen does.
-    final r = _erSizes[_erSizeSel] / 2 / _matrix.getMaxScaleOnAxis();
+    _eraserAt = p;
+    final r = _eraserRadius;
     final next = <_Stroke>[];
     var changed = false;
 
@@ -2060,7 +2089,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       next.addAll(pieces);
     }
 
-    if (!changed) return;
+    if (!changed) {
+      _tick.value++; // the ring still has to follow the finger over blank paper
+      return;
+    }
     if (!_eraseStarted) {
       // Snapshot BEFORE the first cut of this rub, so undo restores the ink as
       // it was when the finger went down rather than after each pointer move.
@@ -2319,13 +2351,27 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       _selected.clear();
       _dragAnchor = null;
     });
+    _setLassoAnimating(false);
     _tick.value++;
   }
 
   void _fitToPage() {
+    // FIT, which is not the same as 100%.
+    //
+    // This used to animate to scale 1.0 on the assumption that 1.0 fills the
+    // screen. It does not: the page is laid out at a fraction of the SHORT
+    // edge (85% on a tablet), so on an iPad 1.0 leaves the page floating in
+    // the middle of a much wider viewport — fit is about 118% in portrait and
+    // 168% in landscape. Double-tap looked like it did nothing because it was
+    // zooming to a number rather than to the screen.
+    final viewW = _viewport.width;
+    final pageW = _pageWidth;
+    if (viewW <= 0 || pageW <= 0) return;
+    final minScale = widget.isPersonal ? 0.9 : 1.0;
+    final fit = (viewW / pageW).clamp(minScale, 5.0);
     _settling = false;
     _zoomFrom = _matrix.clone();
-    _zoomTo   = _clamp(_scaleAboutCentre(1.0));
+    _zoomTo   = _clamp(_scaleAboutCentre(fit));
     _zoomStart = null;
     _zoomAnim ??= createTicker(_onZoomTick);
     if (_zoomAnim!.isActive) _zoomAnim!.stop();
@@ -2632,6 +2678,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                         _selected.clear();
                         _dragAnchor = null;
                       });
+                      // Started before the rebuild that reads it, so the
+                      // painter picks up the merged repaint signal on the very
+                      // first frame the lasso is visible.
+                      _setLassoAnimating(_selectMode);
                       _tick.value++;
                     }),
                     if (_selectMode && _selected.isNotEmpty) ...[
@@ -2657,10 +2707,14 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                       ],
                       _sep(c),
                     ],
-                    for (var i = 0; i < 3; i++) ...[
-                      _sizeSlot(c, i),
-                      const SizedBox(width: 6),
-                    ],
+                    // Sizes belong to a drawing tool. The lasso has no width,
+                    // so showing its three slots only invited you to set
+                    // something that does nothing.
+                    if (!_selectMode)
+                      for (var i = 0; i < 3; i++) ...[
+                        _sizeSlot(c, i),
+                        const SizedBox(width: 6),
+                      ],
                   ],
                 ),
               ),
@@ -3088,8 +3142,17 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                     painter: _LivePainter(() => _active,
                         getLasso: () => _lasso,
                         getSelected: () => _selected,
+                        getEraser: () => _eraserAt == null
+                            ? null
+                            : (_eraserAt!, _eraserRadius),
+                        getDashPhase: () => _lassoAnim?.value ?? 0,
                         isPaperDarkAt: (y) => _isPaperDarkAt(y, dark),
-                        repaint: _tick),
+                        // Merged so the marching dashes repaint on their own
+                        // clock as well as on pointer ticks — the loop has to
+                        // keep moving while the finger is still.
+                        repaint: _lassoAnim == null
+                            ? _tick
+                            : Listenable.merge([_tick, _lassoAnim])),
                   ),
                 ),
               ),
@@ -3495,10 +3558,20 @@ class _LivePainter extends CustomPainter {
   /// repaint signal and can never lag a frame behind the drag.
   final List<Offset>? Function() getLasso;
   final List<_Stroke> Function() getSelected;
+  /// Where the eraser is and how wide, or null when it is not down.
+  ///
+  /// Passed in rather than read off the active stroke: the eraser no longer
+  /// MAKES a stroke (it cuts the ink directly), so the ring it draws has
+  /// nothing to derive its position from any more.
+  final (Offset, double)? Function() getEraser;
+  /// 0..1, advancing continuously, which slides the dashes along the loop.
+  final double Function() getDashPhase;
   _LivePainter(this.getActive,
       {required this.isPaperDarkAt,
       required this.getLasso,
       required this.getSelected,
+      required this.getEraser,
+      required this.getDashPhase,
       super.repaint});
 
   void _paintSelection(Canvas canvas) {
@@ -3524,18 +3597,80 @@ class _LivePainter extends CustomPainter {
       path.lineTo(o.dx, o.dy);
     }
     if (getSelected().isNotEmpty) path.close();
+
+    // A soft glow under the loop, so it reads as live rather than as something
+    // drawn on the page. Blurred and wide; the dashes go on top of it.
     canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6
-          ..color = accent.withValues(alpha: 0.9)
+          ..strokeWidth = 5
+          ..color = accent.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5)
           ..isAntiAlias = true);
+
+    // MARCHING DASHES, not a solid line.
+    //
+    // A solid stroke is indistinguishable from ink the author drew, which is
+    // the one thing a selection outline must not look like. Dashes that move
+    // say "this is a tool, and it is active" without a label.
+    canvas.drawPath(
+        _dashed(path, getDashPhase()),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..strokeCap = StrokeCap.round
+          ..color = accent
+          ..isAntiAlias = true);
+  }
+
+  /// [source] redrawn as dashes, offset along its length by [phase] (0..1).
+  ///
+  /// Walked with PathMetrics so the dash length is constant along the real
+  /// curve rather than per straight segment — the loop is a freehand polyline
+  /// whose segments are all different lengths, so a per-segment dash would
+  /// bunch up wherever the finger moved slowly.
+  static Path _dashed(Path source, double phase) {
+    const on = 7.0, off = 5.0;
+    const period = on + off;
+    final out = Path();
+    for (final metric in source.computeMetrics()) {
+      // Negative start so the dashes travel FORWARD along the path as the
+      // phase advances, which reads as moving with the loop rather than
+      // against it.
+      var pos = -phase * period;
+      while (pos < metric.length) {
+        final from = pos < 0 ? 0.0 : pos;
+        final to = (pos + on).clamp(0.0, metric.length);
+        if (to > from) out.addPath(metric.extractPath(from, to), Offset.zero);
+        pos += period;
+      }
+    }
+    return out;
+  }
+
+  /// The eraser's edge, so you can see what you are about to remove.
+  void _paintEraser(Canvas canvas) {
+    final at = getEraser();
+    if (at == null) return;
+    final (centre, r) = at;
+    final tint = isPaperDarkAt(centre.dy) ? Colors.white : Colors.black;
+    canvas.drawCircle(
+        centre, r, Paint()..color = tint.withValues(alpha: 0.08)); // faint area
+    canvas.drawCircle(
+        centre,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2
+          ..color = tint.withValues(alpha: 0.85)
+          ..isAntiAlias = true); // edge ring
   }
 
   @override
   void paint(Canvas canvas, Size size) {
     _paintSelection(canvas);
+    _paintEraser(canvas);
     final s = getActive();
     if (s == null || s.points.isEmpty) return;
     switch (s.tool) {
@@ -3548,22 +3683,9 @@ class _LivePainter extends CustomPainter {
         _drawLive(
             canvas, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
       case _Tool.eraser:
-        // Brush cursor — a ringed circle at the tip showing the erase size.
-        // The actual cut is done on the committed layers; this is just the
-        // indicator.
-        final c = s.points.last;
-        final r = s.width / 2;
-        final tint = isPaperDarkAt(c.dy) ? Colors.white : Colors.black;
-        canvas.drawCircle(
-            c, r, Paint()..color = tint.withValues(alpha: 0.08)); // faint area
-        canvas.drawCircle(
-            c,
-            r,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.2
-              ..color = tint.withValues(alpha: 0.85)
-              ..isAntiAlias = true); // edge ring
+        // Nothing: the eraser is never an active stroke now, and its ring is
+        // drawn by _paintEraser from the live position instead.
+        break;
     }
   }
 
