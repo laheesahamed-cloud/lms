@@ -364,9 +364,10 @@ class _UpgradeBanner extends StatelessWidget {
   ///
   /// 2.39:1 is the image's own aspect. Pinned, so the art is never cropped and
   /// the text never drifts off the part of it that was left empty.
-  /// The artwork's own aspect, after its baked-in rounded corners were
-  /// cropped off — they were showing as dark wedges inside the card's clip.
-  static const double _aspect = 2.623;
+  /// The artwork's own aspect. 3:1, and it is drawn full bleed with square
+  /// corners, so the card's own radius is the only one in play — the previous
+  /// asset had corners baked in and they showed as dark wedges inside the clip.
+  static const double _aspect = 2.9985;
 
   @override
   Widget build(BuildContext context) {
@@ -384,7 +385,7 @@ class _UpgradeBanner extends StatelessWidget {
         // it stays sane at both ends.
         double k(double frac, double lo, double hi) =>
             (w * frac).clamp(lo, hi).toDouble();
-        final titleSize = k(0.055, 19, 40);
+        final titleSize = k(0.048, 18, 36);
         final eyebrowSize = k(0.0245, 11.5, 15);
         final bodySize = k(0.025, 11, 16);
         final ctaSize = k(0.026, 12, 16);
@@ -437,18 +438,20 @@ class _UpgradeBanner extends StatelessWidget {
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                         colors: [
-                          Color(0xCC1B176B),
-                          Color(0x551B176B),
-                          Color(0x00241C7A),
+                          Color(0xAA08026D),
+                          Color(0x4408026D),
+                          Color(0x0008026D),
                         ],
-                        stops: [0.0, 0.46, 0.72],
+                        stops: [0.0, 0.42, 0.66],
                       ),
                     ),
                   ),
                   Padding(
                     // The clear part of the artwork is its left 55%; the crown
                     // and the cap live in the rest.
-                    padding: EdgeInsets.fromLTRB(padL, 0, w * 0.40, 0),
+                    // The artwork's subject begins at 58% of its width
+                    // (measured, not guessed), so the words stop before it.
+                    padding: EdgeInsets.fromLTRB(padL, 0, w * 0.45, 0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,29 +502,44 @@ class _UpgradeBanner extends StatelessWidget {
                                   'smarter. Go further.'
                               : 'All courses, practice questions, mock exams '
                                   'and more.',
-                          maxLines: w >= 520 ? 3 : 2,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: bodySize,
                               height: 1.35,
                               color: Colors.white.withValues(alpha: 0.86)),
                         ),
+                        if (w >= 520) ...[
+                          SizedBox(height: titleSize * 0.42),
+                          _GoPremiumButton(fontSize: ctaSize),
+                        ],
                       ],
                     ),
                   ),
-                  // ON TOP OF THE PAINTED CHEVRON, not beneath the text.
+                  // A chevron for a card too short to hold a button.
                   //
-                  // The artwork has a chevron disc baked into its lower right.
-                  // Adding a separate button left the card with two things
-                  // saying "press me", one of them unpressable — so the real
-                  // one is placed over the painted one and hides it. The
-                  // alignment is the chevron's own measured centre in the
-                  // asset (94% across, 84% down), as a fraction, so it stays
-                  // on it at every card width.
-                  Align(
-                    alignment: const Alignment(0.88, 0.67),
-                    child: _GoPremiumButton(fontSize: ctaSize),
-                  ),
+                  // At 3:1 a phone's card is about 120pt tall, which the
+                  // eyebrow, title and description already fill — so the
+                  // affordance is an icon at the edge instead. Drawn by the
+                  // app, not baked into the artwork: a painted one cannot be
+                  // moved or removed, which is exactly what went wrong with
+                  // the last asset.
+                  if (w < 520)
+                    Align(
+                      alignment: const Alignment(0.93, 0.0),
+                      child: Container(
+                        width: ctaSize * 2.1,
+                        height: ctaSize * 2.1,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.28)),
+                        ),
+                        child: Icon(Icons.arrow_forward_rounded,
+                            size: ctaSize * 1.1, color: Colors.white),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -532,9 +550,14 @@ class _UpgradeBanner extends StatelessWidget {
   }
 }
 
-/// The lighter blue the artwork already uses, so the title's second line and
-/// the button belong to the same picture.
-const Color _kCtaInk = Color(0xFF9DBBFF);
+/// Sampled from the artwork: #4A73FE is the brightest blue in its clear half,
+/// the light streak that sweeps under the books. The title's second line and
+/// the button both take it, so the words belong to the picture rather than
+/// sitting on top of it. Lifted a little for legibility — the full-strength
+/// blue is a shade dark for large type on the deep indigo ground.
+const Color _kCtaInk = Color(0xFF7D9DFF);
+const Color _kCtaFrom = Color(0xFF4A73FE);
+const Color _kCtaTo = Color(0xFF8B21FD);
 
 /// The card's own call to action. Not an AppButton: this one sits on the
 /// artwork and takes its colours from it, and the whole card is already the
@@ -550,13 +573,13 @@ class _GoPremiumButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(
             horizontal: fontSize * 1.5, vertical: fontSize * 0.72),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF6D8BFF), Color(0xFF8B5CF6)],
-          ),
+          // The artwork's own two ends: its left accent and its top-right
+          // violet, so the button reads as part of the same picture.
+          gradient: const LinearGradient(colors: [_kCtaFrom, _kCtaTo]),
           borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF4F46E5).withValues(alpha: 0.45),
+              color: _kCtaFrom.withValues(alpha: 0.45),
               blurRadius: 16,
               offset: const Offset(0, 5),
             ),
