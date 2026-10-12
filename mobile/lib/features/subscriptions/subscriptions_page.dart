@@ -84,14 +84,6 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     );
   }
 
-  /// The upgrade banner's ceiling. ONLY the banner: it is the one child whose
-  /// height follows its width (a fixed 2.39 aspect), so on an iPad it grew
-  /// into a 350pt-tall billboard while every other card on the page simply got
-  /// wider, which is fine. Capping the whole page instead squeezed the status
-  /// card, the buttons and the comparison table into a narrow column for no
-  /// reason.
-  static const double _kMaxBannerWidth = 560;
-
   Widget _content(AppColors c, Billing billing) {
     return Builder(
       builder: (context) => RefreshIndicator(
@@ -106,20 +98,11 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               // an existing subscriber seeing "Subscribe" would risk paying twice.
               if (iapSupported && !_hasAccess(billing.current)) ...[
                 const SizedBox(height: 14),
-                // Centred and capped, alone on this page — its height is a
-                // function of its width, so it is the only child that gets
-                // taller as the screen gets wider.
-                Center(
-                  child: ConstrainedBox(
-                    constraints:
-                        const BoxConstraints(maxWidth: _kMaxBannerWidth),
-                    child: _UpgradeBanner(
-                      onTap: () async {
-                        final granted = await PaywallSheet.show(context);
-                        if (granted) ref.invalidate(billingProvider);
-                      },
-                    ),
-                  ),
+                _UpgradeBanner(
+                  onTap: () async {
+                    final granted = await PaywallSheet.show(context);
+                    if (granted) ref.invalidate(billingProvider);
+                  },
                 ),
               ],
 
@@ -401,9 +384,9 @@ class _UpgradeBanner extends StatelessWidget {
         // it stays sane at both ends.
         double k(double frac, double lo, double hi) =>
             (w * frac).clamp(lo, hi).toDouble();
-        final titleSize = k(0.047, 17, 34);
+        final titleSize = k(0.055, 19, 40);
         final eyebrowSize = k(0.0245, 11.5, 15);
-        final bodySize = k(0.0235, 11, 15);
+        final bodySize = k(0.025, 11, 16);
         final ctaSize = k(0.026, 12, 16);
         final padL = w * 0.055;
 
@@ -465,7 +448,7 @@ class _UpgradeBanner extends StatelessWidget {
                   Padding(
                     // The clear part of the artwork is its left 55%; the crown
                     // and the cap live in the rest.
-                    padding: EdgeInsets.fromLTRB(padL, 0, w * 0.42, 0),
+                    padding: EdgeInsets.fromLTRB(padL, 0, w * 0.40, 0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,36 +469,58 @@ class _UpgradeBanner extends StatelessWidget {
                           ),
                         ]),
                         SizedBox(height: titleSize * 0.34),
-                        Text('Unlock your full\nlearning potential',
-                            style: TextStyle(
-                                fontSize: titleSize,
-                                height: 1.18,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.3,
-                                color: Colors.white)),
+                        // TWO-TONE, so the line that names the benefit is the
+                        // one that carries the colour. A single block of white
+                        // gave the card one weight all through, which is most
+                        // of why it read as flat.
+                        Text.rich(
+                          TextSpan(children: [
+                            const TextSpan(text: 'Unlock your full\n'),
+                            TextSpan(
+                                text: 'learning potential',
+                                style: TextStyle(color: _kCtaInk)),
+                          ]),
+                          style: TextStyle(
+                              fontSize: titleSize,
+                              height: 1.16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.4,
+                              color: Colors.white),
+                        ),
                         SizedBox(height: titleSize * 0.3),
+                        // The fuller sentence on a card with room for it. One
+                        // short line left most of the width empty at tablet
+                        // size; a phone still gets the short one, because two
+                        // lines there would crowd the title.
                         Text(
-                          'All courses, practice questions, mock exams and more.',
-                          maxLines: 2,
+                          w >= 520
+                              ? 'Get unlimited access to all courses, practice '
+                                  'questions, mock exams and more. Study '
+                                  'smarter. Go further.'
+                              : 'All courses, practice questions, mock exams '
+                                  'and more.',
+                          maxLines: w >= 520 ? 3 : 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: bodySize,
-                              height: 1.3,
-                              color: Colors.white.withValues(alpha: 0.85)),
+                              height: 1.35,
+                              color: Colors.white.withValues(alpha: 0.86)),
                         ),
-                        // A BUTTON once there is room for one.
-                        //
-                        // The artwork paints a chevron on its right, which is
-                        // enough of an affordance on a phone where the whole
-                        // card is barely taller than a row. At tablet size that
-                        // chevron is marooned in the corner and the card reads
-                        // as a picture rather than something to press.
-                        if (w >= 520) ...[
-                          SizedBox(height: titleSize * 0.46),
-                          _GoPremiumButton(fontSize: ctaSize),
-                        ],
                       ],
                     ),
+                  ),
+                  // ON TOP OF THE PAINTED CHEVRON, not beneath the text.
+                  //
+                  // The artwork has a chevron disc baked into its lower right.
+                  // Adding a separate button left the card with two things
+                  // saying "press me", one of them unpressable — so the real
+                  // one is placed over the painted one and hides it. The
+                  // alignment is the chevron's own measured centre in the
+                  // asset (94% across, 84% down), as a fraction, so it stays
+                  // on it at every card width.
+                  Align(
+                    alignment: const Alignment(0.88, 0.67),
+                    child: _GoPremiumButton(fontSize: ctaSize),
                   ),
                 ],
               ),
@@ -526,6 +531,10 @@ class _UpgradeBanner extends StatelessWidget {
     );
   }
 }
+
+/// The lighter blue the artwork already uses, so the title's second line and
+/// the button belong to the same picture.
+const Color _kCtaInk = Color(0xFF9DBBFF);
 
 /// The card's own call to action. Not an AppButton: this one sits on the
 /// artwork and takes its colours from it, and the whole card is already the
