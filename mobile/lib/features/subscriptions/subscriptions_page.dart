@@ -82,31 +82,20 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     );
   }
 
-  /// Side padding that keeps the content column at [_kMaxContentWidth] or
-  /// narrower, falling back to a plain 16 on a phone.
-  static const double _kMaxContentWidth = 560;
-  static double _gutter(double screenWidth) {
-    final slack = screenWidth - _kMaxContentWidth;
-    return slack <= 32 ? 16 : slack / 2;
-  }
+  /// The upgrade banner's ceiling. ONLY the banner: it is the one child whose
+  /// height follows its width (a fixed 2.39 aspect), so on an iPad it grew
+  /// into a 350pt-tall billboard while every other card on the page simply got
+  /// wider, which is fine. Capping the whole page instead squeezed the status
+  /// card, the buttons and the comparison table into a narrow column for no
+  /// reason.
+  static const double _kMaxBannerWidth = 560;
 
   Widget _content(AppColors c, Billing billing) {
     return Builder(
       builder: (context) => RefreshIndicator(
           onRefresh: () async => ref.refresh(billingProvider.future),
           child: ListView(
-            // ONE COLUMN WIDTH, centred, however wide the screen is.
-            //
-            // Everything on this page is a card in a vertical stack, and a
-            // stack of cards stretched across an iPad reads as a wall: the
-            // upgrade banner is a fixed 2.39 aspect, so at 834pt wide it
-            // became a 350pt-tall billboard, and the comparison table put its
-            // two tick columns a hand's width from their own labels. Padding
-            // the ListView rather than wrapping each card keeps every child
-            // aligned to the same edges.
-            padding: EdgeInsets.symmetric(
-                    horizontal: _gutter(MediaQuery.sizeOf(context).width))
-                .add(EdgeInsets.fromLTRB(0, 10, 0, 20 + shellNavInset(context))),
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 20 + shellNavInset(context)),
             children: [
               const PageHeader(title: 'Subscription'),
               const SizedBox(height: 10),
@@ -115,11 +104,20 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               // an existing subscriber seeing "Subscribe" would risk paying twice.
               if (iapSupported && !_hasAccess(billing.current)) ...[
                 const SizedBox(height: 14),
-                _UpgradeBanner(
-                  onTap: () async {
-                    final granted = await PaywallSheet.show(context);
-                    if (granted) ref.invalidate(billingProvider);
-                  },
+                // Centred and capped, alone on this page — its height is a
+                // function of its width, so it is the only child that gets
+                // taller as the screen gets wider.
+                Center(
+                  child: ConstrainedBox(
+                    constraints:
+                        const BoxConstraints(maxWidth: _kMaxBannerWidth),
+                    child: _UpgradeBanner(
+                      onTap: () async {
+                        final granted = await PaywallSheet.show(context);
+                        if (granted) ref.invalidate(billingProvider);
+                      },
+                    ),
+                  ),
                 ),
               ],
 
