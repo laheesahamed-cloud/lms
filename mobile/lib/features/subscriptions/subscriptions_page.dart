@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -379,78 +381,193 @@ class _UpgradeBanner extends StatelessWidget {
   ///
   /// 2.39:1 is the image's own aspect. Pinned, so the art is never cropped and
   /// the text never drifts off the part of it that was left empty.
-  static const double _aspect = 2.39;
+  /// The artwork's own aspect, after its baked-in rounded corners were
+  /// cropped off — they were showing as dark wedges inside the card's clip.
+  static const double _aspect = 2.623;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: AspectRatio(
-          aspectRatio: _aspect,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              image: const DecorationImage(
-                image: AssetImage('assets/premium/upgrade_card.jpg'),
-                fit: BoxFit.cover,
+      child: LayoutBuilder(builder: (context, box) {
+        final w = box.maxWidth;
+        // TYPE SCALED TO THE CARD, not fixed.
+        //
+        // The sizes were set for a phone, so on an iPad the card grew to three
+        // times the width and kept 17pt headings — a big empty panel with
+        // small writing in the corner, which is what made it read as inert.
+        // Everything below is a fraction of the card's own width, clamped so
+        // it stays sane at both ends.
+        double k(double frac, double lo, double hi) =>
+            (w * frac).clamp(lo, hi).toDouble();
+        final titleSize = k(0.047, 17, 34);
+        final eyebrowSize = k(0.0245, 11.5, 15);
+        final bodySize = k(0.0235, 11, 15);
+        final ctaSize = k(0.026, 12, 16);
+        final padL = w * 0.055;
+
+        // The artwork is 1128px wide. Past roughly that many device pixels it
+        // is being enlarged, and enlarged JPEG shows its blocks — so it gets a
+        // blur in proportion to how far past its own resolution it is being
+        // asked to go. A phone never reaches it and gets none.
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final over = (w * dpr) / 1128.0;
+        final blur = ((over - 1.0) * 2.2).clamp(0.0, 2.2);
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: AspectRatio(
+            aspectRatio: _aspect,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4F46E5)
+                        .withValues(alpha: dark ? 0.30 : 0.18),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF4F46E5)
-                      .withValues(alpha: dark ? 0.30 : 0.18),
-                  blurRadius: 22,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: LayoutBuilder(
-              builder: (context, box) => Padding(
-                // The clear part of the artwork is its left 55%; the crown and
-                // the chevron live in the rest. Sizing the text block to that
-                // fraction keeps the words off the picture at every width.
-                padding: EdgeInsets.fromLTRB(
-                    box.maxWidth * 0.055, 0, box.maxWidth * 0.45, 0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const Icon(Icons.auto_awesome_rounded,
-                          size: 13, color: Colors.white70),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text('Upgrade to Premium',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white.withValues(alpha: 0.9))),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (blur > 0.01)
+                    ImageFiltered(
+                      imageFilter: ImageFilter.blur(
+                          sigmaX: blur, sigmaY: blur, tileMode: TileMode.decal),
+                      child: const Image(
+                          image: AssetImage('assets/premium/upgrade_card.jpg'),
+                          fit: BoxFit.cover),
+                    )
+                  else
+                    const Image(
+                        image: AssetImage('assets/premium/upgrade_card.jpg'),
+                        fit: BoxFit.cover),
+                  // A wash in the artwork's OWN deep blue, heaviest where the
+                  // words are. It settles the picture and the text into one
+                  // surface instead of words laid over a photograph.
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Color(0xCC1B176B),
+                          Color(0x551B176B),
+                          Color(0x00241C7A),
+                        ],
+                        stops: [0.0, 0.46, 0.72],
                       ),
-                    ]),
-                    const SizedBox(height: 6),
-                    const Text('Unlock your full\nlearning potential',
-                        style: TextStyle(
-                            fontSize: 17,
-                            height: 1.18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: Colors.white)),
-                    const SizedBox(height: 6),
-                    Text(
-                      'All courses, practice questions, mock exams and more.',
-                      style: TextStyle(
-                          fontSize: 11,
-                          height: 1.3,
-                          color: Colors.white.withValues(alpha: 0.85)),
                     ),
-                  ],
-                ),
+                  ),
+                  Padding(
+                    // The clear part of the artwork is its left 55%; the crown
+                    // and the cap live in the rest.
+                    padding: EdgeInsets.fromLTRB(padL, 0, w * 0.42, 0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Icon(Icons.auto_awesome_rounded,
+                              size: eyebrowSize * 1.1, color: Colors.white70),
+                          SizedBox(width: eyebrowSize * 0.42),
+                          Flexible(
+                            child: Text('Upgrade to Premium',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: eyebrowSize,
+                                    fontWeight: FontWeight.w800,
+                                    color:
+                                        Colors.white.withValues(alpha: 0.9))),
+                          ),
+                        ]),
+                        SizedBox(height: titleSize * 0.34),
+                        Text('Unlock your full\nlearning potential',
+                            style: TextStyle(
+                                fontSize: titleSize,
+                                height: 1.18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                                color: Colors.white)),
+                        SizedBox(height: titleSize * 0.3),
+                        Text(
+                          'All courses, practice questions, mock exams and more.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: bodySize,
+                              height: 1.3,
+                              color: Colors.white.withValues(alpha: 0.85)),
+                        ),
+                        // A BUTTON once there is room for one.
+                        //
+                        // The artwork paints a chevron on its right, which is
+                        // enough of an affordance on a phone where the whole
+                        // card is barely taller than a row. At tablet size that
+                        // chevron is marooned in the corner and the card reads
+                        // as a picture rather than something to press.
+                        if (w >= 520) ...[
+                          SizedBox(height: titleSize * 0.46),
+                          _GoPremiumButton(fontSize: ctaSize),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+        );
+      }),
+    );
+  }
+}
+
+/// The card's own call to action. Not an AppButton: this one sits on the
+/// artwork and takes its colours from it, and the whole card is already the
+/// tap target — so it is deliberately inert and purely visual.
+class _GoPremiumButton extends StatelessWidget {
+  final double fontSize;
+  const _GoPremiumButton({required this.fontSize});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        padding: EdgeInsets.symmetric(
+            horizontal: fontSize * 1.5, vertical: fontSize * 0.72),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6D8BFF), Color(0xFF8B5CF6)],
+          ),
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4F46E5).withValues(alpha: 0.45),
+              blurRadius: 16,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.workspace_premium_rounded,
+                size: fontSize * 1.15, color: Colors.white),
+            SizedBox(width: fontSize * 0.5),
+            Text('Go Premium',
+                style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white)),
+            SizedBox(width: fontSize * 0.6),
+            Icon(Icons.arrow_forward_rounded,
+                size: fontSize * 1.05, color: Colors.white),
+          ],
         ),
       ),
     );
