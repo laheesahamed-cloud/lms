@@ -1,6 +1,73 @@
 import { createQuestion, updateQuestion } from '../../../../shared/api/questions.api.js';
+import { upsertTheoryRecap } from '../../../../shared/api/theoryRecap.api.js';
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+
+/// THE FULL FORMAT: a question, how to approach it, and its quick theory.
+///
+/// A superset of [sampleJsonFormat], not a replacement. Both are accepted by
+/// the same parser and always will be — `approach` and `theory` are read when
+/// present and ignored when absent, so every file written against the older
+/// shape keeps importing unchanged.
+///
+/// `theory` maps onto question_theory_recaps, which is a SEPARATE table keyed
+/// by question_id. It therefore cannot be written in the same request that
+/// creates the question — the id does not exist yet — so the bulk tool saves
+/// the question first and then upserts the recap against the id it gets back.
+export const fullJsonFormat = JSON.stringify([
+  {
+    question_number: 1,
+    question_type: 'sba',
+    topic: 'Acute coronary syndrome',
+    question:
+      'A 58-year-old man has 40 minutes of crushing central chest pain with '
+      + 'ST elevation in leads II, III and aVF. What is the single best '
+      + 'immediate management?',
+    options: [
+      { label: 'A', text: 'Primary PCI', is_correct: true, why_incorrect: null },
+      { label: 'B', text: 'Thrombolysis', is_correct: false, why_incorrect: 'Reserved for when primary PCI is not available within 120 minutes.' },
+      { label: 'C', text: 'Oral beta blocker alone', is_correct: false, why_incorrect: 'Does not reopen the occluded artery.' },
+      { label: 'D', text: 'Exercise tolerance test', is_correct: false, why_incorrect: 'Contraindicated in an acute coronary syndrome.' },
+      { label: 'E', text: 'Discharge with outpatient follow-up', is_correct: false, why_incorrect: 'This is a time-critical emergency.' },
+    ],
+    correct_answer: 'A',
+    explanation:
+      'Inferior ST elevation with ongoing pain is a STEMI. Primary PCI is the '
+      + 'reperfusion strategy of choice when it can be delivered promptly.',
+    keywords: ['STEMI', 'reperfusion', 'inferior MI'],
+
+    // ── How to approach this question ──────────────────────────────────────
+    // Saved on the question row itself. `highlights` are the phrases the
+    // reader sees emphasised inside the text above.
+    approach:
+      'Identify the territory from the leads, confirm this is a STEMI rather '
+      + 'than an NSTEMI, then choose reperfusion on the basis of how quickly '
+      + 'PCI can be delivered.',
+    approach_highlights: ['leads II, III and aVF', 'within 120 minutes'],
+
+    // ── Quick theory ───────────────────────────────────────────────────────
+    // Every field is optional. Arrays may be written as arrays, or as one
+    // string per line — both are accepted.
+    theory: {
+      concept: 'ST-elevation myocardial infarction',
+      course: 'Medicine',
+      subject: 'Cardiology',
+      topic: 'Acute coronary syndrome',
+      lesson: 'STEMI',
+      etiology: ['Atherosclerotic plaque rupture', 'Coronary thrombosis'],
+      pathophysiology: [
+        'Plaque rupture exposes thrombogenic core',
+        'Occlusive thrombus forms',
+        'Transmural ischaemia produces ST elevation',
+      ],
+      clinical_features: ['Crushing central chest pain', 'Sweating and nausea'],
+      investigations: ['12-lead ECG', 'Troponin', 'Coronary angiography'],
+      treatment: ['Primary PCI', 'Dual antiplatelet therapy', 'Statin'],
+      key_points: ['Time is muscle', 'Inferior MI: check right-sided leads'],
+      mnemonic: 'MONA-B is supportive, reperfusion is definitive',
+    },
+  },
+], null, 2);
 
 export const sampleJsonFormat = JSON.stringify([
   {
@@ -77,6 +144,10 @@ export function createEmptyQuestion(seed = {}) {
     // whatever gets generated.
     questionApproach: '',
     questionApproachHighlights: [],
+    // Quick theory, when the JSON carried a `theory` block. Declared here for
+    // the same reason as the two above: a field absent from the object is one
+    // the save path cannot see.
+    theoryRecap: null,
     status: 'active',
     topicLabel: '',
     courseId: '',
@@ -406,11 +477,19 @@ export function parseJsonQuestions(rawInput, defaults) {
       questionApproach: normalizeWhitespace(
         source.questionApproach || source.approach || ''
       ),
-      questionApproachHighlights: Array.isArray(source.questionApproachHighlights)
-        ? source.questionApproachHighlights.map(normalizeWhitespace).filter(Boolean)
-        : Array.isArray(source.approachHighlights)
-          ? source.approachHighlights.map(normalizeWhitespace).filter(Boolean)
-          : [],
+      // snake_case too: the rest of this format is snake_case, so an author
+      // writing approach_highlights alongside correct_answer and why_incorrect
+      // is following the file's own convention, not getting it wrong.
+      questionApproachHighlights: [
+        source.questionApproachHighlights,
+        source.approachHighlights,
+        source.approach_highlights,
+      ].reduce(
+        (found, candidate) => (found.length || !Array.isArray(candidate)
+          ? found
+          : candidate.map(normalizeWhitespace).filter(Boolean)),
+        [],
+      ),
       options,
       parserConfidence: warnings.length ? 'medium' : 'high',
       parserWarnings: warnings,
@@ -419,9 +498,59 @@ export function parseJsonQuestions(rawInput, defaults) {
         : (options.find((option) => Number(option.isCorrect) === 1)?.optionLabel || ''),
       sourceSnippet: JSON.stringify(source, null, 2),
       topicLabel: normalizeWhitespace(source.topic || ''),
+      // Carried alongside the question, not merged into it: a recap lives in
+      // its own table keyed by question_id, so it can only be written once the
+      // question has been saved and has an id. Null when the JSON had none,
+      // which is every file written against the older format.
+      theoryRecap: parseTheoryBlock(source.theory || source.quickTheory || source.quick_theory),
       reviewed: false,
     });
   });
+}
+
+/// The `theory` block of a question, in the shape UpsertTheoryRecapDto wants.
+///
+/// Every field is optional and the whole block is optional. Returns null when
+/// there is nothing usable, so the caller can simply skip the second request.
+export function parseTheoryBlock(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+  // Authors write these either as a JSON array or as one item per line — the
+  // second is what you get pasting out of a document, and rejecting it would
+  // fail a file for a reason that has nothing to do with its content.
+  const list = (value) => {
+    if (Array.isArray(value)) {
+      return value.map((v) => normalizeWhitespace(String(v ?? ''))).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      return value
+          .split('\n')
+          .map((line) => normalizeWhitespace(line.replace(/^[-*\u2022]\s*/, '')))
+          .filter(Boolean);
+    }
+    return [];
+  };
+
+  const recap = {
+    conceptName: normalizeWhitespace(raw.concept || raw.conceptName || raw.concept_name || ''),
+    hierarchyCourse: normalizeWhitespace(raw.course || raw.hierarchyCourse || ''),
+    hierarchySubject: normalizeWhitespace(raw.subject || raw.hierarchySubject || ''),
+    hierarchyTopic: normalizeWhitespace(raw.topic || raw.hierarchyTopic || ''),
+    hierarchyLesson: normalizeWhitespace(raw.lesson || raw.hierarchyLesson || ''),
+    etiology: list(raw.etiology || raw.aetiology),
+    pathophysiology: list(raw.pathophysiology),
+    clinicalFeatures: list(raw.clinical_features || raw.clinicalFeatures),
+    investigations: list(raw.investigations),
+    treatment: list(raw.treatment || raw.management),
+    keyPoints: list(raw.key_points || raw.keyPoints),
+    mnemonic: normalizeWhitespace(raw.mnemonic || ''),
+  };
+
+  // A block of entirely empty fields is not a recap, and saving one would put
+  // an empty card in front of a student.
+  const hasContent = Object.values(recap)
+      .some((v) => (Array.isArray(v) ? v.length > 0 : Boolean(v)));
+  return hasContent ? recap : null;
 }
 
 export function buildHierarchyCollections(meta, hierarchy) {
@@ -802,9 +931,33 @@ export async function saveQuestionRecord({ question, resolved }) {
 
   if (question.savedId) {
     await updateQuestion(question.savedId, payload);
-    return { savedId: question.savedId, signature };
+    const theoryWarning = await saveTheoryRecap(question.savedId, question.theoryRecap);
+    return { savedId: question.savedId, signature, theoryWarning };
   }
 
   const result = await createQuestion(payload);
-  return { savedId: Number(result.id), signature };
+  const savedId = Number(result.id);
+  const theoryWarning = await saveTheoryRecap(savedId, question.theoryRecap);
+  return { savedId, signature, theoryWarning };
+}
+
+/// Writes the quick theory, if the JSON carried any.
+///
+/// A SECOND request, necessarily: question_theory_recaps is keyed by
+/// question_id, so there is nothing to attach a recap to until the question
+/// itself has been created.
+///
+/// A failure here returns a warning rather than throwing. The question is
+/// already saved by this point, and turning that into an error would leave the
+/// author believing nothing was written while the question sat in the bank —
+/// far worse than telling them the recap needs a retry.
+async function saveTheoryRecap(questionId, recap) {
+  if (!questionId || !recap) return '';
+  try {
+    await upsertTheoryRecap(questionId, recap);
+    return '';
+  } catch (error) {
+    const detail = error?.response?.data?.message || error?.message || '';
+    return `The question saved, but its quick theory did not${detail ? `: ${detail}` : '.'}`;
+  }
 }

@@ -26,6 +26,7 @@ import {
   parseJsonQuestions,
   parseRawQuestions,
   resolveQuestion,
+  fullJsonFormat,
   sampleJsonFormat,
   saveQuestionRecord,
   aiReadiness,
@@ -972,14 +973,16 @@ export function BulkQuestionInputPage() {
     setToast('Draft JSON exported.');
   }
 
-  async function handleCopySampleJson() {
+  async function handleCopySampleJson({ full = false } = {}) {
     setError('');
+    const payload = full ? fullJsonFormat : sampleJsonFormat;
+    const label = full ? 'Full format (with approach and quick theory)' : 'Sample JSON format';
     try {
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(sampleJsonFormat);
+        await navigator.clipboard.writeText(payload);
       } else {
         const textarea = document.createElement('textarea');
-        textarea.value = sampleJsonFormat;
+        textarea.value = payload;
         textarea.setAttribute('readonly', '');
         textarea.style.position = 'fixed';
         textarea.style.top = '-1000px';
@@ -988,9 +991,9 @@ export function BulkQuestionInputPage() {
         document.execCommand('copy');
         textarea.remove();
       }
-      setToast('Sample JSON format copied.');
+      setToast(`${label} copied.`);
     } catch {
-      setError('Could not copy the sample JSON format. You can still copy it from the placeholder text.');
+      setError('Could not copy the format. You can still copy it from the placeholder text.');
     }
   }
 
@@ -1086,7 +1089,16 @@ export function BulkQuestionInputPage() {
               </div>
               <div className={ui.buttonRow}>
                 <button className={ui.primaryAction} type="button" onClick={handleParseQuestions}>Parse Questions</button>
-                <button type="button" className={ui.secondaryAction} onClick={handleCopySampleJson}>Copy Sample JSON</button>
+                <button type="button" className={ui.secondaryAction}
+                        onClick={() => handleCopySampleJson()}>Copy Sample JSON</button>
+                {/* The whole shape in one go — question, options, the approach
+                    walkthrough and the quick theory block — so an author (or
+                    an AI being briefed) has the complete contract to write
+                    against rather than the minimum. */}
+                <button type="button" className={ui.secondaryAction}
+                        onClick={() => handleCopySampleJson({ full: true })}>
+                  Copy Full JSON (Q + approach + theory)
+                </button>
                 <button type="button" className={ui.secondaryAction} onClick={handleAddBlankQuestion}>Add Blank Question</button>
               </div>
             </div>
