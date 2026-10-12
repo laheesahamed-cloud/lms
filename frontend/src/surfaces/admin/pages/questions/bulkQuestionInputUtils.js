@@ -853,6 +853,10 @@ export function resolveQuestion(question, defaults, usePerQuestionHierarchy) {
     questionType: question.questionType || defaults.questionType,
     paperId: question.paperId || defaults.paperId,
     keywordsText: mergeKeywords(defaults.keywordsText, question.keywordsText),
+    // Carried through from the defaults so validateQuestion can tell a
+    // DELIBERATELY course-wide question from one whose subject was forgotten.
+    // Both look like an empty subjectId, and only the caller knows which.
+    courseWide: Boolean(defaults.courseWide),
   };
 }
 
@@ -903,11 +907,15 @@ export function validateQuestion(question, resolved, duplicateMap) {
     errors.push('Course is required.');
   }
 
-  // A past paper is sat across a WHOLE COURSE, not one subject, so its
-  // questions do not have to belong to one — questions.topic_id is nullable in
-  // the schema and always has been; only this check insisted. It stays
-  // available for anyone who does want to file a paper question by subject.
-  if (!resolved.subjectId && resolved.category !== 'past_paper') {
+  // Two things are filed against a whole course rather than one subject: a
+  // past paper, and an assessment whose own scope is course-wide. Neither can
+  // be made to name a subject it does not have. questions.topic_id is nullable
+  // in the schema and always has been; only this check insisted.
+  //
+  // courseWide is passed explicitly because an empty subjectId cannot say
+  // which it is — deliberately course-wide, or simply not filled in.
+  const subjectOptional = resolved.category === 'past_paper' || resolved.courseWide;
+  if (!resolved.subjectId && !subjectOptional) {
     errors.push('Subject is required.');
   }
 

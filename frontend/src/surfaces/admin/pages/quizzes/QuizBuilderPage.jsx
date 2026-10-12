@@ -1452,7 +1452,19 @@ export function QuizBuilderPage() {
     return Array.from(combined);
   }, [meta.categories]);
 
-  const bulkDefaults = bulkGlobalDefaults;
+  // Declared here rather than beside its other use further down: bulkDefaults
+  // below needs it, and a const read before its declaration is a temporal dead
+  // zone error, not a hoisted undefined.
+  const isCourseWide = Boolean(form.courseId) && (!form.subjectId || form.isGeneral);
+
+  // Carries the quiz's OWN scope down to the question validator. A course-wide
+  // assessment has no subject to give its questions, and an empty subjectId
+  // cannot say whether that was the intent or an omission — so it is stated
+  // rather than inferred.
+  const bulkDefaults = useMemo(
+    () => ({ ...bulkGlobalDefaults, courseWide: isCourseWide }),
+    [bulkGlobalDefaults, isCourseWide]
+  );
   const selectedQuestionIdSet = useMemo(
     () => new Set(form.questionIds),
     [form.questionIds]
@@ -1593,7 +1605,6 @@ export function QuizBuilderPage() {
     loading,
   ]);
 
-  const isCourseWide = Boolean(form.courseId) && (!form.subjectId || form.isGeneral);
   const isDynamicQuiz = form.randomizationMode === 'dynamic';
   const visibleQuestionTabs = useMemo(
     () => (isDynamicQuiz ? quizQuestionTabs.filter((tab) => tab.id === 'bulk') : quizQuestionTabs),
@@ -2271,6 +2282,10 @@ export function QuizBuilderPage() {
       let savedId = workingQuestion.savedId;
       if (!savedId) {
         const saveResult = await saveQuestionRecord({ question: workingQuestion, resolved });
+        // The recap is a second request after the question is already saved,
+        // so a failure there has to be said out loud or it looks like the
+        // theory simply was not in the file.
+        if (saveResult.theoryWarning) setError(saveResult.theoryWarning);
         savedId = Number(saveResult.savedId);
         patchBulkQuestion(question.clientId, { savedId, lastSavedHash: saveResult.signature, reviewed: true });
         setForm((current) => ({
@@ -2624,6 +2639,7 @@ export function QuizBuilderPage() {
     }
 
     const saveResult = await saveQuestionRecord({ question, resolved });
+    if (saveResult.theoryWarning) setError(saveResult.theoryWarning);
     const savedId = Number(saveResult.savedId);
     const nextQuestionIds = Array.from(new Set([...form.questionIds, savedId]));
 
