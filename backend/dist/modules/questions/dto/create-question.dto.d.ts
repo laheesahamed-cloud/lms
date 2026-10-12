@@ -7,7 +7,7 @@ export declare class QuestionOptionDto {
 }
 export declare class CreateQuestionDto {
     courseId: number;
-    subjectId: number;
+    subjectId?: number | null;
     topicId?: number | null;
     lessonId?: number | null;
     paperId?: number | null;

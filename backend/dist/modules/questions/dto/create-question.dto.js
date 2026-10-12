@@ -47,8 +47,9 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateQuestionDto.prototype, "courseId", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], CreateQuestionDto.prototype, "subjectId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

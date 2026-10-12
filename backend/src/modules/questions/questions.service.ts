@@ -1300,7 +1300,13 @@ export class QuestionsService {
 
   private async ensureHierarchyExists(question: CreateQuestionDto) {
     await this.ensureExists('courses', question.courseId, 'Selected course was not found');
-    await this.ensureExists('topics', question.subjectId, 'Selected subject was not found');
+    // Only when one was given. A past paper, and a course-wide assessment,
+    // file their questions against the course alone — there is no subject row
+    // to look for, and asking for one by id 0 found nothing and refused the
+    // save.
+    if (question.subjectId) {
+      await this.ensureExists('topics', question.subjectId, 'Selected subject was not found');
+    }
 
     if (question.topicId) {
       await this.ensureExists('subtopics', question.topicId, 'Selected topic was not found');
@@ -1440,7 +1446,7 @@ export class QuestionsService {
       `,
       [
         question.courseId,
-        question.subjectId,
+        question.subjectId ?? null,
         question.topicId ?? null,
         question.lessonId ?? null,
         question.paperId ?? null,

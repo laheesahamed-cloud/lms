@@ -1038,7 +1038,9 @@ let QuestionsService = class QuestionsService {
     }
     async ensureHierarchyExists(question) {
         await this.ensureExists('courses', question.courseId, 'Selected course was not found');
-        await this.ensureExists('topics', question.subjectId, 'Selected subject was not found');
+        if (question.subjectId) {
+            await this.ensureExists('topics', question.subjectId, 'Selected subject was not found');
+        }
         if (question.topicId) {
             await this.ensureExists('subtopics', question.topicId, 'Selected topic was not found');
         }
@@ -1159,7 +1161,7 @@ let QuestionsService = class QuestionsService {
         WHERE id = ?
       `, [
             question.courseId,
-            question.subjectId,
+            question.subjectId ?? null,
             question.topicId ?? null,
             question.lessonId ?? null,
             question.paperId ?? null,

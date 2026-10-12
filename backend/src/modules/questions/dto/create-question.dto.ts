@@ -35,8 +35,15 @@ export class CreateQuestionDto {
   @IsInt()
   courseId!: number;
 
+  // Optional like its siblings below, and nullable with them.
+  //
+  // A past paper is sat across a whole course, and a course-wide assessment
+  // has no subject to give its questions — questions.topic_id is nullable in
+  // the schema for exactly that reason. @IsInt() alone refused the null those
+  // cases send, so the question could not be saved at all.
+  @IsOptional()
   @IsInt()
-  subjectId!: number;
+  subjectId?: number | null;
 
   @IsOptional()
   @IsInt()
