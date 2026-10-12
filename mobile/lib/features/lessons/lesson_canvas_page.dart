@@ -156,6 +156,13 @@ class _Stroke {
     pressures.add(pressure);
   }
 
+  /// An independent copy, for undo snapshots taken before a move.
+  _Stroke copy() => _Stroke(tool, color, width,
+      scale: scale,
+      points: List<Offset>.of(points),
+      pressures: List<double>.of(pressures))
+    ..committed = committed;
+
   /// Shift this stroke by [d].
   ///
   /// The baked path is translated rather than thrown away: the smoother is
@@ -321,7 +328,18 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   /// at all. Anything that changes the ink for a NEW reason clears this, since
   /// a redo after drawing something else would drop a stroke back into a canvas
   /// it no longer belongs to.
-  final List<_Stroke> _redoStack = [];
+  /// Undo/redo as SNAPSHOTS of the stroke list, not as single strokes.
+  ///
+  /// It used to be `_strokes.removeLast()` into a list of strokes, which can
+  /// only reverse an append. The eraser now rewrites strokes in place (one rub
+  /// can cut six lines into eleven pieces) and lasso-delete removes several at
+  /// once — neither is an append, and lasso-delete simply was not undoable.
+  /// A snapshot is a list of POINTERS to immutable committed strokes, so each
+  /// one costs a few words per stroke, not a copy of the ink.
+  final List<List<_Stroke>> _undoStack = [];
+  final List<List<_Stroke>> _redoStack = [];
+  /// Deep history is not worth unbounded memory on a long note.
+  static const int _kMaxUndo = 40;
   _Shape _shape = _Shape.free;
   /// Lasso select: draw a loop, then drag what it caught or delete it.
   bool _selectMode = false;
@@ -1016,6 +1034,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
           .toList();
       if (mounted) {
         _strokes.addAll(_compactErasedInk(list));
+        _undoStack.clear(); // nothing before a freshly loaded note to undo to
         _redoStack.clear();
         _inkGen.value++; // repaint committed layers
         setState(() {}); // refresh undo/clear enabled state in the toolbar
@@ -1492,6 +1511,11 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     // Pressing inside an existing selection picks it up to move; anywhere else
     // starts a new loop. Same gesture as every other canvas app.
     if (_selected.isNotEmpty && loop != null && _inPolygon(p, loop)) {
+      // Snapshot with COPIES of what is about to move. A snapshot is normally
+      // a list of pointers to immutable committed strokes, but translate()
+      // mutates a stroke in place — so a plain snapshot would hold the very
+      // objects being moved and undo would restore the moved positions.
+      _pushUndoCopying(_selected);
       _dragAnchor = p;
       return;
     }
@@ -1554,10 +1578,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _deleteSelection() {
     if (_selected.isEmpty) return;
+    _pushUndo();
     _strokes.removeWhere(_selected.contains);
     _selected.clear();
     _lasso = null;
-    _redoStack.clear();
     _inkGen.value++;
     _refreshPics();
     _tick.value++;
@@ -1573,6 +1597,19 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _startStroke(PointerDownEvent e) {
     if (_selectMode) { _selectDown(e); return; }
+    // The eraser takes ink AWAY — it is not a stroke and never becomes one.
+    //
+    // It used to be saved as an ordinary stroke painted with BlendMode.clear,
+    // so the ink underneath was still there, merely hidden: the lasso caught
+    // erased strokes and the eraser marks themselves, the file kept growing as
+    // you rubbed things out, and a note that had been erased needed an
+    // offscreen compositing layer to render at all. Now it cuts the points out
+    // of the strokes it touches and saves nothing of itself.
+    if (_tool == _Tool.eraser) {
+      _eraseStarted = false;
+      _eraseAt(_toDoc(e.localPosition));
+      return;
+    }
     _trace('[MidStrokeTransform] === STROKE START === isPersonal=${widget.isPersonal} tool=$_tool');
     // Lighter filter (less lag), faster speed response → tighter fast-stroke
     // tracking (the part that reads worst at high zoom).
@@ -1600,6 +1637,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _extendStroke(PointerMoveEvent e) {
     if (_selectMode) { _selectMove(e); return; }
+    if (_tool == _Tool.eraser) { _eraseAt(_toDoc(e.localPosition)); return; }
     final s = _active;
     if (s == null) return;
 
@@ -1658,6 +1696,16 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
   void _endStroke({required bool commit}) {
     if (_selectMode) { _selectUp(); return; }
+    if (_tool == _Tool.eraser) {
+      // One rub = one undo step, however many strokes it cut through.
+      if (_eraseStarted) {
+        _eraseStarted = false;
+        _refreshPics();
+        _scheduleSaveInk();
+        setState(() {}); // undo/clear enabled state
+      }
+      return;
+    }
     final s = _active;
     if (s == null) return;
     _trace('[MidStrokeTransform] === STROKE END === commit=$commit points=${s.points.length}');
@@ -1666,8 +1714,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _shapeAnchor = null;
     if (commit) {
       s.committed = true; // points are final now → cache its baked path
+      _pushUndo();
       _strokes.add(s);
-      _redoStack.clear(); // a new stroke makes the undone ones unreachable
       _inkGen.value++; // advance generation (painters replay next frame)
       _refreshPics(); // rebuild the committed picture NOW (no setState on commit)
       _tick.value++; //  …and the live layer clears it — same frame, no flash
@@ -1973,18 +2021,138 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     }
   }
 
+  /// True once the current rub has actually cut something, so a tap on empty
+  /// paper does not push an undo step or trigger a save.
+  bool _eraseStarted = false;
+
+  /// Cuts every stroke passing within the eraser's radius of [p].
+  ///
+  /// SPLITS rather than deleting whole strokes: rubbing the middle of a line
+  /// leaves both ends, which is what an eraser does. Deleting the whole stroke
+  /// would be a line or two less code, but one touch anywhere along a long
+  /// sweeping line would take all of it.
+  void _eraseAt(Offset p) {
+    // Doc-space radius, so the on-screen size of the eraser stays constant at
+    // whatever zoom you are working at — same compensation the pen does.
+    final r = _erSizes[_erSizeSel] / 2 / _matrix.getMaxScaleOnAxis();
+    final next = <_Stroke>[];
+    var changed = false;
+
+    for (final stroke in _strokes) {
+      // A legacy eraser stroke from a note saved by the old build is left
+      // alone: it is a cut that is already baked into how that note reads, and
+      // removing it would bring back ink the author had rubbed out.
+      if (stroke.tool == _Tool.eraser || stroke.points.isEmpty) {
+        next.add(stroke);
+        continue;
+      }
+      // Cheap reject first — most strokes on a page are nowhere near the rub.
+      if (!_strokeBounds(stroke).inflate(r + stroke.width).contains(p)) {
+        next.add(stroke);
+        continue;
+      }
+      final pieces = _splitAround(stroke, p, r + stroke.width / 2);
+      if (pieces == null) {
+        next.add(stroke);
+        continue;
+      }
+      changed = true;
+      next.addAll(pieces);
+    }
+
+    if (!changed) return;
+    if (!_eraseStarted) {
+      // Snapshot BEFORE the first cut of this rub, so undo restores the ink as
+      // it was when the finger went down rather than after each pointer move.
+      _pushUndo();
+      _eraseStarted = true;
+    }
+    _strokes
+      ..clear()
+      ..addAll(next);
+    _inkGen.value++;
+    _refreshPics();
+    _tick.value++;
+  }
+
+  /// [s] with every point within [r] of [centre] removed.
+  ///
+  /// Returns null when nothing was in range, so the caller can keep the
+  /// original object (and its baked path) untouched. Fragments of fewer than
+  /// two points are dropped — a single point is not a visible line.
+  static List<_Stroke>? _splitAround(_Stroke s, Offset centre, double r) {
+    final rr = r * r;
+    var hit = false;
+    final runs = <List<int>>[];
+    var run = <int>[];
+    for (var i = 0; i < s.points.length; i++) {
+      final d = s.points[i] - centre;
+      if (d.dx * d.dx + d.dy * d.dy <= rr) {
+        hit = true;
+        if (run.length > 1) runs.add(run);
+        run = <int>[];
+      } else {
+        run.add(i);
+      }
+    }
+    if (!hit) return null;
+    if (run.length > 1) runs.add(run);
+
+    return [
+      for (final piece in runs)
+        _Stroke(
+          s.tool,
+          s.color,
+          s.width,
+          scale: s.scale,
+          points: [for (final i in piece) s.points[i]],
+          pressures: s.pressures.length == s.points.length
+              ? [for (final i in piece) s.pressures[i]]
+              : null,
+        )..committed = true,
+    ];
+  }
+
+  /// Snapshot for an edit that MUTATES existing strokes rather than replacing
+  /// them — currently only a lasso drag.
+  void _pushUndoCopying(Iterable<_Stroke> willMutate) {
+    final mutating = Set<_Stroke>.identity()..addAll(willMutate);
+    _undoStack.add([
+      for (final st in _strokes) mutating.contains(st) ? st.copy() : st,
+    ]);
+    if (_undoStack.length > _kMaxUndo) _undoStack.removeAt(0);
+    _redoStack.clear();
+  }
+
+  /// Records the ink as it stands, before an edit changes it.
+  void _pushUndo() {
+    _undoStack.add(List<_Stroke>.of(_strokes));
+    if (_undoStack.length > _kMaxUndo) _undoStack.removeAt(0);
+    _redoStack.clear(); // a new edit makes the undone ones unreachable
+  }
+
   void _undo() {
-    if (_strokes.isEmpty) return;
-    _redoStack.add(_strokes.removeLast());
+    if (_undoStack.isEmpty) return;
+    _redoStack.add(List<_Stroke>.of(_strokes));
+    final prev = _undoStack.removeLast();
+    _strokes
+      ..clear()
+      ..addAll(prev);
     _inkGen.value++; // repaint committed layers
+    _refreshPics();
     setState(() {}); // refresh undo/redo/clear enabled state
     _scheduleSaveInk();
   }
 
   void _redo() {
     if (_redoStack.isEmpty) return;
-    _strokes.add(_redoStack.removeLast());
+    _undoStack.add(List<_Stroke>.of(_strokes));
+    final next = _redoStack.removeLast();
+    _strokes
+      ..clear()
+      ..addAll(next);
     _inkGen.value++;
+    _refreshPics();
     setState(() {});
     _scheduleSaveInk();
   }
@@ -2135,6 +2303,25 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   }
 
   // Double-tap: animated zoom to fit-width (GoodNotes-style 250ms ease-out).
+  /// Selects a drawing tool and leaves lasso select.
+  ///
+  /// The two were independent state, which is how the strip ended up showing
+  /// lasso and pen both active: picking a tool never turned lasso off, and
+  /// turning lasso on never dimmed the tool. Anything half-finished in the
+  /// lasso (a loop, a selection, a drag) is dropped at the same time, since it
+  /// has no meaning once you are drawing again.
+  void _pickTool(_Tool tool, {bool resetShape = false}) {
+    setState(() {
+      _tool = tool;
+      if (resetShape) _shape = _Shape.free;
+      _selectMode = false;
+      _lasso = null;
+      _selected.clear();
+      _dragAnchor = null;
+    });
+    _tick.value++;
+  }
+
   void _fitToPage() {
     _settling = false;
     _zoomFrom = _matrix.clone();
@@ -2315,7 +2502,16 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                             ? _emptyNote(c)
                             : (_reelsMode
                                 ? _ReelsView(note: note, dark: dark)
-                                : _canvas(c, dark, note)),
+                                // Double-tap to fit, the same gesture personal
+                                // notes already had. A lesson never got one:
+                                // the canvas was returned bare here, so there
+                                // was no way back to fit once you had zoomed
+                                // in except pinching your way out.
+                                : GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onDoubleTap: _fitToPage,
+                                    child: _canvas(c, dark, note),
+                                  )),
               ),
             ),
           ],
@@ -2408,21 +2604,26 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _toolBtn(c, Icons.edit_outlined, _tool == _Tool.pen,
+                    // Exactly ONE tool reads as active.
+                    //
+                    // Lasso used to be a separate flag on top of _tool, so
+                    // turning it on left the pen lit as well and the strip
+                    // showed two active tools at once. Every drawing tool's
+                    // lit state is now conditioned on lasso being off, and
+                    // picking one leaves lasso — see _pickTool.
+                    _toolBtn(c, Icons.edit_outlined,
+                        !_selectMode && _tool == _Tool.pen,
                         // Tapping the pen also drops any shape — it is the
                         // most obvious "just let me write" control there is.
-                        () => setState(() {
-                              _tool = _Tool.pen;
-                              _shape = _Shape.free;
-                            })),
+                        () => _pickTool(_Tool.pen, resetShape: true)),
                     const SizedBox(width: 6),
                     _toolBtn(c, Icons.brush_outlined,
-                        _tool == _Tool.highlighter,
-                        () => setState(() => _tool = _Tool.highlighter)),
+                        !_selectMode && _tool == _Tool.highlighter,
+                        () => _pickTool(_Tool.highlighter)),
                     const SizedBox(width: 6),
                     _toolBtn(c, Icons.cleaning_services_outlined,
-                        _tool == _Tool.eraser,
-                        () => setState(() => _tool = _Tool.eraser)),
+                        !_selectMode && _tool == _Tool.eraser,
+                        () => _pickTool(_Tool.eraser)),
                     const SizedBox(width: 6),
                     _toolBtn(c, Icons.highlight_alt_outlined, _selectMode, () {
                       setState(() {
@@ -2466,7 +2667,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
             ),
             _sep(c),
             _toolBtn(c, Icons.undo_rounded, false,
-                _strokes.isEmpty ? null : _undo),
+                // Keyed off the undo HISTORY, not the ink. Erasing the last
+                // stroke leaves an empty page with an undo still available,
+                // and the old test disabled the button exactly then.
+                _undoStack.isEmpty ? null : _undo),
             const SizedBox(width: 6),
             _toolBtn(c, Icons.redo_rounded, false,
                 _redoStack.isEmpty ? null : _redo),
@@ -4244,6 +4448,23 @@ class _ReelsViewState extends State<_ReelsView> {
     );
   }
 
+  /// Back to the first card.
+  ///
+  /// Jumps rather than animating through every card in between: a long lesson
+  /// would otherwise scroll past forty pages, each running its own fade and
+  /// blur, which is both slow and unreadable. The short hop at the end keeps
+  /// it from being an instant teleport with no sense of having moved.
+  void _backToStart() {
+    if (!_controller.hasClients) return;
+    final target = _pageCount > 3 ? 2 : 0;
+    if (target > 0) _controller.jumpToPage(target);
+    _controller.animateToPage(
+      0,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   Widget _closingPage(AppColors c, bool dark, Color ink, Color muted,
       LessonDoc note, int gen) {
     final accent = dark ? const Color(0xFF34D399) : const Color(0xFF10B981);
@@ -4271,10 +4492,31 @@ class _ReelsViewState extends State<_ReelsView> {
           child: Text(note.summaryBox,
               style: TextStyle(fontSize: 13.5, height: 1.5, color: muted)),
         ),
+      // A BUTTON, not an instruction.
+      //
+      // This used to read "swipe down to go again", which is not what swiping
+      // down does: on a vertical PageView it steps back one card, so the only
+      // way back to the start of a forty-card lesson was forty swipes. Nothing
+      // took you to the top, so the lesson simply ended here.
       Padding(
         padding: const EdgeInsets.only(top: 28),
         child: Center(
-          child: Text("That's the whole lesson — swipe down to go again",
+          child: TextButton.icon(
+            onPressed: _backToStart,
+            icon: const Icon(Icons.restart_alt_rounded, size: 18),
+            label: const Text('Start again from the top'),
+            style: TextButton.styleFrom(
+              foregroundColor: accent,
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Center(
+          child: Text("That's the whole lesson",
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 12, fontWeight: FontWeight.w600, color: muted)),
