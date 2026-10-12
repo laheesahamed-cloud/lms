@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -391,14 +389,6 @@ class _UpgradeBanner extends StatelessWidget {
         final ctaSize = k(0.026, 12, 16);
         final padL = w * 0.055;
 
-        // The artwork is 1128px wide. Past roughly that many device pixels it
-        // is being enlarged, and enlarged JPEG shows its blocks — so it gets a
-        // blur in proportion to how far past its own resolution it is being
-        // asked to go. A phone never reaches it and gets none.
-        final dpr = MediaQuery.devicePixelRatioOf(context);
-        final over = (w * dpr) / 1128.0;
-        final blur = ((over - 1.0) * 2.2).clamp(0.0, 2.2);
-
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: AspectRatio(
@@ -417,18 +407,12 @@ class _UpgradeBanner extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (blur > 0.01)
-                    ImageFiltered(
-                      imageFilter: ImageFilter.blur(
-                          sigmaX: blur, sigmaY: blur, tileMode: TileMode.decal),
-                      child: const Image(
-                          image: AssetImage('assets/premium/upgrade_card.jpg'),
-                          fit: BoxFit.cover),
-                    )
-                  else
-                    const Image(
-                        image: AssetImage('assets/premium/upgrade_card.jpg'),
-                        fit: BoxFit.cover),
+                  // Drawn sharp. The blur that used to be here was covering
+                  // for an 1128px asset being enlarged past its own
+                  // resolution; this artwork is 2000px and does not need it.
+                  const Image(
+                      image: AssetImage('assets/premium/upgrade_card.jpg'),
+                      fit: BoxFit.cover),
                   // A wash in the artwork's OWN deep blue, heaviest where the
                   // words are. It settles the picture and the text into one
                   // surface instead of words laid over a photograph.
