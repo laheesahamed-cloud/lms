@@ -18,6 +18,7 @@ import {
   parseJsonQuestions,
   parseRawQuestions,
   resolveQuestion,
+  fullJsonFormat,
   sampleJsonFormat,
   saveQuestionRecord,
   aiReadiness,
@@ -787,8 +788,15 @@ function BulkAddQuestionsPanel({
           <button type="button" className={ui.primaryAction} onClick={onParse}>
             Parse Questions
           </button>
-          <button type="button" className={ui.secondaryAction} onClick={onCopySample}>
+          <button type="button" className={ui.secondaryAction} onClick={() => onCopySample()}>
             Copy Sample JSON
+          </button>
+          {/* This page already parses and saves the full format — it shares
+              both the parser and saveQuestionRecord with the bulk tool. It
+              just had no way to hand you the brief. */}
+          <button type="button" className={ui.secondaryAction}
+                  onClick={() => onCopySample({ full: true })}>
+            Copy Full JSON (Q + approach + theory)
           </button>
           <button type="button" className={ui.secondaryAction} onClick={onAddBlank}>
             Add Blank Question
@@ -2372,14 +2380,16 @@ export function QuizBuilderPage() {
     }
   }
 
-  async function copyBulkSampleJson() {
+  async function copyBulkSampleJson({ full = false } = {}) {
     setError('');
+    const payload = full ? fullJsonFormat : sampleJsonFormat;
+    const label = full ? 'Full format (with approach and quick theory)' : 'Sample JSON format';
     try {
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(sampleJsonFormat);
+        await navigator.clipboard.writeText(payload);
       } else {
         const textarea = document.createElement('textarea');
-        textarea.value = sampleJsonFormat;
+        textarea.value = payload;
         textarea.setAttribute('readonly', '');
         textarea.style.position = 'fixed';
         textarea.style.top = '-1000px';
@@ -2388,9 +2398,9 @@ export function QuizBuilderPage() {
         document.execCommand('copy');
         textarea.remove();
       }
-      setBulkToast('Sample JSON format copied.');
+      setBulkToast(`${label} copied.`);
     } catch {
-      setError('Could not copy the sample JSON format.');
+      setError('Could not copy the format.');
     }
   }
 
