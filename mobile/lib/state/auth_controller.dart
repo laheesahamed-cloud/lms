@@ -328,6 +328,26 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// Records that the welcome screen was answered without saving a name.
+  ///
+  /// A failure here is deliberately swallowed: the screen is a courtesy, and
+  /// refusing to let someone past it because a flag-clearing call failed would
+  /// trap a brand new student on their first screen. The flag is cleared
+  /// locally either way, so this run goes through; a dropped call at worst
+  /// means the question is asked once more.
+  Future<void> completeProfileSetup() async {
+    final current = state.user;
+    if (current != null) {
+      state = state.copyWith(user: current.copyWith(needsProfileSetup: false));
+    }
+    try {
+      final user = await _repo.completeProfileSetup();
+      state = state.copyWith(user: user);
+    } catch (_) {
+      // Already cleared locally above.
+    }
+  }
+
   /// Change password. Returns null on success, or a user-facing error message.
   Future<String?> changePassword({
     required String currentPassword,

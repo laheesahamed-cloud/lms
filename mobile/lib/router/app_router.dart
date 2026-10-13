@@ -60,7 +60,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(onboardingSeenProvider, (_, _) => refresh.value++);
-  ref.listen(profileSetupSeenProvider, (_, _) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
@@ -92,11 +91,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // they are not allowed to be on.
       final user = auth.user;
       final atSetup = loc == '/welcome/profile';
-      // Shown once to anyone who has not seen it, rather than only to accounts
-      // we have no usable name for. Gating it on the name meant a brand new
-      // user who typed one at signup — or arrived via Google, which supplies
-      // one — was never welcomed at all, which is the opposite of the point.
-      final needsSetup = user != null && !ref.read(profileSetupSeenProvider);
+      // Asked when the ACCOUNT is new, which only the server can know. This
+      // used to read a SharedPreferences flag, and being device-local it got
+      // the common case backwards: the same student signing in on a second
+      // phone — or after a reinstall — was welcomed as new all over again,
+      // because that handset had never stored an answer.
+      //
+      // The server sets the flag only in the branch that CREATES a user from an
+      // Apple or Google sign-in, and clears it as soon as the question is
+      // answered. So: a first-ever social sign-in is asked; every later sign-in
+      // anywhere is not; and a second, genuinely new account on the same phone
+      // is asked again, which is right — a new account is a new person.
+      final needsSetup = user?.needsProfileSetup ?? false;
       if (needsSetup) return atSetup ? null : '/welcome/profile';
       // Deliberately NOT bouncing off /welcome/profile when it is not needed.
       // That guard was how the screen used to exit, and it also made the route

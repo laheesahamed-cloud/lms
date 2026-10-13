@@ -59,7 +59,7 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, permissions, status, avatar_key, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         const user = rows[0];
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid email or password');
@@ -130,11 +130,11 @@ let AuthService = AuthService_1 = class AuthService {
     async loginWithGoogleProfile(profile) {
         const email = String(profile.email || '').trim().toLowerCase();
         const fullName = this.getGoogleDisplayName(profile);
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key, needs_profile_setup FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         let user = rows[0];
         if (!user) {
             const randomPassword = await bcrypt.hash(`google:${profile.sub}:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
-            const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)', [fullName, email, randomPassword, 'student', 'active']);
+            const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)', [fullName, email, randomPassword, 'student', 'active']);
             await this.assignDefaultEntryPlan(result.insertId);
             user = {
                 id: result.insertId,
@@ -143,6 +143,7 @@ let AuthService = AuthService_1 = class AuthService {
                 password: randomPassword,
                 role: 'student',
                 status: 'active',
+                needs_profile_setup: 1,
             };
         }
         if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active') {
@@ -174,11 +175,11 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const fallbackName = email.includes('@') ? email.split('@')[0] : 'Student';
         const fullName = (providedName || '').trim() || fallbackName;
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key, needs_profile_setup FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         let user = rows[0];
         if (!user) {
             const randomPassword = await bcrypt.hash(`apple:${profile.sub}:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
-            const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)', [fullName, email, randomPassword, 'student', 'active']);
+            const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)', [fullName, email, randomPassword, 'student', 'active']);
             await this.assignDefaultEntryPlan(result.insertId);
             user = {
                 id: result.insertId,
@@ -187,6 +188,7 @@ let AuthService = AuthService_1 = class AuthService {
                 password: randomPassword,
                 role: 'student',
                 status: 'active',
+                needs_profile_setup: 1,
             };
         }
         if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active') {
@@ -440,7 +442,7 @@ let AuthService = AuthService_1 = class AuthService {
     async verifyEmailOtp(verifyEmailOtpDto) {
         const email = verifyEmailOtpDto.email.trim().toLowerCase();
         const code = String(verifyEmailOtpDto.code || '').trim();
-        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, status, avatar_key,
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, status, avatar_key, needs_profile_setup,
               email_verified, email_otp_code, email_otp_expires_at, email_otp_attempts
        FROM users
        WHERE email = ? AND deleted_at IS NULL
@@ -617,14 +619,23 @@ If you did not try to sign in, you can safely ignore this email.`;
         if (avatarKey && !ALLOWED_AVATAR_KEYS.has(avatarKey)) {
             throw new common_1.BadRequestException('Selected avatar is not available');
         }
-        await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ? WHERE id = ?', [fullName, avatarKey, user.id]);
+        await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?', [fullName, avatarKey, user.id]);
         return {
             ok: true,
             user: await this.serializeUser({
                 ...user,
                 full_name: fullName,
                 avatar_key: avatarKey,
+                needs_profile_setup: 0,
             }),
+        };
+    }
+    async completeProfileSetup(authorization) {
+        const user = await this.findUserByToken(this.extractToken(authorization));
+        await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
+        return {
+            ok: true,
+            user: await this.serializeUser({ ...user, needs_profile_setup: 0 }),
         };
     }
     async changePassword(authorization, changePasswordDto) {
@@ -678,7 +689,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         return token;
     }
     async findUserByToken(sessionToken) {
-        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, session_token, session_expires_at
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
        FROM users
        WHERE session_token = ?
          AND session_expires_at > NOW()
@@ -909,6 +920,7 @@ ${settings.footer}`;
             permissions: (0, role_permissions_1.effectivePermissions)(user.role, user.permissions),
             status: user.status,
             avatarKey: user.avatar_key || '',
+            needsProfileSetup: Number(user.needs_profile_setup ?? 0) === 1,
             hasActiveSubscription: accessProfile.hasActiveSubscription,
             subscriptionStatus: accessProfile.subscriptionStatus,
             currentPlanName: accessProfile.currentPlanName,

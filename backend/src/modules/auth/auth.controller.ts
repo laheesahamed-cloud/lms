@@ -281,6 +281,13 @@ export class AuthController {
     return this.authService.updateProfile(authorization, updateProfileDto);
   }
 
+  /// What Skip on the welcome screen calls. No body: it records that the
+  /// question was asked and answered, nothing more.
+  @Post('profile-setup/complete')
+  completeProfileSetup(@Headers('authorization') authorization: string | undefined) {
+    return this.authService.completeProfileSetup(authorization);
+  }
+
   @Patch('password')
   changePassword(@Headers('authorization') authorization: string | undefined, @Body() changePasswordDto: ChangePasswordDto) {
     return this.authService.changePassword(authorization, changePasswordDto);

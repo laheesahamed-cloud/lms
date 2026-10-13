@@ -736,6 +736,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             });
             await step('osce tables', () => this.ensureOsceTables(conn));
             await step('notification dismissals', () => this.ensureNotificationDismissalsTable(conn));
+            await step('users.needs_profile_setup', () => this.ensureColumn(conn, 'users', 'needs_profile_setup', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_key'));
         }
         finally {
             connection.release();

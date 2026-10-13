@@ -203,6 +203,9 @@ let AuthController = AuthController_1 = class AuthController {
     updateProfile(authorization, updateProfileDto) {
         return this.authService.updateProfile(authorization, updateProfileDto);
     }
+    completeProfileSetup(authorization) {
+        return this.authService.completeProfileSetup(authorization);
+    }
     changePassword(authorization, changePasswordDto) {
         return this.authService.changePassword(authorization, changePasswordDto);
     }
@@ -434,6 +437,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_profile_dto_1.UpdateProfileDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Post)('profile-setup/complete'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "completeProfileSetup", null);
 __decorate([
     (0, common_1.Patch)('password'),
     __param(0, (0, common_1.Headers)('authorization')),

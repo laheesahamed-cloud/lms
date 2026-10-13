@@ -835,6 +835,18 @@ export class SchemaSyncService implements OnModuleInit {
       // SCHEMA_SYNC=0, so this cannot sit behind the full sync.
       await step('notification dismissals', () =>
         this.ensureNotificationDismissalsTable(conn));
+      // Read on EVERY login and session restore (serializeUser) and written the
+      // moment an Apple/Google sign-in creates an account, so it cannot sit
+      // behind the full sync either. Default 0: every account that already
+      // exists has been through onboarding or never needed it, and a column
+      // that defaulted to 1 would greet the entire user base as new.
+      await step('users.needs_profile_setup', () =>
+        this.ensureColumn(
+          conn,
+          'users',
+          'needs_profile_setup',
+          'TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_key',
+        ));
     } finally {
       connection.release();
     }

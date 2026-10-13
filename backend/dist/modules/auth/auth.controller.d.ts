@@ -47,6 +47,7 @@ export declare class AuthController {
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
+            needsProfileSetup: boolean;
             hasActiveSubscription: boolean;
             subscriptionStatus: string;
             currentPlanName: string;
@@ -107,6 +108,7 @@ export declare class AuthController {
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
+            needsProfileSetup: boolean;
             hasActiveSubscription: boolean;
             subscriptionStatus: string;
             currentPlanName: string;
@@ -186,6 +188,60 @@ export declare class AuthController {
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
+            needsProfileSetup: boolean;
+            hasActiveSubscription: boolean;
+            subscriptionStatus: string;
+            currentPlanName: string;
+            featureAccess: {
+                aiNotes: boolean;
+                advancedInsights: boolean;
+                notesAccess: boolean;
+                aiTools: boolean;
+                analytics: boolean;
+                lessonsAccess: boolean;
+                practiceMode: boolean;
+                examMode: boolean;
+                aiQuizGenerator: boolean;
+                resultsTracking: boolean;
+                notesCanvasStudyMode: boolean;
+                performanceAnalytics: boolean;
+                weakAreaAnalysis: boolean;
+                progressTrackingBasic: boolean;
+                progressTrackingAdvanced: boolean;
+                reportQuestion: boolean;
+                pastPaperAccess: boolean;
+                mockPaperAccess: boolean;
+                featureKeys: string[];
+            } | {
+                aiNotes: boolean;
+                advancedInsights: boolean;
+                practiceMode: boolean;
+                examMode: boolean;
+                aiQuizGenerator: boolean;
+                resultsTracking: boolean;
+                notesCanvasStudyMode: boolean;
+                performanceAnalytics: boolean;
+                weakAreaAnalysis: boolean;
+                progressTrackingBasic: boolean;
+                progressTrackingAdvanced: boolean;
+                reportQuestion: boolean;
+                pastPaperAccess: boolean;
+                mockPaperAccess: boolean;
+                featureKeys: never[];
+            };
+        };
+    }>;
+    completeProfileSetup(authorization: string | undefined): Promise<{
+        ok: boolean;
+        user: {
+            id: number;
+            fullName: string;
+            email: string;
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+            permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
+            status: "active" | "inactive";
+            avatarKey: string;
+            needsProfileSetup: boolean;
             hasActiveSubscription: boolean;
             subscriptionStatus: string;
             currentPlanName: string;

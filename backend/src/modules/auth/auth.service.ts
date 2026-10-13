@@ -31,6 +31,7 @@ type UserRow = RowDataPacket & {
   permissions?: string | null;
   status: 'active' | 'inactive';
   avatar_key?: string | null;
+  needs_profile_setup?: number | string | null;
   session_token?: string | null;
   session_expires_at?: string | Date | null;
   password_reset_token?: string | null;
@@ -91,7 +92,10 @@ type GoogleTokenResponse = {
   error_description?: string;
 };
 
-type AuthUser = Pick<UserRow, 'id' | 'full_name' | 'email' | 'role' | 'permissions' | 'status' | 'avatar_key'>;
+type AuthUser = Pick<
+  UserRow,
+  'id' | 'full_name' | 'email' | 'role' | 'permissions' | 'status' | 'avatar_key' | 'needs_profile_setup'
+>;
 
 const ALLOWED_AVATAR_KEYS = new Set(['blue-tie', 'teal-coat', 'pink-necklace', 'violet-scarf', 'amber-coat', 'cyan-necklace']);
 const PASSWORD_RESET_TTL_MINUTES = 30;
@@ -131,7 +135,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const email = loginDto.email.trim().toLowerCase();
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, permissions, status, avatar_key, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [email]
     );
 
@@ -236,15 +240,19 @@ export class AuthService {
     const fullName = this.getGoogleDisplayName(profile);
 
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, full_name, email, password, role, status, avatar_key, needs_profile_setup FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [email]
     );
 
     let user = rows[0];
     if (!user) {
       const randomPassword = await bcrypt.hash(`google:${profile.sub}:${randomBytes(16).toString('hex')}`, 10);
+      // needs_profile_setup = 1 ONLY here, inside the branch that creates the
+      // row. A returning student takes the other branch and is never flagged,
+      // which is what keeps the welcome screen off every later sign-in — on
+      // this device or any other.
       const [result] = await this.db.execute<ResultSetHeader>(
-        'INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)',
         [fullName, email, randomPassword, 'student', 'active']
       );
       await this.assignDefaultEntryPlan(result.insertId);
@@ -255,6 +263,7 @@ export class AuthService {
         password: randomPassword,
         role: 'student',
         status: 'active',
+        needs_profile_setup: 1,
       } as UserRow;
     }
 
@@ -297,15 +306,19 @@ export class AuthService {
     const fullName = (providedName || '').trim() || fallbackName;
 
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, full_name, email, password, role, status, avatar_key, needs_profile_setup FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [email]
     );
 
     let user = rows[0];
     if (!user) {
       const randomPassword = await bcrypt.hash(`apple:${profile.sub}:${randomBytes(16).toString('hex')}`, 10);
+      // needs_profile_setup = 1 ONLY here, inside the branch that creates the
+      // row. A returning student takes the other branch and is never flagged,
+      // which is what keeps the welcome screen off every later sign-in — on
+      // this device or any other.
       const [result] = await this.db.execute<ResultSetHeader>(
-        'INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)',
         [fullName, email, randomPassword, 'student', 'active']
       );
       await this.assignDefaultEntryPlan(result.insertId);
@@ -316,6 +329,7 @@ export class AuthService {
         password: randomPassword,
         role: 'student',
         status: 'active',
+        needs_profile_setup: 1,
       } as UserRow;
     }
 
@@ -652,7 +666,7 @@ export class AuthService {
     const code = String(verifyEmailOtpDto.code || '').trim();
 
     const [rows] = await this.db.execute<UserRow[]>(
-      `SELECT id, full_name, email, password, role, status, avatar_key,
+      `SELECT id, full_name, email, password, role, status, avatar_key, needs_profile_setup,
               email_verified, email_otp_code, email_otp_expires_at, email_otp_attempts
        FROM users
        WHERE email = ? AND deleted_at IS NULL
@@ -880,7 +894,13 @@ If you did not try to sign in, you can safely ignore this email.`;
       throw new BadRequestException('Selected avatar is not available');
     }
 
-    await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ? WHERE id = ?', [fullName, avatarKey, user.id]);
+    // Clearing needs_profile_setup here as well: naming yourself IS the answer
+    // to the onboarding question, whether it was given on the welcome screen or
+    // months later from Profile. Leaving it set would re-ask on the next device.
+    await this.db.execute(
+      'UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?',
+      [fullName, avatarKey, user.id]
+    );
 
     return {
       ok: true,
@@ -888,7 +908,23 @@ If you did not try to sign in, you can safely ignore this email.`;
         ...user,
         full_name: fullName,
         avatar_key: avatarKey,
+        needs_profile_setup: 0,
       }),
+    };
+  }
+
+  /// Marks the "what should we call you?" screen as answered without changing
+  /// anything — what Skip calls.
+  ///
+  /// Skipping has to be recorded on the ACCOUNT too. When this was only a flag
+  /// in the handset's own storage, a student who skipped was asked again the
+  /// first time they signed in anywhere else.
+  async completeProfileSetup(authorization: string | undefined) {
+    const user = await this.findUserByToken(this.extractToken(authorization));
+    await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
+    return {
+      ok: true,
+      user: await this.serializeUser({ ...user, needs_profile_setup: 0 }),
     };
   }
 
@@ -963,7 +999,7 @@ If you did not try to sign in, you can safely ignore this email.`;
 
   private async findUserByToken(sessionToken: string) {
     const [rows] = await this.db.execute<UserRow[]>(
-      `SELECT id, full_name, email, password, role, permissions, status, avatar_key, session_token, session_expires_at
+      `SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
        FROM users
        WHERE session_token = ?
          AND session_expires_at > NOW()
@@ -1260,6 +1296,10 @@ ${settings.footer}`;
       permissions: effectivePermissions(user.role, user.permissions),
       status: user.status,
       avatarKey: user.avatar_key || '',
+      // Decided by the server, not the handset: the question "have you told us
+      // what to call you?" is a fact about the ACCOUNT, so answering it on one
+      // phone answers it on every other one the student signs in on.
+      needsProfileSetup: Number(user.needs_profile_setup ?? 0) === 1,
       hasActiveSubscription: accessProfile.hasActiveSubscription,
       subscriptionStatus: accessProfile.subscriptionStatus,
       currentPlanName: accessProfile.currentPlanName,

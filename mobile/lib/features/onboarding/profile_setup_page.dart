@@ -11,10 +11,11 @@ import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/profile_avatar.dart';
 
-/// Shown once, after a first sign-in that left us without a name to greet
-/// anyone by — see [needsProfileSetup]. Asks for a nickname and an avatar, and
-/// can be skipped: it is a courtesy, not a gate, and a wall in front of a new
-/// account costs sign-ups.
+/// Shown once, after an Apple or Google sign-in that CREATED the account — see
+/// [AppUser.needsProfileSetup], which the server sets then and clears as soon
+/// as this screen is answered. Asks for a nickname and an avatar, and can be
+/// skipped: it is a courtesy, not a gate, and a wall in front of a new account
+/// costs sign-ups.
 class ProfileSetupPage extends ConsumerStatefulWidget {
   const ProfileSetupPage({super.key});
 
@@ -52,7 +53,7 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
     // has one can just carry on. Left empty when it is not — an Apple relay
     // address's prefix in the box reads as the app getting it wrong.
     if (user != null &&
-        !needsProfileSetup(fullName: user.fullName, email: user.email)) {
+        !isPlaceholderName(fullName: user.fullName, email: user.email)) {
       _name.text = user.fullName.trim();
     }
     _name.addListener(() => setState(() {}));
@@ -86,8 +87,12 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
       }
     }
 
-    // Marked seen either way — someone who skipped has answered the question.
-    await ref.read(profileSetupSeenProvider.notifier).complete();
+    // Marked answered either way — someone who skipped has answered the
+    // question. Saving a name already clears the flag server-side as part of
+    // the profile update, so only the skip path needs to say so explicitly.
+    if (!save) {
+      await ref.read(authControllerProvider.notifier).completeProfileSetup();
+    }
     // The page leaves under its own power. The router used to do it, by
     // redirecting anything on this route that no longer needed it, which meant
     // the route could never be opened deliberately.

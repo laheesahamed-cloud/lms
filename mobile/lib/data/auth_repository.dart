@@ -109,6 +109,15 @@ class AuthRepository {
     return AppUser.fromJson(Map<String, dynamic>.from(u as Map));
   }
 
+  /// Records that the welcome screen was answered without changing the name —
+  /// what Skip calls. Returns the account as the server now sees it.
+  Future<AppUser> completeProfileSetup() async {
+    final r = await api.dio.post('/auth/profile-setup/complete');
+    final data = r.data;
+    final u = (data is Map && data['user'] != null) ? data['user'] : data;
+    return AppUser.fromJson(Map<String, dynamic>.from(u as Map));
+  }
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
