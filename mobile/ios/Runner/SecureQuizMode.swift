@@ -139,12 +139,31 @@ enum SecureQuizMode {
   // MARK: - Internals
 
   /// Flutter's rendering view — the FlutterViewController's own view.
+  ///
+  /// Found by its view controller, NOT by `isKeyWindow`. The rebuild on resume
+  /// runs while `ResumeShield`'s window is still raised at `.alert + 1`, and
+  /// that window takes touches. UIKit promotes a touched window to key, so
+  /// `isKeyWindow` could hand back the SHIELD's view controller view instead
+  /// of Flutter's. The secure field was then built around the wrong view:
+  /// `isActive` went true, Dart marked protection ON, nothing retried — and
+  /// the lesson stayed fully capturable until the route changed. Tapping the
+  /// screen during a rapid close/reopen is exactly what triggered it.
+  ///
+  /// Our own overlay windows are excluded by tag, so neither the shield nor
+  /// the post-screenshot notice can be mistaken for the app — including on the
+  /// `isKeyWindow` fallback. Tagging rather than filtering on `windowLevel`:
+  /// a level test that ever stopped matching Flutter's own window would
+  /// silently leave protection off everywhere, which is worse than the bug.
   private static func rootFlutterView() -> UIView? {
-    UIApplication.shared.connectedScenes
+    let appWindows = UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
       .flatMap { $0.windows }
-      .first { $0.isKeyWindow }?
-      .rootViewController?.view
+      .filter { !$0.isXyndromeOverlayWindow }
+
+    if let host = appWindows.first(where: { $0.rootViewController is FlutterViewController }) {
+      return host.rootViewController?.view
+    }
+    return appWindows.first { $0.isKeyWindow }?.rootViewController?.view
   }
 
   /// The secure text field's internal content view. Matched by class name

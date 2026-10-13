@@ -123,6 +123,7 @@ final class ScreenProtection {
       .first(where: { $0.activationState == .foregroundActive }) else { return }
 
     let window = UIWindow(windowScene: scene)
+    window.isXyndromeOverlayWindow = true
     window.windowLevel = .alert + 1
     window.backgroundColor = .black
     window.rootViewController = BlockedScreenViewController()

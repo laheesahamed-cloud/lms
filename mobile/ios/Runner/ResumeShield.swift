@@ -1,6 +1,19 @@
 import AVFoundation
 import UIKit
 
+extension UIWindow {
+  /// Marks a window this app puts ON TOP of Flutter — the resume shield and
+  /// the post-screenshot notice. `SecureQuizMode.rootFlutterView()` skips
+  /// these: wrapping one of them in the secure field instead of the real
+  /// FlutterView installs protection that protects nothing.
+  private static let overlayTag = "app.xyndrome.lk.overlay-window"
+
+  var isXyndromeOverlayWindow: Bool {
+    get { accessibilityIdentifier == Self.overlayTag }
+    set { accessibilityIdentifier = newValue ? Self.overlayTag : nil }
+  }
+}
+
 /// Shows a pixel-perfect snapshot of the screen in a capture-protected layer
 /// while the secure-text shield is being rebuilt.
 ///
@@ -55,6 +68,7 @@ final class ResumeShield {
 
     lower()
     let w = UIWindow(windowScene: scene)
+    w.isXyndromeOverlayWindow = true
     w.windowLevel = .alert + 1
     w.backgroundColor = .clear
     w.isUserInteractionEnabled = true

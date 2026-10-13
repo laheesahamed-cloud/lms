@@ -144,11 +144,16 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
     }
   }
 
+  /// Bumped on every [_openGap]. A close only acts while it is still the one
+  /// that belongs to the open gap — see [_closeGap].
+  int _gapGeneration = 0;
+
   Future<void> _openGap() async {
+    final generation = ++_gapGeneration;
     // Shield first, placeholder second: the shield has to be covering the
     // screen before the content is swapped, or the swap is visible.
     final raised = await ScreenProtection.raiseShield();
-    if (!mounted) return;
+    if (!mounted || generation != _gapGeneration) return;
     setState(() => _inGap = true);
     if (!raised) {
       // No snapshot yet. The placeholder is then visible to the student — ugly,
@@ -159,12 +164,17 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
 
   Future<void> _closeGap() async {
     if (!mounted) return;
+    final generation = _gapGeneration;
     setState(() => _inGap = false);
     // Let Flutter actually present the real content again before the shield
     // comes down, or the snapshot is pulled away before there is anything
     // behind it.
     await WidgetsBinding.instance.endOfFrame;
     await Future<void>.delayed(const Duration(milliseconds: 32));
+    // A close is always ~2 frames behind itself, so a resume landing in that
+    // window would otherwise have its freshly raised shield lowered by this
+    // stale close — leaving the next rebuild uncovered and capturable.
+    if (generation != _gapGeneration) return;
     await ScreenProtection.lowerShield();
   }
 

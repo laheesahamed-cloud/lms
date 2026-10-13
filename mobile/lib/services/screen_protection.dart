@@ -261,7 +261,11 @@ class ScreenProtection {
 
     // Part of the sequence that was measured to work — do not drop it.
     await WidgetsBinding.instance.endOfFrame;
-    onShowGapCover?.call();
+    // AWAITED. As a fire-and-forget call this raced the teardown below: raising
+    // the shield is a channel round-trip, so `disableSecureMode()` could strip
+    // the secure field before the cover was actually up — the reverse of the
+    // order `_openGap` documents for itself.
+    await onShowGapCover?.call();
     try {
       await disableSecureMode();
       // Clearing the mirror is what lets syncForRoute act instead of no-opping.
@@ -282,14 +286,37 @@ class ScreenProtection {
       // resume instead of being forgotten.
       _pendingReprotect = null;
     } finally {
-      onHideGapCover?.call();
+      // ONLY the attempt that is still the newest, with the app actually
+      // foregrounded, may take the cover down.
+      //
+      // There is one cover for all attempts — one `_inGap` flag and one
+      // shield window, and `ResumeShield.raise/lower` is not reference
+      // counted. An unconditional `onHideGapCover()` here is what opened the
+      // hole found by closing and reopening repeatedly: attempt 1 abandons
+      // (superseded by attempt 2), and on its way out uncovers the screen
+      // while attempt 2 is still mid-gap with the secure field torn down. The
+      // app then looks completely normal — no placeholder, no shield — and
+      // every screenshot goes through until attempt 2's gap ends. More cycles
+      // stacked more abandoned attempts, each one uncovering again.
+      //
+      // Abandoning now LEAVES the cover up. That is the safe direction: the
+      // newer attempt owns it and hides it when it succeeds, and an attempt
+      // abandoned because the app left the foreground keeps it up for a
+      // screen the user is not even looking at — the next resume raises a
+      // fresh shield over it and retries via `_pendingReprotect`.
+      if (attempt == _recoveryAttempt && _foreground) {
+        await onHideGapCover?.call();
+      }
     }
   }
 
   /// Wired up in main() to show and hide the gap cover. Callbacks rather than a
   /// direct dependency, so this service stays free of widgets.
-  static void Function()? onShowGapCover;
-  static void Function()? onHideGapCover;
+  ///
+  /// They return futures and are awaited: as `void Function()?` the cover went
+  /// up and down asynchronously alongside the teardown it exists to hide.
+  static Future<void> Function()? onShowGapCover;
+  static Future<void> Function()? onHideGapCover;
 
   /// Protected route still owing a rebuild. Survives abandoned attempts.
   static String? _pendingReprotect;
