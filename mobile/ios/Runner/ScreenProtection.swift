@@ -54,6 +54,21 @@ final class ScreenProtection {
       NSLog("XYSEC dart: %@", (call.arguments as? String) ?? "")
       result(true)
 
+    // Snapshot shield over the secure-field rebuild — see ResumeShield.
+    case "updateSnapshot":
+      guard let data = (call.arguments as? FlutterStandardTypedData)?.data else {
+        result(false); return
+      }
+      ResumeShield.shared.updateSnapshot(data)
+      result(true)
+
+    case "raiseShield":
+      result(ResumeShield.shared.raise())
+
+    case "lowerShield":
+      ResumeShield.shared.lower()
+      result(true)
+
     case "capabilities":
       result([
         // True only while a quiz/exam screen has secure mode on — see
