@@ -131,7 +131,13 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
       ref.read(authControllerProvider.notifier).revalidateSession();
       // Also catches a renewal that happened while we were backgrounded.
       ref.read(iapReconcilerProvider).sync();
+      // Capture protection does not survive the trip — see handleResume().
+      ScreenProtection.handleResume();
     }
+    // Every transition, so a quick switch (which keeps protection) can be
+    // compared against a long one (which loses it). The suspicion is that only
+    // the long one reaches `paused`, where Flutter tears down its rendering
+    // surface while it sits inside the secure canvas.
   }
 
   @override

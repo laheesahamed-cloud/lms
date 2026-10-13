@@ -1,5 +1,8 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File, FileMode, Platform;
+
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 
 /// Screen-capture protection, bridged to the native layer.
 ///
@@ -163,6 +166,10 @@ class ScreenProtection {
   /// Mirrors the native state, which starts off.
   static bool _secureModeOn = false;
 
+  /// Whether a protected screen is currently shielded — read on resume to
+  /// decide whether recovery is needed at all.
+  static bool get secureModeOn => _secureModeOn;
+
   static bool shouldProtectPath(String path) {
     final normalized = path.split('?').first.replaceAll(RegExp(r'/+$'), '');
     final route = normalized.isEmpty ? '/' : normalized;
@@ -188,8 +195,13 @@ class ScreenProtection {
   /// re-parenting on a device.
   static const bool _iosSecureViewEnabled = true;
 
+  /// The last path [syncForRoute] acted on, so [handleResume] can replay it
+  /// through this same code path rather than calling the channel directly.
+  static String? _lastSyncedPath;
+
   static Future<void> syncForRoute(String path) async {
     if (!supported || !Platform.isIOS || !_iosSecureViewEnabled) return;
+    _lastSyncedPath = path;
     final shouldProtect = shouldProtectPath(path);
     if (shouldProtect == _secureModeOn) return;
     _secureModeOn = shouldProtect;
@@ -197,6 +209,104 @@ class ScreenProtection {
       await enableSecureMode();
     } else {
       await disableSecureMode();
+    }
+  }
+
+  /// Re-applies protection after the app comes back from the background.
+  ///
+  /// Protection dies across a background trip: screenshots start saving again
+  /// on the very screen that was blocked a moment earlier. The native view
+  /// tree is provably fine — the Flutter view is still inside the secure
+  /// canvas, the field still in the window, `isSecureTextEntry` still true,
+  /// same canvas object, correct frames.
+  ///
+  /// A native `UILabel` placed inside that same canvas is ALSO captured after
+  /// the trip, which rules out Flutter's render surface: the whole secure
+  /// container loses its exclusion, so nothing done on the Flutter side can
+  /// restore it.
+  ///
+  /// Six native rebuilds failed to get it back — toggling `isSecureTextEntry`
+  /// (which does not even rebuild the canvas), a same-turn teardown/rebuild
+  /// (which broke blocking outright), 80ms-separated, `CADisplayLink`
+  /// frame-separated, and one with activation settled and the torn-down state
+  /// held 350ms. Each produced a new, correctly parented canvas; captures still
+  /// went through.
+  ///
+  /// Yet leaving for the dashboard and coming back restores it every time,
+  /// through these same two calls. Two differences from the attempts above
+  /// remain untested, and this tries both at once:
+  ///
+  ///  * it runs through [syncForRoute], the exact path a navigation takes,
+  ///    rather than calling the channel directly;
+  ///  * the gap is seconds, not milliseconds — as long as a student actually
+  ///    spends on the dashboard before coming back.
+  ///
+  /// NOTE: content is unprotected during that gap. Acceptable while testing
+  /// whether the gap is the variable at all; an opaque cover goes in front
+  /// before this ships.
+  static Future<void> handleResume() async {
+    if (!supported || !Platform.isIOS || !_iosSecureViewEnabled) return;
+    if (!_secureModeOn) return;
+    final path = _lastSyncedPath;
+    if (path == null) return;
+    // NOTHING may be added to this sequence — no settle, no cover, no tracing.
+    // Each was tried and each silently broke the blocking:
+    //   * a 1.5s settle before the teardown broke even the short-suspension
+    //     case that this does fix;
+    //   * an opaque UIKit cover over the gap broke it outright;
+    //   * a same-turn teardown/rebuild broke it on first entry too.
+    // The failures are invisible from code: structure, secure flag, parenting,
+    // frames, even a freshly changed canvas identity all read healthy while
+    // screenshots sail through. Only a capture on a device tells the truth, so
+    // any edit here needs re-testing on hardware.
+    await WidgetsBinding.instance.endOfFrame;
+    await disableSecureMode();
+    // Clearing the mirror is what lets syncForRoute act instead of no-opping.
+    _secureModeOn = false;
+    await Future<void>.delayed(_resumeGap);
+    await syncForRoute(path);
+  }
+
+  /// How long the torn-down state is held before protection is rebuilt.
+  ///
+  /// Not a tuning knob — it IS the fix. Six native rebuilds separated by
+  /// 0–350ms all failed; this works because it is roughly the gap a student
+  /// leaving for another screen actually produces. Shortening or lengthening
+  /// it silently breaks captures, so it cannot be changed without a device
+  /// re-test.
+  static const Duration _resumeGap = Duration(milliseconds: 1200);
+
+  /// Known limitation: this recovers protection after a SHORT suspension
+  /// (around a second, the common case — glancing at a notification, a quick
+  /// app switch). It does NOT recover it after a long one: ~18s in another app
+  /// and captures go through, with the lifecycle trace and this whole recovery
+  /// running identically to the case that works. Suspension duration is the
+  /// only variable that separates them, and no amount of extra delay here
+  /// changes the outcome. Leaving the lesson and coming back still restores it.
+
+  /// Appends a line to a trace file inside the app's own container, and also
+  /// sends it to the console via NSLog.
+  ///
+  /// The file is the part that matters. Two earlier experiments produced no
+  /// evidence at all and looked like they had never run: Dart's `debugPrint`
+  /// is invisible in a release build, and `devicectl --console` only follows
+  /// the process it launched itself — so a force-quit and reopen, which is the
+  /// natural thing to do after installing a build, silently detaches it. A
+  /// file survives all of that and can be pulled off the device afterwards.
+  static Future<void> trace(String message) async {
+    if (!supported || !Platform.isIOS) return;
+    final line = '${DateTime.now().toIso8601String()}  $message';
+    try {
+      await _channel.invokeMethod('log', message);
+    } catch (_) {
+      // Android has no handler; nothing to trace there.
+    }
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      await File('${dir.path}/xysec.log')
+          .writeAsString('$line\n', mode: FileMode.append, flush: true);
+    } catch (_) {
+      // Tracing must never be the reason something fails.
     }
   }
 
