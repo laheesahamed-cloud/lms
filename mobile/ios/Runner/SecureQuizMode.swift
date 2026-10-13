@@ -52,7 +52,6 @@ enum SecureQuizMode {
   private static weak var originalSuperview: UIView?
   private static var originalIndex: Int?
   private static var originalAutoresizingMask: UIView.AutoresizingMask = []
-  private static var foregroundObserver: NSObjectProtocol?
 
   static var isActive: Bool { secureField != nil }
 
@@ -114,54 +113,6 @@ enum SecureQuizMode {
 
     blockedView = blocked
     secureField = field
-    watchForeground()
-  }
-
-  // MARK: - Surviving the app switcher
-
-  /// Rebuilds the wrapper every time the app comes back to the foreground.
-  ///
-  /// The protection worked once and then quietly stopped: send the app to the
-  /// switcher, open something else, come back, and screenshots saved normally
-  /// again. Nothing retried, because everything believed it was still on —
-  /// `secureField` was non-nil here and Dart's `_secureModeOn` mirror still
-  /// said true, so `syncForRoute` early-returned on every later navigation.
-  /// The app kept rendering and responding normally, which is what made it
-  /// look fine.
-  ///
-  /// iOS does something to a secure field's private canvas across a trip
-  /// through the background — the exclusion the compositor applies to it does
-  /// not survive. Rather than guess at which part of that state was reset and
-  /// inspect for it, this tears the wrapper down and builds a fresh one: a new
-  /// field, a new canvas, the FlutterView moved back inside. That holds
-  /// whatever iOS actually did.
-  ///
-  /// `didBecomeActive` deliberately, not `willEnterForeground`: the latter
-  /// fires before iOS has finished restoring the app from its snapshot, so a
-  /// wrapper rebuilt there can be torn straight back down again.
-  private static func watchForeground() {
-    guard foregroundObserver == nil else { return }
-    // Kept for the process's lifetime rather than removed in `disable()`. The
-    // handler is a no-op unless a protected screen is actually showing, and an
-    // observer that is itself torn down is one more thing that can be missing
-    // at the moment it is needed.
-    foregroundObserver = NotificationCenter.default.addObserver(
-      forName: UIApplication.didBecomeActiveNotification,
-      object: nil,
-      queue: .main
-    ) { _ in
-      // Next run-loop turn: re-parenting the Flutter view while UIKit is still
-      // mid-restore is how this broke before (blank launches, dead touches).
-      DispatchQueue.main.async { rearm() }
-    }
-  }
-
-  /// Re-applies protection if a protected screen is on top. No-op otherwise,
-  /// so returning to the app on a hub or list screen costs nothing.
-  private static func rearm() {
-    guard isActive else { return }
-    disable()
-    enable()
   }
 
   // MARK: - Disable
