@@ -165,6 +165,9 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
       // Capture protection does not survive the trip — see handleResume().
       ScreenProtection.handleResume();
     }
+    // A rebuild must not land while the app is away: it produces a shield that
+    // looks installed and protects nothing. See handleResume().
+    ScreenProtection.noteForeground(state == AppLifecycleState.resumed);
     // Every transition, so a quick switch (which keeps protection) can be
     // compared against a long one (which loses it). The suspicion is that only
     // the long one reaches `paused`, where Flutter tears down its rendering

@@ -246,31 +246,41 @@ class ScreenProtection {
   /// before this ships.
   static Future<void> handleResume() async {
     if (!supported || !Platform.isIOS || !_iosSecureViewEnabled) return;
-    if (!_secureModeOn) return;
-    final path = _lastSyncedPath;
+    // `_pendingReprotect` outlives a failed attempt on purpose. Keying this off
+    // `_secureModeOn` alone was a bug: the first resume clears that flag before
+    // its gap, so a second resume arriving mid-gap saw "nothing protected" and
+    // did nothing at all.
+    final path = _pendingReprotect ?? (_secureModeOn ? _lastSyncedPath : null);
     if (path == null) return;
-    // NOTHING may be added to this sequence — no settle, no cover, no tracing.
-    // Each was tried and each silently broke the blocking:
-    //   * a 1.5s settle before the teardown broke even the short-suspension
-    //     case that this does fix;
-    //   * an opaque UIKit cover over the gap broke it outright;
-    //   * a same-turn teardown/rebuild broke it on first entry too.
-    // The failures are invisible from code: structure, secure flag, parenting,
-    // frames, even a freshly changed canvas identity all read healthy while
-    // screenshots sail through. Only a capture on a device tells the truth, so
-    // any edit here needs re-testing on hardware.
+    _pendingReprotect = path;
+
+    // Newest attempt wins. Closing and reopening the app several times in
+    // quick succession used to leave several of these interleaved, each
+    // tearing down and rebuilding over the others.
+    final attempt = ++_recoveryAttempt;
+
+    // Part of the sequence that was measured to work — do not drop it.
     await WidgetsBinding.instance.endOfFrame;
-    // Cover the gap FIRST, before the shield comes down. Between teardown and
-    // rebuild there is genuinely no protection, and that window was open — a
-    // screenshot taken on returning captured the lesson. See ResumeGapBlur for
-    // why it blurs rather than blanks, and why it is painted in Flutter.
     onShowGapCover?.call();
     try {
       await disableSecureMode();
       // Clearing the mirror is what lets syncForRoute act instead of no-opping.
       _secureModeOn = false;
       await Future<void>.delayed(_resumeGap);
+
+      // Abandon rather than rebuild into nothing. Rebuilding while the app is
+      // backgrounded — which is what happened when the app was closed again
+      // mid-gap — produces a field that never registers with the render
+      // server, and marking protection ON then was the fatal part: nothing
+      // retried, and the lesson stayed capturable until the route changed.
+      // Rapidly closing and reopening three to five times reproduced it every
+      // time.
+      if (attempt != _recoveryAttempt || !_foreground) return;
+
       await syncForRoute(path);
+      // Cleared only here, so an abandoned attempt is retried on the next
+      // resume instead of being forgotten.
+      _pendingReprotect = null;
     } finally {
       onHideGapCover?.call();
     }
@@ -280,6 +290,18 @@ class ScreenProtection {
   /// direct dependency, so this service stays free of widgets.
   static void Function()? onShowGapCover;
   static void Function()? onHideGapCover;
+
+  /// Protected route still owing a rebuild. Survives abandoned attempts.
+  static String? _pendingReprotect;
+
+  /// Bumped per attempt so a later resume supersedes an in-flight one.
+  static int _recoveryAttempt = 0;
+
+  /// Whether the app is foregrounded right now. A rebuild that lands while it
+  /// is not produces a shield that looks installed and protects nothing.
+  static bool _foreground = true;
+
+  static void noteForeground(bool value) => _foreground = value;
 
   /// How long the torn-down state is held before protection is rebuilt.
   ///
