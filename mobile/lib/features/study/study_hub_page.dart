@@ -8,6 +8,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../drugs/drug_queue_service.dart';
 import '../../widgets/shell_insets.dart';
+import '../../config/launch_flags.dart';
 
 /// Study hub — launcher for all core study tools.
 ///
@@ -20,7 +21,11 @@ import '../../widgets/shell_insets.dart';
 class StudyHubPage extends ConsumerWidget {
   const StudyHubPage({super.key});
 
-  static const _tools = <_ToolEntry>[
+  /// Every tool the Explore grid can show, in order.
+  ///
+  /// Declared whole and filtered at the point of use, so a tool switched off
+  /// for a release leaves no gap here to put back later. See [LaunchFlags].
+  static const _allTools = <_ToolEntry>[
     _ToolEntry(
       icon: Icons.menu_book_outlined,
       title: 'Lessons',
@@ -73,10 +78,17 @@ class StudyHubPage extends ConsumerWidget {
     ),
   ];
 
+  static List<_ToolEntry> get _tools =>
+      _allTools.where((t) => !LaunchFlags.isHidden(t.route)).toList();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
-    final drugState = ref.watch(drugQueueProvider);
+    // Only subscribed when the tile that shows it is drawn. The flag is fixed
+    // for the life of the process, so this cannot flip between builds — and
+    // watching it unconditionally would fire a request for a feature this
+    // release does not ship.
+    final drugState = LaunchFlags.drugs ? ref.watch(drugQueueProvider) : null;
 
     return SafeArea(
       bottom: false,
@@ -116,10 +128,17 @@ class StudyHubPage extends ConsumerWidget {
                   // your own), each its own full-width row, matching size.
                   // push() (not go) so the tool lands on top of the Study hub,
                   // enabling the iOS swipe-back gesture + back chevron.
-                  _DrugRandomizerTile(state: drugState),
-                  const SizedBox(height: AppSpace.x3),
-                  const _MyNotesTile(),
-                  const SizedBox(height: AppSpace.x5),
+                  // Each featured tile carries its own spacing, so a tool
+                  // switched off leaves no double gap behind it.
+                  if (LaunchFlags.drugs) ...[
+                    _DrugRandomizerTile(state: drugState!),
+                    const SizedBox(height: AppSpace.x3),
+                  ],
+                  if (LaunchFlags.myNotes) ...[
+                    const _MyNotesTile(),
+                    const SizedBox(height: AppSpace.x3),
+                  ],
+                  const SizedBox(height: AppSpace.x2),
 
                   SizedBox(
                     width: double.infinity,

@@ -54,6 +54,7 @@ import '../features/personal_notes/personal_note_canvas_page.dart';
 import '../features/personal_flashcards/personal_flashcards_page.dart';
 import '../features/personal_flashcards/personal_deck_page.dart';
 import '../features/personal_flashcards/personal_review_page.dart';
+import '../config/launch_flags.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -103,6 +104,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // dashboard before it drew. The page sends itself on now.
 
       if (atWelcome || atAuth || loc == '/splash') return '/app/dashboard';
+
+      // A tool switched off for this release is not reachable, not merely
+      // unlisted. Hiding its entry point does not close its route: restored
+      // navigation state, a notification, a stale deep link, or a push() left
+      // behind in another screen would all still land on a hidden page. The
+      // routes stay declared below so nothing has to be unpicked and put back.
+      if (LaunchFlags.isHidden(loc)) return '/app/dashboard';
       return null;
     },
     routes: [

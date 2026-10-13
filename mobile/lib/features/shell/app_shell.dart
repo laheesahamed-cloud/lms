@@ -17,6 +17,7 @@ import '../dashboard/dashboard_repository.dart';
 import '../bookmarks/bookmarks_repository.dart';
 import '../planner/planner_repository.dart';
 import '../../widgets/shell_insets.dart';
+import '../../config/launch_flags.dart';
 
 /// Observes the root navigator so the shell can refresh its lists when a
 /// pushed detail screen (lesson, quiz, course, review…) is popped back.
@@ -45,7 +46,12 @@ const _kSideMain = [
   NavDest('Q-Bank', Icons.fact_check_outlined, '/app/quizzes'),
   NavDest('Results', Icons.bar_chart_rounded, '/app/results'),
 ];
-const _kSideStudy = [
+/// Every study tool the side rail can show, in order.
+///
+/// Declared whole and filtered once below, rather than being edited down for
+/// a release: the list stays the single description of what the rail holds, and
+/// turning a tool back on changes nothing here. See [LaunchFlags].
+const _kSideStudyAll = [
   NavDest('Lessons', Icons.auto_stories_outlined, '/app/lessons'),
   NavDest('My Notes', Icons.edit_note_outlined, '/app/my-notes'),
   NavDest('Flashcards', Icons.style_outlined, '/app/flashcards'),
@@ -55,6 +61,10 @@ const _kSideStudy = [
   NavDest('Planner', Icons.event_note_outlined, '/app/planner'),
   NavDest('Saved', Icons.bookmark_border_rounded, '/app/bookmarks'),
 ];
+
+final _kSideStudy = _kSideStudyAll
+    .where((d) => !LaunchFlags.isHidden(d.route))
+    .toList(growable: false);
 
 class AppShell extends ConsumerStatefulWidget {
   final Widget child;
