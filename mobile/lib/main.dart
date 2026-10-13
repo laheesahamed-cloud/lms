@@ -7,6 +7,7 @@ import 'features/results/reviewed_attempts.dart';
 import 'features/subscriptions/iap_reconciler.dart';
 import 'services/screen_protection.dart';
 import 'theme/app_theme.dart';
+import 'features/shell/resume_gap_blur.dart';
 import 'router/app_router.dart';
 import 'state/auth_controller.dart';
 import 'state/onboarding.dart';
@@ -103,9 +104,39 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
     // Both listenables: routeInformationProvider carries the canonical URI,
     // routerDelegate fires on imperative push/pop. Either alone misses some
     // transitions, and syncForRoute no-ops when nothing changed.
+    ScreenProtection.onShowGapCover = _showGapCover;
+    ScreenProtection.onHideGapCover = _hideGapCover;
     router.routeInformationProvider.addListener(_syncScreenProtection);
     router.routerDelegate.addListener(_syncScreenProtection);
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncScreenProtection());
+  }
+
+  /// The blur shown while screenshot protection is rebuilt — see
+  /// [ResumeGapBlur]. Hosted on the root navigator's overlay so it covers
+  /// whatever route is showing.
+  OverlayEntry? _gapCover;
+  final ValueNotifier<bool> _gapFading = ValueNotifier<bool>(false);
+
+  void _showGapCover() {
+    if (_gapCover != null) return;
+    final overlay = _router?.routerDelegate.navigatorKey.currentState?.overlay;
+    if (overlay == null) return;
+    _gapFading.value = false;
+    final entry = OverlayEntry(builder: (_) => ResumeGapBlur(fading: _gapFading));
+    _gapCover = entry;
+    overlay.insert(entry);
+  }
+
+  /// Fades out rather than cutting, and only now that protection is back —
+  /// fading it in earlier would leave the lesson partly sharp, and partly
+  /// capturable, during the one window this exists to cover.
+  void _hideGapCover() {
+    if (_gapCover == null) return;
+    _gapFading.value = true;
+    Future<void>.delayed(ResumeGapBlur.fade, () {
+      _gapCover?.remove();
+      _gapCover = null;
+    });
   }
 
   void _syncScreenProtection() {

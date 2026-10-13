@@ -260,12 +260,26 @@ class ScreenProtection {
     // screenshots sail through. Only a capture on a device tells the truth, so
     // any edit here needs re-testing on hardware.
     await WidgetsBinding.instance.endOfFrame;
-    await disableSecureMode();
-    // Clearing the mirror is what lets syncForRoute act instead of no-opping.
-    _secureModeOn = false;
-    await Future<void>.delayed(_resumeGap);
-    await syncForRoute(path);
+    // Cover the gap FIRST, before the shield comes down. Between teardown and
+    // rebuild there is genuinely no protection, and that window was open — a
+    // screenshot taken on returning captured the lesson. See ResumeGapBlur for
+    // why it blurs rather than blanks, and why it is painted in Flutter.
+    onShowGapCover?.call();
+    try {
+      await disableSecureMode();
+      // Clearing the mirror is what lets syncForRoute act instead of no-opping.
+      _secureModeOn = false;
+      await Future<void>.delayed(_resumeGap);
+      await syncForRoute(path);
+    } finally {
+      onHideGapCover?.call();
+    }
   }
+
+  /// Wired up in main() to show and hide the gap cover. Callbacks rather than a
+  /// direct dependency, so this service stays free of widgets.
+  static void Function()? onShowGapCover;
+  static void Function()? onHideGapCover;
 
   /// How long the torn-down state is held before protection is rebuilt.
   ///

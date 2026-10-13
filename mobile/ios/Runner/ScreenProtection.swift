@@ -38,11 +38,20 @@ final class ScreenProtection {
       result(true)
 
     case "enableSecureMode":
+      NSLog("XYSEC channel: enableSecureMode (active=%@)", SecureQuizMode.isActive ? "YES" : "NO")
       SecureQuizMode.enable()
       result(true)
 
     case "disableSecureMode":
+      NSLog("XYSEC channel: disableSecureMode (active=%@)", SecureQuizMode.isActive ? "YES" : "NO")
       SecureQuizMode.disable()
+      result(true)
+
+    // Dart's own debugPrint does not reach the device console in a release
+    // build, which is why an earlier experiment looked like it never ran. This
+    // routes Dart's trace through NSLog, which does land.
+    case "log":
+      NSLog("XYSEC dart: %@", (call.arguments as? String) ?? "")
       result(true)
 
     case "capabilities":
