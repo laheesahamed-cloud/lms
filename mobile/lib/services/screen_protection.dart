@@ -346,39 +346,6 @@ class ScreenProtection {
     }
   }
 
-  /// Sends the latest frame of the protected screen to native, for the shield
-  /// to show during the rebuild. Pushed while the content is still on screen,
-  /// so it reveals nothing that was not already visible.
-  static Future<void> updateSnapshot(Uint8List png) async {
-    if (!supported || !Platform.isIOS) return;
-    try {
-      await _channel.invokeMethod('updateSnapshot', png);
-    } catch (_) {
-      // Android needs none of this — FLAG_SECURE never lapses.
-    }
-  }
-
-  /// Raises the capture-protected snapshot window. Returns false when there is
-  /// no snapshot yet, in which case the caller must fall back to covering the
-  /// screen visibly rather than leaving content exposed.
-  static Future<bool> raiseShield() async {
-    if (!supported || !Platform.isIOS) return false;
-    try {
-      return await _channel.invokeMethod('raiseShield') == true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  static Future<void> lowerShield() async {
-    if (!supported || !Platform.isIOS) return;
-    try {
-      await _channel.invokeMethod('lowerShield');
-    } catch (_) {
-      // Nothing to lower.
-    }
-  }
-
   /// What this platform can actually do. Read it instead of guessing.
   static Future<ScreenProtectionCapabilities> capabilities() async {
     if (!supported) return ScreenProtectionCapabilities.none;
