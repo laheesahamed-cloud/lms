@@ -734,6 +734,91 @@ final resultsListProvider = FutureProvider<List<ResultListItem>>((ref) async {
   return (rows as List).map(ResultListItem.fromJson).toList();
 });
 
+/// Mean mark across every exam/quiz attempt, plus what that mean was before
+/// the most recent attempt — so the dashboard can show which way it moved.
+///
+/// Computed entirely on the device from the attempts the Results page already
+/// loads. No new endpoint, and nothing here asks the backend for an average.
+class ExamAverage {
+  /// Mean of every attempt's percentage.
+  final double average;
+
+  /// Mean excluding the most recent attempt. Null with fewer than two
+  /// attempts, where there is no earlier average to compare against.
+  final double? previous;
+
+  final int attempts;
+
+  const ExamAverage({
+    required this.average,
+    required this.previous,
+    required this.attempts,
+  });
+
+  static const empty = ExamAverage(average: 0, previous: null, attempts: 0);
+
+  bool get hasData => attempts > 0;
+
+  /// How much the latest attempt moved the average. Null when there is
+  /// nothing to compare against.
+  double? get delta => previous == null ? null : average - previous!;
+
+  /// The average as shown to the student: FLOORED, never rounded. 19.5 and
+  /// 19.9 both read as 19 — a displayed average must never sit higher than the
+  /// marks actually earned.
+  int get displayAverage => average.floor();
+
+  /// The change between the two FLOORED averages, so it can only ever describe
+  /// the numbers on screen. Comparing the raw means instead would allow "19%"
+  /// to follow "19%" with a "+1%" beside it. Null with nothing to compare.
+  int? get displayDelta =>
+      previous == null ? null : average.floor() - previous!.floor();
+}
+
+/// Averages [attempts] by percentage, newest attempt first.
+///
+/// Percentage, not raw score: attempts carry different question counts, so
+/// summing raw marks across them would compare unlike things. Percentage is
+/// already normalised, which is also what the chip's "%" claims to show.
+ExamAverage computeExamAverage(List<ResultListItem> attempts) {
+  if (attempts.isEmpty) return ExamAverage.empty;
+
+  // The API's order is not guaranteed, and "the average before the latest
+  // attempt" is only meaningful once the latest is known. An unparseable
+  // timestamp sorts to the epoch and tie-breaks on attemptId, which grows
+  // over time — this keeps the comparator total rather than merely usually
+  // right.
+  DateTime stamp(ResultListItem r) =>
+      DateTime.tryParse(r.submittedAt) ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+
+  final sorted = <ResultListItem>[...attempts]..sort((a, b) {
+    final byDate = stamp(b).compareTo(stamp(a));
+    return byDate != 0 ? byDate : b.attemptId.compareTo(a.attemptId);
+  });
+
+  double mean(List<ResultListItem> xs) {
+    var total = 0.0;
+    for (final x in xs) {
+      total += x.percentage.toDouble();
+    }
+    return total / xs.length;
+  }
+
+  final rest = sorted.sublist(1);
+  return ExamAverage(
+    average: mean(sorted),
+    previous: rest.isEmpty ? null : mean(rest),
+    attempts: sorted.length,
+  );
+}
+
+/// Derived from [resultsListProvider], so it reuses that cache rather than
+/// fetching again.
+final examAverageProvider = Provider<AsyncValue<ExamAverage>>((ref) {
+  return ref.watch(resultsListProvider).whenData(computeExamAverage);
+});
+
 /// A reviewed question — the practice question plus the student's answer.
 class ReviewQuestion {
   final PracticeQuestion question;

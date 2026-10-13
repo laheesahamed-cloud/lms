@@ -450,13 +450,29 @@ class _MetricRow extends ConsumerWidget {
           ? '${clampPct(s.overallProgressPercent)}% lessons'
           : 'In progress';
     }, orElse: () => '');
-    final readiness =
-        dash.maybeWhen(data: (d) => '${d.readiness}%', orElse: () => '—');
-    final readinessHint = dash.maybeWhen(data: (d) {
-      final delta = d.performanceSnapshot.scoreDelta;
-      if (delta == 0) return 'Avg. readiness';
-      return '${delta > 0 ? '+' : ''}${delta.round()}%';
-    }, orElse: () => '');
+    // Average exam mark, computed on the device from the same attempts the
+    // Results page lists — total marks over number of attempts. Replaces the
+    // old READINESS chip, which came from a backend snapshot score.
+    final examAvg = ref.watch(examAverageProvider);
+    // Floored, not rounded — see ExamAverage.displayAverage/displayDelta.
+    final avgValue = examAvg.maybeWhen(
+        data: (e) => e.hasData ? '${e.displayAverage}%' : '—',
+        orElse: () => '—');
+    final avgAttempts =
+        examAvg.maybeWhen<int>(data: (e) => e.attempts, orElse: () => 0);
+    final avgDeltaShown = examAvg.maybeWhen<int>(
+        data: (e) => e.hasData ? (e.displayDelta ?? 0) : 0, orElse: () => 0);
+    final String avgHint;
+    if (avgAttempts == 0) {
+      avgHint = 'No exams yet';
+    } else if (avgAttempts == 1) {
+      avgHint = '1 exam';
+    } else if (avgDeltaShown == 0) {
+      avgHint = 'No change';
+    } else {
+      // Bare "+4%" / "-4%" — the minus sign comes free from the int.
+      avgHint = '${avgDeltaShown > 0 ? '+' : ''}$avgDeltaShown%';
+    }
     final streak =
         dash.maybeWhen(data: (d) => '${d.quizDayStreak}', orElse: () => '—');
     return Row(
@@ -470,9 +486,10 @@ class _MetricRow extends ConsumerWidget {
         const SizedBox(width: 8),
         Expanded(
             child: _MetricChip(
-                value: readiness,
-                label: 'READINESS',
-                hint: readinessHint,
+                value: avgValue,
+                label: 'AVG MARKS',
+                hint: avgHint,
+                hintTrend: avgDeltaShown == 0 ? null : avgDeltaShown > 0,
                 accent: DashAccents.green)),
         const SizedBox(width: 8),
         Expanded(
@@ -493,8 +510,18 @@ class _MetricChip extends StatelessWidget {
   final String hint;
   final IconData? icon;
   final SectionAccent? accent;
+
+  /// Colours [hint]: true = improved (green), false = worse (red), null =
+  /// neutral. No icon — the signed number carries the direction on its own.
+  final bool? hintTrend;
+
   const _MetricChip(
-      {required this.value, required this.label, this.hint = '', this.icon, this.accent});
+      {required this.value,
+      required this.label,
+      this.hint = '',
+      this.icon,
+      this.accent,
+      this.hintTrend});
   @override
   Widget build(BuildContext context) {
     final c = context.c;
@@ -542,7 +569,13 @@ class _MetricChip extends StatelessWidget {
             Text(hint,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 10.5, color: c.inkMuted)),
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight:
+                        hintTrend == null ? FontWeight.w400 : FontWeight.w700,
+                    color: hintTrend == null
+                        ? c.inkMuted
+                        : (hintTrend! ? c.success : c.error))),
           ],
         ],
       ),
