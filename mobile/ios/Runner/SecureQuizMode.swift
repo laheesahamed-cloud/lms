@@ -52,6 +52,7 @@ enum SecureQuizMode {
   private static weak var originalSuperview: UIView?
   private static var originalIndex: Int?
   private static var originalAutoresizingMask: UIView.AutoresizingMask = []
+  private static var probeField: UITextField?
 
   static var isActive: Bool { secureField != nil }
 
@@ -113,6 +114,63 @@ enum SecureQuizMode {
 
     blockedView = blocked
     secureField = field
+    installProbe(in: superview)
+  }
+
+  // MARK: - Diagnostic probe (temporary)
+
+  /// A SECOND secure field, with its own canvas and its own native label,
+  /// installed alongside the real shield and never torn down.
+  ///
+  /// What it established on a device: when the app comes back and the live
+  /// shield's capture exclusion is dead, an untouched second field STILL HAS
+  /// ITS OWN — "PROBE B" stayed out of the screenshot while the lesson in the
+  /// live field was captured. (Confirmed visible on screen at the time, so its
+  /// absence from the capture means exclusion, not a rendering mistake.)
+  ///
+  /// What it does NOT survive: a fuller background. Close the app and reopen
+  /// and the spare is dead too — which is why handing content to a warm spare
+  /// cannot be trusted on its own, and why it is diagnostic rather than a fix.
+  ///
+  /// Read it from the SAVED SCREENSHOT, never from code: every structural check
+  /// here reads healthy while captures succeed.
+  ///
+  ///   screenshot shows the lesson but NOT "PROBE B"  -> the spare is still
+  ///   excluded independently of the live shield.
+  ///   screenshot shows BOTH  -> exclusion is gone hierarchy-wide.
+  private static func installProbe(in superview: UIView) {
+    // Survives disable() on purpose — the point is that it is NOT the field
+    // being rebuilt.
+    guard probeField == nil else { return }
+    let f = SecureCanvasTextField(
+      frame: CGRect(x: 24, y: 150, width: 200, height: 44))
+    f.isSecureTextEntry = true
+    f.autocorrectionType = .no
+    f.autocapitalizationType = .none
+    f.spellCheckingType = .no
+    f.textColor = .clear
+    f.tintColor = .clear
+    f.backgroundColor = .clear
+    f.borderStyle = .none
+    // Above the live field so the label is actually visible on screen — its
+    // absence from a capture only means anything if it was on screen.
+    superview.addSubview(f)
+    f.layoutIfNeeded()
+    guard let canvas = secureCanvasView(in: f) else {
+      NSLog("XYSEC probe: no canvas vended — not installed")
+      return
+    }
+    let label = UILabel(frame: canvas.bounds)
+    label.text = "PROBE B"
+    label.font = UIFont.systemFont(ofSize: 20, weight: .heavy)
+    label.textColor = .white
+    label.backgroundColor = UIColor(red: 0, green: 0.45, blue: 0.85, alpha: 1)
+    label.textAlignment = .center
+    label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    canvas.backgroundColor = .clear
+    canvas.addSubview(label)
+    probeField = f
+    NSLog("XYSEC probe: installed as a second secure field")
   }
 
   // MARK: - Disable
