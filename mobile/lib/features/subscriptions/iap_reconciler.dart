@@ -49,13 +49,10 @@ class IapReconciler {
     _running = true;
     try {
       final entitlements = await currentIapEntitlements();
-      var changed = false;
       for (final entitlement in entitlements) {
-        if (await _redeem(entitlement.transactionId, entitlement.jws)) {
-          changed = true;
-        }
+        // _redeem refreshes the billing view itself — see the note there.
+        await _redeem(entitlement.transactionId, entitlement.jws);
       }
-      if (changed) _ref.invalidate(billingProvider);
     } catch (_) {
       // Best-effort: a failed sync must never block the app or surface an error.
       // The next launch or resume tries again.
@@ -72,6 +69,27 @@ class IapReconciler {
     try {
       await _ref.read(redeemAppleTransactionProvider)(jws);
       _redeemed.add(transactionId);
+
+      // REFRESH HERE, not in the callers.
+      //
+      // This is why a plan change sometimes left the subscription page showing
+      // the old package. StoreKit 2 delivers a subscription change through
+      // `Transaction.updates` rather than as the return value of `purchase()`,
+      // and that path lands in start()'s listener, which redeemed the
+      // transaction and refreshed nothing. The backend was right and the page
+      // was stale — so the student saw the old plan while Apple said "you are
+      // already subscribed to this".
+      //
+      // Resuming the app did not rescue it either: sync() only invalidated when
+      // a redemption returned true, and this transaction was already in
+      // `_redeemed`, so it returned false and nothing refreshed for the rest of
+      // the session. Only a full restart cleared it.
+      //
+      // Doing it here means every path that successfully redeems — purchase,
+      // renewal, Ask-to-Buy approval, refund, launch/resume replay — refreshes,
+      // and no future caller can forget to.
+      _ref.invalidate(billingProvider);
+
       // Only now is the purchase safe to finish: Apple keeps replaying an
       // unfinished transaction, which is exactly the recovery we want if the
       // backend never confirmed it.
