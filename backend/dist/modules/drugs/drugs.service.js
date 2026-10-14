@@ -85,7 +85,7 @@ let DrugsService = DrugsService_1 = class DrugsService {
         const [rows] = await this.db.execute(`SELECT COUNT(*) AS cnt FROM user_subscriptions
        WHERE user_id = ? AND status = 'active'
          AND start_date <= CURDATE() AND end_date >= CURDATE()
-         AND (access_expires_at IS NULL OR access_expires_at > NOW())
+         AND (access_expires_at IS NULL OR access_expires_at > UTC_TIMESTAMP())
          AND payment_status != 'free_plan'`, [userId]);
         return Number(rows[0]?.cnt ?? 0) > 0;
     }

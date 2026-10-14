@@ -2041,7 +2041,7 @@ export class SubscriptionsService {
   private async expireAppleSubscription(originalTransactionId: string, revoked: boolean) {
     await this.db.execute(
       `UPDATE user_subscriptions
-       SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = NOW()
+       SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = UTC_TIMESTAMP()
        WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`,
       [revoked ? 'cancelled' : 'expired', originalTransactionId]
     );
@@ -2536,7 +2536,15 @@ export class SubscriptionsService {
     // the entitlement checks are already refusing. Store-backed rows carry
     // Apple's exact expiry; everything else leaves it NULL and keeps the
     // day-based reading it has always had.
-    const accessExpiresAt = row.access_expires_at ? new Date(String(row.access_expires_at).replace(' ', 'T')) : null;
+    // Parsed as UTC. epochToSqlTimestamp writes toISOString(), so the stored
+    // value is UTC with no zone marker — and `new Date('2026-10-14 20:00:00')`
+    // reads that as LOCAL time, which on a UTC+3 server declared every
+    // subscription three hours younger than it is. Same mismatch that made the
+    // SQL gate use NOW() instead of UTC_TIMESTAMP().
+    const rawExpiry = row.access_expires_at ? String(row.access_expires_at).trim() : '';
+    const accessExpiresAt = rawExpiry
+      ? new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(rawExpiry) ? rawExpiry : `${rawExpiry.replace(' ', 'T')}Z`)
+      : null;
     const lapsedByTimestamp =
       accessExpiresAt !== null && !Number.isNaN(accessExpiresAt.getTime()) && accessExpiresAt.getTime() <= Date.now();
 

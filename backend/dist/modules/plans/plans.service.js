@@ -200,7 +200,7 @@ let PlansService = class PlansService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
       `, [userId]);
         return Array.from(new Set(rows.map((row) => String(row.feature_key || '').trim()).filter(Boolean)));
     }
@@ -213,7 +213,7 @@ let PlansService = class PlansService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
           AND LOWER(COALESCE(us.payment_status, '')) NOT IN ('waived', 'free', 'free_plan')
           AND LOWER(COALESCE(p.slug, '')) <> 'free'
           AND NOT (LOWER(TRIM(COALESCE(p.name, ''))) = 'free' AND COALESCE(p.price, 0) <= 0)
@@ -229,7 +229,7 @@ let PlansService = class PlansService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
         LIMIT 1
       `, [userId]);
         return rows.length > 0;

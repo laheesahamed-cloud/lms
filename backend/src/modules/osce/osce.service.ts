@@ -712,7 +712,7 @@ export class OsceService {
          FROM user_subscriptions us
         WHERE us.user_id = ? AND us.status = 'active'
           AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())`,
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())`,
       [userId]
     );
     const profile = { hasAny: rows.length > 0, full: false, courseIds: new Set<number>() };

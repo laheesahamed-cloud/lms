@@ -1521,7 +1521,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     }
     async expireAppleSubscription(originalTransactionId, revoked) {
         await this.db.execute(`UPDATE user_subscriptions
-       SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = NOW()
+       SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = UTC_TIMESTAMP()
        WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`, [revoked ? 'cancelled' : 'expired', originalTransactionId]);
     }
     epochToSqlTimestamp(value) {
@@ -1897,7 +1897,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         const rawDaysRemaining = Math.floor((end.getTime() - today.getTime()) / 86400000) + 1;
         const isFreePlan = this.isFreePlanAssignment(row.payment_status, plan);
         const daysRemaining = isFreePlan ? null : rawDaysRemaining;
-        const accessExpiresAt = row.access_expires_at ? new Date(String(row.access_expires_at).replace(' ', 'T')) : null;
+        const rawExpiry = row.access_expires_at ? String(row.access_expires_at).trim() : '';
+        const accessExpiresAt = rawExpiry
+            ? new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(rawExpiry) ? rawExpiry : `${rawExpiry.replace(' ', 'T')}Z`)
+            : null;
         const lapsedByTimestamp = accessExpiresAt !== null && !Number.isNaN(accessExpiresAt.getTime()) && accessExpiresAt.getTime() <= Date.now();
         const computedStatus = row.status === 'active' && !isFreePlan && (rawDaysRemaining <= 0 || lapsedByTimestamp)
             ? 'expired'

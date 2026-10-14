@@ -1382,7 +1382,7 @@ export class QuizzesService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
       `,
       [userId]
     );
