@@ -891,6 +891,10 @@ async function testReportsOnlyStaffCannotFilterSpecificLearner() {
     } as any,
     { requireAdmin: async () => ({ id: 400, role: 'content_editor', permissions: ['reports.view'], status: 'active' }) } as any,
     {} as any,
+    // pushNotificationsService. WorkspaceService gained a fourth constructor
+    // dependency and this call was never updated, so the whole suite failed to
+    // COMPILE — every assertion in this file was silently not running.
+    {} as any,
   );
 
   await assert.rejects(
