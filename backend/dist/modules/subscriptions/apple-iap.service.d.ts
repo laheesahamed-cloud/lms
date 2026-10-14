@@ -1,4 +1,10 @@
 export type AppleEnvironment = 'Production' | 'Sandbox';
+export type AppleRenewalInfo = {
+    originalTransactionId: string;
+    autoRenewStatus: number | null;
+    gracePeriodExpiresDate: number | null;
+    isInBillingRetryPeriod: boolean | null;
+};
 export interface AppleTransaction {
     transactionId: string;
     originalTransactionId: string;
@@ -27,6 +33,7 @@ export declare class AppleIapService {
     private readonly allowSandbox;
     verifyTransaction(jws: string): AppleTransaction;
     verifyNotification(signedPayload: string): AppleNotification;
+    verifyRenewalInfo(jws: string): AppleRenewalInfo;
     isEntitled(transaction: AppleTransaction, now?: number): boolean;
     protected trustAnchor(): {
         pem: string;

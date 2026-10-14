@@ -922,6 +922,7 @@ export declare class SubscriptionsService {
         handled: boolean;
         notificationType: string;
     }>;
+    private readGracePeriodExpiry;
     private applyAppleRenewal;
     private expireAppleSubscription;
     private epochToSqlTimestamp;

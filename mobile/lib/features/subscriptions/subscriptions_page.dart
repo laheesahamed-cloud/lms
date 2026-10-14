@@ -6,6 +6,7 @@ import '../../data/apple_iap.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/glass_card.dart';
+import 'iap_reconciler.dart';
 import 'paywall_sheet.dart';
 import 'subscriptions_repository.dart';
 import '../../widgets/page_header.dart';
@@ -35,6 +36,29 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // EVERY open refreshes, rather than trusting whatever this session already
+    // holds. billingProvider is kept alive on purpose (so the page renders
+    // instantly instead of flashing a spinner), which also means it can be
+    // arbitrarily old by the time the page is reopened — a subscription that
+    // lapsed while the app sat in the background would otherwise still read as
+    // active here.
+    //
+    // Scheduled after the first frame so the cached view paints immediately and
+    // the refresh lands underneath it.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  /// Re-reads entitlement from both sources that can know about it: StoreKit's
+  /// local record, replayed to the backend by the reconciler, and the backend's
+  /// own view.
+  ///
+  /// The reconciler reads `currentEntitlements`, which is on-device and does
+  /// NOT prompt for an App Store password — deliberately not `AppStore.sync()`,
+  /// which would ask the user to authenticate every time this page opened.
+  void _refresh() {
+    if (!mounted) return;
+    ref.read(iapReconcilerProvider).sync();
+    ref.invalidate(billingProvider);
   }
 
   @override
@@ -48,7 +72,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     // Re-check entitlement when returning to the app (e.g. after subscribing
     // on the website in a separate browser) so unlocked access appears.
     if (state == AppLifecycleState.resumed) {
-      ref.invalidate(billingProvider);
+      _refresh();
     }
   }
 

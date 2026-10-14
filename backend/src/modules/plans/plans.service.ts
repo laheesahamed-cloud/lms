@@ -280,6 +280,7 @@ export class PlansService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
       `,
       [userId]
     );
@@ -314,6 +315,7 @@ export class PlansService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
           AND LOWER(COALESCE(us.payment_status, '')) NOT IN ('waived', 'free', 'free_plan')
           AND LOWER(COALESCE(p.slug, '')) <> 'free'
           AND NOT (LOWER(TRIM(COALESCE(p.name, ''))) = 'free' AND COALESCE(p.price, 0) <= 0)
@@ -334,6 +336,7 @@ export class PlansService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
         LIMIT 1
       `,
       [userId]

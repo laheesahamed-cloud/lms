@@ -897,6 +897,7 @@ let WorkspaceService = class WorkspaceService {
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
       `, [userId]);
         const profile = {
             hasAnyPaidQuizAccess: rows.length > 0,

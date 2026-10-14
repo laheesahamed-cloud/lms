@@ -146,6 +146,14 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'user_subscriptions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER receipt_url");
       await this.ensureColumn(connection, 'user_subscriptions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
       await this.ensureColumn(connection, 'user_subscriptions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+      // Apple's exact expiry, to the second. `end_date` is a DATE, so on its own
+      // it grants access until MIDNIGHT on the day a subscription ends — up to
+      // a full day of premium after Apple stopped billing. This column carries
+      // the precise moment for store-backed subscriptions; it stays NULL for
+      // manual, bank-transfer and PayHere ones, which legitimately run to a
+      // date and must keep their existing behaviour.
+      await this.ensureColumn(connection, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date');
+      await this.backfillAccessExpiresAt(connection);
       await this.ensureFreePlanPaymentStatus(connection);
       await this.ensureUnlimitedFreePlanDates(connection);
       await this.ensureColumn(connection, 'subscription_requests', 'invoice_id', 'VARCHAR(20) NULL AFTER plan_id');
@@ -1464,6 +1472,31 @@ export class SchemaSyncService implements OnModuleInit {
         INDEX idx_subscription_audit_created (created_at)
       )
     `);
+  }
+
+  /// Fills `access_expires_at` for Apple subscriptions created before the
+  /// column existed, from the exact timestamp already stored on the
+  /// transaction. Only touches rows where it is still NULL, so it never
+  /// overwrites a value the live flow has written, and only Apple rows, so
+  /// nothing manual is given an artificial deadline.
+  private async backfillAccessExpiresAt(connection: PoolConnection) {
+    try {
+      await connection.execute(
+        `UPDATE user_subscriptions us
+         JOIN (
+           SELECT original_transaction_id, MAX(expires_date) AS expires_date
+           FROM iap_transactions
+           WHERE platform = 'apple' AND expires_date IS NOT NULL
+           GROUP BY original_transaction_id
+         ) t ON t.original_transaction_id = us.payment_reference
+         SET us.access_expires_at = t.expires_date
+         WHERE us.payment_method = 'apple_iap' AND us.access_expires_at IS NULL`
+      );
+    } catch (error) {
+      // iap_transactions may not exist yet on a fresh database; the live flow
+      // populates the column from then on, so this is not worth failing boot.
+      this.logger.warn(`Skipped access_expires_at backfill: ${(error as Error).message}`);
+    }
   }
 
   private async backfillPlanSubscriptionColumns(connection: PoolConnection) {

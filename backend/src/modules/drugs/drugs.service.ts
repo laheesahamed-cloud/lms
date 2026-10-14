@@ -111,6 +111,7 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
       `SELECT COUNT(*) AS cnt FROM user_subscriptions
        WHERE user_id = ? AND status = 'active'
          AND start_date <= CURDATE() AND end_date >= CURDATE()
+         AND (access_expires_at IS NULL OR access_expires_at > NOW())
          AND payment_status != 'free_plan'`,
       [userId],
     );

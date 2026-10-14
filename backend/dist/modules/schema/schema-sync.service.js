@@ -136,6 +136,8 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'user_subscriptions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER receipt_url");
             await this.ensureColumn(connection, 'user_subscriptions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
             await this.ensureColumn(connection, 'user_subscriptions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+            await this.ensureColumn(connection, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date');
+            await this.backfillAccessExpiresAt(connection);
             await this.ensureFreePlanPaymentStatus(connection);
             await this.ensureUnlimitedFreePlanDates(connection);
             await this.ensureColumn(connection, 'subscription_requests', 'invoice_id', 'VARCHAR(20) NULL AFTER plan_id');
@@ -1226,6 +1228,22 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_subscription_audit_created (created_at)
       )
     `);
+    }
+    async backfillAccessExpiresAt(connection) {
+        try {
+            await connection.execute(`UPDATE user_subscriptions us
+         JOIN (
+           SELECT original_transaction_id, MAX(expires_date) AS expires_date
+           FROM iap_transactions
+           WHERE platform = 'apple' AND expires_date IS NOT NULL
+           GROUP BY original_transaction_id
+         ) t ON t.original_transaction_id = us.payment_reference
+         SET us.access_expires_at = t.expires_date
+         WHERE us.payment_method = 'apple_iap' AND us.access_expires_at IS NULL`);
+        }
+        catch (error) {
+            this.logger.warn(`Skipped access_expires_at backfill: ${error.message}`);
+        }
     }
     async backfillPlanSubscriptionColumns(connection) {
         const [planRows] = await connection.execute('SELECT id, name, price, regular_price, slug, sort_order FROM plans ORDER BY id ASC');

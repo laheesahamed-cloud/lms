@@ -55,6 +55,20 @@ const ALLOWED_ALG = 'ES256';
 
 export type AppleEnvironment = 'Production' | 'Sandbox';
 
+/**
+ * The renewal half of a notification. Apple puts the billing state here, not on
+ * the transaction: a subscriber in a billing grace period still has a valid
+ * entitlement even though the transaction's `expiresDate` is already in the
+ * past, and only `gracePeriodExpiresDate` says how long that lasts.
+ */
+export type AppleRenewalInfo = {
+  originalTransactionId: string;
+  autoRenewStatus: number | null;
+  /** Milliseconds. Non-null only while Apple is granting a grace period. */
+  gracePeriodExpiresDate: number | null;
+  isInBillingRetryPeriod: boolean | null;
+};
+
 /** The subset of JWSTransactionDecodedPayload this app relies on. */
 export interface AppleTransaction {
   transactionId: string;
@@ -157,6 +171,30 @@ export class AppleIapService {
    * True when the transaction currently entitles the user to access:
    * not revoked/refunded, and not past its expiry.
    */
+  /**
+   * Verify a notification's `signedRenewalInfo`. Same signature verification as
+   * everything else here — nothing is read before the JWS checks out.
+   *
+   * Deliberately no bundle-id assertion: Apple's renewal payload does not carry
+   * one. It is only ever read from a notification whose own payload has already
+   * been bundle-checked, so the trust decision has been made by then.
+   */
+  verifyRenewalInfo(jws: string): AppleRenewalInfo {
+    const payload = this.verifyJws(jws);
+    return {
+      originalTransactionId: this.str(payload.originalTransactionId),
+      autoRenewStatus:
+        payload.autoRenewStatus === undefined || payload.autoRenewStatus === null
+          ? null
+          : Number(payload.autoRenewStatus),
+      gracePeriodExpiresDate: this.epoch(payload.gracePeriodExpiresDate),
+      isInBillingRetryPeriod:
+        payload.isInBillingRetryPeriod === undefined || payload.isInBillingRetryPeriod === null
+          ? null
+          : Boolean(payload.isInBillingRetryPeriod),
+    };
+  }
+
   isEntitled(transaction: AppleTransaction, now: number = Date.now()): boolean {
     if (transaction.revocationDate !== null) return false;
     if (transaction.expiresDate === null) return true; // non-expiring product

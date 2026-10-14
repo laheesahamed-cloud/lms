@@ -42,6 +42,7 @@ const SUBSCRIPTION_LIST_COLUMNS = `
   us.lesson_ids_json,
   us.start_date,
   us.end_date,
+  us.access_expires_at,
   us.created_at,
   us.updated_at
 `;
@@ -1256,8 +1257,8 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             const [result] = await connection.execute(`INSERT INTO user_subscriptions (
            user_id, plan_id, assigned_by, notes, status, payment_status,
            amount_paid, payment_method, payment_reference, payment_date, receipt_url,
-           access_scope, course_ids_json, lesson_ids_json, start_date, end_date
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+           access_scope, course_ids_json, lesson_ids_json, start_date, end_date, access_expires_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
                 input.userId,
                 input.planId,
                 input.assignedBy,
@@ -1274,6 +1275,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 JSON.stringify(input.lessonIds || []),
                 input.startDate,
                 this.isFreePlanPaymentStatus(input.paymentStatus) ? this.unlimitedFreePlanEndDate : input.endDate,
+                this.isFreePlanPaymentStatus(input.paymentStatus) ? null : (input.accessExpiresAt ?? null),
             ]);
             await connection.commit();
             return result.insertId;
@@ -1324,7 +1326,9 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             }),
         ]);
         if (!entitled) {
-            await this.expireAppleSubscription(transaction.originalTransactionId, transaction.revocationDate !== null);
+            if (transaction.revocationDate !== null) {
+                await this.expireAppleSubscription(transaction.originalTransactionId, true);
+            }
             return this.getStudentBilling(userId);
         }
         const startDate = this.toDateOnly(new Date());
@@ -1347,6 +1351,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 endDate,
                 paymentMethod: 'apple_iap',
                 paymentReference: transaction.originalTransactionId,
+                accessExpiresAt: this.epochToSqlTimestamp(transaction.expiresDate),
                 paymentDate: startDate,
                 accessScope: 'all',
                 cancelExisting: true,
@@ -1454,10 +1459,34 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             case 'REVOKE':
                 await this.expireAppleSubscription(transaction.originalTransactionId, true);
                 break;
+            case 'DID_FAIL_TO_RENEW': {
+                const grace = this.readGracePeriodExpiry(notification.signedRenewalInfo);
+                if (grace) {
+                    await this.db.execute(`UPDATE user_subscriptions
+             SET status = 'active', end_date = GREATEST(end_date, ?), access_expires_at = ?
+             WHERE payment_method = 'apple_iap' AND payment_reference = ?
+               AND status IN ('active', 'pending')`, [this.toDateOnly(new Date(grace)), this.epochToSqlTimestamp(grace), transaction.originalTransactionId]);
+                }
+                break;
+            }
             default:
                 break;
         }
         return { handled: true, notificationType: notification.notificationType };
+    }
+    readGracePeriodExpiry(signedRenewalInfo) {
+        if (!signedRenewalInfo)
+            return null;
+        try {
+            const info = this.appleIapService.verifyRenewalInfo(signedRenewalInfo);
+            if (!info.gracePeriodExpiresDate)
+                return null;
+            return info.gracePeriodExpiresDate > Date.now() ? info.gracePeriodExpiresDate : null;
+        }
+        catch (error) {
+            this.logger.warn(`Could not read Apple renewal info: ${error.message}`);
+            return null;
+        }
     }
     async applyAppleRenewal(userId, transaction) {
         const endDate = transaction.expiresDate ? this.toDateOnly(new Date(transaction.expiresDate)) : '';
@@ -1467,10 +1496,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
        WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
        ORDER BY id DESC LIMIT 1`, [userId, transaction.originalTransactionId]);
         if (rows[0]) {
-            await this.db.execute("UPDATE user_subscriptions SET status = 'active', end_date = ? WHERE id = ?", [
-                endDate,
-                Number(rows[0].id),
-            ]);
+            await this.db.execute("UPDATE user_subscriptions SET status = 'active', end_date = ?, access_expires_at = ? WHERE id = ?", [endDate, this.epochToSqlTimestamp(transaction.expiresDate), Number(rows[0].id)]);
             return;
         }
         const [planRows] = await this.db.execute('SELECT id FROM plans WHERE apple_product_id = ? LIMIT 1', [transaction.productId]);
@@ -1485,6 +1511,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             paymentStatus: 'paid',
             startDate: this.toDateOnly(new Date()),
             endDate,
+            accessExpiresAt: this.epochToSqlTimestamp(transaction.expiresDate),
             paymentMethod: 'apple_iap',
             paymentReference: transaction.originalTransactionId,
             paymentDate: this.toDateOnly(new Date()),
@@ -1494,7 +1521,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     }
     async expireAppleSubscription(originalTransactionId, revoked) {
         await this.db.execute(`UPDATE user_subscriptions
-       SET status = ?, end_date = LEAST(end_date, CURDATE())
+       SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = NOW()
        WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`, [revoked ? 'cancelled' : 'expired', originalTransactionId]);
     }
     epochToSqlTimestamp(value) {
@@ -1870,7 +1897,11 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         const rawDaysRemaining = Math.floor((end.getTime() - today.getTime()) / 86400000) + 1;
         const isFreePlan = this.isFreePlanAssignment(row.payment_status, plan);
         const daysRemaining = isFreePlan ? null : rawDaysRemaining;
-        const computedStatus = row.status === 'active' && !isFreePlan && rawDaysRemaining <= 0 ? 'expired' : row.status;
+        const accessExpiresAt = row.access_expires_at ? new Date(String(row.access_expires_at).replace(' ', 'T')) : null;
+        const lapsedByTimestamp = accessExpiresAt !== null && !Number.isNaN(accessExpiresAt.getTime()) && accessExpiresAt.getTime() <= Date.now();
+        const computedStatus = row.status === 'active' && !isFreePlan && (rawDaysRemaining <= 0 || lapsedByTimestamp)
+            ? 'expired'
+            : row.status;
         return {
             id: Number(row.id),
             userId: Number(row.user_id),

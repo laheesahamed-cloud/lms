@@ -1316,6 +1316,7 @@ ${settings.footer}`;
          AND us.status = 'active'
          AND us.start_date <= CURDATE()
          AND us.end_date >= CURDATE()
+         AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
        ORDER BY us.end_date DESC, us.id DESC
        LIMIT 1`,
       [userId]
@@ -1371,6 +1372,7 @@ ${settings.footer}`;
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
+          AND (us.access_expires_at IS NULL OR us.access_expires_at > NOW())
         LIMIT 1
       `,
       [userId]

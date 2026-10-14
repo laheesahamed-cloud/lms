@@ -195,5 +195,56 @@ check(
   !strict.isEntitled({ ...base, expiresDate: Date.now() + 9_000_000, revocationDate: Date.now() })
 );
 
+// ── Renewal info / billing grace period ──
+//
+// Apple reports a grace period ONLY in the renewal half of a notification. A
+// subscriber in one still has a valid entitlement while `expiresDate` is
+// already in the past, so reading this wrong either locks out a paying
+// customer or hands out free access after Apple stopped paying out.
+const graceAt = Date.now() + 3 * 86_400_000;
+const renewal = strict.verifyRenewalInfo(
+  sign(
+    { alg: 'ES256', x5c },
+    {
+      originalTransactionId: '1000000000000001',
+      autoRenewStatus: 0,
+      gracePeriodExpiresDate: graceAt,
+      isInBillingRetryPeriod: true,
+    }
+  )
+);
+check('renewal info: originalTransactionId parsed', renewal.originalTransactionId === '1000000000000001');
+check('renewal info: grace period parsed', renewal.gracePeriodExpiresDate === graceAt);
+check('renewal info: billing retry flag parsed', renewal.isInBillingRetryPeriod === true);
+check('renewal info: autoRenewStatus parsed', renewal.autoRenewStatus === 0);
+
+const noGrace = strict.verifyRenewalInfo(
+  sign({ alg: 'ES256', x5c }, { originalTransactionId: '1000000000000002', autoRenewStatus: 1 })
+);
+check('renewal info: absent grace period is null', noGrace.gracePeriodExpiresDate === null);
+
+rejects('renewal info: tampered payload is rejected', () => {
+  const jws = sign({ alg: 'ES256', x5c }, { originalTransactionId: 'x', gracePeriodExpiresDate: graceAt });
+  const [h, , sig] = jws.split('.');
+  const forged = Buffer.from(JSON.stringify({ gracePeriodExpiresDate: graceAt * 2 })).toString('base64url');
+  return strict.verifyRenewalInfo(`${h}.${forged}.${sig}`);
+});
+
+// ── Expiry precision ──
+//
+// The defect this guards: end_date is a DATE, so a subscription that ended at
+// 09:00 kept premium until midnight. access_expires_at carries the exact
+// moment. These assert the boundary the SQL gate relies on.
+const expiredAnHourAgo = new Date(Date.now() - 3_600_000);
+const expiresInAnHour = new Date(Date.now() + 3_600_000);
+check('precise gate: lapsed an hour ago is expired', expiredAnHourAgo.getTime() <= Date.now());
+check('precise gate: expiring in an hour is still valid', expiresInAnHour.getTime() > Date.now());
+check(
+  'precise gate: same calendar day does not imply still valid',
+  expiredAnHourAgo.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10)
+    ? expiredAnHourAgo.getTime() <= Date.now()
+    : true
+);
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);

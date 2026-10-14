@@ -77,6 +77,19 @@ let AppleIapService = AppleIapService_1 = class AppleIapService {
             signedRenewalInfo: this.str(data.signedRenewalInfo) || null,
         };
     }
+    verifyRenewalInfo(jws) {
+        const payload = this.verifyJws(jws);
+        return {
+            originalTransactionId: this.str(payload.originalTransactionId),
+            autoRenewStatus: payload.autoRenewStatus === undefined || payload.autoRenewStatus === null
+                ? null
+                : Number(payload.autoRenewStatus),
+            gracePeriodExpiresDate: this.epoch(payload.gracePeriodExpiresDate),
+            isInBillingRetryPeriod: payload.isInBillingRetryPeriod === undefined || payload.isInBillingRetryPeriod === null
+                ? null
+                : Boolean(payload.isInBillingRetryPeriod),
+        };
+    }
     isEntitled(transaction, now = Date.now()) {
         if (transaction.revocationDate !== null)
             return false;

@@ -15,6 +15,8 @@ import { SubscriptionCouponDto } from './dto/subscription-coupon.dto';
 import { AppleIapService, AppleTransaction } from './apple-iap.service';
 
 type SubscriptionRow = RowDataPacket & {
+  /** Apple's exact expiry; NULL for manual/bank-transfer/PayHere subscriptions. */
+  access_expires_at?: string | Date | null;
   id: number;
   user_id: number;
   plan_id: number;
@@ -157,6 +159,7 @@ const SUBSCRIPTION_LIST_COLUMNS = `
   us.lesson_ids_json,
   us.start_date,
   us.end_date,
+  us.access_expires_at,
   us.created_at,
   us.updated_at
 `;
@@ -1605,6 +1608,8 @@ export class SubscriptionsService {
     courseIds?: number[];
     lessonIds?: number[];
     cancelExisting: boolean;
+    /** Exact expiry for store-backed subscriptions; NULL keeps date-only behaviour. */
+    accessExpiresAt?: string | null;
   }) {
     const connection = await this.db.getConnection();
     try {
@@ -1626,8 +1631,8 @@ export class SubscriptionsService {
         `INSERT INTO user_subscriptions (
            user_id, plan_id, assigned_by, notes, status, payment_status,
            amount_paid, payment_method, payment_reference, payment_date, receipt_url,
-           access_scope, course_ids_json, lesson_ids_json, start_date, end_date
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           access_scope, course_ids_json, lesson_ids_json, start_date, end_date, access_expires_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.userId,
           input.planId,
@@ -1645,6 +1650,8 @@ export class SubscriptionsService {
           JSON.stringify(input.lessonIds || []),
           input.startDate,
           this.isFreePlanPaymentStatus(input.paymentStatus) ? this.unlimitedFreePlanEndDate : input.endDate,
+          // A free plan never expires, so it must not inherit a deadline.
+          this.isFreePlanPaymentStatus(input.paymentStatus) ? null : (input.accessExpiresAt ?? null),
         ]
       );
 
@@ -1726,8 +1733,19 @@ export class SubscriptionsService {
     );
 
     if (!entitled) {
-      // Refunded or already lapsed — make sure nothing stays unlocked.
-      await this.expireAppleSubscription(transaction.originalTransactionId, transaction.revocationDate !== null);
+      // ONLY a revocation closes the subscription from here.
+      //
+      // This runs on the device's launch/resume replay too, and StoreKit hands
+      // back entitlements that are in Apple's BILLING GRACE PERIOD — still
+      // valid, but with `expiresDate` already in the past, so `isEntitled` is
+      // false. Expiring on that basis would cut off a subscriber Apple still
+      // considers paid, which is the one failure mode worse than granting too
+      // much. A genuine lapse needs no action: access_expires_at has passed, so
+      // the entitlement checks already deny it, and Apple's EXPIRED
+      // notification sets the status.
+      if (transaction.revocationDate !== null) {
+        await this.expireAppleSubscription(transaction.originalTransactionId, true);
+      }
       return this.getStudentBilling(userId);
     }
 
@@ -1771,6 +1789,9 @@ export class SubscriptionsService {
         endDate,
         paymentMethod: 'apple_iap',
         paymentReference: transaction.originalTransactionId,
+        // Apple's exact expiry drives access; end_date stays for display and
+        // for every non-Apple code path that still reasons in whole days.
+        accessExpiresAt: this.epochToSqlTimestamp(transaction.expiresDate),
         paymentDate: startDate,
         accessScope: 'all',
         cancelExisting: true,
@@ -1924,14 +1945,52 @@ export class SubscriptionsService {
         await this.expireAppleSubscription(transaction.originalTransactionId, true);
         break;
 
-      // DID_CHANGE_RENEWAL_STATUS (auto-renew turned off) and
-      // DID_FAIL_TO_RENEW (billing retry / grace period) intentionally leave
+      // A renewal payment failed. Apple may still be granting access: with a
+      // billing grace period configured, the subscriber keeps everything while
+      // Apple retries, even though the transaction's expiresDate has passed.
+      // That window is only described in the RENEWAL half of the notification,
+      // so extend the precise gate to cover it. Without this, making expiry
+      // exact would lock out a subscriber Apple still treats as paid.
+      case 'DID_FAIL_TO_RENEW': {
+        const grace = this.readGracePeriodExpiry(notification.signedRenewalInfo);
+        if (grace) {
+          await this.db.execute(
+            `UPDATE user_subscriptions
+             SET status = 'active', end_date = GREATEST(end_date, ?), access_expires_at = ?
+             WHERE payment_method = 'apple_iap' AND payment_reference = ?
+               AND status IN ('active', 'pending')`,
+            [this.toDateOnly(new Date(grace)), this.epochToSqlTimestamp(grace), transaction.originalTransactionId]
+          );
+        }
+        break;
+      }
+
+      // DID_CHANGE_RENEWAL_STATUS (auto-renew turned off) intentionally leaves
       // access intact — Apple sends EXPIRED when it actually ends.
       default:
         break;
     }
 
     return { handled: true, notificationType: notification.notificationType };
+  }
+
+  /**
+   * Grace-period deadline from a notification's renewal info, in epoch ms, or
+   * null when Apple is not granting one.
+   *
+   * Never throws: a renewal payload we cannot read must not fail the webhook,
+   * because Apple then retries it indefinitely.
+   */
+  private readGracePeriodExpiry(signedRenewalInfo: string | null): number | null {
+    if (!signedRenewalInfo) return null;
+    try {
+      const info = this.appleIapService.verifyRenewalInfo(signedRenewalInfo);
+      if (!info.gracePeriodExpiresDate) return null;
+      return info.gracePeriodExpiresDate > Date.now() ? info.gracePeriodExpiresDate : null;
+    } catch (error) {
+      this.logger.warn(`Could not read Apple renewal info: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   /** Extend (or re-create) the subscription behind a renewed Apple purchase. */
@@ -1947,10 +2006,10 @@ export class SubscriptionsService {
     );
 
     if (rows[0]) {
-      await this.db.execute("UPDATE user_subscriptions SET status = 'active', end_date = ? WHERE id = ?", [
-        endDate,
-        Number(rows[0].id),
-      ]);
+      await this.db.execute(
+        "UPDATE user_subscriptions SET status = 'active', end_date = ?, access_expires_at = ? WHERE id = ?",
+        [endDate, this.epochToSqlTimestamp(transaction.expiresDate), Number(rows[0].id)]
+      );
       return;
     }
 
@@ -1969,6 +2028,7 @@ export class SubscriptionsService {
       paymentStatus: 'paid',
       startDate: this.toDateOnly(new Date()),
       endDate,
+      accessExpiresAt: this.epochToSqlTimestamp(transaction.expiresDate),
       paymentMethod: 'apple_iap',
       paymentReference: transaction.originalTransactionId,
       paymentDate: this.toDateOnly(new Date()),
@@ -1981,7 +2041,7 @@ export class SubscriptionsService {
   private async expireAppleSubscription(originalTransactionId: string, revoked: boolean) {
     await this.db.execute(
       `UPDATE user_subscriptions
-       SET status = ?, end_date = LEAST(end_date, CURDATE())
+       SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = NOW()
        WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`,
       [revoked ? 'cancelled' : 'expired', originalTransactionId]
     );
@@ -2471,7 +2531,19 @@ export class SubscriptionsService {
     const rawDaysRemaining = Math.floor((end.getTime() - today.getTime()) / 86400000) + 1;
     const isFreePlan = this.isFreePlanAssignment(row.payment_status, plan);
     const daysRemaining = isFreePlan ? null : rawDaysRemaining;
-    const computedStatus = row.status === 'active' && !isFreePlan && rawDaysRemaining <= 0 ? 'expired' : row.status;
+
+    // The precise gate, so the page cannot report "active" for a subscription
+    // the entitlement checks are already refusing. Store-backed rows carry
+    // Apple's exact expiry; everything else leaves it NULL and keeps the
+    // day-based reading it has always had.
+    const accessExpiresAt = row.access_expires_at ? new Date(String(row.access_expires_at).replace(' ', 'T')) : null;
+    const lapsedByTimestamp =
+      accessExpiresAt !== null && !Number.isNaN(accessExpiresAt.getTime()) && accessExpiresAt.getTime() <= Date.now();
+
+    const computedStatus =
+      row.status === 'active' && !isFreePlan && (rawDaysRemaining <= 0 || lapsedByTimestamp)
+        ? 'expired'
+        : row.status;
 
     return {
       id: Number(row.id),
