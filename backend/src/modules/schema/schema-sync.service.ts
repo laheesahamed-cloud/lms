@@ -146,14 +146,6 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'user_subscriptions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER receipt_url");
       await this.ensureColumn(connection, 'user_subscriptions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
       await this.ensureColumn(connection, 'user_subscriptions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
-      // Apple's exact expiry, to the second. `end_date` is a DATE, so on its own
-      // it grants access until MIDNIGHT on the day a subscription ends — up to
-      // a full day of premium after Apple stopped billing. This column carries
-      // the precise moment for store-backed subscriptions; it stays NULL for
-      // manual, bank-transfer and PayHere ones, which legitimately run to a
-      // date and must keep their existing behaviour.
-      await this.ensureColumn(connection, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date');
-      await this.backfillAccessExpiresAt(connection);
       await this.ensureFreePlanPaymentStatus(connection);
       await this.ensureUnlimitedFreePlanDates(connection);
       await this.ensureColumn(connection, 'subscription_requests', 'invoice_id', 'VARCHAR(20) NULL AFTER plan_id');
@@ -784,6 +776,15 @@ export class SchemaSyncService implements OnModuleInit {
       // missing column would break all auth — not just the Roles & Access feature.
       await step('users.permissions', () =>
         this.ensureColumn(conn, 'users', 'permissions', 'TEXT NULL AFTER role'));
+      // READ BY EVERY ENTITLEMENT CHECK (11 sites across 8 services), so a
+      // missing column does not degrade one feature — it 500s every gated
+      // request in the app. It must therefore NOT depend on SCHEMA_SYNC, which
+      // is 0 on production: the gated block below would never create it and
+      // the whole app would fail on the first content request after deploy.
+      // Same lesson as the content-governance tables above.
+      await step('user_subscriptions.access_expires_at', () =>
+        this.ensureColumn(conn, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date'));
+      await step('access_expires_at backfill', () => this.backfillAccessExpiresAt(conn));
       await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
       await step('admin audit events', () => this.ensureAdminAuditEventsTable(conn));
       // Read directly (no try/catch) by resolveActiveCanvasProvider() on every

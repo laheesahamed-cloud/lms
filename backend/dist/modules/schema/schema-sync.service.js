@@ -136,8 +136,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'user_subscriptions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER receipt_url");
             await this.ensureColumn(connection, 'user_subscriptions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
             await this.ensureColumn(connection, 'user_subscriptions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
-            await this.ensureColumn(connection, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date');
-            await this.backfillAccessExpiresAt(connection);
             await this.ensureFreePlanPaymentStatus(connection);
             await this.ensureUnlimitedFreePlanDates(connection);
             await this.ensureColumn(connection, 'subscription_requests', 'invoice_id', 'VARCHAR(20) NULL AFTER plan_id');
@@ -690,6 +688,8 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         };
         try {
             await step('users.permissions', () => this.ensureColumn(conn, 'users', 'permissions', 'TEXT NULL AFTER role'));
+            await step('user_subscriptions.access_expires_at', () => this.ensureColumn(conn, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date'));
+            await step('access_expires_at backfill', () => this.backfillAccessExpiresAt(conn));
             await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
             await step('admin audit events', () => this.ensureAdminAuditEventsTable(conn));
             await step('ai provider configs', () => this.ensureAiProviderConfigsTable(conn));
