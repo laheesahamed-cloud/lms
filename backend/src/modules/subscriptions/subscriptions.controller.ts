@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, Query, Res, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Headers, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Put, Query, Res, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { isStaffRole, roleHasPermission } from '../auth/role-permissions';
@@ -232,6 +232,11 @@ export class SubscriptionsController {
    * `forbidNonWhitelisted`, so a future extra field from Apple would otherwise
    * 400 and make Apple retry forever.
    */
+  // Apple's V2 contract is an HTTP 200 acknowledgement. Nest answers a @Post
+  // with 201 Created by default, which Apple treats as a delivery failure and
+  // retries for days — so every renewal, expiry and refund would arrive over
+  // and over while never being marked delivered.
+  @HttpCode(HttpStatus.OK)
   @Post('apple/notifications')
   async handleAppleNotification(@Body() body: Record<string, unknown>) {
     const signedPayload = typeof body?.signedPayload === 'string' ? body.signedPayload : '';

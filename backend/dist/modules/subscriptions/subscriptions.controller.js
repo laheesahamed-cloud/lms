@@ -370,6 +370,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "listAppleTransactions", null);
 __decorate([
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, common_1.Post)('apple/notifications'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
