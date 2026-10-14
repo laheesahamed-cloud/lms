@@ -304,8 +304,10 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
   /// It used to read "You have full access — free of charge. Enjoy!", which
   /// promised something the product does not give: free users do not get full
   /// access, and anyone believing that line hits locked lessons moments later.
-  /// One constant so the three places that say it cannot drift apart again.
-  static const _freeAccessNote = 'You have free access to the app.';
+  /// "Selected" is the load-bearing word — it says there is something here
+  /// without implying everything is. One constant so the three places that say
+  /// it cannot drift apart again.
+  static const _freeAccessNote = 'Enjoy selected premium features for free.';
 
   Widget _statusCard(AppColors c, CurrentSub? cur) {
     if (cur == null) {
