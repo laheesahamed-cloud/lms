@@ -101,7 +101,24 @@ class CurrentSub {
     final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     return CurrentSub(
       planName: _s(m['planName']),
-      status: _s(m['status'].toString().isEmpty ? 'active' : m['status']),
+      // PREFER computedStatus.
+      //
+      // `status` is the stored column, and for a store-backed subscription it
+      // stays 'active' until Apple's EXPIRED notification arrives and updates
+      // it — which never happens if the App Store Server Notifications URL is
+      // not configured. Reading it made the page show a lapsed plan as current
+      // forever: the server was correctly locking content and reporting the
+      // student as free everywhere else, while this page still displayed
+      // "Monthly Prep" with no sign it had ended.
+      //
+      // `computedStatus` is the server's live verdict — it reports 'expired'
+      // once Apple's exact expiry has passed, whatever the stored column says.
+      // Falls back to `status` so an older backend keeps working.
+      status: _s(
+        m['computedStatus']?.toString().isNotEmpty == true
+            ? m['computedStatus']
+            : (m['status'].toString().isEmpty ? 'active' : m['status']),
+      ),
       isFreePlan: _b(m['isFreePlan']),
       isUnlimitedAccess: _b(m['isUnlimitedAccess']),
       startDate: _s(m['startDate']),
