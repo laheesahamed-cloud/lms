@@ -325,14 +325,38 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
       return _banner(
           c, color, Icons.workspace_premium_outlined, cur.planName, sub);
     }
-    // expired / cancelled / pending
-    final label =
-        cur.status == 'pending' ? 'Payment pending' : 'Plan ${cur.status}';
-    final sub = cur.status == 'pending'
-        ? 'Your payment is being confirmed.'
-        : 'Your premium access has ended.';
-    return _banner(c, const Color(0xFFDC2626), Icons.error_outline_rounded,
-        cur.planName.isEmpty ? label : '${cur.planName} — $label', sub);
+    // Payment pending is still a live state — one banner, unchanged.
+    if (cur.status == 'pending') {
+      return _banner(c, const Color(0xFFDC2626), Icons.error_outline_rounded,
+          cur.planName.isEmpty ? 'Payment pending' : '${cur.planName} — Payment pending',
+          'Your payment is being confirmed.');
+    }
+
+    // Expired or cancelled: the student IS on free access now, so lead with
+    // that rather than with a dead plan name. Showing "Complete Prep - 3
+    // Months — Plan expired" as the headline described what they no longer
+    // have; the free banner describes what they do.
+    //
+    // The ended subscription still gets said, in red underneath, because
+    // silently swapping to "Free plan" would read as if the purchase had
+    // vanished.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _banner(c, c.primary, Icons.verified_outlined, 'Free plan',
+            'You have free access to the app.'),
+        const SizedBox(height: 10),
+        _banner(
+          c,
+          const Color(0xFFDC2626),
+          Icons.error_outline_rounded,
+          cur.planName.isEmpty
+              ? 'Your subscription has ended'
+              : 'Your ${cur.planName} subscription has ended',
+          'Subscribe again to unlock premium.',
+        ),
+      ],
+    );
   }
 
   Widget _banner(
