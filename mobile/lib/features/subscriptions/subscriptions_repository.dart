@@ -133,12 +133,26 @@ class Billing {
   final CurrentSub? current;
   final List<SubPlan> plans;
 
+  /// WHICH ACCOUNT this was fetched for (the auth token at fetch time).
+  ///
+  /// Billing is kept alive across navigation so the page can paint instantly,
+  /// and `ref.invalidate` leaves the old value readable while the new one
+  /// loads — by design. Nothing in that value said whose it was, so signing out
+  /// and into another account briefly showed the PREVIOUS account's
+  /// subscription: one student saw another's "plan expired" notice before their
+  /// own yearly plan appeared.
+  ///
+  /// Comparing this against the current scope makes that impossible by
+  /// construction rather than by hoping the rebuild lands first.
+  final String? scope;
+
   Billing({
     required this.current,
     required this.plans,
+    this.scope,
   });
 
-  factory Billing.fromJson(dynamic raw) {
+  factory Billing.fromJson(dynamic raw, {String? scope}) {
     final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final cur = m['currentSubscription'];
     final plansRaw =
@@ -146,6 +160,7 @@ class Billing {
     return Billing(
       current: (cur is Map) ? CurrentSub.fromJson(cur) : null,
       plans: plansRaw.map(SubPlan.fromJson).toList(),
+      scope: scope,
     );
   }
 }
@@ -161,10 +176,10 @@ class Billing {
 /// on login/logout/account switch (resetUserScopedData), after redeeming a
 /// purchase, and on app resume.
 final billingProvider = FutureProvider<Billing>((ref) async {
-  ref.watch(userScopeProvider);
+  final scope = ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/subscriptions/me');
-  return Billing.fromJson(res.data);
+  return Billing.fromJson(res.data, scope: scope);
 });
 
 /// Redeem an Apple in-app purchase. Only the signed transaction is sent — the

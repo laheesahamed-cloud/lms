@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/apple_iap.dart';
+import '../../state/current_user.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/glass_card.dart';
@@ -85,7 +86,15 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     // re-opening this page is instant instead of showing a spinner over
     // data we already hold. Only a genuinely empty cache falls through to the
     // loading and error states below.
-    final cached = billingAsync.asData?.value;
+    //
+    // ...but ONLY if it belongs to the account that is signed in now. An
+    // invalidate leaves the previous value readable while the new one loads,
+    // which is what makes this instant — and after an account switch that
+    // previous value is the OTHER student's subscription. Dropping to the
+    // spinner for that one frame is the correct trade.
+    final scope = ref.watch(userScopeProvider);
+    final cachedAny = billingAsync.asData?.value;
+    final cached = (cachedAny != null && cachedAny.scope == scope) ? cachedAny : null;
     if (cached != null) {
       return SafeArea(bottom: false, child: _content(c, cached));
     }
