@@ -21,7 +21,7 @@ export declare const DEFAULT_PLAN_BLUEPRINTS: readonly [{
     readonly featureKeys: string[];
 }, {
     readonly slug: "quick-revision-7d";
-    readonly name: "Quick Revision";
+    readonly name: "Quick Revision - 7 Days";
     readonly description: "7 days of all-subject MCQ, quizzes, and exam practice for fast revision.";
     readonly regularPrice: number;
     readonly offerPrice: 990;
@@ -34,7 +34,7 @@ export declare const DEFAULT_PLAN_BLUEPRINTS: readonly [{
     readonly featureKeys: string[];
 }, {
     readonly slug: "monthly-prep-1m";
-    readonly name: "Monthly Prep";
+    readonly name: "Monthly Prep - 1 Month";
     readonly description: "1 month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode.";
     readonly regularPrice: number;
     readonly offerPrice: 3990;
@@ -47,7 +47,7 @@ export declare const DEFAULT_PLAN_BLUEPRINTS: readonly [{
     readonly featureKeys: string[];
 }, {
     readonly slug: "complete-prep-3m";
-    readonly name: "Complete Prep";
+    readonly name: "Complete Prep - 3 Months";
     readonly description: "3 months of complete ERPM preparation. Best for most serious students.";
     readonly regularPrice: number;
     readonly offerPrice: 8990;
@@ -60,13 +60,13 @@ export declare const DEFAULT_PLAN_BLUEPRINTS: readonly [{
     readonly featureKeys: string[];
 }, {
     readonly slug: "master-prep-6m";
-    readonly name: "Master Prep";
-    readonly description: "6 months of complete preparation with the best long-term value.";
+    readonly name: "Master Prep - 1 Year";
+    readonly description: "12 months of complete preparation with the best long-term value.";
     readonly regularPrice: number;
     readonly offerPrice: 14990;
     readonly offerEnabled: 1;
     readonly currency: "LKR";
-    readonly durationDays: 180;
+    readonly durationDays: 365;
     readonly sortOrder: 4;
     readonly recommended: 0;
     readonly status: "active";
@@ -99,16 +99,6 @@ export declare const APPLE_IAP_PRODUCTS: readonly [{
     readonly durationDays: 90;
 }, {
     readonly productId: "app.xyndrome.lk.yearly";
-    readonly slug: "annual-prep-1y";
+    readonly slug: "master-prep-6m";
     readonly durationDays: 365;
-    readonly createIfMissing: {
-        readonly name: "Annual Prep";
-        readonly description: "12 months of complete preparation. Lessons, AI notes, full MCQ bank, practice and exam mode.";
-        readonly regularPrice: 34990;
-        readonly offerPrice: 23990;
-        readonly currency: "LKR";
-        readonly billingPeriod: "year";
-        readonly status: "inactive";
-        readonly sortOrder: 6;
-    };
 }];

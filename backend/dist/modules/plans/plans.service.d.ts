@@ -18,6 +18,7 @@ export declare class PlansService {
         effectivePrice: number;
         currency: string;
         billingPeriod: string;
+        appleProductId: string;
         durationDays: number;
         status: "active" | "inactive";
         sortOrder: number;
@@ -63,6 +64,7 @@ export declare class PlansService {
         effectivePrice: number;
         currency: string;
         billingPeriod: string;
+        appleProductId: string;
         durationDays: number;
         status: "active" | "inactive";
         sortOrder: number;
@@ -108,6 +110,7 @@ export declare class PlansService {
         effectivePrice: number;
         currency: string;
         billingPeriod: string;
+        appleProductId: string;
         durationDays: number;
         status: "active" | "inactive";
         sortOrder: number;
@@ -183,6 +186,7 @@ export declare class PlansService {
     private getPlanFeatureMap;
     private normalizeCreatePayload;
     private normalizeUpdatePayload;
+    private normalizeAppleProductId;
     private normalizeFeaturePayload;
     private validateFeatureIds;
     private ensureUniqueSlug;

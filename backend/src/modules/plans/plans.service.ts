@@ -19,6 +19,7 @@ type PlanRow = RowDataPacket & {
   offer_enabled: number;
   currency: string;
   billing_period: string;
+  apple_product_id: string | null;
   duration_days: number;
   features_json: string | null;
   status: 'active' | 'inactive';
@@ -106,8 +107,8 @@ export class PlansService {
         `
           INSERT INTO plans (
             name, slug, description, price, regular_price, offer_price, offer_enabled, currency,
-            billing_period, duration_days, features_json, status, sort_order, recommended
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'month', ?, '[]', ?, ?, ?)
+            billing_period, apple_product_id, duration_days, features_json, status, sort_order, recommended
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'month', ?, ?, '[]', ?, ?, ?)
         `,
         [
           payload.name,
@@ -118,6 +119,7 @@ export class PlansService {
           payload.offerPrice,
           payload.offerEnabled ? 1 : 0,
           payload.currency,
+          payload.appleProductId,
           payload.durationDays,
           payload.status,
           payload.sortOrder,
@@ -158,6 +160,7 @@ export class PlansService {
             offer_enabled = ?,
             currency = ?,
             duration_days = ?,
+            apple_product_id = ?,
             status = ?,
             sort_order = ?,
             recommended = ?
@@ -173,6 +176,7 @@ export class PlansService {
           payload.offerEnabled ? 1 : 0,
           payload.currency,
           payload.durationDays,
+          payload.appleProductId,
           payload.status,
           payload.sortOrder,
           payload.recommended ? 1 : 0,
@@ -342,8 +346,8 @@ export class PlansService {
     let sql = `
       SELECT
         id, name, slug, description, price, regular_price, offer_price, offer_enabled,
-        currency, billing_period, duration_days, features_json, status, sort_order, recommended,
-        created_at, updated_at
+        currency, billing_period, apple_product_id, duration_days, features_json, status,
+        sort_order, recommended, created_at, updated_at
       FROM plans
       WHERE 1 = 1
     `;
@@ -445,6 +449,7 @@ export class PlansService {
       offerEnabled: Boolean(dto.offerEnabled),
       currency: 'LKR',
       durationDays: Number(dto.durationDays || 30),
+      appleProductId: await this.normalizeAppleProductId(dto.appleProductId ?? null, undefined),
       sortOrder: Number(dto.sortOrder || 0),
       recommended: Boolean(dto.recommended),
       status: dto.status,
@@ -454,9 +459,20 @@ export class PlansService {
 
   private async normalizeUpdatePayload(existing: Awaited<ReturnType<PlansService['findById']>>, dto: UpdatePlanDto) {
     const featureIds = dto.featureIds ? await this.validateFeatureIds(dto.featureIds) : existing.featureIds;
+    // A RENAME MUST NOT MOVE THE SLUG.
+    //
+    // The slug is this plan's identity outside the panel: APPLE_IAP_PRODUCTS
+    // and seedDefaultPlans both find a plan by slug. Re-slugging on rename
+    // (which is what `dto.name ? slugify(dto.name)` did) silently detached the
+    // row from both — so renaming "Master Prep" moved it off `master-prep-6m`,
+    // the Apple yearly mapping no longer resolved, and the seeder treated the
+    // blueprint plan as missing and inserted a fresh one carrying the ORIGINAL
+    // name. That reappearing row is what looked like the rename reverting.
+    //
+    // The slug now changes only when the admin edits the slug field itself.
     const nextSlug = dto.slug !== undefined
       ? this.slugify(dto.slug || dto.name || existing.name)
-      : (dto.name ? this.slugify(dto.name) : existing.slug);
+      : existing.slug;
     const slug = await this.ensureUniqueSlug(nextSlug, existing.id);
 
     return {
@@ -468,11 +484,38 @@ export class PlansService {
       offerEnabled: dto.offerEnabled !== undefined ? Boolean(dto.offerEnabled) : existing.offerEnabled,
       currency: 'LKR',
       durationDays: dto.durationDays !== undefined ? Number(dto.durationDays) : existing.durationDays,
+      appleProductId: dto.appleProductId !== undefined
+          ? await this.normalizeAppleProductId(dto.appleProductId, existing.id)
+          : (existing.appleProductId || null),
       sortOrder: dto.sortOrder !== undefined ? Number(dto.sortOrder) : existing.sortOrder,
       recommended: dto.recommended !== undefined ? Boolean(dto.recommended) : existing.recommended,
       status: dto.status || existing.status,
       featureIds,
     };
+  }
+
+  /// Trims an Apple product id, turns blank into NULL (unmapped), and refuses
+  /// one already held by another plan.
+  ///
+  /// `plans.apple_product_id` has a UNIQUE index, so a duplicate would surface
+  /// as a raw ER_DUP_ENTRY 500. Checking here turns it into a message naming
+  /// the plan that already owns it, which is the mistake an admin is most
+  /// likely to make when moving a product between plans.
+  private async normalizeAppleProductId(value: string | null | undefined, planId: number | undefined) {
+    const productId = String(value ?? '').trim();
+    if (!productId) return null;
+
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, name FROM plans WHERE apple_product_id = ? ${planId ? 'AND id <> ?' : ''} LIMIT 1`,
+      planId ? [productId, planId] : [productId]
+    );
+    if (rows[0]) {
+      throw new BadRequestException(
+        `Apple product "${productId}" is already mapped to the plan "${String(rows[0].name)}". ` +
+          'Clear it there first — one product can back only one plan.'
+      );
+    }
+    return productId;
   }
 
   private normalizeFeaturePayload(dto: CreateSubscriptionFeatureDto) {
@@ -637,6 +680,7 @@ export class PlansService {
       effectivePrice,
       currency: 'LKR',
       billingPeriod: String(row.billing_period || 'month'),
+      appleProductId: row.apple_product_id ? String(row.apple_product_id) : '',
       durationDays: Number(row.duration_days || 30),
       status: row.status,
       sortOrder: Number(row.sort_order || 0),

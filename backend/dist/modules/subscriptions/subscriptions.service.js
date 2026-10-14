@@ -1333,8 +1333,8 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             : this.addDays(startDate, Number(plan.duration_days) || 30);
         const [activeRows] = await this.db.execute(`SELECT id FROM user_subscriptions
        WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
-         AND status = 'active' AND end_date >= ?
-       LIMIT 1`, [userId, transaction.originalTransactionId, endDate]);
+         AND plan_id = ? AND status = 'active' AND end_date >= ?
+       LIMIT 1`, [userId, transaction.originalTransactionId, Number(plan.id), endDate]);
         if (!activeRows[0]) {
             const subscriptionId = await this.createSubscription({
                 userId,
@@ -1357,6 +1357,56 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             ]);
         }
         return this.getStudentBilling(userId);
+    }
+    async listAppleTransactions(params = {}) {
+        const limit = Math.min(Math.max(Number(params.limit) || 100, 1), 500);
+        const filters = ["t.platform = 'apple'"];
+        const values = [];
+        const environment = String(params.environment || '').trim();
+        if (environment) {
+            filters.push('t.environment = ?');
+            values.push(environment);
+        }
+        const search = String(params.search || '').trim();
+        if (search) {
+            filters.push('(u.name LIKE ? OR u.email LIKE ? OR t.product_id LIKE ? OR t.original_transaction_id LIKE ?)');
+            const like = `%${search}%`;
+            values.push(like, like, like, like);
+        }
+        const [rows] = await this.db.execute(`SELECT
+         t.id, t.user_id, t.subscription_id, t.product_id, t.transaction_id,
+         t.original_transaction_id, t.environment, t.purchase_date, t.expires_date,
+         t.revocation_date, t.created_at,
+         u.name AS user_name, u.email AS user_email,
+         p.name AS plan_name,
+         s.status AS subscription_status, s.end_date AS subscription_end_date
+       FROM iap_transactions t
+       LEFT JOIN users u ON u.id = t.user_id
+       LEFT JOIN plans p ON p.apple_product_id = t.product_id
+       LEFT JOIN user_subscriptions s ON s.id = t.subscription_id
+       WHERE ${filters.join(' AND ')}
+       ORDER BY t.id DESC
+       LIMIT ${limit}`, values);
+        return {
+            items: rows.map((row) => ({
+                id: Number(row.id),
+                userId: Number(row.user_id),
+                userName: row.user_name ? String(row.user_name) : '',
+                userEmail: row.user_email ? String(row.user_email) : '',
+                productId: String(row.product_id || ''),
+                transactionId: String(row.transaction_id || ''),
+                originalTransactionId: String(row.original_transaction_id || ''),
+                environment: String(row.environment || ''),
+                planName: row.plan_name ? String(row.plan_name) : null,
+                subscriptionId: row.subscription_id ? Number(row.subscription_id) : null,
+                subscriptionStatus: row.subscription_status ? String(row.subscription_status) : null,
+                subscriptionEndDate: row.subscription_end_date ? String(row.subscription_end_date) : null,
+                purchaseDate: row.purchase_date ? String(row.purchase_date) : null,
+                expiresDate: row.expires_date ? String(row.expires_date) : null,
+                revocationDate: row.revocation_date ? String(row.revocation_date) : null,
+                createdAt: row.created_at ? String(row.created_at) : null,
+            })),
+        };
     }
     async handleAppleNotification(signedPayload) {
         const notification = this.appleIapService.verifyNotification(signedPayload);

@@ -1737,13 +1737,26 @@ export class SubscriptionsService {
       ? this.toDateOnly(new Date(transaction.expiresDate))
       : this.addDays(startDate, Number(plan.duration_days) || 30);
 
-    // Already granted for this exact renewal → idempotent, do nothing.
+    // Already granted for this exact renewal of this exact plan → idempotent.
+    //
+    // `plan_id` is part of the test on purpose. Apple keeps
+    // `originalTransactionId` IDENTICAL across an upgrade or downgrade inside a
+    // subscription group, so without it a plan change looked like a repeat
+    // renewal of the plan the student already had: the guard matched, the
+    // method returned early, and the billing card kept showing the OLD
+    // package. `end_date` is stored date-only, and sandbox compresses every
+    // duration into minutes, so in sandbox each plan's end_date lands on the
+    // same calendar day and the stale match was close to guaranteed — which is
+    // why "Change plan" appeared to do nothing there.
+    //
+    // A genuine repeat redemption of the same renewal still has the same
+    // plan_id and is still skipped, so idempotency is preserved.
     const [activeRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT id FROM user_subscriptions
        WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
-         AND status = 'active' AND end_date >= ?
+         AND plan_id = ? AND status = 'active' AND end_date >= ?
        LIMIT 1`,
-      [userId, transaction.originalTransactionId, endDate]
+      [userId, transaction.originalTransactionId, Number(plan.id), endDate]
     );
 
     if (!activeRows[0]) {
@@ -1770,6 +1783,78 @@ export class SubscriptionsService {
     }
 
     return this.getStudentBilling(userId);
+  }
+
+  /**
+   * Apple in-app purchases, newest first, for the admin panel.
+   *
+   * Exists because nothing in the panel could see IAP at all: when the yearly
+   * product was rejected there was no way to tell whether Apple had refused it
+   * or our own redemption had, and the only record lived in a table reachable
+   * by SQL. `plan_name` being NULL here is the exact signature of an unmapped
+   * product, and `subscription_id` being NULL means the purchase never granted
+   * access.
+   *
+   * `raw_payload` is deliberately not selected — it is a MEDIUMTEXT blob per
+   * row and nothing in the list needs it.
+   */
+  async listAppleTransactions(params: { limit?: number; environment?: string; search?: string } = {}) {
+    const limit = Math.min(Math.max(Number(params.limit) || 100, 1), 500);
+    const filters: string[] = ["t.platform = 'apple'"];
+    const values: Array<string | number> = [];
+
+    const environment = String(params.environment || '').trim();
+    if (environment) {
+      filters.push('t.environment = ?');
+      values.push(environment);
+    }
+
+    const search = String(params.search || '').trim();
+    if (search) {
+      filters.push('(u.name LIKE ? OR u.email LIKE ? OR t.product_id LIKE ? OR t.original_transaction_id LIKE ?)');
+      const like = `%${search}%`;
+      values.push(like, like, like, like);
+    }
+
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT
+         t.id, t.user_id, t.subscription_id, t.product_id, t.transaction_id,
+         t.original_transaction_id, t.environment, t.purchase_date, t.expires_date,
+         t.revocation_date, t.created_at,
+         u.name AS user_name, u.email AS user_email,
+         p.name AS plan_name,
+         s.status AS subscription_status, s.end_date AS subscription_end_date
+       FROM iap_transactions t
+       LEFT JOIN users u ON u.id = t.user_id
+       LEFT JOIN plans p ON p.apple_product_id = t.product_id
+       LEFT JOIN user_subscriptions s ON s.id = t.subscription_id
+       WHERE ${filters.join(' AND ')}
+       ORDER BY t.id DESC
+       LIMIT ${limit}`,
+      values
+    );
+
+    return {
+      items: rows.map((row) => ({
+        id: Number(row.id),
+        userId: Number(row.user_id),
+        userName: row.user_name ? String(row.user_name) : '',
+        userEmail: row.user_email ? String(row.user_email) : '',
+        productId: String(row.product_id || ''),
+        transactionId: String(row.transaction_id || ''),
+        originalTransactionId: String(row.original_transaction_id || ''),
+        environment: String(row.environment || ''),
+        // NULL = no plan carries this product id, so redeeming it is rejected.
+        planName: row.plan_name ? String(row.plan_name) : null,
+        subscriptionId: row.subscription_id ? Number(row.subscription_id) : null,
+        subscriptionStatus: row.subscription_status ? String(row.subscription_status) : null,
+        subscriptionEndDate: row.subscription_end_date ? String(row.subscription_end_date) : null,
+        purchaseDate: row.purchase_date ? String(row.purchase_date) : null,
+        expiresDate: row.expires_date ? String(row.expires_date) : null,
+        revocationDate: row.revocation_date ? String(row.revocation_date) : null,
+        createdAt: row.created_at ? String(row.created_at) : null,
+      })),
+    };
   }
 
   /**

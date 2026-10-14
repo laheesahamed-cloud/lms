@@ -20,6 +20,7 @@ export declare class PlansController {
         effectivePrice: number;
         currency: string;
         billingPeriod: string;
+        appleProductId: string;
         durationDays: number;
         status: "active" | "inactive";
         sortOrder: number;
@@ -65,6 +66,7 @@ export declare class PlansController {
         effectivePrice: number;
         currency: string;
         billingPeriod: string;
+        appleProductId: string;
         durationDays: number;
         status: "active" | "inactive";
         sortOrder: number;

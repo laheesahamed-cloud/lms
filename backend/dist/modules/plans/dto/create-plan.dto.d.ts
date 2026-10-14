@@ -11,4 +11,5 @@ export declare class CreatePlanDto {
     sortOrder?: number;
     recommended?: boolean;
     status: 'active' | 'inactive';
+    appleProductId?: string | null;
 }

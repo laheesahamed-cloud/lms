@@ -63,8 +63,8 @@ let PlansService = class PlansService {
             const [result] = await connection.execute(`
           INSERT INTO plans (
             name, slug, description, price, regular_price, offer_price, offer_enabled, currency,
-            billing_period, duration_days, features_json, status, sort_order, recommended
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'month', ?, '[]', ?, ?, ?)
+            billing_period, apple_product_id, duration_days, features_json, status, sort_order, recommended
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'month', ?, ?, '[]', ?, ?, ?)
         `, [
                 payload.name,
                 payload.slug,
@@ -74,6 +74,7 @@ let PlansService = class PlansService {
                 payload.offerPrice,
                 payload.offerEnabled ? 1 : 0,
                 payload.currency,
+                payload.appleProductId,
                 payload.durationDays,
                 payload.status,
                 payload.sortOrder,
@@ -109,6 +110,7 @@ let PlansService = class PlansService {
             offer_enabled = ?,
             currency = ?,
             duration_days = ?,
+            apple_product_id = ?,
             status = ?,
             sort_order = ?,
             recommended = ?
@@ -123,6 +125,7 @@ let PlansService = class PlansService {
                 payload.offerEnabled ? 1 : 0,
                 payload.currency,
                 payload.durationDays,
+                payload.appleProductId,
                 payload.status,
                 payload.sortOrder,
                 payload.recommended ? 1 : 0,
@@ -232,8 +235,8 @@ let PlansService = class PlansService {
         let sql = `
       SELECT
         id, name, slug, description, price, regular_price, offer_price, offer_enabled,
-        currency, billing_period, duration_days, features_json, status, sort_order, recommended,
-        created_at, updated_at
+        currency, billing_period, apple_product_id, duration_days, features_json, status,
+        sort_order, recommended, created_at, updated_at
       FROM plans
       WHERE 1 = 1
     `;
@@ -314,6 +317,7 @@ let PlansService = class PlansService {
             offerEnabled: Boolean(dto.offerEnabled),
             currency: 'LKR',
             durationDays: Number(dto.durationDays || 30),
+            appleProductId: await this.normalizeAppleProductId(dto.appleProductId ?? null, undefined),
             sortOrder: Number(dto.sortOrder || 0),
             recommended: Boolean(dto.recommended),
             status: dto.status,
@@ -324,7 +328,7 @@ let PlansService = class PlansService {
         const featureIds = dto.featureIds ? await this.validateFeatureIds(dto.featureIds) : existing.featureIds;
         const nextSlug = dto.slug !== undefined
             ? this.slugify(dto.slug || dto.name || existing.name)
-            : (dto.name ? this.slugify(dto.name) : existing.slug);
+            : existing.slug;
         const slug = await this.ensureUniqueSlug(nextSlug, existing.id);
         return {
             name: dto.name?.trim() || existing.name,
@@ -335,11 +339,25 @@ let PlansService = class PlansService {
             offerEnabled: dto.offerEnabled !== undefined ? Boolean(dto.offerEnabled) : existing.offerEnabled,
             currency: 'LKR',
             durationDays: dto.durationDays !== undefined ? Number(dto.durationDays) : existing.durationDays,
+            appleProductId: dto.appleProductId !== undefined
+                ? await this.normalizeAppleProductId(dto.appleProductId, existing.id)
+                : (existing.appleProductId || null),
             sortOrder: dto.sortOrder !== undefined ? Number(dto.sortOrder) : existing.sortOrder,
             recommended: dto.recommended !== undefined ? Boolean(dto.recommended) : existing.recommended,
             status: dto.status || existing.status,
             featureIds,
         };
+    }
+    async normalizeAppleProductId(value, planId) {
+        const productId = String(value ?? '').trim();
+        if (!productId)
+            return null;
+        const [rows] = await this.db.execute(`SELECT id, name FROM plans WHERE apple_product_id = ? ${planId ? 'AND id <> ?' : ''} LIMIT 1`, planId ? [productId, planId] : [productId]);
+        if (rows[0]) {
+            throw new common_1.BadRequestException(`Apple product "${productId}" is already mapped to the plan "${String(rows[0].name)}". ` +
+                'Clear it there first — one product can back only one plan.');
+        }
+        return productId;
     }
     normalizeFeaturePayload(dto) {
         return {
@@ -450,6 +468,7 @@ let PlansService = class PlansService {
             effectivePrice,
             currency: 'LKR',
             billingPeriod: String(row.billing_period || 'month'),
+            appleProductId: row.apple_product_id ? String(row.apple_product_id) : '',
             durationDays: Number(row.duration_days || 30),
             status: row.status,
             sortOrder: Number(row.sort_order || 0),

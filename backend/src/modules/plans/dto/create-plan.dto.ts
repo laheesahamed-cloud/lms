@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreatePlanDto {
   @IsString()
@@ -58,4 +58,16 @@ export class CreatePlanDto {
   @IsString()
   @IsIn(['active', 'inactive'])
   status!: 'active' | 'inactive';
+
+  /// StoreKit product id this plan is sold as in the iOS app, e.g.
+  /// `app.xyndrome.lk.yearly`. Empty or null unmaps it.
+  ///
+  /// This is what turns an Apple purchase into a subscription: redemption looks
+  /// the plan up by this id, and a product with no plan carrying it is rejected
+  /// after Apple has already charged. It used to be settable only by SQL, which
+  /// is how the yearly product shipped unmapped.
+  @IsOptional()
+  @IsString()
+  @MaxLength(191)
+  appleProductId?: string | null;
 }

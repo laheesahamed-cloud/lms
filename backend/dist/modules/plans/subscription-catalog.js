@@ -82,7 +82,7 @@ exports.DEFAULT_PLAN_BLUEPRINTS = [
     },
     {
         slug: 'quick-revision-7d',
-        name: 'Quick Revision',
+        name: 'Quick Revision - 7 Days',
         description: '7 days of all-subject MCQ, quizzes, and exam practice for fast revision.',
         regularPrice: discountRegularPrice(990),
         offerPrice: 990,
@@ -96,7 +96,7 @@ exports.DEFAULT_PLAN_BLUEPRINTS = [
     },
     {
         slug: 'monthly-prep-1m',
-        name: 'Monthly Prep',
+        name: 'Monthly Prep - 1 Month',
         description: '1 month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode.',
         regularPrice: discountRegularPrice(3990),
         offerPrice: 3990,
@@ -110,7 +110,7 @@ exports.DEFAULT_PLAN_BLUEPRINTS = [
     },
     {
         slug: 'complete-prep-3m',
-        name: 'Complete Prep',
+        name: 'Complete Prep - 3 Months',
         description: '3 months of complete ERPM preparation. Best for most serious students.',
         regularPrice: discountRegularPrice(8990),
         offerPrice: 8990,
@@ -124,13 +124,13 @@ exports.DEFAULT_PLAN_BLUEPRINTS = [
     },
     {
         slug: 'master-prep-6m',
-        name: 'Master Prep',
-        description: '6 months of complete preparation with the best long-term value.',
+        name: 'Master Prep - 1 Year',
+        description: '12 months of complete preparation with the best long-term value.',
         regularPrice: discountRegularPrice(14990),
         offerPrice: 14990,
         offerEnabled: 1,
         currency: 'LKR',
-        durationDays: 180,
+        durationDays: 365,
         sortOrder: 4,
         recommended: 0,
         status: 'active',
@@ -169,18 +169,8 @@ exports.APPLE_IAP_PRODUCTS = [
     },
     {
         productId: 'app.xyndrome.lk.yearly',
-        slug: 'annual-prep-1y',
+        slug: 'master-prep-6m',
         durationDays: 365,
-        createIfMissing: {
-            name: 'Annual Prep',
-            description: '12 months of complete preparation. Lessons, AI notes, full MCQ bank, practice and exam mode.',
-            regularPrice: 34990,
-            offerPrice: 23990,
-            currency: 'LKR',
-            billingPeriod: 'year',
-            status: 'inactive',
-            sortOrder: 6,
-        },
     },
 ];
 //# sourceMappingURL=subscription-catalog.js.map

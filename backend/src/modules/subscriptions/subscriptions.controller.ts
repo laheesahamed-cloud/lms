@@ -206,6 +206,26 @@ export class SubscriptionsController {
   }
 
   /**
+   * Apple in-app purchases for the admin panel. Read-only: nothing here can
+   * grant or revoke access, which is Apple's and the redemption path's job.
+   */
+  @Get('apple/transactions')
+  @RequirePermissions('subscriptions.manage')
+  async listAppleTransactions(
+    @Headers('authorization') authorization: string | undefined,
+    @Query('limit') limit?: string,
+    @Query('environment') environment?: string,
+    @Query('search') search?: string
+  ) {
+    await this.authService.requireAdmin(authorization);
+    return this.subscriptionsService.listAppleTransactions({
+      limit: limit ? Number(limit) : undefined,
+      environment,
+      search,
+    });
+  }
+
+  /**
    * App Store Server Notifications V2. Called by Apple, so there is no bearer
    * token — the JWS signature is the authentication. Deliberately takes a raw
    * body rather than a DTO: the global ValidationPipe runs with

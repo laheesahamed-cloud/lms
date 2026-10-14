@@ -30,6 +30,7 @@ export declare class SubscriptionsController {
             effectivePrice: number;
             currency: string;
             billingPeriod: string;
+            appleProductId: string;
             durationDays: number;
             status: "active" | "inactive";
             sortOrder: number;
@@ -250,6 +251,7 @@ export declare class SubscriptionsController {
             effectivePrice: number;
             currency: string;
             billingPeriod: string;
+            appleProductId: string;
             durationDays: number;
             status: "active" | "inactive";
             sortOrder: number;
@@ -768,6 +770,7 @@ export declare class SubscriptionsController {
             effectivePrice: number;
             currency: string;
             billingPeriod: string;
+            appleProductId: string;
             durationDays: number;
             status: "active" | "inactive";
             sortOrder: number;
@@ -876,6 +879,26 @@ export declare class SubscriptionsController {
             maskedAppMerchantSecret: string;
         };
         appCheckoutMode: "native" | "web";
+    }>;
+    listAppleTransactions(authorization: string | undefined, limit?: string, environment?: string, search?: string): Promise<{
+        items: {
+            id: number;
+            userId: number;
+            userName: string;
+            userEmail: string;
+            productId: string;
+            transactionId: string;
+            originalTransactionId: string;
+            environment: string;
+            planName: string | null;
+            subscriptionId: number | null;
+            subscriptionStatus: string | null;
+            subscriptionEndDate: string | null;
+            purchaseDate: string | null;
+            expiresDate: string | null;
+            revocationDate: string | null;
+            createdAt: string | null;
+        }[];
     }>;
     handleAppleNotification(body: Record<string, unknown>): Promise<{
         handled: boolean;
@@ -1017,6 +1040,7 @@ export declare class SubscriptionsController {
             effectivePrice: number;
             currency: string;
             billingPeriod: string;
+            appleProductId: string;
             durationDays: number;
             status: "active" | "inactive";
             sortOrder: number;

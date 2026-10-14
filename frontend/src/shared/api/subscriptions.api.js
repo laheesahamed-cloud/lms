@@ -16,6 +16,18 @@ export async function fetchSubscriptionAdminMeta() {
   return response.data;
 }
 
+/// Apple in-app purchases for the admin panel (read-only).
+///
+/// A row whose `planName` is null is a product no plan carries, which is
+/// exactly why redeeming it fails — the symptom that hid the unmapped yearly
+/// product.
+export async function fetchAppleTransactions(params) {
+  const requestParams = { ...(params || {}) };
+  if (!requestParams.limit) requestParams.limit = 100;
+  const response = await apiClient.get('/subscriptions/apple/transactions', { params: requestParams });
+  return response.data;
+}
+
 export async function fetchAdminSubscriptions(params) {
   const requestParams = { ...(params || {}) };
   if (!requestParams.limit) requestParams.limit = 100;

@@ -131,6 +131,14 @@ let SubscriptionsController = class SubscriptionsController {
         const student = await this.authService.requireStudent(authorization);
         return this.subscriptionsService.redeemAppleTransaction(student.id, dto.signedTransaction);
     }
+    async listAppleTransactions(authorization, limit, environment, search) {
+        await this.authService.requireAdmin(authorization);
+        return this.subscriptionsService.listAppleTransactions({
+            limit: limit ? Number(limit) : undefined,
+            environment,
+            search,
+        });
+    }
     async handleAppleNotification(body) {
         const signedPayload = typeof body?.signedPayload === 'string' ? body.signedPayload : '';
         if (!signedPayload) {
@@ -350,6 +358,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, apple_iap_dto_1.RedeemAppleTransactionDto]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "redeemAppleTransaction", null);
+__decorate([
+    (0, common_1.Get)('apple/transactions'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('environment')),
+    __param(3, (0, common_1.Query)('search')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "listAppleTransactions", null);
 __decorate([
     (0, common_1.Post)('apple/notifications'),
     __param(0, (0, common_1.Body)()),

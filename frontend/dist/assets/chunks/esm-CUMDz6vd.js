@@ -1,1 +1,0 @@
-import{u as e}from"./vendor-ACIo_jBK.js";export{e as SocialLogin};

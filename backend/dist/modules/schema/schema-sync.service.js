@@ -356,36 +356,14 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         for (const product of subscription_catalog_1.APPLE_IAP_PRODUCTS) {
             try {
                 const [rows] = await connection.execute('SELECT id, apple_product_id FROM plans WHERE slug = ? LIMIT 1', [product.slug]);
-                let planId = rows[0] ? Number(rows[0].id) : 0;
+                const planId = rows[0] ? Number(rows[0].id) : 0;
                 if (!planId) {
-                    const seed = 'createIfMissing' in product ? product.createIfMissing : null;
-                    if (!seed) {
-                        this.logger.warn(`No plan with slug "${product.slug}" for Apple product ${product.productId} — IAP for it will fail until one exists.`);
-                        continue;
-                    }
-                    const [result] = await connection.execute(`INSERT INTO plans (
-               name, slug, description, price, regular_price, offer_price, offer_enabled,
-               currency, billing_period, duration_days, features_json, status, sort_order, recommended
-             ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 0)`, [
-                        seed.name,
-                        product.slug,
-                        seed.description,
-                        seed.offerPrice,
-                        seed.regularPrice,
-                        seed.offerPrice,
-                        seed.currency,
-                        seed.billingPeriod,
-                        product.durationDays,
-                        JSON.stringify([]),
-                        seed.status,
-                        seed.sortOrder,
-                    ]);
-                    planId = result.insertId;
-                    this.logger.log(`Created plan "${product.slug}" (${seed.status}) for Apple product ${product.productId}`);
-                }
-                else if (String(rows[0].apple_product_id || '') === product.productId) {
+                    this.logger.warn(`No plan with slug "${product.slug}" for Apple product ${product.productId} — ` +
+                        'purchases of it will be rejected at redemption until a plan carries that product id.');
                     continue;
                 }
+                if (String(rows[0].apple_product_id || '') === product.productId)
+                    continue;
                 await connection.execute('UPDATE plans SET apple_product_id = ? WHERE id = ? AND apple_product_id IS NULL', [
                     product.productId,
                     planId,
@@ -1279,38 +1257,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
                 .map((feature) => feature.featureName);
             const [existingRows] = await connection.execute('SELECT id FROM plans WHERE slug = ? LIMIT 1', [plan.slug]);
             if (existingRows[0]) {
-                await connection.execute(`
-            UPDATE plans
-            SET
-              name = ?,
-              description = ?,
-              price = ?,
-              regular_price = ?,
-              offer_price = ?,
-              offer_enabled = ?,
-              currency = ?,
-              billing_period = 'month',
-              duration_days = ?,
-              features_json = ?,
-              status = ?,
-              sort_order = ?,
-              recommended = ?
-            WHERE id = ?
-          `, [
-                    plan.name,
-                    plan.description,
-                    plan.regularPrice,
-                    plan.regularPrice,
-                    plan.offerPrice,
-                    plan.offerEnabled,
-                    plan.currency,
-                    plan.durationDays,
-                    JSON.stringify(featureNames),
-                    plan.status,
-                    plan.sortOrder,
-                    plan.recommended,
-                    Number(existingRows[0].id),
-                ]);
                 await this.syncDefaultPlanFeatureMap(connection, Number(existingRows[0].id), [...plan.featureKeys]);
                 continue;
             }

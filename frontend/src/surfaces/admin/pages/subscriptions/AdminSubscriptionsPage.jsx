@@ -14,6 +14,7 @@ import {
   extendSubscription,
   fetchAdminSubscriptionRequests,
   fetchAdminSubscriptions,
+  fetchAppleTransactions,
   fetchSubscriptionCoupons,
   fetchSubscriptionAdminMeta,
   fetchSubscriptionAudit,
@@ -83,6 +84,7 @@ const emptyPlanForm = {
   sortOrder: 0,
   recommended: false,
   status: 'active',
+  appleProductId: '',
 };
 
 const emptyAssignForm = {
@@ -444,6 +446,7 @@ export function AdminSubscriptionsPage() {
   const [requests, setRequests] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
+  const [appleTransactions, setAppleTransactions] = useState([]);
   const [meta, setMeta] = useState({ students: [], plans: [], courses: [], lessons: [] });
   const [planForm, setPlanForm] = useState(emptyPlanForm);
   const [assignForm, setAssignForm] = useState(emptyAssignForm);
@@ -540,6 +543,16 @@ export function AdminSubscriptionsPage() {
       setRequests(Array.isArray(requestRows) ? requestRows : []);
       setCoupons(Array.isArray(couponRows) ? couponRows : []);
       setAuditEvents(Array.isArray(auditRows) ? auditRows : []);
+
+      // Loaded separately and deliberately swallowed on failure: this panel is
+      // a debugging aid, and an older backend that lacks the endpoint should
+      // not blank out plans and subscriptions with an error.
+      try {
+        const appleData = await fetchAppleTransactions();
+        setAppleTransactions(Array.isArray(appleData?.items) ? appleData.items : []);
+      } catch {
+        setAppleTransactions([]);
+      }
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load subscription data'));
     } finally {
@@ -675,6 +688,7 @@ export function AdminSubscriptionsPage() {
       sortOrder: plan.sortOrder,
       recommended: Boolean(plan.recommended),
       status: plan.status,
+      appleProductId: plan.appleProductId || '',
     });
     setPlanModalOpen(true);
   }
@@ -698,6 +712,9 @@ export function AdminSubscriptionsPage() {
         sortOrder: Number(planForm.sortOrder),
         recommended: Boolean(planForm.recommended),
         status: planForm.status,
+        // Trimmed, and sent as null when blank so the backend unmaps it rather
+        // than storing an empty string that matches no StoreKit product.
+        appleProductId: planForm.appleProductId.trim() || null,
       };
 
       if (editingPlanId) {
@@ -1306,6 +1323,86 @@ export function AdminSubscriptionsPage() {
         <section className={ui.panelCard}>
           <div className={ui.panelTop}>
             <div>
+              <h2>Apple in-app purchases</h2>
+              <p>
+                Every StoreKit purchase this server has verified, newest first. Read-only &mdash;
+                access is granted by redemption, not from here.
+              </p>
+            </div>
+          </div>
+
+          {!loading && appleTransactions.length === 0 ? (
+            <div className={ui.emptyBox}>No Apple purchases recorded yet.</div>
+          ) : null}
+          {appleTransactions.length ? (
+            <div className={ui.tableShell}>
+              <table className={ui.modernTable}>
+                <thead>
+                  <tr>
+                    <th className={ui.tableHeadCell}>Student</th>
+                    <th className={ui.tableHeadCell}>Product</th>
+                    <th className={ui.tableHeadCell}>Plan</th>
+                    <th className={ui.tableHeadCell}>Purchased</th>
+                    <th className={ui.tableHeadCell}>Expires</th>
+                    <th className={ui.tableHeadCell}>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appleTransactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td className={ui.tableCell}>
+                        <strong>{transaction.userName || `User #${transaction.userId}`}</strong>
+                        <div className={ui.tableSubtext}>{transaction.userEmail || '-'}</div>
+                      </td>
+                      <td className={ui.tableCell}>
+                        <code className="text-[12px]">{transaction.productId}</code>
+                        {/* Sandbox purchases are test data — worth calling out so
+                            they are never mistaken for real revenue. */}
+                        {transaction.environment
+                          && transaction.environment.toLowerCase() !== 'production' ? (
+                          <div className="mt-1">
+                            <span className={ui.tablePill}>{transaction.environment}</span>
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className={ui.tableCell}>
+                        {transaction.planName ? (
+                          transaction.planName
+                        ) : (
+                          // The unmapped-product signature. This is what the
+                          // rejected yearly purchase looked like.
+                          <span className={statusPill('failed')}>No plan mapped</span>
+                        )}
+                      </td>
+                      <td className={ui.tableCell}>{formatAdminDateTime(transaction.purchaseDate) || '-'}</td>
+                      <td className={ui.tableCell}>{formatAdminDateTime(transaction.expiresDate) || '-'}</td>
+                      <td className={ui.tableCell}>
+                        {transaction.revocationDate ? (
+                          <span className={statusPill('failed')}>Refunded</span>
+                        ) : transaction.subscriptionId ? (
+                          <>
+                            <span className={statusPill(transaction.subscriptionStatus || 'active')}>
+                              {transaction.subscriptionStatus || 'active'}
+                            </span>
+                            <div className={ui.tableSubtext}>
+                              Subscription #{transaction.subscriptionId}
+                            </div>
+                          </>
+                        ) : (
+                          <span className={statusPill('pending')}>No access granted</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+
+        <section className={ui.panelCard}>
+          <div className={ui.panelTop}>
+            <div>
               <h2>Upgrade requests</h2>
               <p>Approve or reject student plan requests before manually tracking payment.</p>
             </div>
@@ -1750,6 +1847,24 @@ export function AdminSubscriptionsPage() {
               <label className={ui.formLabel}>
                 Duration (days)
                 <input className={ui.input} type="number" min="1" name="durationDays" value={planForm.durationDays} onChange={handlePlanChange} required />
+              </label>
+              <label className={ui.formLabel}>
+                Apple product ID
+                <input
+                  className={ui.input}
+                  name="appleProductId"
+                  value={planForm.appleProductId}
+                  onChange={handlePlanChange}
+                  placeholder="app.xyndrome.lk.yearly"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
+                />
+                <span className={ui.tableSubtext}>
+                  The StoreKit product this plan is sold as in the iOS app. Leave blank if it is not
+                  sold there. A product with no plan is rejected after Apple has already charged, so
+                  this must match App Store Connect exactly.
+                </span>
               </label>
               <label className={ui.formLabel}>
                 Sort order

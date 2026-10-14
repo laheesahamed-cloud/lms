@@ -395,41 +395,22 @@ export class SchemaSyncService implements OnModuleInit {
           [product.slug]
         );
 
-        let planId = rows[0] ? Number(rows[0].id) : 0;
+        const planId = rows[0] ? Number(rows[0].id) : 0;
 
         if (!planId) {
-          const seed = 'createIfMissing' in product ? product.createIfMissing : null;
-          if (!seed) {
-            this.logger.warn(
-              `No plan with slug "${product.slug}" for Apple product ${product.productId} — IAP for it will fail until one exists.`
-            );
-            continue;
-          }
-          const [result] = await connection.execute<ResultSetHeader>(
-            `INSERT INTO plans (
-               name, slug, description, price, regular_price, offer_price, offer_enabled,
-               currency, billing_period, duration_days, features_json, status, sort_order, recommended
-             ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 0)`,
-            [
-              seed.name,
-              product.slug,
-              seed.description,
-              seed.offerPrice,
-              seed.regularPrice,
-              seed.offerPrice,
-              seed.currency,
-              seed.billingPeriod,
-              product.durationDays,
-              JSON.stringify([]),
-              seed.status,
-              seed.sortOrder,
-            ]
+          // Deliberately does NOT create the plan. The old fallback inserted a
+          // second, inactive plan and then hit the UNIQUE index on
+          // apple_product_id, leaving junk rows and an error on every boot.
+          // Mapping a product is an admin action now (the product-id field on
+          // the plan), so a missing one is reported and left alone.
+          this.logger.warn(
+            `No plan with slug "${product.slug}" for Apple product ${product.productId} — ` +
+              'purchases of it will be rejected at redemption until a plan carries that product id.'
           );
-          planId = result.insertId;
-          this.logger.log(`Created plan "${product.slug}" (${seed.status}) for Apple product ${product.productId}`);
-        } else if (String(rows[0].apple_product_id || '') === product.productId) {
           continue;
         }
+
+        if (String(rows[0].apple_product_id || '') === product.productId) continue;
 
         await connection.execute('UPDATE plans SET apple_product_id = ? WHERE id = ? AND apple_product_id IS NULL', [
           product.productId,
@@ -1531,41 +1512,22 @@ export class SchemaSyncService implements OnModuleInit {
         [plan.slug]
       );
       if (existingRows[0]) {
-        await connection.execute(
-          `
-            UPDATE plans
-            SET
-              name = ?,
-              description = ?,
-              price = ?,
-              regular_price = ?,
-              offer_price = ?,
-              offer_enabled = ?,
-              currency = ?,
-              billing_period = 'month',
-              duration_days = ?,
-              features_json = ?,
-              status = ?,
-              sort_order = ?,
-              recommended = ?
-            WHERE id = ?
-          `,
-          [
-            plan.name,
-            plan.description,
-            plan.regularPrice,
-            plan.regularPrice,
-            plan.offerPrice,
-            plan.offerEnabled,
-            plan.currency,
-            plan.durationDays,
-            JSON.stringify(featureNames),
-            plan.status,
-            plan.sortOrder,
-            plan.recommended,
-            Number(existingRows[0].id),
-          ]
-        );
+        // SEED, not sync: an existing plan is left exactly as it is.
+        //
+        // This used to UPDATE name, description, price, duration_days, status,
+        // sort_order and recommended from the blueprint on every boot where
+        // schema sync runs. That silently undid admin edits — renaming a plan
+        // in the panel appeared to work and then reverted, and a duration
+        // changed by hand (Master Prep to 365 days) would snap back to the
+        // hardcoded value, quietly shortening what students had paid for.
+        //
+        // The admin panel is the source of truth for plan content. The
+        // blueprint only decides what a FRESH database starts with. Changing a
+        // price here therefore no longer propagates to an existing install —
+        // edit it in the panel, which is where it is edited anyway.
+        //
+        // Feature maps are still backfilled: they are keyed data the panel
+        // cannot invent, and the helper only adds missing rows.
         await this.syncDefaultPlanFeatureMap(connection, Number(existingRows[0].id), [...plan.featureKeys]);
         continue;
       }

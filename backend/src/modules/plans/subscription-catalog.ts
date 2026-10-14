@@ -89,7 +89,7 @@ export const DEFAULT_PLAN_BLUEPRINTS = [
   },
   {
     slug: 'quick-revision-7d',
-    name: 'Quick Revision',
+    name: 'Quick Revision - 7 Days',
     description: '7 days of all-subject MCQ, quizzes, and exam practice for fast revision.',
     regularPrice: discountRegularPrice(990),
     offerPrice: 990,
@@ -103,7 +103,7 @@ export const DEFAULT_PLAN_BLUEPRINTS = [
   },
   {
     slug: 'monthly-prep-1m',
-    name: 'Monthly Prep',
+    name: 'Monthly Prep - 1 Month',
     description: '1 month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode.',
     regularPrice: discountRegularPrice(3990),
     offerPrice: 3990,
@@ -117,7 +117,7 @@ export const DEFAULT_PLAN_BLUEPRINTS = [
   },
   {
     slug: 'complete-prep-3m',
-    name: 'Complete Prep',
+    name: 'Complete Prep - 3 Months',
     description: '3 months of complete ERPM preparation. Best for most serious students.',
     regularPrice: discountRegularPrice(8990),
     offerPrice: 8990,
@@ -131,13 +131,16 @@ export const DEFAULT_PLAN_BLUEPRINTS = [
   },
   {
     slug: 'master-prep-6m',
-    name: 'Master Prep',
-    description: '6 months of complete preparation with the best long-term value.',
+    name: 'Master Prep - 1 Year',
+    description: '12 months of complete preparation with the best long-term value.',
     regularPrice: discountRegularPrice(14990),
     offerPrice: 14990,
     offerEnabled: 1,
     currency: 'LKR',
-    durationDays: 180,
+    // A YEAR, not six months. The slug still says 6m and deliberately stays
+    // that way: slugs are the identity key that APPLE_IAP_PRODUCTS and
+    // seedDefaultPlans match on, so renaming one orphans the live row.
+    durationDays: 365,
     sortOrder: 4,
     recommended: 0,
     status: 'active',
@@ -162,12 +165,20 @@ export const DEFAULT_PLAN_BLUEPRINTS = [
 /// Apple StoreKit product id → the plan that backs it.
 ///
 /// The plan supplies `duration_days`, which is what turns an Apple purchase into
-/// a `user_subscriptions.end_date`. Weekly and monthly reuse the existing public
-/// plans; there is no 365-day plan in the catalog, so `annual-prep-1y` is created
-/// on demand as **inactive** — an inactive plan still resolves for an active
-/// subscription (the billing query joins `plans` without filtering on status) but
-/// is excluded from `plansService.findActive()`, so adding it does not change the
-/// public website pricing list. Flip it to `active` to also sell annually on the web.
+/// a `user_subscriptions.end_date`. Every product maps to one of the existing
+/// public plans — there is no on-demand plan creation here any more.
+///
+/// A product with no row in `plans` carrying its id is REJECTED at redemption
+/// with "This purchase does not match a known plan." That is what happened to
+/// the yearly product: it pointed at a slug (`annual-prep-1y`) that never
+/// existed, so every yearly purchase 400'd after Apple had already taken it.
+/// Yearly now maps to Master Prep, which is the 365-day plan.
+///
+/// The old `createIfMissing` fallback was removed rather than repointed. It
+/// would have inserted a second, inactive "Annual Prep" plan and then failed on
+/// the UNIQUE index `uniq_plans_apple_product` — the yearly id already belongs
+/// to Master Prep — leaving a junk plan in the admin list and a logged error on
+/// every boot. The admin panel's product-id field is the supported way to remap.
 export const APPLE_IAP_PRODUCTS = [
   {
     productId: 'app.xyndrome.lk.weekly',
@@ -186,18 +197,7 @@ export const APPLE_IAP_PRODUCTS = [
   },
   {
     productId: 'app.xyndrome.lk.yearly',
-    slug: 'annual-prep-1y',
+    slug: 'master-prep-6m',
     durationDays: 365,
-    // Only used when the plan has to be created because it isn't in the catalog.
-    createIfMissing: {
-      name: 'Annual Prep',
-      description: '12 months of complete preparation. Lessons, AI notes, full MCQ bank, practice and exam mode.',
-      regularPrice: 34990,
-      offerPrice: 23990,
-      currency: 'LKR',
-      billingPeriod: 'year',
-      status: 'inactive' as const,
-      sortOrder: 6,
-    },
   },
 ] as const;
