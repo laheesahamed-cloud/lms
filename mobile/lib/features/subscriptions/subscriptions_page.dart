@@ -299,20 +299,26 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
   // generate a study plan.
   bool _hasAccess(CurrentSub? cur) => cur?.isPaid ?? false;
 
+  /// What a student WITHOUT a paid subscription is told, everywhere it is said.
+  ///
+  /// It used to read "You have full access — free of charge. Enjoy!", which
+  /// promised something the product does not give: free users do not get full
+  /// access, and anyone believing that line hits locked lessons moments later.
+  /// One constant so the three places that say it cannot drift apart again.
+  static const _freeAccessNote = 'You have free access to the app.';
+
   Widget _statusCard(AppColors c, CurrentSub? cur) {
     if (cur == null) {
       return _banner(c, c.inkSoft, Icons.info_outline_rounded, 'No active plan',
-          'You have free access to the app.');
+          _freeAccessNote);
     }
     if (cur.isFreePlan || cur.isUnlimitedAccess) {
       return _banner(
           c,
           c.primary,
           Icons.verified_outlined,
-          cur.planName.isEmpty ? 'Free access' : cur.planName,
-          cur.isFreePlan
-              ? 'You have full access — free of charge. Enjoy!'
-              : 'You have full access.');
+          cur.planName.isEmpty ? 'Free plan' : cur.planName,
+          _freeAccessNote);
     }
     if (cur.isActive) {
       final days = cur.daysRemaining;
@@ -343,8 +349,7 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _banner(c, c.primary, Icons.verified_outlined, 'Free plan',
-            'You have free access to the app.'),
+        _banner(c, c.primary, Icons.verified_outlined, 'Free plan', _freeAccessNote),
         const SizedBox(height: 10),
         _banner(
           c,
