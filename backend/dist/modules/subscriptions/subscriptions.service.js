@@ -43,6 +43,18 @@ const SUBSCRIPTION_LIST_COLUMNS = `
   us.start_date,
   us.end_date,
   us.access_expires_at,
+  -- Evaluated by MySQL, deliberately, rather than parsed in JS.
+  --
+  -- access_expires_at is stored in UTC, but mysql2 has no dateStrings option
+  -- here, so it hands back a JS Date built by reading that value as LOCAL
+  -- time. Every attempt to re-derive the instant in JS was wrong: stringifying
+  -- the Date gives "Tue Oct 14 2026 20:00:00 GMT+0300 (...)", which no amount
+  -- of massaging parses back correctly, and the failures were silent — an
+  -- Invalid Date read as "not lapsed", so a finished subscription kept showing
+  -- as active with Change plan and Manage buttons.
+  --
+  -- MySQL compares two UTC values with no timezone round-trip at all.
+  (us.access_expires_at IS NOT NULL AND us.access_expires_at <= UTC_TIMESTAMP()) AS access_lapsed,
   us.created_at,
   us.updated_at
 `;
@@ -1897,11 +1909,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         const rawDaysRemaining = Math.floor((end.getTime() - today.getTime()) / 86400000) + 1;
         const isFreePlan = this.isFreePlanAssignment(row.payment_status, plan);
         const daysRemaining = isFreePlan ? null : rawDaysRemaining;
-        const rawExpiry = row.access_expires_at ? String(row.access_expires_at).trim() : '';
-        const accessExpiresAt = rawExpiry
-            ? new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(rawExpiry) ? rawExpiry : `${rawExpiry.replace(' ', 'T')}Z`)
-            : null;
-        const lapsedByTimestamp = accessExpiresAt !== null && !Number.isNaN(accessExpiresAt.getTime()) && accessExpiresAt.getTime() <= Date.now();
+        const lapsedByTimestamp = Number(row.access_lapsed) === 1;
         const computedStatus = row.status === 'active' && !isFreePlan && (rawDaysRemaining <= 0 || lapsedByTimestamp)
             ? 'expired'
             : row.status;

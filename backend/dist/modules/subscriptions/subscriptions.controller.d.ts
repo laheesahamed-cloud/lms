@@ -92,9 +92,9 @@ export declare class SubscriptionsController {
         planId: number;
         assignedBy: number | null;
         notes: string;
-        status: "active" | "pending" | "expired" | "cancelled";
-        computedStatus: "active" | "pending" | "expired" | "cancelled";
-        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+        status: "active" | "expired" | "pending" | "cancelled";
+        computedStatus: "active" | "expired" | "pending" | "cancelled";
+        paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -102,7 +102,7 @@ export declare class SubscriptionsController {
         paymentReference: string;
         paymentDate: string | null;
         receiptUrl: string;
-        accessScope: "lessons" | "courses" | "all";
+        accessScope: "courses" | "lessons" | "all";
         courseIds: number[];
         lessonIds: number[];
         startDate: string;
@@ -143,9 +143,9 @@ export declare class SubscriptionsController {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -153,7 +153,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -194,9 +194,9 @@ export declare class SubscriptionsController {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -204,7 +204,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -289,7 +289,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "approved" | "rejected" | "pending" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -307,7 +307,7 @@ export declare class SubscriptionsController {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;
@@ -367,9 +367,9 @@ export declare class SubscriptionsController {
         planId: number;
         assignedBy: number | null;
         notes: string;
-        status: "active" | "pending" | "expired" | "cancelled";
-        computedStatus: "active" | "pending" | "expired" | "cancelled";
-        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+        status: "active" | "expired" | "pending" | "cancelled";
+        computedStatus: "active" | "expired" | "pending" | "cancelled";
+        paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -377,7 +377,7 @@ export declare class SubscriptionsController {
         paymentReference: string;
         paymentDate: string | null;
         receiptUrl: string;
-        accessScope: "lessons" | "courses" | "all";
+        accessScope: "courses" | "lessons" | "all";
         courseIds: number[];
         lessonIds: number[];
         startDate: string;
@@ -416,7 +416,7 @@ export declare class SubscriptionsController {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "cancelled" | "approved" | "rejected";
+        status: "approved" | "rejected" | "pending" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -434,7 +434,7 @@ export declare class SubscriptionsController {
         paymentProofName: string;
         paymentProofMime: string;
         paymentProofDataUrl: string;
-        accessScope: "lessons" | "courses" | "all";
+        accessScope: "courses" | "lessons" | "all";
         courseIds: number[];
         lessonIds: number[];
         invoiceId: string;
@@ -662,9 +662,9 @@ export declare class SubscriptionsController {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -672,7 +672,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -713,9 +713,9 @@ export declare class SubscriptionsController {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -723,7 +723,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -808,7 +808,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "approved" | "rejected" | "pending" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -826,7 +826,7 @@ export declare class SubscriptionsController {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;
@@ -932,9 +932,9 @@ export declare class SubscriptionsController {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -942,7 +942,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -983,9 +983,9 @@ export declare class SubscriptionsController {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -993,7 +993,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -1078,7 +1078,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "approved" | "rejected" | "pending" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -1096,7 +1096,7 @@ export declare class SubscriptionsController {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;

@@ -17,6 +17,8 @@ import { AppleIapService, AppleTransaction } from './apple-iap.service';
 type SubscriptionRow = RowDataPacket & {
   /** Apple's exact expiry; NULL for manual/bank-transfer/PayHere subscriptions. */
   access_expires_at?: string | Date | null;
+  /** 1 once access_expires_at has passed, computed by MySQL in UTC. */
+  access_lapsed?: number | null;
   id: number;
   user_id: number;
   plan_id: number;
@@ -160,6 +162,18 @@ const SUBSCRIPTION_LIST_COLUMNS = `
   us.start_date,
   us.end_date,
   us.access_expires_at,
+  -- Evaluated by MySQL, deliberately, rather than parsed in JS.
+  --
+  -- access_expires_at is stored in UTC, but mysql2 has no dateStrings option
+  -- here, so it hands back a JS Date built by reading that value as LOCAL
+  -- time. Every attempt to re-derive the instant in JS was wrong: stringifying
+  -- the Date gives "Tue Oct 14 2026 20:00:00 GMT+0300 (...)", which no amount
+  -- of massaging parses back correctly, and the failures were silent — an
+  -- Invalid Date read as "not lapsed", so a finished subscription kept showing
+  -- as active with Change plan and Manage buttons.
+  --
+  -- MySQL compares two UTC values with no timezone round-trip at all.
+  (us.access_expires_at IS NOT NULL AND us.access_expires_at <= UTC_TIMESTAMP()) AS access_lapsed,
   us.created_at,
   us.updated_at
 `;
@@ -2536,17 +2550,8 @@ export class SubscriptionsService {
     // the entitlement checks are already refusing. Store-backed rows carry
     // Apple's exact expiry; everything else leaves it NULL and keeps the
     // day-based reading it has always had.
-    // Parsed as UTC. epochToSqlTimestamp writes toISOString(), so the stored
-    // value is UTC with no zone marker — and `new Date('2026-10-14 20:00:00')`
-    // reads that as LOCAL time, which on a UTC+3 server declared every
-    // subscription three hours younger than it is. Same mismatch that made the
-    // SQL gate use NOW() instead of UTC_TIMESTAMP().
-    const rawExpiry = row.access_expires_at ? String(row.access_expires_at).trim() : '';
-    const accessExpiresAt = rawExpiry
-      ? new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(rawExpiry) ? rawExpiry : `${rawExpiry.replace(' ', 'T')}Z`)
-      : null;
-    const lapsedByTimestamp =
-      accessExpiresAt !== null && !Number.isNaN(accessExpiresAt.getTime()) && accessExpiresAt.getTime() <= Date.now();
+    // Straight from SQL — see access_lapsed in SUBSCRIPTION_LIST_COLUMNS.
+    const lapsedByTimestamp = Number(row.access_lapsed) === 1;
 
     const computedStatus =
       row.status === 'active' && !isFreePlan && (rawDaysRemaining <= 0 || lapsedByTimestamp)
