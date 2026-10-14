@@ -18,37 +18,51 @@ import '../features/subscriptions/subscriptions_repository.dart';
 /// instances, so per-id caches (a specific lesson, course, quiz, attempt) are
 /// wiped too. Auth, settings, and device-level prefs are intentionally left
 /// alone.
+///
+/// EVERY call here passes `asReload: true`, and that is the whole point.
+///
+/// A plain `invalidate` is a REFRESH: riverpod keeps the old value readable
+/// while the new one loads, so `asData`/`.when(data:)` still render it. That is
+/// right for re-fetching the same account's data — it is what stops pages
+/// flashing a spinner — and exactly wrong here, where the cached value belongs
+/// to the account that just signed out. It let the next student see the
+/// previous one's subscription, results, courses and dashboard until each
+/// fetch landed.
+///
+/// `asReload: true` makes the state AsyncLoading instead, so pages show their
+/// loading state rather than another person's data. One frame of spinner is
+/// the correct trade.
 void resetUserScopedData(Ref ref) {
   // AI notes
-  ref.invalidate(lessonsListProvider);
-  ref.invalidate(lessonDocProvider);
+  ref.invalidate(lessonsListProvider, asReload: true);
+  ref.invalidate(lessonDocProvider, asReload: true);
   // Courses
-  ref.invalidate(studentCoursesProvider);
-  ref.invalidate(courseDetailProvider);
+  ref.invalidate(studentCoursesProvider, asReload: true);
+  ref.invalidate(courseDetailProvider, asReload: true);
   // Quizzes / exams / results
-  ref.invalidate(quizListProvider);
-  ref.invalidate(practiceQuizProvider);
-  ref.invalidate(examQuizProvider);
-  ref.invalidate(attemptResultProvider);
-  ref.invalidate(resultsListProvider);
-  ref.invalidate(attemptReviewProvider);
+  ref.invalidate(quizListProvider, asReload: true);
+  ref.invalidate(practiceQuizProvider, asReload: true);
+  ref.invalidate(examQuizProvider, asReload: true);
+  ref.invalidate(attemptResultProvider, asReload: true);
+  ref.invalidate(resultsListProvider, asReload: true);
+  ref.invalidate(attemptReviewProvider, asReload: true);
   // Flashcards
-  ref.invalidate(flashDecksProvider);
-  ref.invalidate(flashQueueProvider);
+  ref.invalidate(flashDecksProvider, asReload: true);
+  ref.invalidate(flashQueueProvider, asReload: true);
   // Other student surfaces
   // Drop any in-flight cold-start prefetch too: it carries the previous
   // user's dashboard, and invalidating the provider alone would let the
   // next account adopt it.
   DashboardPrefetch.clear();
-  ref.invalidate(studentDashboardProvider);
-  ref.invalidate(bookmarksProvider);
-  ref.invalidate(plannerTasksProvider);
-  ref.invalidate(billingProvider);
-  ref.invalidate(notificationsProvider);
+  ref.invalidate(studentDashboardProvider, asReload: true);
+  ref.invalidate(bookmarksProvider, asReload: true);
+  ref.invalidate(plannerTasksProvider, asReload: true);
+  ref.invalidate(billingProvider, asReload: true);
+  ref.invalidate(notificationsProvider, asReload: true);
   // Drug randomizer — app-lifetime provider, so its cached spin count/hasSub
   // would otherwise bleed from one account to the next. Reset it so the new
   // user re-fetches their own count from the server.
-  ref.invalidate(drugQueueProvider);
+  ref.invalidate(drugQueueProvider, asReload: true);
   // Apple IAP: forget which transactions were already redeemed, so the incoming
   // account re-checks StoreKit against its own server-side entitlement instead
   // of assuming the previous user's redemptions apply to it.
