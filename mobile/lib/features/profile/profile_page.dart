@@ -172,7 +172,7 @@ Future<bool> _confirmDeleteAccount(BuildContext context) async {
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
           SizedBox(height: 2),
-          Text('Cancel it in Settings → Subscriptions.'),
+          Text('Cancel it in Settings → Apple ID → Subscriptions.'),
         ],
       ),
       actions: [
