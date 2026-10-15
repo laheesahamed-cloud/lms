@@ -1702,8 +1702,26 @@ export class SubscriptionsService {
     // Replay / account-sharing guard. `original_transaction_id` is stable across
     // renewals, so it identifies the subscription itself: whoever redeemed it
     // first owns it, and a second account replaying the same receipt is refused.
+    //
+    // A DELETED account does not own anything. The guard used to consider the
+    // first redeemer the owner forever, which meant deleting your account and
+    // signing up again locked you out of a subscription Apple was still
+    // charging you for — Restore answered "already linked to another account",
+    // and the only account that could have used it no longer exists. That is
+    // also a path App Review walks: delete the account (5.1.1(v)), register
+    // again, tap Restore.
+    //
+    // Only a LIVE owner blocks a claim, so account sharing is refused exactly
+    // as strictly as before. Nothing is given away by relaxing it either: a
+    // claim still requires a receipt signed by Apple for that Apple ID, so only
+    // the genuine owner can present one.
     const [ownerRows] = await this.db.execute<RowDataPacket[]>(
-      'SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1',
+      `SELECT t.user_id
+       FROM iap_transactions t
+       INNER JOIN users u ON u.id = t.user_id
+       WHERE t.original_transaction_id = ? AND u.deleted_at IS NULL
+       ORDER BY t.id ASC
+       LIMIT 1`,
       [transaction.originalTransactionId]
     );
     if (ownerRows[0] && Number(ownerRows[0].user_id) !== userId) {
@@ -1711,6 +1729,20 @@ export class SubscriptionsService {
         `Apple transaction ${transaction.originalTransactionId} replayed by user ${userId}; owned by ${ownerRows[0].user_id}.`
       );
       throw new ConflictException('This purchase is already linked to another account.');
+    }
+
+    // Recovery after deletion leaves a trail: the iap_transactions rows keep
+    // every user_id this subscription has been claimed by, in order, and this
+    // line names the moment the handover happened.
+    const [priorRows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1',
+      [transaction.originalTransactionId]
+    );
+    if (priorRows[0] && Number(priorRows[0].user_id) !== userId) {
+      this.logger.log(
+        `Apple transaction ${transaction.originalTransactionId} reclaimed by user ${userId}; `
+          + `previous owner ${priorRows[0].user_id} is deleted.`
+      );
     }
 
     const entitled = this.appleIapService.isEntitled(transaction);

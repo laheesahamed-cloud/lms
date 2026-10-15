@@ -17,7 +17,7 @@ export declare class OsceController {
     }>;
     regions(req: Request, auth?: string): Promise<{
         regions: {
-            key: "general" | "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs";
+            key: "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs" | "general";
             label: string;
             caseCount: number;
             cases: Record<string, unknown>[];

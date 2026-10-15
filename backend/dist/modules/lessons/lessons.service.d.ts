@@ -243,7 +243,7 @@ export declare class LessonsService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published";
+        workflowState: "published" | "draft";
     }>;
     uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
         ok: boolean;

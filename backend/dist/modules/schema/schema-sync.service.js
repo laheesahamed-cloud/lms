@@ -688,6 +688,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         };
         try {
             await step('users.permissions', () => this.ensureColumn(conn, 'users', 'permissions', 'TEXT NULL AFTER role'));
+            await step('account deletion audit', () => this.ensureAccountDeletionAuditTable(conn));
             await step('user_subscriptions.access_expires_at', () => this.ensureColumn(conn, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date'));
             await step('access_expires_at backfill', () => this.backfillAccessExpiresAt(conn));
             await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
@@ -1226,6 +1227,19 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_subscription_audit_user (user_id),
         INDEX idx_subscription_audit_actor (actor_id),
         INDEX idx_subscription_audit_created (created_at)
+      )
+    `);
+    }
+    async ensureAccountDeletionAuditTable(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS account_deletion_audit (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        email_hash CHAR(64) NULL,
+        reason VARCHAR(40) NOT NULL DEFAULT 'self_service',
+        deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_account_deletion_user (user_id),
+        INDEX idx_account_deletion_hash (email_hash)
       )
     `);
     }

@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
-import { randomBytes, randomInt, createPublicKey, verify as cryptoVerify } from 'crypto';
+import { randomBytes, randomInt, createHmac, createPublicKey, verify as cryptoVerify } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
@@ -476,25 +476,76 @@ export class AuthService {
     const scrambledEmail = `deleted+${user.id}-${randomBytes(6).toString('hex')}@deleted.invalid`;
     const lockedPassword = await bcrypt.hash(`deleted:${randomBytes(16).toString('hex')}`, 10);
 
-    await this.db.execute(
-      `UPDATE users
-       SET full_name = 'Deleted user',
-           email = ?,
-           password = ?,
-           avatar_key = NULL,
-           session_token = NULL,
-           session_expires_at = NULL,
-           password_reset_token = NULL,
-           password_reset_expires_at = NULL,
-           deleted_at = NOW()
-       WHERE id = ?`,
-      [scrambledEmail, lockedPassword, user.id]
-    );
+    // One transaction: the account is either fully deleted or not at all. A
+    // half-done deletion would leave an account that cannot log in but still
+    // owns its Apple subscription, which is precisely the state that locks a
+    // paying customer out of the purchase they are still being charged for.
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      await connection.execute(
+        `UPDATE users
+         SET full_name = 'Deleted user',
+             email = ?,
+             password = ?,
+             avatar_key = NULL,
+             session_token = NULL,
+             session_expires_at = NULL,
+             password_reset_token = NULL,
+             password_reset_expires_at = NULL,
+             deleted_at = NOW()
+         WHERE id = ?`,
+        [scrambledEmail, lockedPassword, user.id]
+      );
+
+      // Close out their subscriptions. The account cannot sign in again, so
+      // leaving rows 'active' only misreports who is subscribed.
+      await connection.execute(
+        `UPDATE user_subscriptions
+         SET status = 'cancelled'
+         WHERE user_id = ? AND status IN ('active', 'pending')`,
+        [user.id]
+      );
+
+      // Minimal audit row: an id, a timestamp, and an HMAC of the address.
+      // Never the address, the name, or anything they studied — see
+      // account_deletion_audit in schema-sync.
+      await connection.execute(
+        'INSERT INTO account_deletion_audit (user_id, email_hash, reason) VALUES (?, ?, ?)',
+        [user.id, this.hashEmailForAudit(user.email), 'self_service']
+      );
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     return {
       ok: true,
       message: 'Your account has been deleted.',
     };
+  }
+
+  /// One-way fingerprint of an email, for the deletion audit.
+  ///
+  /// HMAC rather than a bare hash: email addresses are short and guessable, so
+  /// a plain SHA-256 could be reversed by hashing a list of candidates. Keyed
+  /// with a server secret, the digest is useless to anyone who does not hold
+  /// that key. Returns null when no secret is configured rather than writing a
+  /// weak digest and implying a protection that is not there.
+  private hashEmailForAudit(email: string): string | null {
+    const secret = String(
+      this.configService.get<string>('ACCOUNT_DELETION_HASH_SECRET')
+        || this.configService.get<string>('SETTINGS_ENCRYPTION_KEY')
+        || ''
+    ).trim();
+    const normalized = String(email || '').trim().toLowerCase();
+    if (!secret || !normalized) return null;
+    return createHmac('sha256', secret).update(normalized).digest('hex');
   }
 
   private canExposeDevResetToken(shouldSendEmail: boolean) {

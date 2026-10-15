@@ -782,6 +782,9 @@ export class SchemaSyncService implements OnModuleInit {
       // is 0 on production: the gated block below would never create it and
       // the whole app would fail on the first content request after deploy.
       // Same lesson as the content-governance tables above.
+      // Written by the account-deletion path, which must work whether or not
+      // schema sync runs — same reason as the columns below.
+      await step('account deletion audit', () => this.ensureAccountDeletionAuditTable(conn));
       await step('user_subscriptions.access_expires_at', () =>
         this.ensureColumn(conn, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date'));
       await step('access_expires_at backfill', () => this.backfillAccessExpiresAt(conn));
@@ -1480,6 +1483,32 @@ export class SchemaSyncService implements OnModuleInit {
   /// transaction. Only touches rows where it is still NULL, so it never
   /// overwrites a value the live flow has written, and only Apple rows, so
   /// nothing manual is given an artificial deadline.
+  /// Minimal record that an account was deleted.
+  ///
+  /// DELIBERATELY HOLDS NO PERSONAL DATA. No name, no email, no profile, no
+  /// learning records — copying those into a permanent archive would mean the
+  /// deletion never happened, which is the opposite of what the user asked for
+  /// and what Apple's 5.1.1(v) and data-protection law require.
+  ///
+  /// `email_hash` is an HMAC, not the address: it answers "has this address
+  /// been deleted before?" for a specific address someone supplies, and cannot
+  /// be read back into a list of addresses. That is what makes it safe to keep,
+  /// and it is the standard way to support abuse prevention and subscription
+  /// recovery after erasure.
+  private async ensureAccountDeletionAuditTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS account_deletion_audit (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        email_hash CHAR(64) NULL,
+        reason VARCHAR(40) NOT NULL DEFAULT 'self_service',
+        deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_account_deletion_user (user_id),
+        INDEX idx_account_deletion_hash (email_hash)
+      )
+    `);
+  }
+
   private async backfillAccessExpiresAt(connection: PoolConnection) {
     try {
       await connection.execute(

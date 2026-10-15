@@ -300,21 +300,46 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const scrambledEmail = `deleted+${user.id}-${(0, crypto_1.randomBytes)(6).toString('hex')}@deleted.invalid`;
         const lockedPassword = await bcrypt.hash(`deleted:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
-        await this.db.execute(`UPDATE users
-       SET full_name = 'Deleted user',
-           email = ?,
-           password = ?,
-           avatar_key = NULL,
-           session_token = NULL,
-           session_expires_at = NULL,
-           password_reset_token = NULL,
-           password_reset_expires_at = NULL,
-           deleted_at = NOW()
-       WHERE id = ?`, [scrambledEmail, lockedPassword, user.id]);
+        const connection = await this.db.getConnection();
+        try {
+            await connection.beginTransaction();
+            await connection.execute(`UPDATE users
+         SET full_name = 'Deleted user',
+             email = ?,
+             password = ?,
+             avatar_key = NULL,
+             session_token = NULL,
+             session_expires_at = NULL,
+             password_reset_token = NULL,
+             password_reset_expires_at = NULL,
+             deleted_at = NOW()
+         WHERE id = ?`, [scrambledEmail, lockedPassword, user.id]);
+            await connection.execute(`UPDATE user_subscriptions
+         SET status = 'cancelled'
+         WHERE user_id = ? AND status IN ('active', 'pending')`, [user.id]);
+            await connection.execute('INSERT INTO account_deletion_audit (user_id, email_hash, reason) VALUES (?, ?, ?)', [user.id, this.hashEmailForAudit(user.email), 'self_service']);
+            await connection.commit();
+        }
+        catch (error) {
+            await connection.rollback();
+            throw error;
+        }
+        finally {
+            connection.release();
+        }
         return {
             ok: true,
             message: 'Your account has been deleted.',
         };
+    }
+    hashEmailForAudit(email) {
+        const secret = String(this.configService.get('ACCOUNT_DELETION_HASH_SECRET')
+            || this.configService.get('SETTINGS_ENCRYPTION_KEY')
+            || '').trim();
+        const normalized = String(email || '').trim().toLowerCase();
+        if (!secret || !normalized)
+            return null;
+        return (0, crypto_1.createHmac)('sha256', secret).update(normalized).digest('hex');
     }
     canExposeDevResetToken(shouldSendEmail) {
         const nodeEnv = this.configService.get('NODE_ENV') || 'development';

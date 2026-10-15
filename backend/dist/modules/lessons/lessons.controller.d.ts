@@ -173,26 +173,26 @@ export declare class LessonsController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published";
+        workflowState: "published" | "draft";
     }>;
     canvasRegenerateSection(auth: string, id: number, heading: string): Promise<import("./lessons.service").NoteCanvas>;
     canvasSourcePreview(auth: string, text: string, sourceFormat?: string): Promise<{
@@ -293,7 +293,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "rejected" | "draft" | "approved";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -310,7 +310,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "rejected" | "draft" | "approved";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -337,7 +337,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "approved" | "rejected";
+            status: "rejected" | "draft" | "approved";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;
@@ -355,7 +355,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "rejected" | "draft" | "approved";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -457,7 +457,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "approved" | "rejected";
+            status: "rejected" | "draft" | "approved";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;

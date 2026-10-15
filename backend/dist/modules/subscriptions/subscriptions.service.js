@@ -1307,10 +1307,20 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         if (!plan) {
             throw new common_1.BadRequestException('This purchase does not match a known plan.');
         }
-        const [ownerRows] = await this.db.execute('SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1', [transaction.originalTransactionId]);
+        const [ownerRows] = await this.db.execute(`SELECT t.user_id
+       FROM iap_transactions t
+       INNER JOIN users u ON u.id = t.user_id
+       WHERE t.original_transaction_id = ? AND u.deleted_at IS NULL
+       ORDER BY t.id ASC
+       LIMIT 1`, [transaction.originalTransactionId]);
         if (ownerRows[0] && Number(ownerRows[0].user_id) !== userId) {
             this.logger.warn(`Apple transaction ${transaction.originalTransactionId} replayed by user ${userId}; owned by ${ownerRows[0].user_id}.`);
             throw new common_1.ConflictException('This purchase is already linked to another account.');
+        }
+        const [priorRows] = await this.db.execute('SELECT user_id FROM iap_transactions WHERE original_transaction_id = ? ORDER BY id ASC LIMIT 1', [transaction.originalTransactionId]);
+        if (priorRows[0] && Number(priorRows[0].user_id) !== userId) {
+            this.logger.log(`Apple transaction ${transaction.originalTransactionId} reclaimed by user ${userId}; `
+                + `previous owner ${priorRows[0].user_id} is deleted.`);
         }
         const entitled = this.appleIapService.isEntitled(transaction);
         await this.db.execute(`INSERT INTO iap_transactions (
