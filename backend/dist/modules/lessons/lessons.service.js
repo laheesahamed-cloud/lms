@@ -799,7 +799,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         WHERE us.user_id = ?
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
-          AND us.end_date >= CURDATE()
+          AND us.end_date >= CURDATE() AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
       `, [userId]);
         const profile = {
             hasAnyPaidLessonAccess: rows.length > 0,
@@ -2035,7 +2035,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
     async getCanvasAccessProfile(userId, appClient) {
         const [rows] = await this.db.execute(`SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
        FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
-       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]);
+       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE() AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())`, [userId]);
         const appOnlyBlocked = this.isAppOnlyBlocked(appClient);
         const profile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked };
         for (const row of rows) {

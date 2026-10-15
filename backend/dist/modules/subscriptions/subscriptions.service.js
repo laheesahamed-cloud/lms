@@ -1347,10 +1347,17 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         const endDate = transaction.expiresDate
             ? this.toDateOnly(new Date(transaction.expiresDate))
             : this.addDays(startDate, Number(plan.duration_days) || 30);
-        const [activeRows] = await this.db.execute(`SELECT id FROM user_subscriptions
-       WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
-         AND plan_id = ? AND status = 'active' AND end_date >= ?
-       LIMIT 1`, [userId, transaction.originalTransactionId, Number(plan.id), endDate]);
+        const accessExpiresAt = this.epochToSqlTimestamp(transaction.expiresDate);
+        const [activeRows] = accessExpiresAt
+            ? await this.db.execute(`SELECT id FROM user_subscriptions
+           WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+             AND plan_id = ? AND status = 'active'
+             AND access_expires_at IS NOT NULL AND access_expires_at >= ?
+           LIMIT 1`, [userId, transaction.originalTransactionId, Number(plan.id), accessExpiresAt])
+            : await this.db.execute(`SELECT id FROM user_subscriptions
+           WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+             AND plan_id = ? AND status = 'active' AND end_date >= ?
+           LIMIT 1`, [userId, transaction.originalTransactionId, Number(plan.id), endDate]);
         if (!activeRows[0]) {
             const subscriptionId = await this.createSubscription({
                 userId,
@@ -1363,7 +1370,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 endDate,
                 paymentMethod: 'apple_iap',
                 paymentReference: transaction.originalTransactionId,
-                accessExpiresAt: this.epochToSqlTimestamp(transaction.expiresDate),
+                accessExpiresAt,
                 paymentDate: startDate,
                 accessScope: 'all',
                 cancelExisting: true,

@@ -1782,14 +1782,38 @@ export class SubscriptionsService {
     // why "Change plan" appeared to do nothing there.
     //
     // A genuine repeat redemption of the same renewal still has the same
-    // plan_id and is still skipped, so idempotency is preserved.
-    const [activeRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id FROM user_subscriptions
-       WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
-         AND plan_id = ? AND status = 'active' AND end_date >= ?
-       LIMIT 1`,
-      [userId, transaction.originalTransactionId, Number(plan.id), endDate]
-    );
+    // plan_id AND the same expiry, so idempotency is preserved.
+    //
+    // THE EXPIRY TEST IS ON THE TIMESTAMP, NOT THE DATE. A renewal of the same
+    // plan keeps the same originalTransactionId and the same plan_id — only
+    // the expiry moves — so `end_date` was the single field that could tell a
+    // renewal apart from a replay. Stored date-only, it could not: in sandbox a
+    // "1 month" plan lasts three minutes, so the renewed expiry lands on the
+    // SAME calendar day, `end_date >= endDate` matched, and the renewal was
+    // discarded as a duplicate. The subscription then expired after one period
+    // while Apple went on renewing it — which is exactly the reported symptom,
+    // and why Apple still showed an upcoming renewal for a plan the app had
+    // already written off.
+    //
+    // A product with no expiry (not auto-renewable) has no timestamp to
+    // compare, so it keeps the date test.
+    const accessExpiresAt = this.epochToSqlTimestamp(transaction.expiresDate);
+    const [activeRows] = accessExpiresAt
+      ? await this.db.execute<RowDataPacket[]>(
+          `SELECT id FROM user_subscriptions
+           WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+             AND plan_id = ? AND status = 'active'
+             AND access_expires_at IS NOT NULL AND access_expires_at >= ?
+           LIMIT 1`,
+          [userId, transaction.originalTransactionId, Number(plan.id), accessExpiresAt]
+        )
+      : await this.db.execute<RowDataPacket[]>(
+          `SELECT id FROM user_subscriptions
+           WHERE user_id = ? AND payment_method = 'apple_iap' AND payment_reference = ?
+             AND plan_id = ? AND status = 'active' AND end_date >= ?
+           LIMIT 1`,
+          [userId, transaction.originalTransactionId, Number(plan.id), endDate]
+        );
 
     if (!activeRows[0]) {
       const subscriptionId = await this.createSubscription({
@@ -1805,7 +1829,7 @@ export class SubscriptionsService {
         paymentReference: transaction.originalTransactionId,
         // Apple's exact expiry drives access; end_date stays for display and
         // for every non-Apple code path that still reasons in whole days.
-        accessExpiresAt: this.epochToSqlTimestamp(transaction.expiresDate),
+        accessExpiresAt,
         paymentDate: startDate,
         accessScope: 'all',
         cancelExisting: true,

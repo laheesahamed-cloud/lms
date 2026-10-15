@@ -181,17 +181,44 @@ final class StoreKitBridge {
 
   // MARK: - Restore & entitlements
 
+  /// Restore purchases, asking Apple to authenticate ONLY when it is actually
+  /// needed.
+  ///
+  /// `AppStore.sync()` always presents Apple's password sheet. Calling it first,
+  /// unconditionally, meant every Restore demanded a password even when the
+  /// entitlement was already on the device — and that sheet is Apple's own
+  /// out-of-process UI, which on some sandbox builds appears with the keyboard
+  /// refusing to open, leaving the user unable to type and unable to restore.
+  /// Nothing in this app can influence that sheet; not presenting it when it
+  /// serves no purpose is the part we control.
+  ///
+  /// `Transaction.currentEntitlements` already reflects what the App Store has
+  /// granted this Apple ID, including purchases made on another device, without
+  /// any prompt. So: read it first, and fall back to `sync()` only when there
+  /// is genuinely nothing local to restore — a fresh install signed into an
+  /// account whose entitlements have not yet been delivered.
   private func restore(result: @escaping FlutterResult) async {
-    do {
-      // Pulls any purchase made on another device or before a reinstall.
-      try await AppStore.sync()
-    } catch {
-      // A cancelled sign-in sheet throws; still report whatever we already hold.
+    var payloads = await entitlementPayloads()
+
+    if payloads.isEmpty {
+      do {
+        try await AppStore.sync()
+      } catch {
+        // A cancelled or failed sign-in sheet throws; report what we hold.
+      }
+      payloads = await entitlementPayloads()
     }
-    await currentEntitlements(result: result)
+
+    reply(result, payloads)
   }
 
   private func currentEntitlements(result: @escaping FlutterResult) async {
+    reply(result, await entitlementPayloads())
+  }
+
+  /// Every verified entitlement StoreKit currently holds for this Apple ID.
+  /// Shared by `currentEntitlements` and `restore` so both report identically.
+  private func entitlementPayloads() async -> [[String: Any]] {
     var payloads: [[String: Any]] = []
     for await verification in Transaction.currentEntitlements {
       guard case .verified(let transaction) = verification else { continue }
@@ -202,7 +229,7 @@ final class StoreKitBridge {
         "jws": verification.jwsRepresentation,
       ])
     }
-    reply(result, payloads)
+    return payloads
   }
 
   /// Called by Dart once the backend has granted access for this transaction.
