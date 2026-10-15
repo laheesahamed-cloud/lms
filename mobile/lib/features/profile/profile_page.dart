@@ -158,9 +158,23 @@ Future<bool> _confirmDeleteAccount(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Delete account?'),
-      content: const Text(
-          "This permanently deletes your account and signs you out. "
-          "This can't be undone."),
+      // The subscription line is required, not a nicety: guideline 5.1.1(v)
+      // expects an app with auto-renewable subscriptions to say that deleting
+      // the account does not stop the billing.
+      content: const Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("This can't be undone."),
+          SizedBox(height: 10),
+          Text(
+            "Your subscription isn't cancelled.",
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 2),
+          Text('Cancel it in Settings → Subscriptions.'),
+        ],
+      ),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
