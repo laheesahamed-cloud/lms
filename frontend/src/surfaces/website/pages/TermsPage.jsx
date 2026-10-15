@@ -91,7 +91,6 @@ export function TermsPage() {
           <div className={ui.buttonRow}>
             <Link to="/privacy-policy" className={ui.secondaryAction}>Privacy</Link>
             <Link to="/refund-policy" className={ui.secondaryAction}>Refunds</Link>
-            <Link to="/register" className={ui.secondaryAction}>Back to Create Account</Link>
           </div>
         </div>
 

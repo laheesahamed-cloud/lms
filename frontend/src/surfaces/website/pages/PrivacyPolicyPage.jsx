@@ -100,7 +100,6 @@ export function PrivacyPolicyPage() {
           <div className={ui.buttonRow}>
             <Link to="/terms" className={ui.secondaryAction}>Terms</Link>
             <Link to="/cookie-policy" className={ui.secondaryAction}>Cookies</Link>
-            <Link to="/register" className={ui.secondaryAction}>Back to Create Account</Link>
           </div>
         </div>
 
