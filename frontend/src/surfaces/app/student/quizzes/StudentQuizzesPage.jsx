@@ -51,6 +51,9 @@ function isQuizDone(quiz) {
 
 function sortQuizzesByHierarchy(items) {
   return [...items].sort((a, b) => {
+    // Full-course (general) sets go after every subject.
+    const generalOrder = Number(Boolean(a.isGeneral)) - Number(Boolean(b.isGeneral));
+    if (generalOrder) return generalOrder;
     const aKey = [a.topicName, a.subtopicName, a.lessonTitle, a.quizNumber, a.quizTitle].filter(Boolean).join('\u0001');
     const bKey = [b.topicName, b.subtopicName, b.lessonTitle, b.quizNumber, b.quizTitle].filter(Boolean).join('\u0001');
     return aKey.localeCompare(bKey, undefined, { numeric: true, sensitivity: 'base' });

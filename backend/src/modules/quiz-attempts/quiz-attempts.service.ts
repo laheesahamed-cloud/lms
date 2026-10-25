@@ -273,6 +273,16 @@ export class QuizAttemptsService {
         : !canUseDynamic
           ? 'Dynamic randomized quizzes are included with premium plans.'
           : '';
+      // Full-course (general) sets have no subject, and the mobile app
+      // re-sorts this list by topicName to order its Q-Bank groups. A leading
+      // U+3000 sorts after every letter in the app's code-unit compare and is
+      // stripped by Dart's trim() before display, so General lands last
+      // without an app release. The web sorts with localeCompare, where a
+      // space sorts first, so it places General last itself.
+      const generalLabel =
+        Number(row.is_general) === 1 && !row.subject_name
+          ? 'General / Full Course Revision'
+          : '';
       return {
         id: row.id,
         courseId: row.course_id,
@@ -301,8 +311,8 @@ export class QuizAttemptsService {
         // topic, topic is its subtopic. topicName was reading subject_name —
         // a copy-paste that made it a duplicate of subjectName, which is why
         // nothing could group by it.
-        subjectName: row.subject_name || '',
-        topicName: row.topic_name || '',
+        subjectName: row.subject_name || generalLabel,
+        topicName: row.topic_name || (generalLabel ? `　${generalLabel}` : ''),
         subtopicName: row.topic_name || '',
         lessonTitle: row.lesson_title || '',
         examAttemptCount: Number(row.exam_attempt_count || 0),

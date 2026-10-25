@@ -111,6 +111,9 @@ let QuizAttemptsService = class QuizAttemptsService {
                 : !canUseDynamic
                     ? 'Dynamic randomized quizzes are included with premium plans.'
                     : '';
+            const generalLabel = Number(row.is_general) === 1 && !row.subject_name
+                ? 'General / Full Course Revision'
+                : '';
             return {
                 id: row.id,
                 courseId: row.course_id,
@@ -134,8 +137,8 @@ let QuizAttemptsService = class QuizAttemptsService {
                 updatedAt: row.updated_at || row.created_at || null,
                 courseTitle: row.course_title || '',
                 examType: row.exam_type || '',
-                subjectName: row.subject_name || '',
-                topicName: row.topic_name || '',
+                subjectName: row.subject_name || generalLabel,
+                topicName: row.topic_name || (generalLabel ? `　${generalLabel}` : ''),
                 subtopicName: row.topic_name || '',
                 lessonTitle: row.lesson_title || '',
                 examAttemptCount: Number(row.exam_attempt_count || 0),
