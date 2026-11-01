@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { fetchStudentQuizzes, prefetchStudentQuiz, readStudentQuizzesCache } from '../../../../shared/api/quizAttempts.api.js';
@@ -322,6 +322,31 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
   );
 }
 
+/**
+ * Second level inside a subject: the quizzes split by topic, like the app. The
+ * list endpoint's topicName once came back as the SUBJECT's name, so the
+ * subtopic is read first and a topic that just repeats the subject is ignored.
+ * Numbering restarts under each heading, and a lone topic that is only the
+ * section's own name gets no heading.
+ */
+function groupQuizzesByTopic(subject) {
+  const topicOf = (quiz) => {
+    const sub = String(quiz.subtopicName || '').trim();
+    if (sub) return sub;
+    const topic = String(quiz.topicName || '').trim();
+    return topic === String(quiz.subjectName || '').trim() ? '' : topic;
+  };
+  const order = [];
+  const byTopic = new Map();
+  subject.quizzes.forEach((quiz) => {
+    const key = topicOf(quiz);
+    if (!byTopic.has(key)) { byTopic.set(key, []); order.push(key); }
+    byTopic.get(key).push(quiz);
+  });
+  const single = order.length === 1 && order[0] === subject.label;
+  return order.map((key) => ({ label: single ? '' : key, quizzes: byTopic.get(key) }));
+}
+
 function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, onStartReady, pageMode, scope, onScopeChange }) {
   const isExamPage = pageMode === 'exam';
   const setLabel = isExamPage ? 'Exam Set' : 'Practice Set';
@@ -431,16 +456,25 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
 
               <div className="student-lessons-lesson-list-shell" aria-hidden={isCollapsed}>
                 <div className="student-lessons-lesson-list">
-                  {subject.quizzes.map((quiz, index) => (
-                    <QuizLessonRow
-                      key={quiz.id}
-                      quiz={quiz}
-                      index={index}
-                      bookmarked={bookmarkedIds.has(quiz.id)}
-                      onBookmark={onBookmark}
-                      onStart={() => startQuiz(quiz, getQuizRowLabel(quiz, index))}
-                      pageMode={pageMode}
-                    />
+                  {groupQuizzesByTopic(subject).map((topic, topicIndex) => (
+                    <Fragment key={`${topic.label || 'general'}-${topicIndex}`}>
+                      {topic.label ? (
+                        <div className="student-lessons-topic-divider">
+                          <span>{topic.label}</span>
+                        </div>
+                      ) : null}
+                      {topic.quizzes.map((quiz, index) => (
+                        <QuizLessonRow
+                          key={quiz.id}
+                          quiz={quiz}
+                          index={index}
+                          bookmarked={bookmarkedIds.has(quiz.id)}
+                          onBookmark={onBookmark}
+                          onStart={() => startQuiz(quiz, getQuizRowLabel(quiz, index))}
+                          pageMode={pageMode}
+                        />
+                      ))}
+                    </Fragment>
                   ))}
                 </div>
               </div>

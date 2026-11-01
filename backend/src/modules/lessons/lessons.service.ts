@@ -2908,10 +2908,19 @@ export class LessonsService {
     const canAccess = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: row.id }, accessProfile);
     const appOnly = !canAccess && !note.isFree && accessProfile.appOnlyBlocked;
     const hasStudyMode = accessProfile.hasAnyPaidLessonAccess || note.isFree;
+    // What the LIST draws a padlock for: the student's plan doesn't cover it.
+    // A paid student on the website still can't open premium lessons (app-only,
+    // `canAccess`/`accessLocked` stay as they were), but showing them a lock
+    // after they've paid reads as "my payment didn't work".
+    const planCovers = this.canAccessCanvasLesson(
+      { courseId: row.course_id, isFree: row.is_free, id: row.id },
+      { ...accessProfile, appOnlyBlocked: false },
+    );
     return {
       ...note,
       cardCount: note.approvedFlashcardCount,
       canAccess, accessLocked: !canAccess,
+      showLock: !planCovers,
       appOnly,
       upgradeLabel: appOnly ? 'Open in the app' : hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
       lockReason: !canAccess

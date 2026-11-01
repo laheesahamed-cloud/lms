@@ -2020,10 +2020,12 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const canAccess = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: row.id }, accessProfile);
         const appOnly = !canAccess && !note.isFree && accessProfile.appOnlyBlocked;
         const hasStudyMode = accessProfile.hasAnyPaidLessonAccess || note.isFree;
+        const planCovers = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: row.id }, { ...accessProfile, appOnlyBlocked: false });
         return {
             ...note,
             cardCount: note.approvedFlashcardCount,
             canAccess, accessLocked: !canAccess,
+            showLock: !planCovers,
             appOnly,
             upgradeLabel: appOnly ? 'Open in the app' : hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
             lockReason: !canAccess

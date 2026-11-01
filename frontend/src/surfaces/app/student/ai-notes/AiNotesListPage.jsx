@@ -183,7 +183,9 @@ function CourseCard({ course, onClick }) {
 // ── Lesson text row ───────────────────────────────────────────────────────────
 function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
   const title = note.title || note.lessonTitle || 'Untitled lesson';
-  const locked = Boolean(note.accessLocked);
+  // The padlock follows the plan, not the app-only rule: a paid student on the
+  // website opens the lesson and gets the "open in the app" screen instead.
+  const locked = Boolean(note.showLock ?? note.accessLocked);
   const isCompleted = note.lessonCompleted || note.lessonProgressStatus === 'completed' || Number(note.lessonProgressPercent || 0) >= 100;
   const isPdfOnly = Boolean(note.pdfUrl || note.lessonPdfUrl) && !note.noteData;
 

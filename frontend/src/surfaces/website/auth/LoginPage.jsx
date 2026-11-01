@@ -308,7 +308,6 @@ const LoginBrand = memo(function LoginBrand() {
           fontSize: 11, fontWeight: 800, color: '#22D3EE',
           letterSpacing: '.1em', textTransform: 'uppercase',
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22D3EE', boxShadow: '0 0 8px #22D3EE', flexShrink: 0 }}/>
           Trusted by medical students
         </div>
 

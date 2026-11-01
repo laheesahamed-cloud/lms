@@ -243,7 +243,7 @@ export declare class LessonsService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
         ok: boolean;
@@ -531,6 +531,7 @@ export declare class LessonsService {
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        showLock: boolean;
         appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
@@ -567,6 +568,7 @@ export declare class LessonsService {
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        showLock: boolean;
         appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
