@@ -1,0 +1,607 @@
+{
+  "format_id": "osce.bulk-import",
+  "format_version": "1.0.0",
+  "import_options": {
+    "create_as_draft": true
+  },
+  "cases": [
+    {
+      "slug": "liver-cirrhosis",
+      "title": "Liver Cirrhosis — Abdominal Short Case",
+      "summary": "Examination of an adult with chronic liver disease: peripheral stigmata, ascites and portal hypertension.",
+      "station_type": "short",
+      "difficulty": "intermediate",
+      "course_ref": "MBBS_MEDICINE",
+      "topic_ref": "GASTROENTEROLOGY",
+      "is_public": false,
+      "is_free": false,
+      "case_data": {
+        "version": 1,
+        "scenes": [
+          {
+            "id": "body",
+            "label": "Full patient",
+            "region": "general",
+            "slot_key": "scene:body",
+            "brief": "Full-length view of an adult patient standing in a hospital gown against a plain wall, front view, portrait framing, no text or arrows.",
+            "hotspots": [
+              {
+                "label": "Eyes",
+                "x": 0.5,
+                "y": 0.09,
+                "target_type": "scene",
+                "target_id": "eyes"
+              },
+              {
+                "label": "Hands",
+                "x": 0.27,
+                "y": 0.55,
+                "target_type": "scene",
+                "target_id": "hands"
+              },
+              {
+                "label": "Chest",
+                "x": 0.5,
+                "y": 0.27,
+                "target_type": "scene",
+                "target_id": "chest"
+              },
+              {
+                "label": "Abdomen",
+                "x": 0.5,
+                "y": 0.42,
+                "target_type": "scene",
+                "target_id": "abdomen"
+              },
+              {
+                "label": "Legs",
+                "x": 0.5,
+                "y": 0.78,
+                "target_type": "scene",
+                "target_id": "legs"
+              }
+            ]
+          },
+          {
+            "id": "eyes",
+            "label": "Eyes",
+            "region": "head",
+            "slot_key": "scene:eyes",
+            "brief": "Close-up of the face and eyes of the same patient, natural daylight, no text.",
+            "hotspots": [
+              {
+                "label": "Sclerae",
+                "x": 0.5,
+                "y": 0.5,
+                "target_type": "sign",
+                "target_id": "jaundice"
+              }
+            ]
+          },
+          {
+            "id": "hands",
+            "label": "Hands",
+            "region": "hands",
+            "slot_key": "scene:hands",
+            "brief": "Both hands of the same patient held out in front, palms up, plain background, no text.",
+            "hotspots": [
+              {
+                "label": "Palms",
+                "x": 0.35,
+                "y": 0.5,
+                "target_type": "sign",
+                "target_id": "palmar-erythema"
+              },
+              {
+                "label": "Nails",
+                "x": 0.55,
+                "y": 0.2,
+                "target_type": "sign",
+                "target_id": "leuconychia"
+              },
+              {
+                "label": "Fingertips",
+                "x": 0.75,
+                "y": 0.22,
+                "target_type": "sign",
+                "target_id": "clubbing"
+              },
+              {
+                "label": "Palmar fascia",
+                "x": 0.4,
+                "y": 0.7,
+                "target_type": "sign",
+                "target_id": "dupuytren"
+              },
+              {
+                "label": "Outstretched hands",
+                "x": 0.6,
+                "y": 0.55,
+                "target_type": "sign",
+                "target_id": "asterixis"
+              }
+            ]
+          },
+          {
+            "id": "chest",
+            "label": "Chest",
+            "region": "chest",
+            "slot_key": "scene:chest",
+            "brief": "Bare upper chest of the same patient from the front, clinical lighting, no text.",
+            "hotspots": [
+              {
+                "label": "Skin",
+                "x": 0.4,
+                "y": 0.3,
+                "target_type": "sign",
+                "target_id": "spider-naevi"
+              },
+              {
+                "label": "Breast tissue",
+                "x": 0.6,
+                "y": 0.55,
+                "target_type": "sign",
+                "target_id": "gynaecomastia"
+              }
+            ]
+          },
+          {
+            "id": "abdomen",
+            "label": "Abdomen",
+            "region": "abdomen",
+            "slot_key": "scene:abdomen",
+            "brief": "The whole abdomen of the same patient lying flat, exposed from the xiphisternum to the symphysis pubis, clinical lighting, no text.",
+            "hotspots": [
+              {
+                "label": "Whole abdomen",
+                "x": 0.5,
+                "y": 0.5,
+                "target_type": "sign",
+                "target_id": "ascites-distension"
+              },
+              {
+                "label": "Umbilicus",
+                "x": 0.5,
+                "y": 0.4,
+                "target_type": "sign",
+                "target_id": "caput-medusae"
+              },
+              {
+                "label": "Right upper quadrant",
+                "x": 0.3,
+                "y": 0.3,
+                "target_type": "sign",
+                "target_id": "shrunken-liver"
+              },
+              {
+                "label": "Left upper quadrant",
+                "x": 0.72,
+                "y": 0.3,
+                "target_type": "sign",
+                "target_id": "splenomegaly"
+              },
+              {
+                "label": "Flank",
+                "x": 0.82,
+                "y": 0.55,
+                "target_type": "sign",
+                "target_id": "fluid-thrill"
+              },
+              {
+                "label": "Flanks",
+                "x": 0.18,
+                "y": 0.6,
+                "target_type": "sign",
+                "target_id": "shifting-dullness"
+              }
+            ]
+          },
+          {
+            "id": "legs",
+            "label": "Legs",
+            "region": "legs",
+            "slot_key": "scene:legs",
+            "brief": "Both lower legs and feet of the same patient with visible swelling, plain background, no text.",
+            "hotspots": [
+              {
+                "label": "Shins",
+                "x": 0.5,
+                "y": 0.5,
+                "target_type": "sign",
+                "target_id": "pitting-oedema"
+              }
+            ]
+          }
+        ],
+        "signs": [
+          {
+            "id": "jaundice",
+            "name": "Scleral jaundice",
+            "method": "inspection",
+            "region": "head",
+            "scene_id": "eyes",
+            "what": "Yellow discolouration of the sclerae, best seen in natural light.",
+            "how": "Ask the patient to look up and down while you gently retract the lower lids; inspect the sclerae in daylight, not under yellow artificial light.",
+            "why": "Failing hepatocytes cannot conjugate and excrete bilirubin, so it accumulates in the blood and stains the sclerae and skin.",
+            "media_slot": "sign:jaundice",
+            "brief": "Close-up of both eyes of an adult with distinct yellow sclerae, natural daylight, lower lid gently retracted, no text."
+          },
+          {
+            "id": "palmar-erythema",
+            "name": "Palmar erythema",
+            "method": "inspection",
+            "region": "hands",
+            "scene_id": "hands",
+            "what": "Redness of the thenar and hypothenar eminences, sparing the centre of the palm.",
+            "how": "Ask the patient to hold both hands out palms up and inspect the heels of the palms in good light; compare both sides.",
+            "why": "The failing liver metabolises oestrogen poorly, and raised oestrogen causes peripheral vasodilatation.",
+            "media_slot": "sign:palmar-erythema",
+            "brief": "Palms of both hands held up, clear bright red colour over the thenar and hypothenar eminences, sparing the centre of the palm, no text."
+          },
+          {
+            "id": "leuconychia",
+            "name": "Leuconychia",
+            "method": "inspection",
+            "region": "hands",
+            "scene_id": "hands",
+            "what": "White nails with the nail bed appearing opaque white, usually in more than one nail.",
+            "how": "Inspect all ten nails against a plain background; look for a uniformly white nail plate.",
+            "why": "Low serum albumin from reduced hepatic synthesis changes the nail bed and produces the white appearance.",
+            "media_slot": "sign:leuconychia",
+            "brief": "Close-up of fingernails that are uniformly opaque white, adult hand on a plain background, no text."
+          },
+          {
+            "id": "clubbing",
+            "name": "Finger clubbing",
+            "method": "inspection",
+            "region": "hands",
+            "scene_id": "hands",
+            "what": "Loss of the angle between the nail and the nail fold, with a bulbous fingertip.",
+            "how": "Look at the fingers from the side for loss of the nail-fold angle; check for the Schamroth window sign by placing the nails of opposing fingers together.",
+            "why": "Seen in cirrhosis through poorly understood vascular changes, including hepatopulmonary shunting. It is non-specific.",
+            "media_slot": "sign:clubbing",
+            "brief": "Side view of a clubbed finger showing loss of the nail-fold angle and a bulbous tip, no text."
+          },
+          {
+            "id": "dupuytren",
+            "name": "Dupuytren's contracture",
+            "method": "inspection",
+            "region": "hands",
+            "scene_id": "hands",
+            "what": "Thickening and puckering of the palmar fascia with fixed flexion of the ring finger, and sometimes the little finger.",
+            "how": "Inspect the palm for puckered skin and cords; feel the palmar fascia for nodules or a firm cord, and ask whether the fingers will straighten.",
+            "why": "Associated with chronic alcohol excess and liver disease, although the mechanism is not clear. It is not specific to the liver.",
+            "media_slot": "sign:dupuytren",
+            "brief": "Open palm showing a tight fibrous cord running to a flexed ring finger with puckered palmar skin, no text."
+          },
+          {
+            "id": "asterixis",
+            "name": "Asterixis (flapping tremor)",
+            "method": "inspection",
+            "region": "hands",
+            "scene_id": "hands",
+            "what": "A coarse, irregular flapping of the outstretched hands, a sign of hepatic encephalopathy.",
+            "how": "Ask the patient to stretch both arms out with the wrists dorsiflexed and fingers spread for 30 seconds; watch for a sudden loss of posture followed by a quick correction.",
+            "why": "Raised ammonia and other toxins that the liver no longer clears impair the brain's control of sustained posture.",
+            "media_slot": "sign:asterixis",
+            "brief": "Both arms stretched out in front, wrists dorsiflexed and fingers spread, examination room, no text."
+          },
+          {
+            "id": "spider-naevi",
+            "name": "Spider naevi",
+            "method": "inspection",
+            "region": "chest",
+            "scene_id": "chest",
+            "what": "Central red arteriole with fine radiating vessels that blanch on pressure. Five or more is significant.",
+            "how": "Inspect the upper trunk, neck, face and arms. Press on the centre with a pin head or glass slide; the lesion blanches and refills from the centre.",
+            "why": "Raised oestrogen levels, because the liver clears it poorly, cause dilatation of cutaneous arterioles.",
+            "media_slot": "sign:spider-naevi",
+            "brief": "Upper chest of an adult with several small red lesions, each a central dot with radiating fine vessels, no text."
+          },
+          {
+            "id": "gynaecomastia",
+            "name": "Gynaecomastia",
+            "method": "inspection",
+            "region": "chest",
+            "scene_id": "chest",
+            "what": "Palpable breast tissue in a male, usually bilateral.",
+            "how": "With consent, inspect the chest from the front and then palpate behind the nipple for a firm, rubbery disc of glandular tissue, not just fat.",
+            "why": "A rise in the oestrogen to androgen ratio, from poor hepatic clearance of oestrogen, stimulates breast tissue. Spironolactone can also cause it.",
+            "media_slot": "sign:gynaecomastia",
+            "brief": "Front view of a male chest with bilateral breast enlargement, clinical lighting, no text."
+          },
+          {
+            "id": "ascites-distension",
+            "name": "Abdominal distension with ascites",
+            "method": "inspection",
+            "region": "abdomen",
+            "scene_id": "abdomen",
+            "what": "A uniformly distended abdomen with bulging flanks and, in tense ascites, an everted umbilicus.",
+            "how": "Stand at the foot of the bed and then at the side with the patient lying flat; look at the contour of the flanks, the umbilicus and the skin for stretch marks.",
+            "why": "Portal hypertension together with low albumin and sodium retention allows fluid to accumulate in the peritoneal cavity.",
+            "media_slot": "sign:ascites-distension",
+            "brief": "Supine adult with a distended, tense abdomen, bulging flanks and an everted umbilicus, no text."
+          },
+          {
+            "id": "caput-medusae",
+            "name": "Caput medusae",
+            "method": "inspection",
+            "region": "abdomen",
+            "scene_id": "abdomen",
+            "what": "Dilated veins radiating from the umbilicus across the abdominal wall.",
+            "how": "Expose the abdomen and inspect the skin around the umbilicus. Occlude a vein and see the direction of flow if asked; in caput, flow is away from the umbilicus.",
+            "why": "Raised portal pressure reopens the paraumbilical veins, which connect the portal and systemic circulations.",
+            "media_slot": "sign:caput-medusae",
+            "brief": "Anterior abdominal wall with prominent dilated veins radiating from the umbilicus, no text."
+          },
+          {
+            "id": "shrunken-liver",
+            "name": "Liver edge and size",
+            "method": "palpation",
+            "region": "abdomen",
+            "scene_id": "abdomen",
+            "what": "In established cirrhosis the liver is often small and hard; it may be palpable with a nodular, firm edge, particularly in early or alcoholic disease.",
+            "how": "With the patient supine and knees slightly bent, start in the right iliac fossa and palpate upwards with the flat of the fingers, timing your movement with breathing; then percuss the upper border to estimate size.",
+            "why": "Fibrosis and nodular regeneration distort and, over time, shrink the liver, and it feels firm.",
+            "media_slot": "sign:shrunken-liver",
+            "brief": "Examiner's hand palpating the right upper quadrant of a supine adult, no text."
+          },
+          {
+            "id": "splenomegaly",
+            "name": "Splenomegaly",
+            "method": "palpation",
+            "region": "abdomen",
+            "scene_id": "abdomen",
+            "what": "A palpable spleen tip below the left costal margin that moves down on inspiration.",
+            "how": "Begin palpating in the right iliac fossa and move diagonally towards the left costal margin on each breath; roll the patient onto the right side and repeat.",
+            "why": "Portal hypertension causes back-pressure into the splenic vein and congestion of the spleen.",
+            "media_slot": "sign:splenomegaly",
+            "brief": "Examiner's hand palpating beneath the left costal margin of a supine adult, no text."
+          },
+          {
+            "id": "fluid-thrill",
+            "name": "Fluid thrill",
+            "method": "palpation",
+            "region": "abdomen",
+            "scene_id": "abdomen",
+            "what": "A tap on one flank is transmitted as a ripple to the opposite flank through free fluid.",
+            "how": "Ask the patient or an assistant to rest the edge of a hand firmly along the midline; place one palm on a flank and flick the opposite flank with a finger of the other hand.",
+            "why": "The ripple travels through free peritoneal fluid, so it indicates a large volume of ascites.",
+            "media_slot": "sign:fluid-thrill",
+            "brief": "Examiner demonstrating the fluid thrill on a supine adult, with an assistant's hand on the midline, no text."
+          },
+          {
+            "id": "shifting-dullness",
+            "name": "Shifting dullness",
+            "method": "percussion",
+            "region": "abdomen",
+            "scene_id": "abdomen",
+            "what": "Dullness in the flanks that moves to the uppermost flank when the patient rolls onto their side.",
+            "how": "Percuss from the midline towards a flank until the note turns dull, keep your finger there, ask the patient to roll away, wait 30 seconds, and percuss again.",
+            "why": "Free fluid settles to the dependent flank and bowel loops float to the top, so the note changes with position.",
+            "media_slot": "sign:shifting-dullness",
+            "brief": "Examiner percussing the flank of a supine adult, abdomen exposed, no text."
+          },
+          {
+            "id": "pitting-oedema",
+            "name": "Pitting oedema",
+            "method": "palpation",
+            "region": "legs",
+            "scene_id": "legs",
+            "what": "Indentation left in the skin of the shins and ankles after firm pressure.",
+            "how": "Press firmly with your thumb over the tibia for at least five seconds and look for an indentation; note how high the swelling extends and check the sacrum.",
+            "why": "Low albumin reduces oncotic pressure, and sodium and water retention adds to it, so fluid leaks into the tissues.",
+            "media_slot": "sign:pitting-oedema",
+            "brief": "Both lower legs of an adult with swelling and a visible thumb-print indentation over the shin, no text."
+          }
+        ],
+        "chain": [
+          {
+            "step": 1,
+            "title": "Chronic liver injury",
+            "body": "Long-standing injury from alcohol, chronic hepatitis B or C or fatty liver disease leads to inflammation and the deposition of scar tissue.",
+            "media": "chain:1"
+          },
+          {
+            "step": 2,
+            "title": "Fibrosis and portal hypertension",
+            "body": "Scarring and nodular regeneration distort the liver's architecture and raise resistance to portal flow, so pressure in the portal venous system rises and collaterals open.",
+            "media": "chain:2"
+          },
+          {
+            "step": 3,
+            "title": "Falling liver function",
+            "body": "Fewer working hepatocytes means less albumin and clotting factors, poor clearance of oestrogen and bilirubin, and less detoxification of ammonia.",
+            "media": "chain:3"
+          },
+          {
+            "step": 4,
+            "title": "Fluid retention",
+            "body": "Low albumin, portal hypertension and sodium retention push fluid into the peritoneal cavity and the tissues, causing ascites and oedema.",
+            "media": "chain:4"
+          },
+          {
+            "step": 5,
+            "title": "Encephalopathy",
+            "body": "Toxins that the liver no longer clears, mainly ammonia, and portosystemic shunting affect the brain and cause confusion, a reversed sleep pattern and asterixis.",
+            "media": "chain:5"
+          }
+        ],
+        "investigations": [
+          {
+            "modality": "Liver function tests and albumin",
+            "findings": [
+              "Raised bilirubin in decompensated disease",
+              "Raised AST and ALT, with AST:ALT above 2 suggesting alcohol",
+              "Low albumin",
+              "Raised ALP and GGT may be present"
+            ]
+          },
+          {
+            "modality": "Full blood count and clotting",
+            "findings": [
+              "Thrombocytopenia from hypersplenism",
+              "Prolonged prothrombin time and INR reflecting poor synthetic function",
+              "Macrocytosis may suggest alcohol"
+            ]
+          },
+          {
+            "modality": "Ultrasound of the abdomen",
+            "findings": [
+              "Small, nodular, echogenic liver",
+              "Splenomegaly and ascites",
+              "Dilated portal vein and collaterals on Doppler",
+              "Screen for hepatocellular carcinoma"
+            ]
+          },
+          {
+            "modality": "Diagnostic ascitic tap",
+            "findings": [
+              "Neutrophil count above 250 per mm3 indicates spontaneous bacterial peritonitis",
+              "Serum-ascites albumin gradient of 11 g/L or more suggests portal hypertension"
+            ]
+          },
+          {
+            "modality": "Upper GI endoscopy",
+            "findings": [
+              "Oesophageal or gastric varices",
+              "Portal hypertensive gastropathy"
+            ]
+          }
+        ],
+        "sounds": [],
+        "summary": {
+          "keyPoints": [
+            "Cirrhosis is irreversible scarring with nodular regeneration; its consequences are portal hypertension and failing liver function.",
+            "Examine hands, face, chest, abdomen and legs in that order.",
+            "Ascites is confirmed by shifting dullness; a large volume also gives a fluid thrill.",
+            "Always look for signs of decompensation: jaundice, ascites, asterixis."
+          ],
+          "osceTips": [
+            "Tell the examiner what you are looking for as you go, for example 'I am checking for asterixis'.",
+            "Expose the abdomen from nipple line to the groin with the patient covered below.",
+            "Say 'chronic liver disease' first; name cirrhosis only once you can justify portal hypertension or decompensation."
+          ],
+          "connect": {
+            "dupuytren": 1,
+            "caput-medusae": 2,
+            "splenomegaly": 2,
+            "shrunken-liver": 2,
+            "jaundice": 3,
+            "palmar-erythema": 3,
+            "spider-naevi": 3,
+            "gynaecomastia": 3,
+            "leuconychia": 3,
+            "ascites-distension": 4,
+            "fluid-thrill": 4,
+            "shifting-dullness": 4,
+            "pitting-oedema": 4,
+            "asterixis": 5
+          }
+        },
+        "treatment": [
+          {
+            "group": "Immediate assessment",
+            "items": [
+              "Assess airway, breathing and circulation and look for bleeding, sepsis and confusion.",
+              "Check glucose, U&E, liver tests, clotting and blood cultures; examine for ascites and peritonitis.",
+              "Do a diagnostic ascitic tap in any patient admitted with ascites."
+            ]
+          },
+          {
+            "group": "Complications",
+            "items": [
+              "Variceal bleeding: resuscitate, give a vasoactive drug and antibiotics, and arrange urgent endoscopy.",
+              "Ascites: restrict dietary sodium and use spironolactone, with a loop diuretic if needed; therapeutic paracentesis for tense ascites.",
+              "Spontaneous bacterial peritonitis: antibiotics and albumin.",
+              "Hepatic encephalopathy: treat the trigger and give lactulose."
+            ]
+          },
+          {
+            "group": "Long-term",
+            "items": [
+              "Treat the cause: alcohol abstinence, antivirals for hepatitis B or C, weight loss for fatty liver disease.",
+              "Ultrasound surveillance for hepatocellular carcinoma about every six months.",
+              "Endoscopic screening for varices and non-selective beta-blocker or band ligation as indicated.",
+              "Vaccination and nutritional support; consider referral for liver transplantation."
+            ]
+          }
+        ],
+        "related": [],
+        "practice": {
+          "checklist": [
+            {
+              "section": "Introduction and safety",
+              "items": [
+                {
+                  "id": "lc-intro",
+                  "text": "Washes hands, introduces self and confirms patient identity",
+                  "marks": 1
+                },
+                {
+                  "id": "lc-consent",
+                  "text": "Explains the examination, obtains consent and exposes appropriately",
+                  "marks": 1
+                },
+                {
+                  "id": "lc-position",
+                  "text": "Positions the patient lying flat with one pillow",
+                  "marks": 1
+                }
+              ]
+            },
+            {
+              "section": "Hands and arms",
+              "items": [
+                "Inspects the nails for leuconychia and clubbing",
+                "Looks for palmar erythema and Dupuytren's contracture",
+                "Tests for asterixis with outstretched hands",
+                "Checks the pulse"
+              ]
+            },
+            {
+              "section": "Face, neck and chest",
+              "items": [
+                "Inspects the sclerae for jaundice",
+                "Looks for spider naevi on the upper chest",
+                "Checks for gynaecomastia in a male patient"
+              ]
+            },
+            {
+              "section": "Abdomen",
+              "items": [
+                "Inspects for distension, caput medusae and scars",
+                "Palpates all nine regions, asking about pain",
+                "Palpates for hepatomegaly and splenomegaly",
+                "Percusses for shifting dullness and tests for a fluid thrill"
+              ]
+            },
+            {
+              "section": "Finishing",
+              "items": [
+                "Examines the legs for pitting oedema",
+                "Offers a rectal examination and checks for ankle and sacral oedema",
+                "Thanks the patient and covers them",
+                "Presents findings clearly and proposes a diagnosis and investigations"
+              ]
+            }
+          ],
+          "questions": [
+            {
+              "q": "Name four causes of chronic liver disease that lead to cirrhosis.",
+              "a": "Alcohol, chronic hepatitis B or C, non-alcoholic fatty liver disease and autoimmune or genetic causes such as primary biliary cholangitis, haemochromatosis and Wilson's disease."
+            },
+            {
+              "q": "What is shifting dullness and what does it mean?",
+              "a": "Dullness to percussion in the flanks that moves to the uppermost flank when the patient rolls; it indicates free fluid, that is, ascites."
+            },
+            {
+              "q": "What are the complications of cirrhosis you would look for?",
+              "a": "Variceal bleeding, ascites with spontaneous bacterial peritonitis, hepatic encephalopathy, hepatorenal syndrome, coagulopathy and hepatocellular carcinoma."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -11,35 +11,40 @@ import { CasePreview } from './CasePreview.jsx';
 import { ContentPicker } from './ContentPicker.jsx';
 import { RelatedEditor } from './RelatedEditor.jsx';
 import { SummaryEditor } from './SummaryEditor.jsx';
-import { CategoryManager } from './CategoryManager.jsx';
+import { ImportPanel } from './ImportPanel.jsx';
+import { CategoryManager, GlobalArt } from './CategoryManager.jsx';
 import { LongCaseEditor } from './LongCaseEditor.jsx';
 import './AdminOscePage.css';
 
 const MEDIA_BASE = `${String(API_BASE_URL).replace(/\/+$/, '')}/osce/media`;
 
+// Ordered the way the student app is: set the case up, then Examine, Learn and
+// Checklist. The third entry is the group the tab sits under in the bar.
 const SHORT_TABS = [
-  ['preview', 'Preview'],
-  ['images', 'Images'],
-  ['scenes', 'Scenes'],
-  ['signs', 'Findings'],
-  ['chain', 'Pathophysiology'],
-  ['ix', 'Investigations'],
-  ['sounds', 'Sounds'],
-  ['treatment', 'Treatment'],
-  ['practice', 'Practice'],
-  ['summary', 'Summary'],
-  ['links', 'Links'],
+  ['preview', 'Preview', 'Set up'],
+  ['images', 'Images', 'Set up'],
+  ['scenes', 'Scenes', 'Examine'],
+  ['signs', 'Findings', 'Examine'],
+  ['chain', 'Mechanism', 'Learn'],
+  ['ix', 'Investigations', 'Learn'],
+  ['sounds', 'Sounds', 'Learn'],
+  ['treatment', 'Management', 'Learn'],
+  ['summary', 'Quick revision', 'Learn'],
+  ['links', 'Related cases', 'Learn'],
+  ['practice', 'Checklist', 'Checklist'],
 ];
 
 // A long case is a conversation: no scenes, no findings, no per-case pictures
 // beyond the cover. Showing the short-case tabs here only misleads.
 const LONG_TABS = [
-  ['preview', 'Preview'],
-  ['history', 'History'],
-  ['images', 'Cover'],
-  ['treatment', 'Treatment'],
-  ['practice', 'Practice'],
-  ['links', 'Links'],
+  ['preview', 'Preview', 'Set up'],
+  ['images', 'Cover', 'Set up'],
+  ['history', 'History', 'History'],
+  ['treatment', 'Management', 'Learn'],
+  ['summary', 'Quick revision', 'Learn'],
+  ['links', 'Related cases', 'Learn'],
+  ['practice', 'Checklist', 'Learn'],
+  ['viva', 'Viva questions', 'Viva'],
 ];
 
 /* ───────────────────────── new case ───────────────────────── */
@@ -154,7 +159,7 @@ function TextRow({ value, onChange, onRemove, placeholder }) {
   );
 }
 
-function SignEditor({ sign, onChange, onRemove }) {
+function SignEditor({ sign, sounds, onLinkSound, onChange, onRemove }) {
   return (
     <div className="osce-card">
       <div className="osce-card-head">
@@ -168,15 +173,67 @@ function SignEditor({ sign, onChange, onRemove }) {
         </select>
         <button type="button" className="osce-btn-danger" onClick={onRemove}>Remove</button>
       </div>
-      <input className="osce-input osce-input--full" placeholder="One-line finding"
-             value={sign.short || ''} onChange={(e) => onChange({ ...sign, short: e.target.value })} />
-      <textarea className="osce-input osce-input--full" rows={3} placeholder="Why it happens in this condition"
+      {sign.category === 'auscultation' ? (
+        <label className="osce-sound-link">
+          <span>Sound heard</span>
+          <select className="osce-input" value={sign.sound || ''}
+                  onChange={(e) => onLinkSound(e.target.value)}>
+            <option value="">{sounds?.length ? 'No sound linked' : 'Add a sound in the Sounds tab first'}</option>
+            {(sounds || []).map((snd, k) => (
+              <option key={k} value={snd.id || `sound-${k + 1}`}>{snd.title || `Sound ${k + 1}`}</option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <select className="osce-input" value={sign.region || ''}
+              onChange={(e) => onChange({ ...sign, region: e.target.value || null })}>
+        <option value="">Region…</option>
+        {['head', 'neck', 'chest', 'abdomen', 'groin', 'hands', 'legs', 'general'].map((r) => (
+          <option key={r} value={r}>{r}</option>
+        ))}
+      </select>
+      <textarea className="osce-input osce-input--full" rows={2} placeholder="What — the finding itself"
+                value={sign.short || ''} onChange={(e) => onChange({ ...sign, short: e.target.value })} />
+      <textarea className="osce-input osce-input--full" rows={2} placeholder="How to examine — position, landmarks, steps"
+                value={sign.how || ''} onChange={(e) => onChange({ ...sign, how: e.target.value })} />
+      <textarea className="osce-input osce-input--full" rows={3} placeholder="Why — the mechanism behind it"
                 value={sign.body || ''} onChange={(e) => onChange({ ...sign, body: e.target.value })} />
       <textarea className="osce-input osce-input--full osce-input--brief" rows={2}
                 placeholder="Image brief — what the picture must show"
                 value={sign.brief || ''} onChange={(e) => onChange({ ...sign, brief: e.target.value })} />
       <code className="osce-slot-file">slot: {sign.media}</code>
     </div>
+  );
+}
+
+/** Viva questions. In a short case they live under Learn (Quick revision); a long case has no such tab, so they stay with its checklist. */
+function VivaEditor({ doc, patchDoc }) {
+  return (
+    <>
+      <h4 className="osce-subhead">Viva questions</h4>
+      {(doc.practice?.questions || []).map((q, i) => (
+        <div key={i} className="osce-card">
+          <div className="osce-card-head">
+            <input className="osce-input osce-input--title" value={q.q} placeholder="Question"
+                   onChange={(e) => {
+                     const next = doc.practice.questions.map((x, j) => (j === i ? { ...x, q: e.target.value } : x));
+                     patchDoc({ practice: { ...doc.practice, questions: next } });
+                   }} />
+            <button type="button" className="osce-btn-danger" onClick={() => patchDoc({
+              practice: { ...doc.practice, questions: doc.practice.questions.filter((_, j) => j !== i) },
+            })}>Remove</button>
+          </div>
+          <textarea className="osce-input osce-input--full" rows={2} value={q.a} placeholder="Model answer"
+                    onChange={(e) => {
+                      const next = doc.practice.questions.map((x, j) => (j === i ? { ...x, a: e.target.value } : x));
+                      patchDoc({ practice: { ...doc.practice, questions: next } });
+                    }} />
+        </div>
+      ))}
+      <button type="button" className="osce-add" onClick={() => patchDoc({
+        practice: { ...doc.practice, questions: [...(doc.practice?.questions || []), { q: '', a: '' }] },
+      })}>+ Question</button>
+    </>
   );
 }
 
@@ -271,7 +328,8 @@ function CaseEditor({ caseId, onBack, onChanged }) {
     return <div className="osce-wrap"><p className="osce-hint">{error || 'Loading…'}</p></div>;
   }
 
-  const missing = shotList.filter((s) => !s.filled).length;
+  // Region (scene) pictures are required; every other image can be skipped.
+  const missing = shotList.filter((s) => !s.filled && String(s.slot).startsWith('scene:')).length;
 
   return (
     <div className="osce-wrap">
@@ -310,17 +368,20 @@ function CaseEditor({ caseId, onBack, onChanged }) {
 
       {missing > 0 ? (
         <p className="osce-gate">
-          {missing} image{missing === 1 ? '' : 's'} still missing — publishing stays locked until every
-          slot is filled.
+          {missing} region image{missing === 1 ? '' : 's'} still missing — publishing stays locked until
+          every "Examine a region" picture is added. All other images are optional.
         </p>
       ) : null}
       {error ? <p className="osce-error">{error}</p> : null}
 
       <div className="osce-tabs">
-        {tabs.map(([key, label]) => (
-          <button key={key} type="button"
-                  className={tab === key ? 'is-active' : ''}
-                  onClick={() => setTab(key)}>{label}</button>
+        {tabs.map(([key, label, group], i) => (
+          <span key={key} className="osce-tabs-item">
+            {group !== tabs[i - 1]?.[2] ? <em className="osce-tabs-group">{group}</em> : null}
+            <button type="button"
+                    className={tab === key ? 'is-active' : ''}
+                    onClick={() => setTab(key)}>{label}</button>
+          </span>
         ))}
       </div>
 
@@ -398,6 +459,13 @@ function CaseEditor({ caseId, onBack, onChanged }) {
             <SignEditor
               key={sign.id}
               sign={sign}
+              sounds={doc.sounds}
+              // Sounds get a stable id the first time one is linked, so a
+              // reorder in the Sounds tab can't repoint the finding.
+              onLinkSound={(soundId) => patchDoc({
+                sounds: (doc.sounds || []).map((x, k) => (x.id ? x : { ...x, id: `sound-${k + 1}` })),
+                signs: doc.signs.map((s, j) => (j === i ? { ...s, sound: soundId || null } : s)),
+              })}
               onChange={(next) => patchDoc({ signs: doc.signs.map((s, j) => (j === i ? next : s)) })}
               onRemove={() => patchDoc({ signs: doc.signs.filter((_, j) => j !== i) })}
             />
@@ -602,6 +670,21 @@ function CaseEditor({ caseId, onBack, onChanged }) {
         </div>
       ) : null}
 
+      {tab === 'summary' ? (
+        <>
+          <SummaryEditor doc={doc} patchDoc={patchDoc} />
+          {isLong ? null : <div className="osce-list"><VivaEditor doc={doc} patchDoc={patchDoc} /></div>}
+        </>
+      ) : null}
+
+      {tab === 'links' ? (
+        <RelatedEditor doc={doc} patchDoc={patchDoc} selfSlug={data.slug} />
+      ) : null}
+
+      {tab === 'viva' ? (
+        <div className="osce-list"><VivaEditor doc={doc} patchDoc={patchDoc} /></div>
+      ) : null}
+
       {tab === 'practice' ? (
         <div className="osce-list">
           {(doc.practice?.checklist || []).map((section, i) => (
@@ -634,29 +717,6 @@ function CaseEditor({ caseId, onBack, onChanged }) {
             </div>
           ))}
 
-          <h4 className="osce-subhead">Viva questions</h4>
-          {(doc.practice?.questions || []).map((q, i) => (
-            <div key={i} className="osce-card">
-              <div className="osce-card-head">
-                <input className="osce-input osce-input--title" value={q.q} placeholder="Question"
-                       onChange={(e) => {
-                         const next = doc.practice.questions.map((x, j) => (j === i ? { ...x, q: e.target.value } : x));
-                         patchDoc({ practice: { ...doc.practice, questions: next } });
-                       }} />
-                <button type="button" className="osce-btn-danger" onClick={() => patchDoc({
-                  practice: { ...doc.practice, questions: doc.practice.questions.filter((_, j) => j !== i) },
-                })}>Remove</button>
-              </div>
-              <textarea className="osce-input osce-input--full" rows={2} value={q.a} placeholder="Model answer"
-                        onChange={(e) => {
-                          const next = doc.practice.questions.map((x, j) => (j === i ? { ...x, a: e.target.value } : x));
-                          patchDoc({ practice: { ...doc.practice, questions: next } });
-                        }} />
-            </div>
-          ))}
-          <button type="button" className="osce-add" onClick={() => patchDoc({
-            practice: { ...doc.practice, questions: [...(doc.practice?.questions || []), { q: '', a: '' }] },
-          })}>+ Question</button>
         </div>
       ) : null}
     </div>
@@ -737,10 +797,28 @@ export function AdminOscePage() {
     }
   }, [load]);
 
-  const remove = async (id, title) => {
-    if (!window.confirm(`Delete "${title}" and all of its images?`)) return;
+  // Deleting asks on the row itself rather than in a browser pop-up: a blocked
+  // or suppressed confirm() made the button look dead.
+  const [confirmId, setConfirmId] = useState(null);
+  const [panel, setPanel] = useState('');
+  const togglePanel = (name) => setPanel((p) => (p === name ? '' : name));
+
+  const remove = async (id) => {
+    setError(null);
     try {
       await adminDeleteOsceCase(id);
+      setConfirmId(null);
+      load();
+    } catch (err) {
+      setConfirmId(null);
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const changeCategory = async (id, categoryId) => {
+    setError(null);
+    try {
+      await adminUpdateOsceCase(id, { categoryId: Number(categoryId) });
       load();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -764,13 +842,26 @@ export function AdminOscePage() {
         </div>
       </header>
 
-      <NewCasePanel
-        systems={systems}
-        courses={courses}
-        onCreated={(created, warns) => { setWarnings(warns); load(); if (created?.id) setOpenId(created.id); }}
-      />
+      <div className="osce-toolbar">
+        <button type="button" className={panel === 'new' ? 'is-on' : ''} onClick={() => togglePanel('new')}>＋ New case</button>
+        <button type="button" className={panel === 'category' ? 'is-on' : ''} onClick={() => togglePanel('category')}>＋ Category</button>
+        <button type="button" className={panel === 'photos' ? 'is-on' : ''} onClick={() => togglePanel('photos')}>🖼 Long-case photos</button>
+        <button type="button" className={panel === 'import' ? 'is-on' : ''} onClick={() => togglePanel('import')}>⇪ Import / export</button>
+      </div>
 
-      <CategoryManager courses={courses} categories={systems} onChanged={load} />
+      {panel === 'new' ? (
+        <NewCasePanel
+          systems={systems}
+          courses={courses}
+          onCreated={(created, warns) => { setWarnings(warns); setPanel(''); load(); if (created?.id) setOpenId(created.id); }}
+        />
+      ) : null}
+
+      {panel === 'import' ? <ImportPanel categories={systems} onDone={load} /> : null}
+
+      {panel === 'photos' ? <div className="osce-catman"><GlobalArt /></div> : null}
+
+      {panel === 'category' ? <CategoryManager courses={courses} categories={systems} onChanged={load} /> : null}
 
       {warnings.length ? (
         <ul className="osce-warnings">
@@ -821,8 +912,23 @@ export function AdminOscePage() {
                   <b>{c.title}</b>
                   <span>{[c.courseTitle, c.systemName].filter(Boolean).join(' · ')} · {c.summary || 'No summary yet'}</span>
                 </button>
+                <select className="osce-input osce-caserow-cat" value={c.categoryId || ''}
+                        title="Move to another category"
+                        onChange={(e) => changeCategory(c.id, e.target.value)}>
+                  {systems.map((s) => (
+                    <option key={s.id} value={s.id}>{s.courseTitle} · {s.name}</option>
+                  ))}
+                </select>
                 <span className={`osce-badge ${c.status === 'published' ? 'is-live' : ''}`}>{c.status}</span>
-                <button type="button" className="osce-btn-danger" onClick={() => remove(c.id, c.title)}>Delete</button>
+                {confirmId === c.id ? (
+                  <span className="osce-confirm">
+                    <span>Delete?</span>
+                    <button type="button" className="osce-btn-danger" onClick={() => remove(c.id)}>Yes</button>
+                    <button type="button" onClick={() => setConfirmId(null)}>No</button>
+                  </span>
+                ) : (
+                  <button type="button" className="osce-btn-danger" onClick={() => setConfirmId(c.id)}>Delete</button>
+                )}
               </div>
             ))}
           </div>

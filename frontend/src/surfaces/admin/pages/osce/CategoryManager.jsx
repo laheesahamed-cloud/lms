@@ -102,21 +102,18 @@ export function CategoryManager({ courses, categories, onChanged }) {
             onUp={() => move(i, -1)}
             onDown={() => move(i, 1)}
             onRename={(next) => run(() => adminUpdateOsceCategory(cat.id, { name: next }))}
-            onDelete={() => {
-              if (!window.confirm(`Delete the category "${cat.name}"?`)) return;
-              run(() => adminDeleteOsceCategory(cat.id));
-            }}
+            onDelete={() => run(() => adminDeleteOsceCategory(cat.id))}
           />
         ))}
       </div>
 
-      <GlobalArt />
     </div>
   );
 }
 
 function CategoryRow({ category, first, last, busy, onUp, onDown, onRename, onDelete }) {
   const [value, setValue] = useState(category.name);
+  const [asking, setAsking] = useState(false);
   useEffect(() => { setValue(category.name); }, [category.name]);
 
   return (
@@ -134,9 +131,18 @@ function CategoryRow({ category, first, last, busy, onUp, onDown, onRename, onDe
       <span className="osce-catrow-count">
         {category.caseCount} station{category.caseCount === 1 ? '' : 's'}
       </span>
-      <button type="button" className="osce-btn-danger" disabled={busy} onClick={onDelete}>
-        Delete
-      </button>
+      {asking ? (
+        <span className="osce-confirm">
+          <span>Delete?</span>
+          <button type="button" className="osce-btn-danger" disabled={busy}
+                  onClick={() => { setAsking(false); onDelete(); }}>Yes</button>
+          <button type="button" onClick={() => setAsking(false)}>No</button>
+        </span>
+      ) : (
+        <button type="button" className="osce-btn-danger" disabled={busy} onClick={() => setAsking(true)}>
+          Delete
+        </button>
+      )}
     </div>
   );
 }
@@ -146,7 +152,7 @@ function CategoryRow({ category, first, last, busy, onUp, onDown, onRename, onDe
  * and patient, because in a history station the conversation is the content
  * and the faces are just staging.
  */
-function GlobalArt() {
+export function GlobalArt() {
   const [cast, setCast] = useState({ doctor: null, patient: null });
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);

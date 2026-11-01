@@ -19,12 +19,14 @@ const multer_1 = require("multer");
 const auth_service_1 = require("../auth/auth.service");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
 const osce_service_1 = require("./osce.service");
+const osce_import_service_1 = require("./osce-import.service");
 const osce_generator_service_1 = require("./osce-generator.service");
 const smart_notes_image_api_service_1 = require("../smart-notes/smart-notes-image-api.service");
 let OsceAdminController = class OsceAdminController {
-    constructor(svc, generator, imageApi, authService) {
+    constructor(svc, generator, importer, imageApi, authService) {
         this.svc = svc;
         this.generator = generator;
+        this.importer = importer;
         this.imageApi = imageApi;
         this.authService = authService;
     }
@@ -79,6 +81,19 @@ let OsceAdminController = class OsceAdminController {
     async createCase(body, auth) {
         const admin = await this.authService.requireAdmin(auth);
         return this.svc.createCase({ ...body, createdBy: Number(admin?.id) || null });
+    }
+    async importPreview(body, auth) {
+        await this.authService.requireAdmin(auth);
+        return this.importer.preview(body?.package);
+    }
+    async importCommit(body, auth) {
+        const admin = await this.authService.requireAdmin(auth);
+        return this.importer.commit(body?.package, body?.mapping || {}, Number(admin?.id) || null);
+    }
+    async exportCases(slugs, auth) {
+        await this.authService.requireAdmin(auth);
+        const list = String(slugs || '').split(',').map((x) => x.trim()).filter(Boolean);
+        return this.importer.exportCases(list);
     }
     async generateCase(body, auth) {
         const admin = await this.authService.requireAdmin(auth);
@@ -312,6 +327,33 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], OsceAdminController.prototype, "createCase", null);
 __decorate([
+    (0, common_1.Post)('import/preview'),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], OsceAdminController.prototype, "importPreview", null);
+__decorate([
+    (0, common_1.Post)('import/commit'),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], OsceAdminController.prototype, "importCommit", null);
+__decorate([
+    (0, common_1.Get)('export'),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    __param(0, (0, common_1.Query)('slugs')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], OsceAdminController.prototype, "exportCases", null);
+__decorate([
     (0, common_1.Post)('cases/generate'),
     (0, permissions_decorator_1.RequirePermissions)('content.manage'),
     __param(0, (0, common_1.Body)()),
@@ -531,6 +573,7 @@ exports.OsceAdminController = OsceAdminController = __decorate([
     (0, common_1.Controller)('admin/osce'),
     __metadata("design:paramtypes", [osce_service_1.OsceService,
         osce_generator_service_1.OsceGeneratorService,
+        osce_import_service_1.OsceImportService,
         smart_notes_image_api_service_1.SmartNotesImageApiService,
         auth_service_1.AuthService])
 ], OsceAdminController);

@@ -17,7 +17,7 @@ export declare class OsceController {
     }>;
     regions(req: Request, auth?: string): Promise<{
         regions: {
-            key: "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs" | "general";
+            key: "general" | "head" | "neck" | "chest" | "abdomen" | "groin" | "hands" | "legs";
             label: string;
             caseCount: number;
             cases: Record<string, unknown>[];
@@ -133,6 +133,8 @@ export declare class OsceController {
                 region?: string | null;
                 media?: string | null;
                 short?: string;
+                how?: string;
+                sound?: string | null;
                 body?: string;
                 brief?: string;
             }[];
@@ -185,6 +187,7 @@ export declare class OsceController {
                     title: string;
                     url: string;
                 } | null;
+                id?: string;
                 title: string;
                 ref?: import("./osce.service").ContentRef | null;
                 compareWith?: import("./osce.service").ContentRef | null;
@@ -229,6 +232,8 @@ export declare class OsceController {
                     a: string;
                 }>;
             };
+            simulation?: Record<string, unknown>;
+            clinical_review?: Record<string, unknown>;
         };
         cover: {
             full: string;

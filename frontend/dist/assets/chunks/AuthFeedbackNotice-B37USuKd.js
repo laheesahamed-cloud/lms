@@ -1,0 +1,1 @@
+import{Ho as e,ja as t}from"./app-shared-Dx2nX6T0.js";var n=e();function r({id:e,tone:r=`error`,children:i,onDismiss:a}){return(0,n.jsx)(t,{id:e,tone:r,className:`max-[420px]:top-[calc(env(safe-area-inset-top,0px)+12px)]`,onDismiss:a,children:i})}export{r as t};

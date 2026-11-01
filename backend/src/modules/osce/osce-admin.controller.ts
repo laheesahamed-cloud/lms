@@ -8,6 +8,7 @@ import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { OsceService, CaseDocument } from './osce.service';
+import { OsceImportService } from './osce-import.service';
 import { OsceGeneratorService } from './osce-generator.service';
 import { SmartNotesImageApiService } from '../smart-notes/smart-notes-image-api.service';
 
@@ -16,6 +17,7 @@ export class OsceAdminController {
   constructor(
     private readonly svc: OsceService,
     private readonly generator: OsceGeneratorService,
+    private readonly importer: OsceImportService,
     private readonly imageApi: SmartNotesImageApiService,
     private readonly authService: AuthService,
   ) {}
@@ -132,6 +134,33 @@ export class OsceAdminController {
    * AI writes the case text and declares the image slots. One call, ~15–30s —
    * no job queue, because nothing here generates images.
    */
+  /* ───────────────────── bulk JSON import / export ───────────────────── */
+
+  @Post('import/preview')
+  @RequirePermissions('content.manage')
+  async importPreview(@Body() body: { package: any }, @Headers('authorization') auth?: string) {
+    await this.authService.requireAdmin(auth);
+    return this.importer.preview(body?.package);
+  }
+
+  @Post('import/commit')
+  @RequirePermissions('content.manage')
+  async importCommit(
+    @Body() body: { package: any; mapping?: Record<string, number> },
+    @Headers('authorization') auth?: string,
+  ) {
+    const admin = await this.authService.requireAdmin(auth);
+    return this.importer.commit(body?.package, body?.mapping || {}, Number((admin as any)?.id) || null);
+  }
+
+  @Get('export')
+  @RequirePermissions('content.manage')
+  async exportCases(@Query('slugs') slugs?: string, @Headers('authorization') auth?: string) {
+    await this.authService.requireAdmin(auth);
+    const list = String(slugs || '').split(',').map((x) => x.trim()).filter(Boolean);
+    return this.importer.exportCases(list);
+  }
+
   @Post('cases/generate')
   @RequirePermissions('content.manage')
   async generateCase(

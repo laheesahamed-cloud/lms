@@ -365,12 +365,14 @@ textarea.osce-input { resize: vertical; line-height: 1.5; }
 .osce-hotspot { display: grid; gap: 10px; }
 .osce-hotspot-stage {
   position: relative;
+  max-width: 420px;
+  margin: 0 auto;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--line-soft);
   background: var(--surface-2);
   min-height: 180px;
-  cursor: crosshair;
+  cursor: default;
   touch-action: none;
 }
 .osce-hotspot-stage.is-empty { display: grid; place-items: center; cursor: default; }
@@ -391,17 +393,18 @@ textarea.osce-input { resize: vertical; line-height: 1.5; }
   cursor: grab;
 }
 .osce-hs:active { cursor: grabbing; }
+/* One colour for every point, whatever it does, so they read the same on any
+   photo: solid blue, white ring, dark halo. Selected is the same dot, larger. */
 .osce-hs-dot {
   display: block;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--brand-primary-start);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary-start) 30%, transparent);
+  background: #2563EB;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55), 0 1px 6px rgba(15, 23, 42, 0.5);
 }
-.osce-hs--sign .osce-hs-dot { background: var(--color-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 30%, transparent); }
-.osce-hs--label .osce-hs-dot { background: var(--ink-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-muted) 26%, transparent); }
-.osce-hs.is-sel .osce-hs-dot { box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-primary-start) 42%, transparent); }
+.osce-hs.is-sel .osce-hs-dot { transform: scale(1.35); box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55), 0 0 0 5px rgba(37, 99, 235, 0.35); }
 .osce-hs-label {
   position: absolute;
   left: 18px;
@@ -994,3 +997,102 @@ textarea.osce-input { resize: vertical; line-height: 1.5; }
   flex: 0 0 auto; width: 20px; text-align: center;
   font-size: 12px; font-weight: 800; color: var(--ink-muted);
 }
+
+/* ── JSON import ───────────────────────────────────────────── */
+.osce-import { margin-top: 12px; }
+.osce-import summary { cursor: pointer; }
+.osce-import-map { display: grid; gap: 8px; }
+.osce-import-rows { display: grid; gap: 8px; }
+.osce-import-row { padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface-1); }
+.osce-import-row p { margin: 4px 0 0; }
+
+/* ── preview: Learn cards, regions, checklist ─────────────── */
+.osce-pv-regions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.osce-pv-regions button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-soft); background: var(--surface-1); color: var(--ink-strong); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.osce-pv-learnback { border: 0; background: none; color: var(--brand-primary-start); font: inherit; font-weight: 700; cursor: pointer; padding: 0 0 6px; }
+.osce-pv-check { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; font-size: 13px; cursor: pointer; }
+.osce-pv-check input { margin-top: 2px; }
+.osce-pv-viva { padding: 8px 0; font-size: 13px; }
+.osce-pv-viva summary { cursor: pointer; font-weight: 700; }
+
+/* ── finding popup: a bottom sheet over the screen, one image ── */
+.osce-pv-sheetwrap { position: absolute; inset: 0; z-index: 6; background: rgba(0, 0, 0, 0.55); display: flex; align-items: flex-end; }
+.osce-pv-sheet { width: 100%; max-height: 82%; overflow-y: auto; background: #16181F; border-radius: 20px 20px 0 0; padding: 8px 16px 18px; }
+.osce-pv-grab { display: block; width: 38px; height: 4px; border-radius: 4px; background: rgba(203, 213, 225, 0.3); margin: 4px auto 10px; }
+.osce-pv-sheethead { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.osce-pv-sheethead b { font-size: 17px; font-weight: 800; }
+.osce-pv-sheethead button { border: 0; background: rgba(203, 213, 225, 0.12); color: #F8FAFC; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+.osce-pv-sheet img { display: block; width: 100%; border-radius: 13px; margin: 8px 0 12px; }
+.osce-pv-sheet p { margin: 0 0 9px; font-size: 13px; line-height: 1.6; color: #CBD5E1; }
+
+/* ── region / finding popup: centred card, like the app ───── */
+.osce-pv-modalwrap { position: absolute; inset: 0; z-index: 6; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 14px; }
+.osce-pv-modal { width: 100%; max-height: 88%; overflow-y: auto; background: #16181F; border: 1px solid rgba(203, 213, 225, 0.14); border-radius: 20px; padding: 14px; }
+.osce-pv-modalhead { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.osce-pv-modalhead > div { flex: 1; min-width: 0; }
+.osce-pv-modalhead b { display: block; font-size: 17px; font-weight: 800; }
+.osce-pv-modalhead button { border: 0; background: rgba(203, 213, 225, 0.12); color: #F8FAFC; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+.osce-pv-eyebrow { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #38BDF8; font-weight: 800; }
+.osce-pv-modal img { display: block; width: 100%; border-radius: 13px; margin-bottom: 12px; }
+.osce-pv-modal p { margin: 0 0 9px; font-size: 13px; line-height: 1.6; color: #CBD5E1; }
+.osce-pv-noimg--sm { aspect-ratio: 4 / 3; margin-bottom: 12px; border-radius: 13px; }
+.osce-pv-segs { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: #0A0A0F; margin-bottom: 10px; }
+.osce-pv-segs button { flex: 1; border: 0; border-radius: 9px; padding: 8px 4px; background: transparent; color: #8294AE; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.osce-pv-segs button.is-on { background: #2563EB; color: #fff; }
+.osce-pv-cta { width: 100%; margin-top: 6px; border: 0; border-radius: 12px; padding: 11px; background: #2563EB; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.osce-pv-hint { margin: 0 0 10px; font-size: 12px; color: #8294AE; }
+.osce-pv-finding.is-open { border-color: #2563EB; background: rgba(37, 99, 235, 0.14); }
+.osce-pv-details { margin-top: 6px; padding: 12px; border-radius: 12px; background: #0A0A0F; }
+
+/* ── Examine a region: two tiles per row ──────────────────── */
+.osce-pv-regiongrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.osce-pv-regiontile {
+  display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px;
+  min-height: 52px; padding: 10px 12px; border-radius: 14px;
+  border: 1px solid rgba(203, 213, 225, 0.13); background: #16181F; color: #38BDF8;
+  font: inherit; cursor: pointer; text-align: left;
+}
+.osce-pv-regiontile svg { flex-shrink: 0; }
+.osce-pv-regiontile span { font-size: 12.5px; font-weight: 700; color: #F8FAFC; min-width: 0; }
+.osce-pv-why { margin: 4px 0 10px; padding: 10px; border-radius: 12px; background: #0A0A0F; }
+.osce-pv-why img { margin-bottom: 8px; }
+.osce-pv-why b { display: block; font-size: 13px; margin-bottom: 4px; }
+.osce-pv-why p { margin: 0; font-size: 12.5px; color: #94A3B8; }
+.osce-pv-actions { display: flex; gap: 8px; margin-top: 10px; }
+.osce-pv-actions .osce-pv-cta { flex: 1; margin-top: 0; }
+.osce-pv-ghost { border: 1px solid rgba(203, 213, 225, 0.2); background: transparent; color: #CBD5E1; border-radius: 12px; padding: 11px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+
+.osce-slot-req, .osce-slot-opt { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; }
+.osce-slot-req { color: #F59E0B; }
+.osce-slot-opt { color: var(--ink-muted); }
+
+.osce-pv-regionimg { position: relative; margin-bottom: 12px; }
+.osce-pv-regionimg img { margin: 0; }
+
+.osce-hs-axis { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.osce-hs-axis .osce-input { width: 84px; min-height: 34px; }
+
+.osce-sound-link { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.osce-pv-sound { margin: 8px 0 12px; }
+.osce-pv-sound b { display: block; font-size: 12px; margin-bottom: 6px; color: #8294AE; text-transform: uppercase; letter-spacing: 0.06em; }
+.osce-pv-sound audio, .osce-pv-ix audio { width: 100%; height: 36px; }
+
+/* Tab bar grouped like the app: Set up / Examine / Learn / Checklist */
+.osce-tabs { align-items: center; }
+.osce-tabs-item { display: inline-flex; align-items: center; gap: 4px; }
+.osce-tabs-group {
+  font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ink-muted); margin: 0 4px 0 10px; opacity: 0.8;
+}
+.osce-tabs-item:first-child .osce-tabs-group { margin-left: 4px; }
+
+/* Page toolbar: New case / Category / Import */
+.osce-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.osce-toolbar button {
+  min-height: 40px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line-soft);
+  background: var(--surface-card); color: var(--ink-strong); font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer;
+}
+.osce-toolbar button.is-on { background: var(--brand-primary-start); border-color: transparent; color: #fff; }
+.osce-caserow-cat { max-width: 200px; min-height: 34px; font-size: 12.5px; }
+.osce-confirm { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; }
+.osce-confirm button { min-height: 32px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line-soft); background: var(--surface-1); font: inherit; font-weight: 700; cursor: pointer; }

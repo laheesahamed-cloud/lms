@@ -300,25 +300,25 @@ Return ONLY JSON matching this schema — no prose, no code fences:
       "id": "kebab-case-id",
       "name": "Malar flush",
       "category": "inspection | palpation | percussion | auscultation | symptom",
-      "region": "face | neck | hands | chest | abdomen | legs | general",
-      "short": "One line stating the finding.",
-      "body": "2-3 sentences: what it is and WHY it happens in this condition.",
+      "region": "head | neck | chest | abdomen | groin | hands | legs | general",
+      "short": "WHAT it is: one or two sentences stating the finding, as the student would report it.",
+      "how": "HOW to elicit it: patient position, landmarks, which part of the hand or stethoscope, what to do, in 1-3 sentences.",
+      "body": "WHY it happens in this condition: 2-3 sentences on the mechanism.",
       "brief": "A VISUAL description for whoever sources the photograph. Name the exact colour, the exact anatomical distribution, and the patient context. Describe only what the eye sees — never the mechanism, never the diagnosis. If the sign is not visible (a murmur, a sound), write an empty string."
     }
   ],
   "scenes": [
     { "id": "body", "title": "Full patient", "parent": null,
-      "hotspots": [ { "x": 0.5, "y": 0.12, "label": "Malar flush", "signId": "malar-flush" },
-                    { "x": 0.5, "y": 0.40, "label": "Chest", "sceneId": "chest" } ] },
-    { "id": "chest", "title": "Praecordium", "parent": "body", "hotspots": [] }
+      "hotspots": [ { "x": 0.5, "y": 0.12, "label": "Face", "sceneId": "face" },
+                    { "x": 0.5, "y": 0.32, "label": "Chest", "sceneId": "chest" } ] },
+    { "id": "face", "title": "Face", "parent": "body",
+      "hotspots": [ { "x": 0.5, "y": 0.55, "label": "Cheeks", "signId": "malar-flush" } ] },
+    { "id": "chest", "title": "Praecordium", "parent": "body",
+      "hotspots": [ { "x": 0.58, "y": 0.62, "label": "Apex", "signId": "tapping-apex-beat" } ] }
   ],
   "chain": [ { "step": 1, "title": "Narrowed valve", "body": "One sentence." } ],
   "investigations": [
     { "modality": "ecg | cxr | echo | labs", "findings": ["Short finding", "Short finding"] }
-  ],
-  "sounds": [
-    { "title": "${condition} at the apex",
-      "markers": [ { "label": "S1", "from": 0, "to": 120 } ] }
   ],
   "summaryBlock": {
     "keyPoints": ["..."],
@@ -336,12 +336,19 @@ Return ONLY JSON matching this schema — no prose, no code fences:
 
 Rules:
 - 5 to 9 signs, only findings genuinely present in this condition. Do not pad.
-- Scenes must form a zoom chain from "body" down to the organ or structure, each
-  scene's "parent" naming the one above it. 3-5 scenes.
+- The examination is exactly TWO levels deep, like the app: the "body" scene, then
+  one scene per examination REGION (face, praecordium, abdomen, hands, legs ...), each
+  with "parent": "body". Never nest a region inside another region. 2-5 regions.
+- The "body" scene's hotspots only open regions (sceneId). Each region scene's hotspots
+  open that region's findings (signId). Put every sign on the region where it is examined.
+- Choose the technique ("category") honestly: inspection = Look, palpation = Feel,
+  percussion = Percuss, auscultation = Listen, symptom = Ask. A region only needs the
+  techniques that really apply there (an abdomen: look, feel, percuss; a heart: look,
+  feel, listen). Do not invent a finding just to fill a technique.
 - Every hotspot uses x/y as fractions between 0 and 1 of the image, and names either
-  a signId (open the finding) or a sceneId (zoom deeper) — never both. Positions are
+  a signId (open the finding) or a sceneId (open the region) — never both. Positions are
   approximate; a human corrects them.
-- Sound markers are milliseconds within one cardiac/respiratory cycle.
+- Do not write any sound or audio entries; recordings are attached by hand.
 - Be specific and exam-accurate: name intervals, positions, manoeuvres. Prefer the
   wording an examiner would mark ("tapping, undisplaced apex beat").
 - If a finding is classically ABSENT and that absence is discriminating, say so in body.
@@ -380,8 +387,10 @@ ${notes ? `\nAdditional instructions from the author: ${notes}` : ''}`;
         region: s?.region ? String(s.region) : null,
         media: `sign:${id}`,
         short: String(s?.short || ''),
+        how: String(s?.how || ''),
         body: String(s?.body || ''),
         brief: String(s?.brief || ''),
+        sound: null,
       };
     });
     const signIds = new Set(signs.map((s: any) => s.id));
@@ -435,19 +444,10 @@ ${notes ? `\nAdditional instructions from the author: ${notes}` : ''}`;
         };
       });
 
-    const sounds = (Array.isArray(parsed?.sounds) ? parsed.sounds : []).map((s: any) => ({
-      title: String(s?.title || condition),
-      ref: null,
-      compareWith: null,
-      markers: (Array.isArray(s?.markers) ? s.markers : []).map((m: any) => ({
-        label: String(m?.label || ''),
-        from: Number(m?.from) || 0,
-        to: Number(m?.to) || 0,
-      })),
-    }));
-    if (sounds.length) {
-      warnings.push('Sound steps need an Auscultation card attached before they will play.');
-    }
+    // Recordings are attached by hand, so anything returned here is discarded.
+    const sounds: any[] = [];
+    const regionsOnly = scenes.filter((sc: any) => sc.parent && sc.parent !== 'body');
+    if (regionsOnly.length) warnings.push('Some scenes were nested inside a region; the app shows only the patient and one level of regions, so move their findings onto a region scene.');
     if (investigations.length) {
       warnings.push('Investigations can be linked to existing ECG cards instead of new uploads.');
     }

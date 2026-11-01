@@ -1,0 +1,1 @@
+import{c as e}from"./vendor-CTxLyt5z.js";export{e as SocialLoginWeb};

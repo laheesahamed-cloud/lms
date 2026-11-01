@@ -129,6 +129,9 @@ function SlotTile({ caseId, slot, mediaUrl, onDone, onError }) {
 
       <div className="osce-slot-meta">
         <b>{slot.label}</b>
+        {String(slot.slot).startsWith('scene:')
+          ? <span className="osce-slot-req">Required</span>
+          : <span className="osce-slot-opt">Optional — skip if you like</span>}
         {slot.brief ? <p className="osce-slot-brief">{slot.brief}</p> : null}
         <code className="osce-slot-file">{slot.fileName}</code>
         {warning ? <p className="osce-slot-warn">{warning}</p> : null}

@@ -40,6 +40,8 @@ export interface Sign {
         media: string;
     } | null;
     short?: string;
+    how?: string;
+    sound?: string | null;
     body?: string;
     brief?: string;
 }
@@ -64,6 +66,7 @@ export interface CaseDocument {
         findings?: string[];
     }>;
     sounds: Array<{
+        id?: string;
         title: string;
         ref?: ContentRef | null;
         compareWith?: ContentRef | null;
@@ -100,6 +103,8 @@ export interface CaseDocument {
             a: string;
         }>;
     };
+    simulation?: Record<string, unknown>;
+    clinical_review?: Record<string, unknown>;
 }
 export declare const BODY_SPEC: {
     ratio: string;
@@ -269,6 +274,7 @@ export declare class OsceService {
         caseData?: CaseDocument;
         stationType?: 'short' | 'long';
         createdBy?: number | null;
+        slug?: string;
     }): Promise<{
         caseData: CaseDocument;
         id: number;
@@ -567,6 +573,8 @@ export declare class OsceService {
                 region?: string | null;
                 media?: string | null;
                 short?: string;
+                how?: string;
+                sound?: string | null;
                 body?: string;
                 brief?: string;
             }[];
@@ -619,6 +627,7 @@ export declare class OsceService {
                     title: string;
                     url: string;
                 } | null;
+                id?: string;
                 title: string;
                 ref?: ContentRef | null;
                 compareWith?: ContentRef | null;
@@ -663,6 +672,8 @@ export declare class OsceService {
                     a: string;
                 }>;
             };
+            simulation?: Record<string, unknown>;
+            clinical_review?: Record<string, unknown>;
         };
         cover: {
             full: string;

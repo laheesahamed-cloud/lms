@@ -300,7 +300,7 @@ let OsceService = OsceService_1 = class OsceService {
     async deleteCategory(id) {
         const [rows] = await this.db.execute('SELECT COUNT(*) AS n FROM osce_cases WHERE category_id = ?', [id]);
         if (Number(rows?.[0]?.n || 0) > 0) {
-            throw new common_1.BadRequestException('Move or delete the stations in this category first.');
+            throw new common_1.BadRequestException('Move or delete the stations in this category first (use the category menu on each station).');
         }
         await this.db.execute('DELETE FROM osce_categories WHERE id = ?', [id]);
         return { deleted: true };
@@ -472,7 +472,8 @@ let OsceService = OsceService_1 = class OsceService {
         }
         const categoryId = Number(catRows[0].id);
         const courseId = Number(catRows[0].course_id);
-        const slug = await this.uniqueSlug(title);
+        const wanted = String(input.slug || '').trim();
+        const slug = wanted ? wanted : await this.uniqueSlug(title);
         const doc = input.caseData ?? EMPTY_DOC;
         const [res] = await this.db.execute(`INSERT INTO osce_cases (course_id, topic_id, category_id, title, slug, summary,
                                difficulty, station_type, case_data, created_by)
@@ -834,9 +835,9 @@ let OsceService = OsceService_1 = class OsceService {
     }
     async publishCase(id) {
         const shots = await this.shotList(id);
-        const missing = shots.filter((s) => !s.filled);
+        const missing = shots.filter((s) => !s.filled && String(s.slot).startsWith('scene:'));
         if (missing.length) {
-            throw new common_1.BadRequestException(`${missing.length} image slot${missing.length === 1 ? '' : 's'} still empty: ` +
+            throw new common_1.BadRequestException(`${missing.length} region image${missing.length === 1 ? '' : 's'} still empty: ` +
                 missing.slice(0, 5).map((m) => m.slot).join(', ') + (missing.length > 5 ? '…' : ''));
         }
         await this.db.execute("UPDATE osce_cases SET status = 'published' WHERE id = ?", [id]);

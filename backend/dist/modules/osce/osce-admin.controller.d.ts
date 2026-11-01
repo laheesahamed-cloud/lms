@@ -1,14 +1,16 @@
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { OsceService, CaseDocument } from './osce.service';
+import { OsceImportService } from './osce-import.service';
 import { OsceGeneratorService } from './osce-generator.service';
 import { SmartNotesImageApiService } from '../smart-notes/smart-notes-image-api.service';
 export declare class OsceAdminController {
     private readonly svc;
     private readonly generator;
+    private readonly importer;
     private readonly imageApi;
     private readonly authService;
-    constructor(svc: OsceService, generator: OsceGeneratorService, imageApi: SmartNotesImageApiService, authService: AuthService);
+    constructor(svc: OsceService, generator: OsceGeneratorService, importer: OsceImportService, imageApi: SmartNotesImageApiService, authService: AuthService);
     private baseUrl;
     systems(auth?: string): Promise<{
         systems: {
@@ -151,6 +153,60 @@ export declare class OsceAdminController {
         courseTitle: string | null;
         updatedAt: any;
     } | null>;
+    importPreview(body: {
+        package: any;
+    }, auth?: string): Promise<{
+        format: string | null;
+        rows: import("./osce-import.service").ImportRow[];
+        refs: {
+            key: string;
+            courseRef: string;
+            topicRef: string;
+            cases: number;
+        }[];
+        totals: {
+            cases: number;
+            create: number;
+            update: number;
+            skip: number;
+            error: number;
+        };
+    }>;
+    importCommit(body: {
+        package: any;
+        mapping?: Record<string, number>;
+    }, auth?: string): Promise<{
+        results: {
+            slug: string;
+            title: string;
+            status: "created" | "updated" | "skipped" | "failed";
+            id?: number;
+            message?: string;
+        }[];
+        totals: {
+            created: number;
+            updated: number;
+            skipped: number;
+            failed: number;
+        };
+    }>;
+    exportCases(slugs?: string, auth?: string): Promise<{
+        format_id: string;
+        format_version: string;
+        exported_at: string;
+        cases: {
+            slug: any;
+            title: any;
+            summary: any;
+            station_type: any;
+            difficulty: any;
+            course_ref: any;
+            topic_ref: any;
+            is_free: boolean;
+            case_data: any;
+            media_slots: string[];
+        }[];
+    }>;
     generateCase(body: {
         categoryId: number;
         title: string;
@@ -278,6 +334,8 @@ export declare class OsceAdminController {
                 region?: string | null;
                 media?: string | null;
                 short?: string;
+                how?: string;
+                sound?: string | null;
                 body?: string;
                 brief?: string;
             }[];
@@ -330,6 +388,7 @@ export declare class OsceAdminController {
                     title: string;
                     url: string;
                 } | null;
+                id?: string;
                 title: string;
                 ref?: import("./osce.service").ContentRef | null;
                 compareWith?: import("./osce.service").ContentRef | null;
@@ -374,6 +433,8 @@ export declare class OsceAdminController {
                     a: string;
                 }>;
             };
+            simulation?: Record<string, unknown>;
+            clinical_review?: Record<string, unknown>;
         };
         cover: {
             full: string;

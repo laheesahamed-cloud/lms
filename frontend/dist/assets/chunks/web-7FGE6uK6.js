@@ -1,1 +1,0 @@
-import{c as e}from"./vendor-C17wHHML.js";export{e as SocialLoginWeb};

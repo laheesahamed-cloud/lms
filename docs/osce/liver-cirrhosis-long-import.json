@@ -1,0 +1,378 @@
+{
+  "format_id": "osce.bulk-import",
+  "format_version": "1.0.0",
+  "import_options": {
+    "create_as_draft": true
+  },
+  "cases": [
+    {
+      "slug": "liver-cirrhosis-history-long",
+      "title": "Decompensated Liver Cirrhosis — History Long Case",
+      "summary": "A 52-year-old three-wheeler driver with abdominal swelling, leg oedema and jaundice, with a long alcohol history.",
+      "station_type": "long",
+      "difficulty": "intermediate",
+      "course_ref": "MBBS_MEDICINE",
+      "topic_ref": "GASTROENTEROLOGY",
+      "is_public": false,
+      "is_free": false,
+      "case_data": {
+        "version": 1,
+        "stationType": "long",
+        "scenes": [],
+        "signs": [],
+        "chain": [],
+        "investigations": [],
+        "sounds": [],
+        "patient": {
+          "name": "Nimal",
+          "age": 52,
+          "sex": "male",
+          "occupation": "Three-wheeler driver",
+          "opening": "Doctor, my belly keeps getting bigger and my eyes have turned yellow."
+        },
+        "sections": [
+          {
+            "id": "introduction",
+            "title": "Introduction",
+            "purpose": "Introduce yourself, confirm identity, get consent and open the consultation.",
+            "exchanges": [
+              {
+                "ask": "Good morning. I'm one of the doctors on the ward. Could I confirm your name and age, please?",
+                "reply": "I'm Nimal Perera, I'm fifty-two.",
+                "note": ""
+              },
+              {
+                "ask": "Thank you, Mr Perera. I'd like to ask you some questions about why you came in and then examine you. Is that all right?",
+                "reply": "Yes, doctor, that's fine.",
+                "note": ""
+              },
+              {
+                "ask": "What do you do for work, and who is at home with you?",
+                "reply": "I drive a three-wheeler. I live with my wife and two children.",
+                "note": "Occupation and home support matter later for alcohol history and discharge planning."
+              },
+              {
+                "ask": "Could you tell me in your own words what brought you to hospital?",
+                "reply": "My belly has been getting bigger for about two months and my legs are swollen. My wife says my eyes have turned yellow.",
+                "note": "Let the patient finish; the three complaints give you the diagnosis to test."
+              }
+            ]
+          },
+          {
+            "id": "presenting-complaint",
+            "title": "Presenting complaint",
+            "purpose": "Characterise each symptom: onset, progression, associated features, and what has made it better or worse.",
+            "exchanges": [
+              {
+                "ask": "Tell me about the swelling of your belly. When did you first notice it?",
+                "reply": "About two months ago. My trousers got tight, and it has slowly grown since.",
+                "note": ""
+              },
+              {
+                "ask": "Is it painful?",
+                "reply": "Only a dull heaviness. It is not sharp pain, but it makes me breathless when I lie flat.",
+                "note": ""
+              },
+              {
+                "ask": "Have you had any fever with it?",
+                "reply": "No fever, doctor.",
+                "note": ""
+              },
+              {
+                "ask": "And the leg swelling. When did that start?",
+                "reply": "A few weeks after the belly. First my ankles, now up to my knees, both sides.",
+                "note": ""
+              },
+              {
+                "ask": "Have you noticed the yellow colour in your eyes or skin? How long?",
+                "reply": "The yellow came about three weeks ago. My urine is dark, like tea. The stools are normal colour.",
+                "note": ""
+              },
+              {
+                "ask": "Have you been itchy?",
+                "reply": "A little, mostly at night.",
+                "note": "Pruritus with jaundice suggests a cholestatic component."
+              },
+              {
+                "ask": "Have you vomited blood or passed black stools?",
+                "reply": "No blood in vomit. My stools are not black.",
+                "note": "Key negative: a variceal bleed changes management completely."
+              },
+              {
+                "ask": "Any confusion, or changes in your sleep?",
+                "reply": "My wife says I sleep a lot during the day and am awake at night. I forget things sometimes.",
+                "note": "Day-night reversal is an early sign of hepatic encephalopathy."
+              }
+            ]
+          },
+          {
+            "id": "systemic-review",
+            "title": "Systemic review",
+            "purpose": "Screen other systems and look for complications of liver disease and its causes.",
+            "exchanges": [
+              {
+                "ask": "Have you lost weight or lost your appetite?",
+                "reply": "I have lost my appetite. My arms and legs look thin even though the belly is large.",
+                "note": ""
+              },
+              {
+                "ask": "Any shortness of breath on walking, chest pain or palpitations?",
+                "reply": "A bit breathless on stairs. No chest pain.",
+                "note": ""
+              },
+              {
+                "ask": "Have you had any easy bruising or bleeding from your gums or nose?",
+                "reply": "I bruise easily on my arms.",
+                "note": ""
+              },
+              {
+                "ask": "Any change in your bowel habit, diarrhoea or constipation?",
+                "reply": "No, normal.",
+                "note": ""
+              },
+              {
+                "ask": "Passing urine normally? Any reduction in how much?",
+                "reply": "I am passing less than before, I think.",
+                "note": ""
+              },
+              {
+                "ask": "Have you noticed any lumps in your belly, or breast swelling?",
+                "reply": "My chest has become a bit tender and enlarged on both sides.",
+                "note": "Gynaecomastia: reduced oestrogen clearance."
+              }
+            ]
+          },
+          {
+            "id": "past-medical",
+            "title": "Past medical history",
+            "purpose": "Look for causes and risk factors for chronic liver disease.",
+            "exchanges": [
+              {
+                "ask": "Have you ever been told you have diabetes, high blood pressure or high cholesterol?",
+                "reply": "I was told my sugar was a little high two years ago. I never took tablets.",
+                "note": ""
+              },
+              {
+                "ask": "Have you ever had hepatitis, or been told your liver tests were abnormal?",
+                "reply": "Nobody told me before.",
+                "note": ""
+              },
+              {
+                "ask": "Have you ever received a blood transfusion, had tattoos or needle injections outside hospital?",
+                "reply": "No transfusions or tattoos.",
+                "note": ""
+              },
+              {
+                "ask": "Have you been vaccinated against hepatitis B?",
+                "reply": "I don't think so.",
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "past-surgical",
+            "title": "Past surgical history",
+            "purpose": "Ask about operations and previous admissions.",
+            "exchanges": [
+              {
+                "ask": "Have you ever had an operation?",
+                "reply": "No operations.",
+                "note": ""
+              },
+              {
+                "ask": "Have you been admitted to hospital before this?",
+                "reply": "Once, years ago, with a fever. Nothing to do with my liver.",
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "drugs-allergies",
+            "title": "Drugs and allergies",
+            "purpose": "Prescribed and over-the-counter drugs, herbal remedies and allergies.",
+            "exchanges": [
+              {
+                "ask": "Are you taking any regular tablets or medicines?",
+                "reply": "No prescribed medicines.",
+                "note": ""
+              },
+              {
+                "ask": "Do you take painkillers, herbal medicines or any traditional preparations?",
+                "reply": "I take paracetamol sometimes for back pain. Also a herbal tonic from the shop for energy.",
+                "note": "Ask about quantity of paracetamol and any hepatotoxic remedies."
+              },
+              {
+                "ask": "Any allergies to medicines?",
+                "reply": "None.",
+                "note": ""
+              }
+            ]
+          },
+          {
+            "id": "family-social",
+            "title": "Family and social history",
+            "purpose": "Take a non-judgemental alcohol history and screen for other risks.",
+            "exchanges": [
+              {
+                "ask": "Do you drink alcohol? What do you drink and how much?",
+                "reply": "I drink arrack most evenings, about a third of a bottle.",
+                "note": "Quantify in units and ask how long; a non-judgemental tone gets an honest answer."
+              },
+              {
+                "ask": "How long have you been drinking like this?",
+                "reply": "About twenty years. It went up after I started driving at night.",
+                "note": ""
+              },
+              {
+                "ask": "Have you ever felt you should cut down, or woken up needing a drink?",
+                "reply": "My wife has asked me to cut down many times. In the mornings I sometimes shake until I have a drink.",
+                "note": "CAGE-style questions; morning drinking suggests dependence."
+              },
+              {
+                "ask": "When did you last drink?",
+                "reply": "Four days ago, before I came in.",
+                "note": ""
+              },
+              {
+                "ask": "Do you smoke, or use any other substances?",
+                "reply": "I smoke ten cigarettes a day. No other drugs.",
+                "note": ""
+              },
+              {
+                "ask": "Is there any liver disease, jaundice or cancer in the family?",
+                "reply": "My father had a yellow illness and died, but I don't know the cause.",
+                "note": ""
+              },
+              {
+                "ask": "How is this affecting you at home and at work?",
+                "reply": "I can't drive now. My wife is worried about money.",
+                "note": ""
+              }
+            ]
+          }
+        ],
+        "differentials": [
+          {
+            "diagnosis": "Alcohol-related cirrhosis with decompensation",
+            "supporting": "Twenty years of heavy drinking, ascites, oedema, jaundice, gynaecomastia and day-night reversal.",
+            "against": "Other causes can coexist, and alcohol hepatitis could sit on top of cirrhosis."
+          },
+          {
+            "diagnosis": "Chronic viral hepatitis (B or C) with cirrhosis",
+            "supporting": "A family history of a 'yellow illness' and no vaccination; viral and alcohol injury often coexist.",
+            "against": "No transfusion, tattoos or injections reported."
+          },
+          {
+            "diagnosis": "Non-alcoholic fatty liver disease cirrhosis",
+            "supporting": "Possible raised glucose and smoking.",
+            "against": "Heavy alcohol intake explains the picture better."
+          },
+          {
+            "diagnosis": "Hepatocellular carcinoma on cirrhosis",
+            "supporting": "Weight loss, decompensation over a few months and appetite loss.",
+            "against": "Needs imaging; it complicates cirrhosis rather than replacing it."
+          },
+          {
+            "diagnosis": "Heart failure or nephrotic syndrome",
+            "supporting": "Ankle oedema and breathlessness.",
+            "against": "Jaundice, ascites and stigmata of chronic liver disease point to the liver."
+          }
+        ],
+        "initialManagement": [
+          "Assess airway, breathing and circulation, check glucose and look for bleeding or sepsis.",
+          "Do a diagnostic ascitic tap and send liver tests, clotting, FBC, U&E and cultures.",
+          "Start thiamine and monitor for alcohol withdrawal.",
+          "Review for hepatic encephalopathy and treat any trigger."
+        ],
+        "treatment": [
+          {
+            "group": "Immediate",
+            "items": [
+              "Resuscitate and treat any bleeding or infection; give antibiotics for spontaneous bacterial peritonitis.",
+              "Thiamine, and a withdrawal scale such as CIWA with benzodiazepines if needed.",
+              "Lactulose for encephalopathy."
+            ]
+          },
+          {
+            "group": "Definitive",
+            "items": [
+              "Sodium restriction and spironolactone with a loop diuretic; therapeutic paracentesis with albumin for tense ascites.",
+              "Endoscopic screening for varices and non-selective beta-blocker or band ligation.",
+              "Treat the cause: complete alcohol abstinence and support."
+            ]
+          },
+          {
+            "group": "Long-term",
+            "items": [
+              "Ultrasound surveillance for hepatocellular carcinoma about every six months.",
+              "Vaccination against hepatitis A and B, and nutritional support.",
+              "Alcohol cessation programme and family involvement; consider referral for liver transplantation."
+            ]
+          }
+        ],
+        "summary": {
+          "keyPoints": [
+            "Ascites, jaundice and encephalopathy mark decompensation.",
+            "Take a quantified, non-judgemental alcohol history.",
+            "Always ask about bleeding, confusion and last drink."
+          ],
+          "osceTips": [
+            "Open with the patient's own words and clarify each symptom.",
+            "Ask the negatives that change management: haematemesis, melaena, fever, confusion.",
+            "Summarise at the end and offer a clear differential."
+          ],
+          "connect": []
+        },
+        "related": [],
+        "practice": {
+          "checklist": [
+            {
+              "section": "Introduction",
+              "items": [
+                "Introduces self, confirms identity and obtains consent",
+                "Asks the patient to describe the problem in their own words"
+              ]
+            },
+            {
+              "section": "Presenting complaint",
+              "items": [
+                "Characterises the abdominal swelling and leg swelling",
+                "Asks about jaundice, dark urine, itching and stool colour",
+                "Asks about haematemesis, melaena and confusion"
+              ]
+            },
+            {
+              "section": "Alcohol and risk factors",
+              "items": [
+                "Takes a quantified alcohol history, including the last drink",
+                "Screens for dependence and withdrawal",
+                "Asks about transfusions, tattoos, injections and family history"
+              ]
+            },
+            {
+              "section": "Finishing",
+              "items": [
+                "Asks about the effect on home and work",
+                "Summarises the history and offers a differential"
+              ]
+            }
+          ],
+          "questions": [
+            {
+              "q": "What features suggest this patient is decompensated?",
+              "a": "Ascites, jaundice and encephalopathy, and a history of variceal bleeding if present."
+            },
+            {
+              "q": "How would you quantify alcohol intake?",
+              "a": "Ask the drink, the volume and how often, convert to units, and ask how long and when the last drink was."
+            },
+            {
+              "q": "Why start thiamine early?",
+              "a": "Chronic alcohol use depletes thiamine, and treating it early prevents Wernicke's encephalopathy."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

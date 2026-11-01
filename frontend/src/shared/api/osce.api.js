@@ -152,3 +152,13 @@ export const adminOsceInboxFile = (fileName) =>
 
 export const adminOsceArchiveInboxFile = (fileName) =>
   apiClient.post(`/admin/osce/inbox/${encodeURIComponent(fileName)}/archive`).then((r) => r.data);
+
+// ── Bulk JSON import / export ──
+export const adminPreviewOsceImport = (pkg) =>
+  apiClient.post('/admin/osce/import/preview', { package: pkg }, { timeout: 120000 }).then((r) => r.data);
+
+export const adminCommitOsceImport = (pkg, mapping) =>
+  apiClient.post('/admin/osce/import/commit', { package: pkg, mapping }, { timeout: 180000 }).then((r) => r.data);
+
+export const adminExportOsceCases = (slugs = []) =>
+  apiClient.get('/admin/osce/export', { params: slugs.length ? { slugs: slugs.join(',') } : {} }).then((r) => r.data);

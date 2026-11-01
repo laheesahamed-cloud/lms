@@ -5,8 +5,9 @@ import { useCallback, useRef, useState } from 'react';
  * the image box, never pixels, so the same case renders correctly on a phone,
  * a tablet and a zoomed-in view without re-authoring.
  *
- * Click empty space to drop a point; drag a point to move it; pick what it does
- * from the row beneath. Generated positions are only a guess — this is where
+ * "Add point" drops a new point in the middle; drag a point to move it; pick
+ * what it does from the row beneath. Clicking the picture does nothing, so a
+ * stray click never adds a point. Generated positions are only a guess — this is where
  * they're made right.
  */
 export function SceneHotspotEditor({ scene, imageUrl, signs, scenes, onChange }) {
@@ -49,33 +50,17 @@ export function SceneHotspotEditor({ scene, imageUrl, signs, scenes, onChange })
     };
   }, [imageRect]);
 
-  const addHotspot = useCallback((event) => {
-    if (dragging.current !== null || movedEnough.current) return;
-    const point = pointFromEvent(event);
-    if (!point) return;
-    const next = [...hotspots, {
-      x: Number(point.x.toFixed(4)),
-      y: Number(point.y.toFixed(4)),
-      label: 'New point',
-      action: { type: 'label' },
-    }];
+  const addHotspot = useCallback(() => {
+    const next = [...hotspots, { x: 0.5, y: 0.5, label: 'New point', action: { type: 'label' } }];
     patch(next);
     setSelected(next.length - 1);
-  }, [hotspots, patch, pointFromEvent]);
+  }, [hotspots, patch]);
 
   const onPointerDown = (index) => (event) => {
     event.stopPropagation();
-    const rect = imageRect();
-    const hotspot = hotspots[index];
-    if (rect && hotspot) {
-      // Keep the dot under the same part of the cursor it was grabbed by.
-      grabOffset.current = {
-        dx: event.clientX - (rect.left + hotspot.x * rect.width),
-        dy: event.clientY - (rect.top + hotspot.y * rect.height),
-      };
-    } else {
-      grabOffset.current = { dx: 0, dy: 0 };
-    }
+    // The dot's centre goes exactly where the pointer is — no grab offset — so
+    // a point lands where it's dropped.
+    grabOffset.current = { dx: 0, dy: 0 };
     dragging.current = index;
     movedEnough.current = false;
     startPoint.current = { x: event.clientX, y: event.clientY };
@@ -149,6 +134,14 @@ export function SceneHotspotEditor({ scene, imageUrl, signs, scenes, onChange })
     patch(hotspots.map((h, i) => (i === selected ? { ...h, ...changes } : h)));
   };
 
+  const commitAxis = (axis, raw) => {
+    const n = Number(raw);
+    if (selected === null || raw === '' || !Number.isFinite(n)) return;
+    const next = Number((Math.min(100, Math.max(0, n)) / 100).toFixed(4));
+    if (next === hotspots[selected]?.[axis]) return;
+    patch(hotspots.map((h, i) => (i === selected ? { ...h, [axis]: next } : h)));
+  };
+
   const removeSelected = () => {
     if (selected === null) return;
     patch(hotspots.filter((_, i) => i !== selected));
@@ -159,10 +152,14 @@ export function SceneHotspotEditor({ scene, imageUrl, signs, scenes, onChange })
 
   return (
     <div className="osce-hotspot">
+      <div>
+        <button type="button" className="osce-add osce-add--sm" onClick={addHotspot} disabled={!imageUrl}>
+          + Add point
+        </button>
+      </div>
       <div
         ref={boxRef}
         className={`osce-hotspot-stage ${imageUrl ? '' : 'is-empty'}`}
-        onClick={addHotspot}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
@@ -193,7 +190,7 @@ export function SceneHotspotEditor({ scene, imageUrl, signs, scenes, onChange })
       </div>
 
       <p className="osce-hint">
-        Click the image to add a point · drag a dot to move it · arrow keys nudge
+        Use “Add point” to add one · drag a dot to move it · arrow keys nudge
         (hold Shift for fine) · {hotspots.length} placed
       </p>
 
@@ -238,11 +235,25 @@ export function SceneHotspotEditor({ scene, imageUrl, signs, scenes, onChange })
           </label>
 
           <div className="osce-hs-coords">
-            <code>
-              x {(dragPos?.index === selected ? dragPos.x : current.x)?.toFixed(3)}
-              {' · '}
-              y {(dragPos?.index === selected ? dragPos.y : current.y)?.toFixed(3)}
-            </code>
+            {['x', 'y'].map((axis) => {
+              const value = dragPos?.index === selected ? dragPos[axis] : current[axis];
+              return (
+                <label key={axis} className="osce-hs-axis">
+                  <span>{axis.toUpperCase()} %</span>
+                  {/* Uncontrolled and committed on blur / Enter, so typing "42.5"
+                      isn't reformatted under the cursor. The key re-seeds it when
+                      a drag or an arrow-key nudge moves the point. */}
+                  <input
+                    key={`${selected}-${axis}-${value}`}
+                    className="osce-input"
+                    type="number" min="0" max="100" step="0.01"
+                    defaultValue={(value * 100).toFixed(2)}
+                    onBlur={(e) => commitAxis(axis, e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                  />
+                </label>
+              );
+            })}
             <button type="button" className="osce-btn-danger" onClick={removeSelected}>
               Remove point
             </button>

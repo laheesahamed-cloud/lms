@@ -38,8 +38,10 @@ export interface Sign {
   region?: string | null;
   media?: string | null;
   compare?: { label: string; media: string } | null;
-  short?: string;
-  body?: string;
+  short?: string;                                         // WHAT — the finding in a line or two
+  how?: string;                                           // HOW to elicit it (position, landmarks, steps)
+  sound?: string | null;                                  // id of the entry in `sounds` heard at this finding
+  body?: string;                                          // WHY it happens
   brief?: string;                                         // what the image should show
 }
 
@@ -57,6 +59,7 @@ export interface CaseDocument {
     findings?: string[];
   }>;
   sounds: Array<{
+    id?: string;
     title: string;
     ref?: ContentRef | null;
     compareWith?: ContentRef | null;
@@ -80,6 +83,10 @@ export interface CaseDocument {
     checklist: Array<{ section: string; items: string[] }>;
     questions: Array<{ q: string; a: string }>;
   };
+  // Carried through untouched by the editor and the JSON importer. Random-OSCE
+  // practice authoring and clinical-review metadata; nothing renders them yet.
+  simulation?: Record<string, unknown>;
+  clinical_review?: Record<string, unknown>;
 }
 
 /**
@@ -516,7 +523,7 @@ export class OsceService {
     );
     if (Number(rows?.[0]?.n || 0) > 0) {
       throw new BadRequestException(
-        'Move or delete the stations in this category first.'
+        'Move or delete the stations in this category first (use the category menu on each station).'
       );
     }
     await this.db.execute('DELETE FROM osce_categories WHERE id = ?', [id]);
@@ -752,6 +759,8 @@ export class OsceService {
     caseData?: CaseDocument;
     stationType?: 'short' | 'long';
     createdBy?: number | null;
+    /** Import keeps the author's own slug; otherwise it's derived from the title. */
+    slug?: string;
   }) {
     const title = String(input.title || '').trim();
     if (!title) throw new BadRequestException('Title is required');
@@ -766,7 +775,8 @@ export class OsceService {
     const categoryId = Number(catRows[0].id);
     const courseId = Number(catRows[0].course_id);
 
-    const slug = await this.uniqueSlug(title);
+    const wanted = String(input.slug || '').trim();
+    const slug = wanted ? wanted : await this.uniqueSlug(title);
     const doc = input.caseData ?? EMPTY_DOC;
 
     const [res] = await this.db.execute<any>(
@@ -1236,10 +1246,12 @@ export class OsceService {
 
   async publishCase(id: number) {
     const shots = await this.shotList(id);
-    const missing = shots.filter((s) => !s.filled);
+    // Only the "Examine a region" pictures are required. Findings, mechanism and
+    // investigation images are optional — an author may skip any of them.
+    const missing = shots.filter((s) => !s.filled && String(s.slot).startsWith('scene:'));
     if (missing.length) {
       throw new BadRequestException(
-        `${missing.length} image slot${missing.length === 1 ? '' : 's'} still empty: ` +
+        `${missing.length} region image${missing.length === 1 ? '' : 's'} still empty: ` +
         missing.slice(0, 5).map((m) => m.slot).join(', ') + (missing.length > 5 ? '…' : '')
       );
     }
