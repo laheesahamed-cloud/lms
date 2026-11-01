@@ -1,8 +1,9 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
 import { isMobileAppClient } from '../../common/utils/mobile-client.util';
+import { studentCanReadQuestion } from '../../common/utils/question-access.util';
 import { AiService } from '../ai/ai.service';
 import { UpsertTheoryRecapDto } from './dto/upsert-theory-recap.dto';
 
@@ -58,9 +59,16 @@ export class TheoryRecapService {
   // could enumerate every question in the bank regardless of quiz access.
   // App-only, unless the question also appears in a free quiz (a question
   // can be linked to several). See common/utils/mobile-client.util.ts.
-  async getByQuestionIdForStudent(questionId: number, appClient?: string) {
+  async getByQuestionIdForStudent(questionId: number, appClient?: string, userId?: number) {
     if (!isMobileAppClient(appClient) && !(await this.isQuestionFreelyAccessible(questionId))) {
       throw new AppOnlyContentException();
+    }
+    // The app-only rule above trusts a header anyone can send, so it can't be
+    // the only thing between a free student and premium content. They must also
+    // be entitled to a quiz that contains the question — free quiz, or a plan
+    // that covers its course — the same rule as opening that quiz.
+    if (!userId || !(await studentCanReadQuestion(this.db, userId, questionId))) {
+      throw new ForbiddenException('Your plan does not include the theory recap for this question');
     }
     return this.getByQuestionId(questionId);
   }

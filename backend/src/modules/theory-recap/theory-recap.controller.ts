@@ -27,7 +27,7 @@ export class TheoryRecapController {
     if (isStaffRole(user.role)) {
       return this.theoryRecapService.getByQuestionId(questionId);
     }
-    return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient);
+    return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient, user.id);
   }
 
   @Put('question/:questionId')

@@ -17,15 +17,19 @@ const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
 const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
+const question_access_util_1 = require("../../common/utils/question-access.util");
 const ai_service_1 = require("../ai/ai.service");
 let TheoryRecapService = class TheoryRecapService {
     constructor(db, aiService) {
         this.db = db;
         this.aiService = aiService;
     }
-    async getByQuestionIdForStudent(questionId, appClient) {
+    async getByQuestionIdForStudent(questionId, appClient, userId) {
         if (!(0, mobile_client_util_1.isMobileAppClient)(appClient) && !(await this.isQuestionFreelyAccessible(questionId))) {
             throw new app_only_content_exception_1.AppOnlyContentException();
+        }
+        if (!userId || !(await (0, question_access_util_1.studentCanReadQuestion)(this.db, userId, questionId))) {
+            throw new common_1.ForbiddenException('Your plan does not include the theory recap for this question');
         }
         return this.getByQuestionId(questionId);
     }

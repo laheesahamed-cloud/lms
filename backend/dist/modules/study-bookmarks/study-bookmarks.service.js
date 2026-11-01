@@ -16,6 +16,7 @@ exports.StudyBookmarksService = void 0;
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
+const question_access_util_1 = require("../../common/utils/question-access.util");
 let StudyBookmarksService = class StudyBookmarksService {
     constructor(db) {
         this.db = db;
@@ -33,6 +34,7 @@ let StudyBookmarksService = class StudyBookmarksService {
          n.lesson_title AS note_title,
          n.engine_key AS note_engine_key,
          LEFT(qn.question_text, 180) AS question_text,
+         qn.course_id AS question_course_id,
          (
            SELECT MIN(qq.quiz_id)
            FROM question_quizzes qq
@@ -59,9 +61,13 @@ let StudyBookmarksService = class StudyBookmarksService {
        LEFT JOIN topics qnt ON qnt.id = qn.topic_id
        WHERE b.user_id = ?
        ORDER BY b.created_at DESC, b.id DESC`, [userId]);
+        const access = await (0, question_access_util_1.loadStudentCourseAccess)(this.db, userId);
         return rows.map((row) => {
             const isQuestion = row.item_type === 'question';
-            const questionAppOnly = isQuestion && Number(row.question_is_free || 0) === 0 && !isMobileClient;
+            const entitled = Number(row.question_is_free || 0) > 0
+                || access.full
+                || access.courseIds.has(Number(row.question_course_id || 0));
+            const questionAppOnly = isQuestion && Number(row.question_is_free || 0) === 0 && (!isMobileClient || !entitled);
             return {
                 id: row.id,
                 userId: row.user_id,
@@ -84,6 +90,9 @@ let StudyBookmarksService = class StudyBookmarksService {
     }
     async toggle(userId, dto) {
         await this.assertTargetExists(dto.itemType, dto.itemId);
+        if (dto.itemType === 'question' && !(await (0, question_access_util_1.studentCanReadQuestion)(this.db, userId, dto.itemId))) {
+            throw new common_1.ForbiddenException('Your plan does not include this question');
+        }
         const [rows] = await this.db.execute('SELECT id FROM study_bookmarks WHERE user_id = ? AND item_type = ? AND item_id = ? LIMIT 1', [userId, dto.itemType, dto.itemId]);
         if (rows.length > 0) {
             await this.db.execute('DELETE FROM study_bookmarks WHERE id = ?', [rows[0].id]);

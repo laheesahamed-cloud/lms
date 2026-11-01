@@ -279,8 +279,8 @@ export declare class OsceController {
     }, auth?: string): Promise<{
         saved: boolean;
     }>;
-    ecgImage(cardId: number, res: Response): Promise<void>;
-    soundAudio(cardId: number, req: Request, res: Response): Promise<void>;
+    ecgImage(cardId: number, sig: string | undefined, res: Response): Promise<void>;
+    soundAudio(cardId: number, sig: string | undefined, req: Request, res: Response): Promise<void>;
     private sendRangeable;
-    media(caseSlug: string, fileName: string, res: Response): Promise<void>;
+    media(caseSlug: string, fileName: string, sig: string | undefined, res: Response): Promise<void>;
 }

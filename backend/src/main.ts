@@ -448,7 +448,10 @@ export async function configureApp(app: INestApplication) {
   // to Nest — /uploads/payment-proofs is already 404'd outright above.
   const serveUploads = express.static(uploadsRoot, uploadsStaticOpts);
   const serveNonSensitiveUploads = (req: any, res: any, next: any) => {
-    if (/^\/payment-proofs(?:\/|$)/i.test(req.path)) {
+    // OSCE pictures and auscultation clips are reachable only through their
+    // signed routes (/api/osce/media, /api/osce/sound, the auscultation library).
+    // Served from here they'd bypass both the signature and the login.
+    if (/^\/(?:payment-proofs|osce|sound-clips)(?:\/|$)/i.test(req.path)) {
       return next();
     }
     return serveUploads(req, res, next);

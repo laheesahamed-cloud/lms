@@ -7,6 +7,7 @@ import { stat } from 'fs/promises';
 import { join, resolve } from 'path';
 import { AuthService } from '../auth/auth.service';
 import { OsceService } from './osce.service';
+import { isValidMediaSignature } from '../../common/utils/signed-media.util';
 
 const MEDIA_MIME: Record<string, string> = {
   webp: 'image/webp',
@@ -132,7 +133,13 @@ export class OsceController {
 
   /** ECG images are stored as base64 data URIs — decode and stream as a real image. */
   @Get('ecg/:cardId/image')
-  async ecgImage(@Param('cardId', ParseIntPipe) cardId: number, @Res() res: Response) {
+  async ecgImage(
+    @Param('cardId', ParseIntPipe) cardId: number,
+    @Query('s') sig: string | undefined,
+    @Res() res: Response,
+  ) {
+    // Reachable only through a URL the server signed for an authorised reader.
+    if (!isValidMediaSignature(`ecg:${cardId}`, sig)) throw new NotFoundException('ECG image not found');
     const found = await this.svc.ecgImageBytes(cardId);
     if (!found) throw new NotFoundException('ECG image not found');
     res.setHeader('Content-Type', found.mime);
@@ -151,9 +158,11 @@ export class OsceController {
   @Get('sound/:cardId/audio')
   async soundAudio(
     @Param('cardId', ParseIntPipe) cardId: number,
+    @Query('s') sig: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    if (!isValidMediaSignature(`sound:${cardId}`, sig)) throw new NotFoundException('Sound not found');
     const found = await this.svc.auscultationAudioBytes(cardId);
     if (!found) throw new NotFoundException('Sound not found');
     this.sendRangeable(req, res, found.buffer, found.mime);
@@ -216,10 +225,12 @@ export class OsceController {
   async media(
     @Param('caseSlug') caseSlug: string,
     @Param('fileName') fileName: string,
+    @Query('s') sig: string | undefined,
     @Res() res: Response,
   ) {
     // `_global` is the reserved folder for the shared long-case art.
     if (!/^[A-Za-z0-9._-]{1,200}$/.test(caseSlug)) throw new BadRequestException('Invalid case');
+    if (!isValidMediaSignature(`media:${caseSlug}/${fileName}`, sig)) throw new NotFoundException('Media not found');
     if (!/^[A-Za-z0-9._@-]+\.(?:webp|jpe?g|png|mp4|webm|mov|ogv)$/i.test(fileName)) {
       throw new BadRequestException('Invalid media file name');
     }

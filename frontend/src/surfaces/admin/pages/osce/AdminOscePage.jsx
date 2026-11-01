@@ -321,7 +321,7 @@ function CaseEditor({ caseId, onBack, onChanged }) {
   const sceneImageUrl = useMemo(() => {
     if (!activeScene?.media) return null;
     const hit = shotList.find((s) => s.slot === activeScene.media);
-    return hit?.media ? `${MEDIA_BASE}/${hit.media.storageKey}` : null;
+    return hit?.media ? `${MEDIA_BASE}/${hit.media.storageKey}?s=${hit.media.sig || ''}` : null;
   }, [activeScene, shotList]);
 
   if (!data) {

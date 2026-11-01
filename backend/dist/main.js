@@ -418,7 +418,7 @@ async function configureApp(app) {
     };
     const serveUploads = express.static(uploadsRoot, uploadsStaticOpts);
     const serveNonSensitiveUploads = (req, res, next) => {
-        if (/^\/payment-proofs(?:\/|$)/i.test(req.path)) {
+        if (/^\/(?:payment-proofs|osce|sound-clips)(?:\/|$)/i.test(req.path)) {
             return next();
         }
         return serveUploads(req, res, next);

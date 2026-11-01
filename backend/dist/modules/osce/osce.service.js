@@ -20,6 +20,7 @@ const common_1 = require("@nestjs/common");
 const promises_1 = require("fs/promises");
 const path_1 = require("path");
 const database_tokens_1 = require("../../database/database.tokens");
+const signed_media_util_1 = require("../../common/utils/signed-media.util");
 const AUSCULTATION_AUDIO_DIR = () => (0, path_1.join)(process.cwd(), 'uploads', 'sound-clips');
 exports.BODY_SPEC = { ratio: '3:4', width: 1536, height: 2048 };
 exports.STANDARD_SPEC = { ratio: '4:3', width: 1536, height: 1152 };
@@ -180,7 +181,7 @@ let OsceService = OsceService_1 = class OsceService {
                 id: Number(r.id),
                 title: String(r.title),
                 group: r.topic_title ? String(r.topic_title) : '',
-                image: root ? `${root}/api/osce/ecg/${Number(r.id)}/image` : null,
+                image: root ? `${root}/api/osce/ecg/${Number(r.id)}/image?s=${(0, signed_media_util_1.signMedia)(`ecg:${Number(r.id)}`)}` : null,
             })),
             auscultationCards: sounds.map((r) => ({
                 id: Number(r.id),
@@ -189,7 +190,7 @@ let OsceService = OsceService_1 = class OsceService {
                 category: r.category ? String(r.category) : '',
                 hasAudio: !!r.audio_file,
                 audio: r.audio_file && root
-                    ? `${root}/api/osce/sound/${Number(r.id)}/audio`
+                    ? `${root}/api/osce/sound/${Number(r.id)}/audio?s=${(0, signed_media_util_1.signMedia)(`sound:${Number(r.id)}`)}`
                     : null,
             })),
         };
@@ -206,8 +207,8 @@ let OsceService = OsceService_1 = class OsceService {
             if (!Object.prototype.hasOwnProperty.call(out, key))
                 continue;
             out[key] = {
-                full: `${root}/api/osce/media/${r.storage_key}?v=${r.stamp || 0}`,
-                thumb: `${root}/api/osce/media/${r.thumb_key || r.storage_key}?v=${r.stamp || 0}`,
+                full: OsceService_1.mediaUrl(root, String(r.storage_key), r.stamp || 0),
+                thumb: OsceService_1.mediaUrl(root, String(r.thumb_key || r.storage_key), r.stamp || 0),
             };
         }
         return out;
@@ -396,8 +397,8 @@ let OsceService = OsceService_1 = class OsceService {
             locked: profile ? !this.caseInScope(r, profile) : false,
             cover: r.cover_key && root
                 ? {
-                    full: `${root}/api/osce/media/${r.cover_key}?v=${r.cover_stamp || 0}`,
-                    thumb: `${root}/api/osce/media/${r.cover_thumb || r.cover_key}?v=${r.cover_stamp || 0}`,
+                    full: OsceService_1.mediaUrl(root, String(r.cover_key), r.cover_stamp || 0),
+                    thumb: OsceService_1.mediaUrl(root, String(r.cover_thumb || r.cover_key), r.cover_stamp || 0),
                 }
                 : null,
         }));
@@ -622,6 +623,8 @@ let OsceService = OsceService_1 = class OsceService {
             storageKey: String(r.storage_key || ''),
             externalUrl: r.external_url ? String(r.external_url) : null,
             thumbKey: r.thumb_key ? String(r.thumb_key) : null,
+            sig: r.storage_key ? (0, signed_media_util_1.signMedia)(`media:${String(r.storage_key)}`) : null,
+            thumbSig: r.thumb_key ? (0, signed_media_util_1.signMedia)(`media:${String(r.thumb_key)}`) : null,
             mime: String(r.mime),
             source: String(r.source || 'upload'),
             bytes: Number(r.bytes || 0),
@@ -830,6 +833,9 @@ let OsceService = OsceService_1 = class OsceService {
         };
         return map[String(mime).toLowerCase()] || null;
     }
+    static mediaUrl(root, key, stamp) {
+        return `${root}/api/osce/media/${key}?v=${stamp}&s=${(0, signed_media_util_1.signMedia)(`media:${key}`)}`;
+    }
     static isVideoMime(mime) {
         return String(mime || '').toLowerCase().startsWith('video/');
     }
@@ -922,8 +928,8 @@ let OsceService = OsceService_1 = class OsceService {
             }
             const video = OsceService_1.isVideoMime(hit.mime);
             return {
-                full: `${root}/api/osce/media/${hit.storageKey}?v=${stamp}`,
-                thumb: hit.thumbKey ? `${root}/api/osce/media/${hit.thumbKey}?v=${stamp}` : null,
+                full: OsceService_1.mediaUrl(root, hit.storageKey, stamp),
+                thumb: hit.thumbKey ? OsceService_1.mediaUrl(root, hit.thumbKey, stamp) : null,
                 width: hit.width, height: hit.height,
                 kind: video ? 'video' : 'image',
                 mime: hit.mime || null,
@@ -1024,7 +1030,7 @@ let OsceService = OsceService_1 = class OsceService {
             return null;
         return {
             title: String(rows[0].title),
-            image: { full: `${root}/api/osce/ecg/${cardId}/image`, thumb: null, width: null, height: null },
+            image: { full: `${root}/api/osce/ecg/${cardId}/image?s=${(0, signed_media_util_1.signMedia)(`ecg:${cardId}`)}`, thumb: null, width: null, height: null },
         };
     }
     async auscultationAudio(cardId, root) {
@@ -1035,7 +1041,7 @@ let OsceService = OsceService_1 = class OsceService {
         const stamp = Number(rows[0].stamp || 0);
         return {
             title: String(rows[0].title),
-            url: `${root}/api/osce/sound/${cardId}/audio?v=${stamp}`,
+            url: `${root}/api/osce/sound/${cardId}/audio?v=${stamp}&s=${(0, signed_media_util_1.signMedia)(`sound:${cardId}`)}`,
         };
     }
     async auscultationAudioBytes(cardId) {

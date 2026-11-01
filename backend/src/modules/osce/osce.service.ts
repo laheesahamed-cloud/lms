@@ -3,6 +3,7 @@ import { Pool, RowDataPacket } from 'mysql2/promise';
 import { mkdir, writeFile, unlink, readdir, rename, readFile } from 'fs/promises';
 import { join, basename } from 'path';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { signMedia } from '../../common/utils/signed-media.util';
 
 /** Where the Auscultation library keeps its clips (AuscultationService.AUDIO_DIR). */
 const AUSCULTATION_AUDIO_DIR = () => join(process.cwd(), 'uploads', 'sound-clips');
@@ -352,7 +353,7 @@ export class OsceService {
         group: r.topic_title ? String(r.topic_title) : '',
         // Served from our own streaming route — the card itself holds a base64
         // data URI, far too big to inline into a picker list.
-        image: root ? `${root}/api/osce/ecg/${Number(r.id)}/image` : null,
+        image: root ? `${root}/api/osce/ecg/${Number(r.id)}/image?s=${signMedia(`ecg:${Number(r.id)}`)}` : null,
       })),
       auscultationCards: sounds.map((r) => ({
         id: Number(r.id),
@@ -361,7 +362,7 @@ export class OsceService {
         category: r.category ? String(r.category) : '',
         hasAudio: !!r.audio_file,
         audio: r.audio_file && root
-          ? `${root}/api/osce/sound/${Number(r.id)}/audio`
+          ? `${root}/api/osce/sound/${Number(r.id)}/audio?s=${signMedia(`sound:${Number(r.id)}`)}`
           : null,
       })),
     };
@@ -384,8 +385,8 @@ export class OsceService {
       const key = String(r.slot_key).replace('global:', '');
       if (!Object.prototype.hasOwnProperty.call(out, key)) continue;
       out[key] = {
-        full: `${root}/api/osce/media/${r.storage_key}?v=${r.stamp || 0}`,
-        thumb: `${root}/api/osce/media/${r.thumb_key || r.storage_key}?v=${r.stamp || 0}`,
+        full: OsceService.mediaUrl(root, String(r.storage_key), r.stamp || 0),
+        thumb: OsceService.mediaUrl(root, String(r.thumb_key || r.storage_key), r.stamp || 0),
       };
     }
     return out;
@@ -678,8 +679,8 @@ export class OsceService {
       locked: profile ? !this.caseInScope(r, profile) : false,
       cover: r.cover_key && root
         ? {
-            full: `${root}/api/osce/media/${r.cover_key}?v=${r.cover_stamp || 0}`,
-            thumb: `${root}/api/osce/media/${r.cover_thumb || r.cover_key}?v=${r.cover_stamp || 0}`,
+            full: OsceService.mediaUrl(root, String(r.cover_key), r.cover_stamp || 0),
+            thumb: OsceService.mediaUrl(root, String(r.cover_thumb || r.cover_key), r.cover_stamp || 0),
           }
         : null,
     }));
@@ -931,6 +932,9 @@ export class OsceService {
       storageKey: String(r.storage_key || ''),
       externalUrl: r.external_url ? String(r.external_url) : null,
       thumbKey: r.thumb_key ? String(r.thumb_key) : null,
+      // Signatures for the admin panel, which builds its own image URLs.
+      sig: r.storage_key ? signMedia(`media:${String(r.storage_key)}`) : null,
+      thumbSig: r.thumb_key ? signMedia(`media:${String(r.thumb_key)}`) : null,
       mime: String(r.mime),
       source: String(r.source || 'upload'),
       bytes: Number(r.bytes || 0),
@@ -1237,6 +1241,11 @@ export class OsceService {
     return map[String(mime).toLowerCase()] || null;
   }
 
+  /** A stored file's public URL, signed so it can't be guessed or counted up to. */
+  static mediaUrl(root: string, key: string, stamp: unknown) {
+    return `${root}/api/osce/media/${key}?v=${stamp}&s=${signMedia(`media:${key}`)}`;
+  }
+
   /** Whether a stored slot is a clip rather than a still. */
   static isVideoMime(mime?: string | null) {
     return String(mime || '').toLowerCase().startsWith('video/');
@@ -1365,10 +1374,10 @@ export class OsceService {
       }
       const video = OsceService.isVideoMime(hit.mime);
       return {
-        full: `${root}/api/osce/media/${hit.storageKey}?v=${stamp}`,
+        full: OsceService.mediaUrl(root, hit.storageKey, stamp),
         // A clip has no still to show in a list, so the thumb falls back to the
         // clip itself and the client decides what to do with it.
-        thumb: hit.thumbKey ? `${root}/api/osce/media/${hit.thumbKey}?v=${stamp}` : null,
+        thumb: hit.thumbKey ? OsceService.mediaUrl(root, hit.thumbKey, stamp) : null,
         width: hit.width, height: hit.height,
         kind: video ? 'video' : 'image',
         mime: hit.mime || null,
@@ -1511,7 +1520,7 @@ export class OsceService {
     if (!rows.length) return null;
     return {
       title: String(rows[0].title),
-      image: { full: `${root}/api/osce/ecg/${cardId}/image`, thumb: null, width: null, height: null },
+      image: { full: `${root}/api/osce/ecg/${cardId}/image?s=${signMedia(`ecg:${cardId}`)}`, thumb: null, width: null, height: null },
     };
   }
 
@@ -1536,7 +1545,7 @@ export class OsceService {
       // front of production from serving a cached range-less 200 in place of
       // the 206 the player needs — a plain URL there was answered from cache
       // with the pre-fix response long after the origin was updated.
-      url: `${root}/api/osce/sound/${cardId}/audio?v=${stamp}`,
+      url: `${root}/api/osce/sound/${cardId}/audio?v=${stamp}&s=${signMedia(`sound:${cardId}`)}`,
     };
   }
 

@@ -113,6 +113,8 @@ export declare class OsceAdminController {
                 storageKey: string;
                 externalUrl: string | null;
                 thumbKey: string | null;
+                sig: string | null;
+                thumbSig: string | null;
                 mime: string;
                 source: string;
                 bytes: number;
@@ -470,6 +472,8 @@ export declare class OsceAdminController {
                 storageKey: string;
                 externalUrl: string | null;
                 thumbKey: string | null;
+                sig: string | null;
+                thumbSig: string | null;
                 mime: string;
                 source: string;
                 bytes: number;

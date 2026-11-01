@@ -335,7 +335,7 @@ export function SlotGrid({ caseId, shotList, mediaBase, onChanged }) {
             key={slot.slot}
             caseId={caseId}
             slot={slot}
-            mediaUrl={slot.media ? `${mediaBase}/${slot.media.thumbKey || slot.media.storageKey}` : null}
+            mediaUrl={slot.media ? `${mediaBase}/${slot.media.thumbKey || slot.media.storageKey}?s=${(slot.media.thumbKey ? slot.media.thumbSig : slot.media.sig) || ''}` : null}
             onDone={onChanged}
             onError={setError}
           />

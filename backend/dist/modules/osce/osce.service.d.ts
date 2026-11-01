@@ -375,6 +375,8 @@ export declare class OsceService {
         storageKey: string;
         externalUrl: string | null;
         thumbKey: string | null;
+        sig: string | null;
+        thumbSig: string | null;
         mime: string;
         source: string;
         bytes: number;
@@ -390,6 +392,8 @@ export declare class OsceService {
             storageKey: string;
             externalUrl: string | null;
             thumbKey: string | null;
+            sig: string | null;
+            thumbSig: string | null;
             mime: string;
             source: string;
             bytes: number;
@@ -447,6 +451,7 @@ export declare class OsceService {
     }>;
     archiveInbox(fileName: string): Promise<void>;
     private extForMime;
+    static mediaUrl(root: string, key: string, stamp: unknown): string;
     static isVideoMime(mime?: string | null): boolean;
     publishCase(id: number): Promise<{
         caseData: CaseDocument;

@@ -1,7 +1,8 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { isMobileAppClient } from '../../common/utils/mobile-client.util';
+import { loadStudentCourseAccess, studentCanReadQuestion } from '../../common/utils/question-access.util';
 import { ToggleStudyBookmarkDto } from './dto/toggle-study-bookmark.dto';
 
 type BookmarkRow = RowDataPacket & {
@@ -14,6 +15,7 @@ type BookmarkRow = RowDataPacket & {
   exam_mode_only?: number | null;
   note_title?: string | null;
   note_engine_key?: string | null;
+  question_course_id?: number | null;
   question_text?: string | null;
   question_quiz_id?: number | null;
   question_is_free?: number | null;
@@ -44,6 +46,7 @@ export class StudyBookmarksService {
          n.lesson_title AS note_title,
          n.engine_key AS note_engine_key,
          LEFT(qn.question_text, 180) AS question_text,
+         qn.course_id AS question_course_id,
          (
            SELECT MIN(qq.quiz_id)
            FROM question_quizzes qq
@@ -73,9 +76,15 @@ export class StudyBookmarksService {
       [userId]
     );
 
+    // The app-only rule trusts a header anyone can send, so a question's text
+    // is also withheld unless the student's plan covers it (or it is free).
+    const access = await loadStudentCourseAccess(this.db, userId);
     return rows.map((row) => {
       const isQuestion = row.item_type === 'question';
-      const questionAppOnly = isQuestion && Number(row.question_is_free || 0) === 0 && !isMobileClient;
+      const entitled = Number(row.question_is_free || 0) > 0
+        || access.full
+        || access.courseIds.has(Number(row.question_course_id || 0));
+      const questionAppOnly = isQuestion && Number(row.question_is_free || 0) === 0 && (!isMobileClient || !entitled);
       return {
         id: row.id,
         userId: row.user_id,
@@ -99,6 +108,10 @@ export class StudyBookmarksService {
 
   async toggle(userId: number, dto: ToggleStudyBookmarkDto) {
     await this.assertTargetExists(dto.itemType, dto.itemId);
+    // Saving a bookmark must not be a way to probe questions you can't read.
+    if (dto.itemType === 'question' && !(await studentCanReadQuestion(this.db, userId, dto.itemId))) {
+      throw new ForbiddenException('Your plan does not include this question');
+    }
 
     const [rows] = await this.db.execute<RowDataPacket[]>(
       'SELECT id FROM study_bookmarks WHERE user_id = ? AND item_type = ? AND item_id = ? LIMIT 1',

@@ -5,7 +5,7 @@ export declare class TheoryRecapService {
     private readonly db;
     private readonly aiService;
     constructor(db: Pool, aiService: AiService);
-    getByQuestionIdForStudent(questionId: number, appClient?: string): Promise<{
+    getByQuestionIdForStudent(questionId: number, appClient?: string, userId?: number): Promise<{
         id: number;
         questionId: number;
         conceptName: string;

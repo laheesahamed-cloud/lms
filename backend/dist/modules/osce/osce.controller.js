@@ -18,6 +18,7 @@ const promises_1 = require("fs/promises");
 const path_1 = require("path");
 const auth_service_1 = require("../auth/auth.service");
 const osce_service_1 = require("./osce.service");
+const signed_media_util_1 = require("../../common/utils/signed-media.util");
 const MEDIA_MIME = {
     webp: 'image/webp',
     jpg: 'image/jpeg',
@@ -88,7 +89,9 @@ let OsceController = class OsceController {
         const user = await this.authService.requireStudent(auth);
         return this.svc.saveProgress(Number(user.id), caseId, body || {});
     }
-    async ecgImage(cardId, res) {
+    async ecgImage(cardId, sig, res) {
+        if (!(0, signed_media_util_1.isValidMediaSignature)(`ecg:${cardId}`, sig))
+            throw new common_1.NotFoundException('ECG image not found');
         const found = await this.svc.ecgImageBytes(cardId);
         if (!found)
             throw new common_1.NotFoundException('ECG image not found');
@@ -98,7 +101,9 @@ let OsceController = class OsceController {
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.end(found.buffer);
     }
-    async soundAudio(cardId, req, res) {
+    async soundAudio(cardId, sig, req, res) {
+        if (!(0, signed_media_util_1.isValidMediaSignature)(`sound:${cardId}`, sig))
+            throw new common_1.NotFoundException('Sound not found');
         const found = await this.svc.auscultationAudioBytes(cardId);
         if (!found)
             throw new common_1.NotFoundException('Sound not found');
@@ -134,9 +139,11 @@ let OsceController = class OsceController {
         res.setHeader('Content-Length', String(end - start + 1));
         res.end(buffer.subarray(start, end + 1));
     }
-    async media(caseSlug, fileName, res) {
+    async media(caseSlug, fileName, sig, res) {
         if (!/^[A-Za-z0-9._-]{1,200}$/.test(caseSlug))
             throw new common_1.BadRequestException('Invalid case');
+        if (!(0, signed_media_util_1.isValidMediaSignature)(`media:${caseSlug}/${fileName}`, sig))
+            throw new common_1.NotFoundException('Media not found');
         if (!/^[A-Za-z0-9._@-]+\.(?:webp|jpe?g|png|mp4|webm|mov|ogv)$/i.test(fileName)) {
             throw new common_1.BadRequestException('Invalid media file name');
         }
@@ -215,27 +222,30 @@ __decorate([
 __decorate([
     (0, common_1.Get)('ecg/:cardId/image'),
     __param(0, (0, common_1.Param)('cardId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Res)()),
+    __param(1, (0, common_1.Query)('s')),
+    __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], OsceController.prototype, "ecgImage", null);
 __decorate([
     (0, common_1.Get)('sound/:cardId/audio'),
     __param(0, (0, common_1.Param)('cardId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Req)()),
-    __param(2, (0, common_1.Res)()),
+    __param(1, (0, common_1.Query)('s')),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], OsceController.prototype, "soundAudio", null);
 __decorate([
     (0, common_1.Get)('media/:caseSlug/:fileName'),
     __param(0, (0, common_1.Param)('caseSlug')),
     __param(1, (0, common_1.Param)('fileName')),
-    __param(2, (0, common_1.Res)()),
+    __param(2, (0, common_1.Query)('s')),
+    __param(3, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], OsceController.prototype, "media", null);
 exports.OsceController = OsceController = __decorate([

@@ -29,7 +29,7 @@ let TheoryRecapController = class TheoryRecapController {
         if ((0, role_permissions_1.isStaffRole)(user.role)) {
             return this.theoryRecapService.getByQuestionId(questionId);
         }
-        return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient);
+        return this.theoryRecapService.getByQuestionIdForStudent(questionId, appClient, user.id);
     }
     async upsert(questionId, dto, authorization) {
         await this.authService.requireAdmin(authorization);
