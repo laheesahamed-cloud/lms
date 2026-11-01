@@ -34,8 +34,8 @@ const sections = [
     body: 'Plan names, prices, discounts, course access, and package features may change from time to time. Any active offer or coupon may have its own limits, expiry, access scope, and approval conditions.',
   },
   {
-    title: '7. Orders and Payments on the Website',
-    body: 'By submitting a subscription order on the website, you confirm that the package and billing details are correct. PayHere checkout payments are processed by PayHere. Manual bank transfer requests are activated only after admin verification of the uploaded payment proof. Purchases made inside the iOS app are covered separately in section 8.',
+    title: '7. Orders and Payments',
+    body: 'By submitting a subscription order, you confirm that the package and billing details are correct. Payments made outside the iOS app are processed by the payment provider shown at checkout, and some payments are activated only after admin verification. Purchases made inside the iOS app are covered in section 8.',
   },
   {
     title: '8. In-App Purchases (iOS App)',
@@ -53,11 +53,11 @@ const sections = [
   },
   {
     title: '9. Third-Party Payment Processing',
-    body: 'Online payment details are handled by PayHere, Apple (for in-app purchases), or the active payment provider. xyndrome does not store full card numbers or card security codes. Payment status, order references, Apple transaction identifiers, and transaction records may be stored for subscription activation, support, accounting, and dispute handling.',
+    body: 'Payment details are handled by Apple (for in-app purchases) or by the payment provider used for the payment. xyndrome does not store full card numbers or card security codes. Payment status, order references, Apple transaction identifiers, and transaction records may be stored for subscription activation, support, accounting, and dispute handling.',
   },
   {
     title: '10. Refunds and Cancellations',
-    body: 'Refund and cancellation requests for PayHere and bank transfer payments are reviewed under the Refund Policy. Purchases made through the Apple App Store are refunded only by Apple, so xyndrome cannot issue or reverse them; request those through reportaproblem.apple.com or Apple Support. Digital access, payment status, account activity, and usage history may affect the final decision.',
+    body: 'Refund and cancellation requests for payments made outside the iOS app are reviewed under the Refund Policy. Purchases made through the Apple App Store are refunded only by Apple, so xyndrome cannot issue or reverse them; request those through reportaproblem.apple.com or Apple Support. Digital access, payment status, account activity, and usage history may affect the final decision.',
   },
   {
     title: '11. Content and Intellectual Property',
@@ -90,7 +90,7 @@ export function TermsPage() {
     <main className="min-h-dvh px-[clamp(20px,4vw,40px)] py-[clamp(40px,6vw,80px)]">
       <PageMeta
         title="Terms and Conditions"
-        description="Terms and conditions for xyndrome student accounts, digital course access, PayHere payments, Apple in-app subscriptions, refunds, and platform rules."
+        description="Terms and conditions for xyndrome student accounts, digital course access, Apple in-app subscriptions, refunds, and platform rules."
         path="/terms"
       />
       <div className="mx-auto grid w-full max-w-[900px] gap-6">
@@ -113,7 +113,7 @@ export function TermsPage() {
           <h1 className="mt-3 mb-4 font-display text-[28px] font-extrabold leading-tight text-ink-strong">Terms &amp; Conditions</h1>
           <p className="m-0 text-[14.5px] leading-[1.75] text-ink-soft">
             Last updated: November 1, 2026. These terms explain the rules for using xyndrome, creating an account,
-            buying digital subscription access, and paying by PayHere, bank transfer, or in-app purchase through the Apple App Store.
+            buying digital subscription access, and paying for it, including by in-app purchase through the Apple App Store.
             {' '}Read the <Link to="/privacy-policy" className="font-bold text-brand-primary no-underline">Privacy Policy</Link> and <Link to="/refund-policy" className="font-bold text-brand-primary no-underline">Refund Policy</Link> for more details.
           </p>
 

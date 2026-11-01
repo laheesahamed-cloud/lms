@@ -148,9 +148,9 @@ function Feature({ f, index }) {
                 </li>
               ))}
             </ul>
-            {f.replaces && (
-              <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-[#6b7280] ring-1 ring-black/5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" />
+            {/* Only the first section keeps its "Replaces…" pill, and without the dot. */}
+            {f.id === 'canvas' && f.replaces && (
+              <p className="mt-5 inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-[#6b7280] ring-1 ring-black/5">
                 {f.replaces}
               </p>
             )}

@@ -173,6 +173,10 @@ export function StudentCheckoutPage() {
   }, [billing.availablePlans, planId]);
   const accessScopeLabel = useMemo(() => getAccessScopeLabel(accessScope, courseIds, lessonIds), [accessScope, courseIds, lessonIds]);
   const bankTransferDetails = String(billing.payment?.bankTransferDetails || '').trim();
+  // Card checkout needs PayHere switched on AND its merchant details saved. When
+  // either is missing the card option is locked and bank transfer takes over.
+  const cardAvailable = Boolean(billing.payment?.enabled && billing.payment?.configured);
+  const bankOnly = !loading && !cardAvailable;
   const pendingManualRequest = useMemo(() => {
     return (Array.isArray(billing.requests) ? billing.requests : []).find((request) => (
       request?.status === 'pending'
@@ -275,7 +279,7 @@ export function StudentCheckoutPage() {
   }, [buildCheckoutPayload, couponRequiresApproval, ensureCouponReady, pendingManualRequest, plan]);
 
   useEffect(() => {
-    if (!shouldCreateManualInvoice || loading || !plan || pendingProofUploaded || manualInvoice?.invoiceId || manualInvoiceLoading) return;
+    if (!(shouldCreateManualInvoice || bankOnly) || loading || !plan || pendingProofUploaded || manualInvoice?.invoiceId || manualInvoiceLoading) return;
     const autoCreatePlanKey = String(plan.id);
     if (invoiceAutoCreatePlanRef.current === autoCreatePlanKey) return;
     invoiceAutoCreatePlanRef.current = autoCreatePlanKey;
@@ -285,7 +289,7 @@ export function StudentCheckoutPage() {
         invoiceAutoCreatePlanRef.current = '';
       }
     });
-  }, [createManualInvoice, loading, manualInvoice?.invoiceId, manualInvoiceLoading, pendingProofUploaded, plan, shouldCreateManualInvoice]);
+  }, [bankOnly, createManualInvoice, loading, manualInvoice?.invoiceId, manualInvoiceLoading, pendingProofUploaded, plan, shouldCreateManualInvoice]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -573,7 +577,7 @@ export function StudentCheckoutPage() {
                   <button
                     type="button"
                     className={paymentMode === 'card' ? ui.primaryAction : ui.secondaryAction}
-                    disabled={couponRequiresApproval}
+                    disabled={couponRequiresApproval || !cardAvailable}
                     onClick={() => setPaymentMode('card')}
                   >
                     Card / PayHere
@@ -592,6 +596,11 @@ export function StudentCheckoutPage() {
                     {pendingProofUploaded ? 'Waiting for approval' : pendingManualRequest?.invoiceId ? 'View invoice' : 'Bank transfer'}
                   </button>
                 </div>
+                {bankOnly ? (
+                  <FeedbackNotice tone="warning">
+                    Card payments are unavailable right now. Please use bank transfer.
+                  </FeedbackNotice>
+                ) : null}
                 {couponRequiresApproval ? (
                   <FeedbackNotice tone="warning">
                     This coupon brings the amount due to {formatCheckoutAmount(checkoutCurrency, payableAmount)}. Request admin approval instead of choosing a payment method.
@@ -618,7 +627,7 @@ export function StudentCheckoutPage() {
                 </section>
               ) : null}
 
-              {paymentMode === 'card' && !couponRequiresApproval ? (
+              {paymentMode === 'card' && cardAvailable && !couponRequiresApproval ? (
                 <section className={ui.panelCard}>
                   <div className={ui.panelTop}>
                     <div>

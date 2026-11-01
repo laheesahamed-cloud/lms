@@ -20,11 +20,11 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 /* Each card: copy + a scattered resting spot (md+ absolute) + the off-position
  * it flies in from. Deliberately uneven so the cluster reads as chaotic. */
 const CARDS = [
-  { label: 'A notes app', sub: 'half your lectures', dot: '#3b82f6', pos: 'md:left-[2%] md:top-[4%]', rot: -6, from: { x: -150, y: 24 } },
-  { label: 'A flashcard app', sub: 'deck 4 of 9, unfinished', dot: '#ec4899', pos: 'md:left-[55%] md:top-[0%]', rot: 5, from: { x: 150, y: -30 } },
-  { label: 'A PDF reader', sub: 'highlights you never reopen', dot: '#f59e0b', pos: 'md:left-[60%] md:top-[44%]', rot: -4, from: { x: 170, y: 50 } },
-  { label: 'The group chat', sub: 'where past papers go to hide', dot: '#22c55e', pos: 'md:left-[6%] md:top-[56%]', rot: 4, from: { x: -140, y: 70 } },
-  { label: 'Lecture recordings', sub: '1h 58m, still unplayed', dot: '#8b5cf6', pos: 'md:left-[34%] md:top-[78%]', rot: -3, from: { x: 10, y: 130 } },
+  { label: 'A notes app', sub: 'half your lectures', bg: '#d6f0ff', fg: '#0369a1', pos: 'md:left-[2%] md:top-[4%]', rot: -6, from: { x: -150, y: 24 } },
+  { label: 'A flashcard app', sub: 'deck 4 of 9, unfinished', bg: '#ffd6f0', fg: '#9d174d', pos: 'md:left-[55%] md:top-[0%]', rot: 5, from: { x: 150, y: -30 } },
+  { label: 'A PDF reader', sub: 'highlights you never reopen', bg: '#fff3d6', fg: '#b45309', pos: 'md:left-[60%] md:top-[44%]', rot: -4, from: { x: 170, y: 50 } },
+  { label: 'The group chat', sub: 'where past papers go to hide', bg: '#d6ffe8', fg: '#15803d', pos: 'md:left-[6%] md:top-[56%]', rot: 4, from: { x: -140, y: 70 } },
+  { label: 'Lecture recordings', sub: '1h 58m, still unplayed', bg: '#e8d6ff', fg: '#6d28d9', pos: 'md:left-[34%] md:top-[78%]', rot: -3, from: { x: 10, y: 130 } },
 ];
 
 function ScatterCard({ c, index, progress }) {
@@ -45,12 +45,15 @@ function ScatterCard({ c, index, progress }) {
       style={{ opacity, x, y, rotate, scale }}
     >
       <div
-        className="flex w-fit items-center gap-2.5 rounded-xl bg-white px-4 py-3 shadow-[0_14px_34px_-20px_rgba(17,17,24,0.42)] ring-1 ring-black/5"
-        style={{ animation: `lpv2Float ${4.4 + (index % 3) * 0.7}s ease-in-out ${index * 0.3}s infinite` }}
+        className="flex w-fit items-center gap-2 rounded-full px-5 py-2.5 shadow-[0_12px_28px_-18px_rgba(17,17,24,0.35)] ring-1 ring-black/5"
+        style={{
+          background: c.bg,
+          color: c.fg,
+          animation: `lpv2Float ${4.4 + (index % 3) * 0.7}s ease-in-out ${index * 0.3}s infinite`,
+        }}
       >
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.dot }} />
-        <span className="text-[13.5px] font-bold text-[#111118]">{c.label}</span>
-        <span className="hidden text-[11.5px] text-[#9ca3af] sm:inline">· {c.sub}</span>
+        <span className="text-[13.5px] font-bold">{c.label}</span>
+        <span className="hidden text-[11.5px] font-medium opacity-70 sm:inline">{c.sub}</span>
       </div>
     </motion.div>
   );

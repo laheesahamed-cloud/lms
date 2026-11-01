@@ -49,7 +49,7 @@ export function CookiePolicyPage() {
 
           <div className={ui.buttonRow}>
             <Link to="/privacy-policy" className={ui.secondaryAction}>Privacy Policy</Link>
-            <Link to="/" className={ui.secondaryAction}>Back to Home</Link>
+            <Link to="/terms" className={ui.secondaryAction}>Terms</Link>
           </div>
         </div>
 

@@ -6,7 +6,7 @@ import { ui } from '../../../shared/styles/tailwindClasses.js';
 const sections = [
   {
     title: '1. Subscription Access',
-    body: 'xyndrome provides digital access to medical learning content, quizzes, notes, analytics, and study tools. Access may begin as soon as a PayHere payment is approved, a bank transfer is verified by an admin, or an Apple App Store purchase is confirmed by Apple.',
+    body: 'xyndrome provides digital access to medical learning content, quizzes, notes, analytics, and study tools. Access may begin as soon as a payment is approved or verified, or an Apple App Store purchase is confirmed by Apple.',
   },
   {
     title: '2. Digital Delivery',
@@ -14,7 +14,7 @@ const sections = [
   },
   {
     title: '3. Refund Requests',
-    body: 'For PayHere and bank transfer payments, refund requests should be sent to the platform support/admin contact with the student account email, payment date, plan name, amount, order or invoice ID, payment method, and reason for the request.',
+    body: 'For payments made outside the iOS app, refund requests should be sent to the platform support/admin contact with the student account email, payment date, plan name, amount, order or invoice ID, payment method, and reason for the request.',
   },
   {
     title: '4. When Refunds May Be Considered',
@@ -35,27 +35,23 @@ const sections = [
     ],
   },
   {
-    title: '6. PayHere Payments',
-    body: 'Approved PayHere refunds, when applicable, are normally processed through the original payment method or another method permitted by the payment provider. Bank and payment-provider processing times may vary.',
+    title: '6. Payments Made Outside the App',
+    body: 'Approved refunds, when applicable, are normally processed through the original payment method or another method permitted by the payment provider. Some payments need manual verification, and if a payment cannot be matched to a student account or plan, the student may be asked for additional proof before activation or refund handling.',
   },
   {
-    title: '7. Bank Transfer Payments',
-    body: 'Manual bank transfer payments require admin verification. If a transfer cannot be matched to a student account or plan, the student may be asked for additional proof before activation or refund handling.',
-  },
-  {
-    title: '8. App Store (In-App) Purchases',
+    title: '7. App Store (In-App) Purchases',
     body: 'Subscriptions bought inside the xyndrome iOS app are charged and refunded by Apple, not by xyndrome, so the rules above do not apply to them and we cannot issue or reverse Apple charges. To request a refund, use reportaproblem.apple.com or contact Apple Support with your Apple ID purchase receipt. Cancelling a subscription in Settings → Apple ID → Subscriptions stops future renewals but does not refund the current period, and you keep access until it ends. Deleting your xyndrome account does not cancel an Apple subscription. If Apple has confirmed your payment but your access is wrong, contact xyndrome support and we will fix it.',
   },
   {
-    title: '9. Processing Time',
-    body: 'For PayHere and bank transfer payments, refund requests are reviewed after the required payment and account details are received. Approved refunds are processed within a reasonable business period, but the final arrival time depends on the bank or payment provider.',
+    title: '8. Processing Time',
+    body: 'For payments made outside the iOS app, refund requests are reviewed after the required payment and account details are received. Approved refunds are processed within a reasonable business period, but the final arrival time depends on the bank or payment provider.',
   },
   {
-    title: '10. Final Review',
+    title: '9. Final Review',
     body: 'Refund approval depends on payment-provider records, account activity, access history, support communication, and applicable consumer protection rules.',
   },
   {
-    title: '11. Contact',
+    title: '10. Contact',
     body: 'For refund questions, contact the xyndrome admin or support channel shown on the platform or website.',
   },
 ];
@@ -65,7 +61,7 @@ export function RefundPolicyPage() {
     <main className="min-h-dvh px-[clamp(20px,4vw,40px)] py-[clamp(40px,6vw,80px)]">
       <PageMeta
         title="Refund Policy"
-        description="Refund, digital delivery, cancellation, PayHere, bank transfer, and Apple in-app purchase policy for xyndrome medical learning subscriptions."
+        description="Refund, digital delivery, cancellation, and Apple in-app purchase policy for xyndrome medical learning subscriptions."
         path="/refund-policy"
       />
       <div className="mx-auto grid w-full max-w-[900px] gap-6">
@@ -79,7 +75,7 @@ export function RefundPolicyPage() {
 
           <div className={ui.buttonRow}>
             <Link to="/terms" className={ui.secondaryAction}>Terms</Link>
-            <Link to="/" className={ui.secondaryAction}>Back to Home</Link>
+            <Link to="/privacy-policy" className={ui.secondaryAction}>Privacy</Link>
           </div>
         </div>
 
@@ -88,7 +84,7 @@ export function RefundPolicyPage() {
           <h1 className="mt-3 mb-4 font-display text-[28px] font-extrabold leading-tight text-ink-strong">Refund Policy</h1>
           <p className="m-0 text-[14.5px] leading-[1.75] text-ink-soft">
             Last updated: November 1, 2026. This policy explains how refund requests are reviewed for xyndrome subscriptions,
-            digital access delivery, PayHere checkout payments, manual bank transfer payments, and Apple App Store in-app purchases.
+            digital access delivery, payments, and Apple App Store in-app purchases.
           </p>
 
           {sections.map((section) => (

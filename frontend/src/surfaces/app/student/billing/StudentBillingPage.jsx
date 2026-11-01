@@ -237,7 +237,13 @@ export function StudentBillingPage() {
   }
 
   const current = billing.currentSubscription;
+  // An ended plan is no longer "current": its card must offer Renew, not hide the button.
+  const currentExpired = current?.computedStatus === 'expired';
   const availablePlans = (Array.isArray(billing.availablePlans) ? billing.availablePlans : []).filter(Boolean);
+  // The plan to offer a Renew button for: the expired one, if it's still sold and paid.
+  const expiredPlan = currentExpired
+    ? availablePlans.find((plan) => plan?.id === current?.planId && Number(plan.effectivePrice || 0) > 0) || null
+    : null;
   const history = (Array.isArray(billing.history) ? billing.history : []).filter(Boolean);
   const billableHistory = useMemo(() => history.filter((subscription) => !isFreePlanSubscription(subscription)), [history]);
   const requests = (Array.isArray(billing.requests) ? billing.requests : []).filter(Boolean);
@@ -405,7 +411,8 @@ export function StudentBillingPage() {
   }
 
   function renderPlanCard(plan, options = {}) {
-    const isCurrent = current?.planId === plan.id;
+    const isExpiredPlan = currentExpired && current?.planId === plan.id;
+    const isCurrent = current?.planId === plan.id && !currentExpired;
     const isFreePlan = String(plan?.slug || '').toLowerCase() === 'free' || Number(plan?.effectivePrice || 0) <= 0;
     const isRecommended = recommendedPlanId === plan.id || options.highlight;
     const hasOffer = Boolean(plan.offerEnabled && plan.offerPrice !== null && Number(plan.regularPrice || 0) > Number(plan.effectivePrice || 0));
@@ -470,7 +477,7 @@ export function StudentBillingPage() {
               disabled={payingPlanId === plan.id}
               onClick={() => handleCheckoutPlan(plan, options.checkoutState || {})}
             >
-              {pendingInvoiceProofUploaded ? 'Waiting for approval' : pendingInvoice ? 'Continue payment' : payingPlanId === plan.id ? 'Opening checkout...' : 'Choose plan'}
+              {pendingInvoiceProofUploaded ? 'Waiting for approval' : pendingInvoice ? 'Continue payment' : payingPlanId === plan.id ? 'Opening checkout...' : isExpiredPlan ? 'Renew' : 'Choose plan'}
             </button>
           ) : null}
           {options.requestOnly ? (
@@ -656,8 +663,18 @@ export function StudentBillingPage() {
               ) : null}
 
               {!currentIsFreePlan && current.computedStatus === 'expired' ? (
-                <div className="border-t border-brand-error/20 pt-3 text-[13px] font-bold text-brand-error">
-                  This subscription has expired.
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-error/20 pt-3 text-[13px] font-bold text-brand-error">
+                  <span>This subscription has expired.</span>
+                  {expiredPlan ? (
+                    <button
+                      type="button"
+                      className={ui.primaryAction}
+                      disabled={payingPlanId === expiredPlan.id}
+                      onClick={() => handleCheckoutPlan(expiredPlan)}
+                    >
+                      {payingPlanId === expiredPlan.id ? 'Opening checkout...' : 'Renew'}
+                    </button>
+                  ) : null}
                 </div>
               ) : !currentIsFreePlan && current.isExpiringSoon ? (
                 <div className="border-t border-amber-500/20 pt-3 text-[13px] font-bold text-amber-700 dark:text-amber-300 max-[520px]:hidden">

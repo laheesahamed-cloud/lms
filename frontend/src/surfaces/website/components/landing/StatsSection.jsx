@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 
 const STATS = [
-  { value: 20000, suffix: '+', label: 'Questions in the bank', bg: '#d6f0ff' },
+  { value: 10000, suffix: '+', label: 'Questions in the bank', bg: '#d6f0ff' },
   { value: 5,     suffix: '+', label: 'Core clinical subjects', bg: '#d6ffe8' },
   { value: 3,     suffix: '',  label: 'Platforms: Web, iOS & Android', bg: '#fff3d6' },
   { value: 1,     suffix: '',  label: 'Place for all your study tools', bg: '#e8d6ff' },

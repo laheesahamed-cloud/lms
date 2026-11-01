@@ -155,7 +155,6 @@ export function CanvasNotesVisual() {
       <div className="mt-3 space-y-2.5">
         {points.map((p) => (
           <div key={p.a} className="flex gap-2.5">
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: p.c }} />
             <p className="text-[12.5px] leading-snug text-[#374151]"><b className="text-[#111118]">{p.a}</b>{p.b}</p>
           </div>
         ))}

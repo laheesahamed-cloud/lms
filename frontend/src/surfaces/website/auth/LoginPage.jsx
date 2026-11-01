@@ -932,10 +932,10 @@ export function LoginPage() {
                 />
               ) : null}
               <h2 style={{ margin: '0 0 5px', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, lineHeight: 1.1, color: 'var(--ink-strong)' }}>
-                Hey there 👋
+                Hey there
               </h2>
               <p className="lms-form-sub" style={{ margin: 0, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.62 }}>
-                The mitochondria is still the powerhouse of the cell — let&apos;s review. 🔬
+                The mitochondria is still the powerhouse of the cell. Let&apos;s review.
               </p>
             </div>
 
