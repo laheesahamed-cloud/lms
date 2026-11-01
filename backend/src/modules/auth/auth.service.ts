@@ -669,9 +669,21 @@ export class AuthService {
     return !['0', '', 'false', 'no'].includes(raw);
   }
 
+  /**
+   * The verification code is echoed in the response ONLY when this process says,
+   * explicitly, that it's a development or test run. It used to be "anything but
+   * production", which meant a server with NODE_ENV unset (as production was)
+   * handed the code to whoever asked whenever an email failed to send — the
+   * verification then proves nothing. Unset or unknown now fails closed.
+   */
+  private devOtpEchoAllowed() {
+    const env = String(this.configService.get<string>('NODE_ENV') || '').trim().toLowerCase();
+    return env === 'development' || env === 'test';
+  }
+
   private async beginEmailVerification(user: UserRow) {
     const { emailSent, code } = await this.issueEmailOtp(user);
-    const exposeDevCode = !emailSent && this.configService.get<string>('NODE_ENV') !== 'production';
+    const exposeDevCode = !emailSent && this.devOtpEchoAllowed();
     return {
       ok: true,
       emailVerificationRequired: true,
@@ -799,7 +811,7 @@ export class AuthService {
     }
 
     const { emailSent, code } = await this.issueEmailOtp(user);
-    const exposeDevCode = !emailSent && this.configService.get<string>('NODE_ENV') !== 'production';
+    const exposeDevCode = !emailSent && this.devOtpEchoAllowed();
     return {
       ...baseResponse,
       emailSent,

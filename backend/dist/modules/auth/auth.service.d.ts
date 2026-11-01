@@ -33,7 +33,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -98,7 +98,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -157,7 +157,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -214,7 +214,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -272,7 +272,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -349,6 +349,7 @@ export declare class AuthService {
         message: string;
     }>;
     private isEmailVerified;
+    private devOtpEchoAllowed;
     private beginEmailVerification;
     private issueEmailOtp;
     verifyEmailOtp(verifyEmailOtpDto: VerifyEmailOtpDto): Promise<{
@@ -360,7 +361,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -435,7 +436,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -488,7 +489,7 @@ export declare class AuthService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -542,7 +543,7 @@ export declare class AuthService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
         status: "active" | "inactive";
         avatarKey: string;
@@ -592,7 +593,7 @@ export declare class AuthService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
         status: "active" | "inactive";
         avatarKey: string;
@@ -642,7 +643,7 @@ export declare class AuthService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
         status: "active" | "inactive";
         avatarKey: string;

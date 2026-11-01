@@ -413,7 +413,17 @@ export class UsersService {
     if (user.role === 'admin' && user.status === 'active' && status !== 'active') {
       await this.assertAnotherActiveAdminExists(id);
     }
-    await this.db.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+    // Deactivating a user ends their session as well. Several endpoints only ask
+    // "is this a valid session" (requireAuthenticatedUser), so a deactivated
+    // account kept working on those until the token expired on its own.
+    if (status === 'active') {
+      await this.db.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+    } else {
+      await this.db.execute(
+        'UPDATE users SET status = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?',
+        [status, id]
+      );
+    }
     await this.logAdminAuditEvent({
       eventType: 'user.status_changed',
       actorId: actor.id,

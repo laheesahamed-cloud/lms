@@ -428,9 +428,13 @@ let AuthService = AuthService_1 = class AuthService {
         const raw = String(user.email_verified ?? '1').trim().toLowerCase();
         return !['0', '', 'false', 'no'].includes(raw);
     }
+    devOtpEchoAllowed() {
+        const env = String(this.configService.get('NODE_ENV') || '').trim().toLowerCase();
+        return env === 'development' || env === 'test';
+    }
     async beginEmailVerification(user) {
         const { emailSent, code } = await this.issueEmailOtp(user);
-        const exposeDevCode = !emailSent && this.configService.get('NODE_ENV') !== 'production';
+        const exposeDevCode = !emailSent && this.devOtpEchoAllowed();
         return {
             ok: true,
             emailVerificationRequired: true,
@@ -526,7 +530,7 @@ let AuthService = AuthService_1 = class AuthService {
             }
         }
         const { emailSent, code } = await this.issueEmailOtp(user);
-        const exposeDevCode = !emailSent && this.configService.get('NODE_ENV') !== 'production';
+        const exposeDevCode = !emailSent && this.devOtpEchoAllowed();
         return {
             ...baseResponse,
             emailSent,
