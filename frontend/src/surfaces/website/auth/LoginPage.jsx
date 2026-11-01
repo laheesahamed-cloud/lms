@@ -66,7 +66,6 @@ function MedSubjectPills() {
           background: bg, padding: '4px 11px',
           fontSize: 11.5, fontWeight: 700, color,
         }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0 }}/>
           {name}
         </span>
       ))}
@@ -207,7 +206,7 @@ const LoginBrand = memo(function LoginBrand() {
       <div className="lms-glow-pulse" style={{
         position: 'absolute', bottom: '-5%', left: '-10%',
         width: 440, height: 440, borderRadius: '50%', pointerEvents: 'none', animationDelay: '2.2s',
-        background: 'radial-gradient(circle, var(--lms-brand-cyan-glow) 0%, transparent 64%)',
+        background: 'radial-gradient(circle, var(--lms-brand-blue-glow) 0%, transparent 64%)',
       }}/>
       <div className="lms-glow-pulse" style={{
         position: 'absolute', top: '40%', left: '30%',
@@ -303,9 +302,9 @@ const LoginBrand = memo(function LoginBrand() {
         {/* Eyebrow pill */}
         <div style={{
           display: 'inline-flex', width: 'fit-content', alignItems: 'center', gap: 8,
-          borderRadius: 999, border: '1px solid rgba(6,182,212,.30)',
-          background: 'rgba(6,182,212,.10)', padding: '5px 14px', marginBottom: 22,
-          fontSize: 11, fontWeight: 800, color: '#22D3EE',
+          borderRadius: 999, border: '1px solid rgba(59,130,246,.30)',
+          background: 'rgba(59,130,246,.10)', padding: '5px 14px', marginBottom: 22,
+          fontSize: 11, fontWeight: 800, color: '#3B82F6',
           letterSpacing: '.1em', textTransform: 'uppercase',
         }}>
           Trusted by medical students
@@ -319,7 +318,7 @@ const LoginBrand = memo(function LoginBrand() {
         }}>
           Your medical study{' '}<br/>
           <span style={{
-            background: 'linear-gradient(135deg, #60A5FA 0%, #22D3EE 55%, #34D399 100%)',
+            background: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 50%, #60A5FA 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
           }}>command center.</span>
         </h1>
@@ -342,11 +341,11 @@ const LoginBrand = memo(function LoginBrand() {
             <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{
                 width: 22, height: 22, borderRadius: 7, flexShrink: 0,
-                background: 'rgba(34,211,238,.12)', border: '1px solid rgba(34,211,238,.26)',
+                background: 'rgba(59,130,246,.12)', border: '1px solid rgba(59,130,246,.26)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                  <path d="M1.5 5.5l2.8 2.8L9.5 2" stroke="#22D3EE" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M1.5 5.5l2.8 2.8L9.5 2" stroke="#3B82F6" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </span>
               <span style={{ fontSize: 13.5, color: 'var(--lms-brand-strong)', fontWeight: 500 }}>{text}</span>
