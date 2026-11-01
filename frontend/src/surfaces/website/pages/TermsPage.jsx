@@ -27,30 +27,44 @@ const sections = [
   },
   {
     title: '5. Course Access and Digital Delivery',
-    body: 'Course availability, plan features, and learning access depend on the package purchased, payment status, account status, and admin approval settings. Paid access is delivered digitally inside the LMS after the payment is approved or verified.',
+    body: 'Course availability, plan features, and learning access depend on the package purchased, payment status, account status, and admin approval settings. Paid access is delivered digitally inside the LMS after the payment is approved, verified, or confirmed by Apple for in-app purchases.',
   },
   {
     title: '6. Plans, Pricing, and Availability',
     body: 'Plan names, prices, discounts, course access, and package features may change from time to time. Any active offer or coupon may have its own limits, expiry, access scope, and approval conditions.',
   },
   {
-    title: '7. Orders and Payments',
-    body: 'By submitting a subscription order, you confirm that the package and billing details are correct. PayHere checkout payments are processed by PayHere. Manual bank transfer requests are activated only after admin verification of the uploaded payment proof.',
+    title: '7. Orders and Payments on the Website',
+    body: 'By submitting a subscription order on the website, you confirm that the package and billing details are correct. PayHere checkout payments are processed by PayHere. Manual bank transfer requests are activated only after admin verification of the uploaded payment proof. Purchases made inside the iOS app are covered separately in section 8.',
   },
   {
-    title: '8. Third-Party Payment Processing',
-    body: 'Online payment details are handled by PayHere or the active payment provider. xyndrome does not store full card numbers or card security codes. Payment status, order references, and transaction records may be stored for subscription activation, support, accounting, and dispute handling.',
+    title: '8. In-App Purchases (iOS App)',
+    body: 'Subscriptions offered inside the xyndrome iOS app are sold as in-app purchases through the Apple App Store. These Terms apply together with Apple’s own terms for in-app purchases and auto-renewable subscriptions.',
+    list: [
+      'Payment is charged to your Apple ID account when you confirm the purchase. Apple, not xyndrome, processes the payment.',
+      'The plan name, length, and price are shown in the app before you buy. Prices appear in your App Store currency and may include taxes.',
+      'Subscriptions renew automatically at the same length and price unless you cancel at least 24 hours before the end of the current period. Your Apple ID account is charged for renewal within 24 hours before the period ends.',
+      'You can manage or cancel a subscription at any time in Settings → Apple ID → Subscriptions on your device. Cancelling stops future renewals, and you keep access until the end of the period you have paid for.',
+      'Deleting the app or deleting your xyndrome account does not cancel an Apple subscription. Cancel it in your Apple ID settings first, or Apple will keep billing you.',
+      'Access follows the period confirmed by Apple. If a renewal payment fails, Apple may give a billing grace period, and access continues during it. When a subscription ends, your account returns to free access.',
+      'Use Restore Purchases in the app to reactivate your subscription after reinstalling the app or signing in on a new device, using the same Apple ID.',
+      'Apple is not a party to these Terms and is not responsible for xyndrome’s content, support, or maintenance.',
+    ],
   },
   {
-    title: '9. Refunds and Cancellations',
-    body: 'Refund and cancellation requests are reviewed under the Refund Policy. Digital access, payment status, account activity, and usage history may affect the final decision.',
+    title: '9. Third-Party Payment Processing',
+    body: 'Online payment details are handled by PayHere, Apple (for in-app purchases), or the active payment provider. xyndrome does not store full card numbers or card security codes. Payment status, order references, Apple transaction identifiers, and transaction records may be stored for subscription activation, support, accounting, and dispute handling.',
   },
   {
-    title: '10. Content and Intellectual Property',
+    title: '10. Refunds and Cancellations',
+    body: 'Refund and cancellation requests for PayHere and bank transfer payments are reviewed under the Refund Policy. Purchases made through the Apple App Store are refunded only by Apple, so xyndrome cannot issue or reverse them; request those through reportaproblem.apple.com or Apple Support. Digital access, payment status, account activity, and usage history may affect the final decision.',
+  },
+  {
+    title: '11. Content and Intellectual Property',
     body: 'Lessons, notes, explanations, questions, quizzes, designs, text, images, logos, and other LMS materials belong to xyndrome or its content owners. You may use them only for personal study unless written permission is given.',
   },
   {
-    title: '11. Educational Use',
+    title: '12. Educational Use',
     body: 'xyndrome is an educational study platform. To ensure completeness and depth of coverage, some study materials are developed with the help of advanced technology tools and reviewed by qualified medical professionals before being published. This means the content you study is checked for accuracy and relevance to your curriculum, not simply generated and released. That said, xyndrome is a preparation aid — your results will always reflect your own effort, consistency, and readiness. The platform is not a substitute for professional medical advice, clinical supervision, university requirements, or official examination guidance. Reference tools such as the Drug Reference, ECG Library, and Auscultation (heart and lung sounds) library are provided strictly for study and exam preparation. They are not intended for clinical diagnosis or treatment, are not a substitute for a qualified healthcare professional, and must never be used to make decisions about an actual patient.',
   },
   {
@@ -76,7 +90,7 @@ export function TermsPage() {
     <main className="min-h-dvh px-[clamp(20px,4vw,40px)] py-[clamp(40px,6vw,80px)]">
       <PageMeta
         title="Terms and Conditions"
-        description="Terms and conditions for xyndrome student accounts, digital course access, PayHere payments, subscriptions, refunds, and platform rules."
+        description="Terms and conditions for xyndrome student accounts, digital course access, PayHere payments, Apple in-app subscriptions, refunds, and platform rules."
         path="/terms"
       />
       <div className="mx-auto grid w-full max-w-[900px] gap-6">
@@ -98,8 +112,8 @@ export function TermsPage() {
           <div className={ui.eyebrow}>Student Agreement</div>
           <h1 className="mt-3 mb-4 font-display text-[28px] font-extrabold leading-tight text-ink-strong">Terms &amp; Conditions</h1>
           <p className="m-0 text-[14.5px] leading-[1.75] text-ink-soft">
-            Last updated: June 27, 2026. These terms explain the rules for using xyndrome, creating an account,
-            buying digital subscription access, and completing PayHere or bank transfer payments.
+            Last updated: November 1, 2026. These terms explain the rules for using xyndrome, creating an account,
+            buying digital subscription access, and paying by PayHere, bank transfer, or in-app purchase through the Apple App Store.
             {' '}Read the <Link to="/privacy-policy" className="font-bold text-brand-primary no-underline">Privacy Policy</Link> and <Link to="/refund-policy" className="font-bold text-brand-primary no-underline">Refund Policy</Link> for more details.
           </p>
 
