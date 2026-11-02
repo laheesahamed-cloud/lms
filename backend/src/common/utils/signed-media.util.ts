@@ -39,3 +39,24 @@ export function isValidMediaSignature(resource: string, signature: unknown) {
   const given = Buffer.from(signature);
   return expected.length === given.length && timingSafeEqual(expected, given);
 }
+
+/**
+ * Lesson PDFs and videos live under /uploads/pdf and /uploads/video, stored as
+ * plain `/uploads/...` paths. A response that carries one for a reader who may
+ * open it gets the same stable signature appended; the file route checks it.
+ */
+const SIGNABLE_UPLOAD = /^\/uploads\/(?:pdf|video)\/[A-Za-z0-9._-]+$/;
+
+export function isSignableUploadPath(path: string) {
+  return SIGNABLE_UPLOAD.test(path);
+}
+
+export function uploadResource(path: string) {
+  return `upload:${path}`;
+}
+
+/** `/uploads/pdf/x.pdf` -> `/uploads/pdf/x.pdf?s=<sig>`; anything else is returned untouched. */
+export function signUploadUrl(url: string) {
+  if (!isSignableUploadPath(url)) return url;
+  return `${url}?s=${signMedia(uploadResource(url))}`;
+}

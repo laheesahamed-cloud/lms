@@ -10,6 +10,7 @@ import { AppModule } from './app.module';
 import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
 import { AuthService } from './modules/auth/auth.service';
 import { recordApiRequestMetric } from './performance-metrics';
+import { isValidMediaSignature, uploadResource } from './common/utils/signed-media.util';
 
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 const contentRateLimitBuckets = new Map<string, { count: number; resetAt: number; warnedAt: number }>();
@@ -447,6 +448,29 @@ export async function configureApp(app: INestApplication) {
   // anyone who knows a filename, so skip them here and let the request fall through
   // to Nest — /uploads/payment-proofs is already 404'd outright above.
   const serveUploads = express.static(uploadsRoot, uploadsStaticOpts);
+  // Lesson PDFs and videos must be requested with the signature the API put on
+  // their URL. Rolled out in two steps so a client that still holds an old,
+  // unsigned link isn't broken the moment this ships: until
+  // ENFORCE_SIGNED_UPLOADS=true an unsigned request is served as before and
+  // logged (once per file per hour), so the logs show when it is safe to switch on.
+  const enforceSignedUploads = configService.get<string>('ENFORCE_SIGNED_UPLOADS') === 'true';
+  const unsignedUploadSeen = new Map<string, number>();
+  const checkUploadSignature = (req: any, res: any) => {
+    const match = /^\/(pdf|video)\/([A-Za-z0-9._-]+)$/.exec(req.path);
+    if (!match) return true; // not a signed folder
+    const storedPath = `/uploads/${match[1]}/${match[2]}`;
+    if (isValidMediaSignature(uploadResource(storedPath), req.query?.s)) return true;
+    if (enforceSignedUploads) {
+      res.status(404).json({ message: 'File not found' });
+      return false;
+    }
+    const now = Date.now();
+    if ((unsignedUploadSeen.get(storedPath) || 0) < now - 3_600_000) {
+      unsignedUploadSeen.set(storedPath, now);
+      console.warn(`[uploads] unsigned request for ${storedPath} (served; set ENFORCE_SIGNED_UPLOADS=true to block)`);
+    }
+    return true;
+  };
   const serveNonSensitiveUploads = (req: any, res: any, next: any) => {
     // OSCE pictures and auscultation clips are reachable only through their
     // signed routes (/api/osce/media, /api/osce/sound, the auscultation library).
@@ -454,6 +478,7 @@ export async function configureApp(app: INestApplication) {
     if (/^\/(?:payment-proofs|osce|sound-clips)(?:\/|$)/i.test(req.path)) {
       return next();
     }
+    if (!checkUploadSignature(req, res)) return;
     return serveUploads(req, res, next);
   };
 

@@ -14,6 +14,7 @@ const app_module_1 = require("./app.module");
 const database_exception_filter_1 = require("./common/filters/database-exception.filter");
 const auth_service_1 = require("./modules/auth/auth.service");
 const performance_metrics_1 = require("./performance-metrics");
+const signed_media_util_1 = require("./common/utils/signed-media.util");
 const rateLimitBuckets = new Map();
 const contentRateLimitBuckets = new Map();
 const contentDeviceBuckets = new Map();
@@ -417,10 +418,32 @@ async function configureApp(app) {
         },
     };
     const serveUploads = express.static(uploadsRoot, uploadsStaticOpts);
+    const enforceSignedUploads = configService.get('ENFORCE_SIGNED_UPLOADS') === 'true';
+    const unsignedUploadSeen = new Map();
+    const checkUploadSignature = (req, res) => {
+        const match = /^\/(pdf|video)\/([A-Za-z0-9._-]+)$/.exec(req.path);
+        if (!match)
+            return true;
+        const storedPath = `/uploads/${match[1]}/${match[2]}`;
+        if ((0, signed_media_util_1.isValidMediaSignature)((0, signed_media_util_1.uploadResource)(storedPath), req.query?.s))
+            return true;
+        if (enforceSignedUploads) {
+            res.status(404).json({ message: 'File not found' });
+            return false;
+        }
+        const now = Date.now();
+        if ((unsignedUploadSeen.get(storedPath) || 0) < now - 3_600_000) {
+            unsignedUploadSeen.set(storedPath, now);
+            console.warn(`[uploads] unsigned request for ${storedPath} (served; set ENFORCE_SIGNED_UPLOADS=true to block)`);
+        }
+        return true;
+    };
     const serveNonSensitiveUploads = (req, res, next) => {
         if (/^\/(?:payment-proofs|osce|sound-clips)(?:\/|$)/i.test(req.path)) {
             return next();
         }
+        if (!checkUploadSignature(req, res))
+            return;
         return serveUploads(req, res, next);
     };
     app.use('/uploads', serveNonSensitiveUploads);

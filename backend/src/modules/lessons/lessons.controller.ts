@@ -1,5 +1,6 @@
 import { ArgumentsHost, BadRequestException, Body, Catch, Controller, Delete, ExceptionFilter, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UploadedFile, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { SignUploadUrlsInterceptor } from '../../common/interceptors/sign-upload-urls.interceptor';
 import { memoryStorage, diskStorage } from 'multer';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -75,6 +76,7 @@ class UploadErrorFilter implements ExceptionFilter {
 }
 
 @Controller('lessons')
+@UseInterceptors(SignUploadUrlsInterceptor)
 export class LessonsController {
   constructor(
     private readonly lessonsService: LessonsService,

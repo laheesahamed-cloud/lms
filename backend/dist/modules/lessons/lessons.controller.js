@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LessonsController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
+const sign_upload_urls_interceptor_1 = require("../../common/interceptors/sign-upload-urls.interceptor");
 const multer_1 = require("multer");
 const fs_1 = require("fs");
 const path_1 = require("path");
@@ -661,6 +662,7 @@ __decorate([
 ], LessonsController.prototype, "canvasStudentFlashcards", null);
 exports.LessonsController = LessonsController = __decorate([
     (0, common_1.Controller)('lessons'),
+    (0, common_1.UseInterceptors)(sign_upload_urls_interceptor_1.SignUploadUrlsInterceptor),
     __metadata("design:paramtypes", [lessons_service_1.LessonsService,
         auth_service_1.AuthService])
 ], LessonsController);

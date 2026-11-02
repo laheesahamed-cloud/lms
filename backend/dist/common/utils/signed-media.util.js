@@ -2,6 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.signMedia = signMedia;
 exports.isValidMediaSignature = isValidMediaSignature;
+exports.isSignableUploadPath = isSignableUploadPath;
+exports.uploadResource = uploadResource;
+exports.signUploadUrl = signUploadUrl;
 const crypto_1 = require("crypto");
 const SIGNATURE_LENGTH = 24;
 function secret() {
@@ -21,5 +24,17 @@ function isValidMediaSignature(resource, signature) {
     const expected = Buffer.from(signMedia(resource));
     const given = Buffer.from(signature);
     return expected.length === given.length && (0, crypto_1.timingSafeEqual)(expected, given);
+}
+const SIGNABLE_UPLOAD = /^\/uploads\/(?:pdf|video)\/[A-Za-z0-9._-]+$/;
+function isSignableUploadPath(path) {
+    return SIGNABLE_UPLOAD.test(path);
+}
+function uploadResource(path) {
+    return `upload:${path}`;
+}
+function signUploadUrl(url) {
+    if (!isSignableUploadPath(url))
+        return url;
+    return `${url}?s=${signMedia(uploadResource(url))}`;
 }
 //# sourceMappingURL=signed-media.util.js.map
