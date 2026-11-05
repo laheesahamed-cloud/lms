@@ -146,20 +146,6 @@ export const DEFAULT_PLAN_BLUEPRINTS = [
     status: 'active',
     featureKeys: [...fullPrepFeatureKeys, 'dynamic_quiz_randomization'],
   },
-  {
-    slug: 'single-course-3m',
-    name: 'Single Course',
-    description: '3 months of complete prep for one course of your choice. Lessons, AI notes, full MCQ bank, practice and exam mode.',
-    regularPrice: discountRegularPrice(3990),
-    offerPrice: 3990,
-    offerEnabled: 1,
-    currency: 'LKR',
-    durationDays: 90,
-    sortOrder: 5,
-    recommended: 0,
-    status: 'active',
-    featureKeys: fullPrepFeatureKeys,
-  },
 ] as const;
 
 /// Apple StoreKit product id → the plan that backs it.

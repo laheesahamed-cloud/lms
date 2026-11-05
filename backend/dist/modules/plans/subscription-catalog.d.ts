@@ -71,19 +71,6 @@ export declare const DEFAULT_PLAN_BLUEPRINTS: readonly [{
     readonly recommended: 0;
     readonly status: "active";
     readonly featureKeys: readonly [...string[], "dynamic_quiz_randomization"];
-}, {
-    readonly slug: "single-course-3m";
-    readonly name: "Single Course";
-    readonly description: "3 months of complete prep for one course of your choice. Lessons, AI notes, full MCQ bank, practice and exam mode.";
-    readonly regularPrice: number;
-    readonly offerPrice: 3990;
-    readonly offerEnabled: 1;
-    readonly currency: "LKR";
-    readonly durationDays: 90;
-    readonly sortOrder: 5;
-    readonly recommended: 0;
-    readonly status: "active";
-    readonly featureKeys: string[];
 }];
 export declare const APPLE_IAP_PRODUCTS: readonly [{
     readonly productId: "app.xyndrome.lk.weekly";

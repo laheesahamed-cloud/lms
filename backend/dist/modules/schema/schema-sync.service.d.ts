@@ -53,7 +53,6 @@ export declare class SchemaSyncService implements OnModuleInit {
     private seedSubscriptionFeatureCatalog;
     private seedDefaultPlans;
     private syncDefaultPlanFeatureMap;
-    private removeNonDefaultPlans;
     private backfillPlanFeatureMaps;
     private backfillQuestionKeywordMaps;
     private parseKeywordList;

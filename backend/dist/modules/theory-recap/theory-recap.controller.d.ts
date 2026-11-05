@@ -22,8 +22,8 @@ export declare class TheoryRecapController {
         treatment: string[];
         keyPoints: string[];
         mnemonic: string;
-        generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        generatedBy: "manual" | "ai";
+        reviewedStatus: "pending" | "rejected" | "approved";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -44,8 +44,8 @@ export declare class TheoryRecapController {
         treatment: string[];
         keyPoints: string[];
         mnemonic: string;
-        generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        generatedBy: "manual" | "ai";
+        reviewedStatus: "pending" | "rejected" | "approved";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -66,8 +66,8 @@ export declare class TheoryRecapController {
         treatment: string[];
         keyPoints: string[];
         mnemonic: string;
-        generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        generatedBy: "manual" | "ai";
+        reviewedStatus: "pending" | "rejected" | "approved";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -88,8 +88,8 @@ export declare class TheoryRecapController {
         treatment: string[];
         keyPoints: string[];
         mnemonic: string;
-        generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        generatedBy: "manual" | "ai";
+        reviewedStatus: "pending" | "rejected" | "approved";
         createdAt: string;
         updatedAt: string;
     } | null>;

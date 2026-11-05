@@ -1292,6 +1292,10 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         }
     }
     async seedDefaultPlans(connection) {
+        const [planCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM plans');
+        if (Number(planCountRows[0]?.total || 0) > 0) {
+            return;
+        }
         for (const plan of subscription_catalog_1.DEFAULT_PLAN_BLUEPRINTS) {
             const featureNames = subscription_catalog_1.DEFAULT_SUBSCRIPTION_FEATURES
                 .filter((feature) => plan.featureKeys.includes(feature.featureKey))
@@ -1323,7 +1327,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             ]);
             await this.syncDefaultPlanFeatureMap(connection, Number(result.insertId || 0), [...plan.featureKeys]);
         }
-        await this.removeNonDefaultPlans(connection);
     }
     async syncDefaultPlanFeatureMap(connection, planId, featureKeys) {
         if (!planId) {
@@ -1338,19 +1341,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         for (const featureId of selectedFeatureIds) {
             await connection.execute('INSERT IGNORE INTO subscription_plan_features (plan_id, feature_id, is_enabled) VALUES (?, ?, 1)', [planId, featureId]);
         }
-    }
-    async removeNonDefaultPlans(connection) {
-        const defaultSlugs = subscription_catalog_1.DEFAULT_PLAN_BLUEPRINTS.map((plan) => plan.slug);
-        const placeholders = (0, sql_safety_1.sqlPlaceholders)(defaultSlugs);
-        const [oldPlanRows] = await connection.execute(`SELECT id FROM plans WHERE slug IS NULL OR slug NOT IN (${placeholders})`, defaultSlugs);
-        const oldPlanIds = oldPlanRows.map((row) => Number(row.id)).filter((id) => id > 0);
-        if (oldPlanIds.length === 0) {
-            return;
-        }
-        const oldPlanPlaceholders = (0, sql_safety_1.sqlPlaceholders)(oldPlanIds);
-        await connection.execute(`DELETE FROM user_subscriptions WHERE plan_id IN (${oldPlanPlaceholders})`, oldPlanIds);
-        await connection.execute(`DELETE FROM subscription_plan_features WHERE plan_id IN (${oldPlanPlaceholders})`, oldPlanIds);
-        await connection.execute(`DELETE FROM plans WHERE id IN (${oldPlanPlaceholders})`, oldPlanIds);
     }
     async backfillPlanFeatureMaps(connection) {
         const [featureRows] = await connection.execute('SELECT id, feature_name, feature_key, category FROM subscription_features');

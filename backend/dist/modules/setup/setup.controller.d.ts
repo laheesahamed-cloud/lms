@@ -3,10 +3,10 @@ export declare class SetupController {
     private readonly setupService;
     constructor(setupService: SetupService);
     getSetupStatus(): Promise<{
-        overall: "ok" | "warning" | "error";
+        overall: "warning" | "ok" | "error";
         generatedAt: string;
         database: {
-            status: "ok" | "warning";
+            status: "warning" | "ok";
             connected: boolean;
             message: string;
             tables: {
@@ -18,19 +18,19 @@ export declare class SetupController {
             configuration: {
                 key: string;
                 label: string;
-                status: "ok" | "warning" | "error";
+                status: "warning" | "ok" | "error";
                 value: string;
                 detail: string;
             }[];
         } | {
-            status: "ok" | "warning" | "error";
+            status: "warning" | "ok" | "error";
             connected: boolean;
             message: string;
             tables: never[];
             configuration: never[];
         };
         storage: {
-            status: "ok" | "warning" | "error";
+            status: "warning" | "ok" | "error";
             message: string;
         };
     }>;

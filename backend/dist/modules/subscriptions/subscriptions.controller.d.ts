@@ -94,7 +94,7 @@ export declare class SubscriptionsController {
         notes: string;
         status: "active" | "pending" | "expired" | "cancelled";
         computedStatus: "active" | "pending" | "expired" | "cancelled";
-        paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -145,7 +145,7 @@ export declare class SubscriptionsController {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -196,7 +196,7 @@ export declare class SubscriptionsController {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -289,7 +289,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "approved" | "rejected" | "pending" | "cancelled";
+            status: "pending" | "rejected" | "cancelled" | "approved";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -369,7 +369,7 @@ export declare class SubscriptionsController {
         notes: string;
         status: "active" | "pending" | "expired" | "cancelled";
         computedStatus: "active" | "pending" | "expired" | "cancelled";
-        paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -416,7 +416,7 @@ export declare class SubscriptionsController {
         id: number;
         userId: number;
         planId: number;
-        status: "approved" | "rejected" | "pending" | "cancelled";
+        status: "pending" | "rejected" | "cancelled" | "approved";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -664,7 +664,7 @@ export declare class SubscriptionsController {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -715,7 +715,7 @@ export declare class SubscriptionsController {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -808,7 +808,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "approved" | "rejected" | "pending" | "cancelled";
+            status: "pending" | "rejected" | "cancelled" | "approved";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -934,7 +934,7 @@ export declare class SubscriptionsController {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -985,7 +985,7 @@ export declare class SubscriptionsController {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -1078,7 +1078,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "approved" | "rejected" | "pending" | "cancelled";
+            status: "pending" | "rejected" | "cancelled" | "approved";
             message: string;
             adminNote: string;
             requestedAt: string | null;

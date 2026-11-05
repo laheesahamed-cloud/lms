@@ -26,7 +26,7 @@ function featureMessageForKey(featureKey) {
   return '';
 }
 
-const recommendedPlanSlugs = ['quick-revision-7d', 'monthly-prep-1m', 'complete-prep-3m', 'master-prep-6m', 'single-course-3m'];
+const recommendedPlanSlugs = ['quick-revision-7d', 'monthly-prep-1m', 'complete-prep-3m', 'master-prep-6m'];
 
 const planMarketing = {
   'quick-revision-7d': {

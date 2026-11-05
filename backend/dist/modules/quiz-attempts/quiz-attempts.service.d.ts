@@ -109,7 +109,7 @@ export declare class QuizAttemptsService {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "submitted" | "expired";
+            status: "in_progress" | "expired" | "submitted";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;

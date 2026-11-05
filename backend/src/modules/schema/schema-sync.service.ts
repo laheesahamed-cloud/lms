@@ -1581,6 +1581,14 @@ export class SchemaSyncService implements OnModuleInit {
   }
 
   private async seedDefaultPlans(connection: PoolConnection) {
+    // Plans belong to the admin panel. The blueprint only gives a FRESH database
+    // its starting set: once any plan row exists, nothing is re-created, so a plan
+    // deleted in the panel stays deleted and a custom plan is never removed.
+    const [planCountRows] = await connection.execute<RowDataPacket[]>('SELECT COUNT(*) AS total FROM plans');
+    if (Number(planCountRows[0]?.total || 0) > 0) {
+      return;
+    }
+
     for (const plan of DEFAULT_PLAN_BLUEPRINTS) {
       const featureNames = DEFAULT_SUBSCRIPTION_FEATURES
         .filter((feature) => (plan.featureKeys as readonly string[]).includes(feature.featureKey))
@@ -1636,8 +1644,6 @@ export class SchemaSyncService implements OnModuleInit {
       );
       await this.syncDefaultPlanFeatureMap(connection, Number(result.insertId || 0), [...plan.featureKeys]);
     }
-
-    await this.removeNonDefaultPlans(connection);
   }
 
   private async syncDefaultPlanFeatureMap(connection: PoolConnection, planId: number, featureKeys: string[]) {
@@ -1661,35 +1667,6 @@ export class SchemaSyncService implements OnModuleInit {
         [planId, featureId]
       );
     }
-  }
-
-  private async removeNonDefaultPlans(connection: PoolConnection) {
-    const defaultSlugs = DEFAULT_PLAN_BLUEPRINTS.map((plan) => plan.slug);
-    const placeholders = sqlPlaceholders(defaultSlugs);
-
-    const [oldPlanRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id FROM plans WHERE slug IS NULL OR slug NOT IN (${placeholders})`,
-      defaultSlugs
-    );
-    const oldPlanIds = oldPlanRows.map((row) => Number(row.id)).filter((id) => id > 0);
-    if (oldPlanIds.length === 0) {
-      return;
-    }
-
-    const oldPlanPlaceholders = sqlPlaceholders(oldPlanIds);
-    await connection.execute(
-      `DELETE FROM user_subscriptions WHERE plan_id IN (${oldPlanPlaceholders})`,
-      oldPlanIds
-    );
-
-    await connection.execute(
-      `DELETE FROM subscription_plan_features WHERE plan_id IN (${oldPlanPlaceholders})`,
-      oldPlanIds
-    );
-    await connection.execute(
-      `DELETE FROM plans WHERE id IN (${oldPlanPlaceholders})`,
-      oldPlanIds
-    );
   }
 
   private async backfillPlanFeatureMaps(connection: PoolConnection) {
