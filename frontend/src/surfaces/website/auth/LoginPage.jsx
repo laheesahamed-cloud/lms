@@ -684,6 +684,8 @@ export function LoginPage() {
     }
   }
 
+  const googleClickQueuedRef = useRef(false);
+
   function handleGoogleButtonClick() {
     if (status.loading) return;
 
@@ -698,14 +700,24 @@ export function LoginPage() {
     }
 
     if (!googleSdk?.accounts?.oauth2 || !googleClientId) {
-      setStatus({
-        loading: false,
-        error: 'Google sign-in is still preparing. Please try again in a moment.',
-        success: '',
-      });
+      // Still loading Google's script: keep the button spinner going and start
+      // the redirect as soon as it is ready (see the effect below), instead of
+      // telling the student to try again.
+      googleClickQueuedRef.current = true;
+      setPending('google');
+      setStatus({ loading: true, error: '', success: '' });
+      window.setTimeout(() => {
+        if (!googleClickQueuedRef.current) return;
+        googleClickQueuedRef.current = false;
+        setStatus({ loading: false, error: 'Google sign-in is taking too long to load. Check your connection and try again.', success: '' });
+      }, 15000);
       return;
     }
 
+    startGoogleRedirect();
+  }
+
+  function startGoogleRedirect() {
     // Fresh per-attempt nonce (CSRF) + remember where to land after sign-in,
     // since the full-page redirect to Google and back drops React state.
     const nonce = (window.crypto?.randomUUID?.() || `${Date.now()}.${Math.random().toString(36).slice(2)}`);
@@ -820,6 +832,20 @@ export function LoginPage() {
       }
     };
   }, [googleClientId]);
+
+  // A click that arrived before Google's script finished loading: continue it
+  // once the SDK is ready, or show the real error if it never will be.
+  useEffect(() => {
+    if (!googleClickQueuedRef.current) return;
+    if (googleSdk?.accounts?.oauth2 && googleClientId) {
+      googleClickQueuedRef.current = false;
+      startGoogleRedirect();
+    } else if (googleConfigStatus.error) {
+      googleClickQueuedRef.current = false;
+      setStatus({ loading: false, error: googleConfigStatus.error, success: '' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleSdk, googleClientId, googleConfigStatus.error]);
 
   // Apple redirect return (?apple=success): the backend already set the session
   // cookie. Strip the marker, hydrate the user from it, then land on the dashboard
