@@ -698,7 +698,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
                     isExamPage ? 'text-ink-soft' : 'text-white',
                   )}
                 >
-                  Q-Bank
+                  Practice
                 </button>
                 <button
                   type="button"
@@ -723,7 +723,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
                     isExamPage ? 'text-ink-soft' : 'bg-brand-primary text-white',
                   )}
                 >
-                  Q-Bank
+                  Practice
                 </button>
                 <button
                   type="button"
@@ -752,7 +752,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
         ) : courseFilter === 'all' ? (
           courseCards.length === 0 && examTypes.length === 0 ? (
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
-              <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'Empty exams mascot' : 'Empty Q-Bank mascot'} />
+              <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'Empty exams mascot' : 'Empty practice exams mascot'} />
               <p className="m-0 text-center">
                 {isExamPage ? 'No exams available yet.' : 'No question sets available yet.'}
               </p>
@@ -805,7 +805,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
               onScopeChange={setScopeFilter}
             />
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
-              <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'No matching exams mascot' : 'No matching Q-Bank sets mascot'} />
+              <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'No matching exams mascot' : 'No matching practice sets mascot'} />
               <p className="m-0 text-center">No sets match your filters.</p>
             </div>
           </section>
