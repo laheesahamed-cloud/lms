@@ -92,7 +92,17 @@
   box-shadow: none !important;
 }
 
-.student-app-shell .lms-assessment-btn--primary {
+/* The quiz top bar is portaled to <body>, outside .student-app-shell, so its End
+   session button needs the same primary look as the Next button explicitly. */
+.lms-quiz-bar-layer .lms-assessment-btn--primary {
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+}
+
+.student-app-shell .lms-assessment-btn--primary,
+.lms-quiz-bar-layer .lms-assessment-btn--primary {
   border-color: color-mix(in srgb, var(--color-primary, #2563eb) 35%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
   background: var(--color-primary-light, color-mix(in srgb, var(--color-primary, #2563eb) 12%, var(--surface-card, var(--surface-1)))) !important;
   color: var(--color-primary, #2563eb) !important;
@@ -109,7 +119,8 @@
   color: var(--color-primary, #2563eb) !important;
 }
 
-.student-app-shell .lms-assessment-btn--primary:hover:not(:disabled) {
+.student-app-shell .lms-assessment-btn--primary:hover:not(:disabled),
+.lms-quiz-bar-layer .lms-assessment-btn--primary:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--color-primary, #2563eb) 45%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
   background: color-mix(in srgb, var(--color-primary, #2563eb) 12%, var(--surface-1, var(--surface-card))) !important;
 }
@@ -968,6 +979,12 @@ body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-
 
 .student-app-shell.quiz-focus-mode :where(.lms-exam-sidebar, .lms-review-sidebar) {
     position: sticky !important;
+  }
+
+/* Sit the practice and exam question-number panel a little lower so it clears the quiz bar. */
+body .student-app-shell.quiz-focus-mode :is(.lms-practice-quiz-sidebar, .lms-exam-sidebar):is(.lms-practice-quiz-sidebar, .lms-exam-sidebar) {
+    top: 87px !important;
+    max-height: calc(100dvh - 103px) !important;
   }
 }
 

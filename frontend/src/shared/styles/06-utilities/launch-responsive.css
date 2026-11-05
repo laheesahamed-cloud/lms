@@ -38,6 +38,17 @@ body {
   touch-action: auto;
 }
 
+/* overflow-x:hidden on BOTH html and body turns body into its own (never
+   scrolling) scroll container, which silently disables every position:sticky
+   inside it — e.g. the quiz question-number panel scrolled away with the page.
+   clip trims the same horizontal overflow without creating a scroll container. */
+@supports (overflow: clip) {
+  html:not([data-lms-runtime="native"]) body {
+    overflow-x: clip !important;
+    overflow-y: visible !important;
+  }
+}
+
 .lms-app-scroll-root,
 .app-shell,
 .portal-shell,

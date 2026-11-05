@@ -1,14 +1,11 @@
+import '../../../../shared/styles/04-pages/quiz-exam.css';
 import { useEffect, useRef, useState } from 'react';
-import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
-import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
-import { getErrorMessage } from '../../../../shared/api/client.js';
 import { ApproachSteps } from '../../../../shared/components/ApproachSteps.jsx';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { HighlightedQuestionText } from '../../../../shared/components/HighlightedQuestionText.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/quickTheoryRecapUtils.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
-import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
@@ -139,7 +136,7 @@ const reviewUi = {
   mainFocus: 'lms-review-main lms-review-main--focus w-full min-w-0',
   explanationSide:
     'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden',
-  summaryGrid: 'lms-review-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
+  summaryGrid: 'lms-review-summary-grid grid grid-cols-4 gap-2 min-[901px]:gap-1.5 min-[901px]:[&_span]:!text-[9px] min-[901px]:[&_span]:!tracking-[0.02em] min-[901px]:[&_strong]:!text-[17px] min-[901px]:[&>div]:!px-1 max-[420px]:gap-1.5',
   summaryTile:
     'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[11px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[20px] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[11px] max-[420px]:[&_strong]:text-[18px]',
   nav: 'lms-review-side-nav grid min-h-0 gap-2.5',
@@ -171,25 +168,25 @@ const reviewUi = {
   optionLabels: 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start',
   optionText: 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15.5px] font-medium leading-[1.52] text-ink-strong max-[640px]:text-[15.5px] max-[640px]:leading-[1.5]',
   explanation:
-    'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-2))_0%,var(--surface-2)_58%,color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-primary)_7%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5',
+    'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-line-soft bg-surface-2 p-4 max-[640px]:rounded-[16px] max-[640px]:p-3.5',
   incorrectExplanation:
-    'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-warning)_24%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-warning)_7%,var(--surface-2))_0%,var(--surface-2)_62%,color-mix(in_srgb,var(--color-warning)_4%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-warning)_8%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5',
+    'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-line-soft bg-surface-2 p-4 max-[640px]:rounded-[16px] max-[640px]:p-3.5',
   explanationEmpty:
     'grid gap-1 rounded-[16px] border border-dashed border-line-soft bg-surface-2 p-4 text-sm leading-relaxed text-ink-soft [&_strong]:text-ink-strong',
   explanationHeader:
-    'flex items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] pb-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-[12px] [&_h3]:font-extrabold [&_h3]:uppercase [&_h3]:tracking-[0.11em] [&_h3]:text-ink-soft max-[640px]:[&_h3]:text-[11px]',
+    'flex items-center justify-between gap-2.5 border-b border-line-soft pb-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-[12px] [&_h3]:font-extrabold [&_h3]:uppercase [&_h3]:tracking-[0.11em] [&_h3]:text-ink-soft max-[640px]:[&_h3]:text-[11px]',
   explanationGrid: 'grid grid-cols-1 gap-3.5',
   explanationCopy:
     'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15.5px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[15.5px] max-[640px]:[&_p]:leading-[1.68]',
   explanationImage:
-    'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_14%,var(--line-soft))] bg-surface-1 [&_img]:block [&_img]:max-h-[420px] [&_img]:w-full [&_img]:object-contain',
+    'overflow-hidden rounded-[14px] border border-line-soft bg-surface-1 [&_img]:block [&_img]:max-h-[420px] [&_img]:w-full [&_img]:object-contain',
   studyList: 'm-0 grid list-none gap-2 p-0',
   incorrectList:
-    'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]',
+    'overflow-hidden rounded-[14px] border border-line-soft bg-surface-1',
   incorrectItem:
-    'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5',
+    'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-line-soft px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5',
   incorrectBadge:
-    'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] dark:text-[#fbbf24] max-[640px]:size-[22px] max-[640px]:text-[11px]',
+    'inline-flex size-6 items-center justify-center rounded-full border border-line-soft bg-surface-2 text-[11px] font-black text-ink-soft max-[640px]:size-[22px] max-[640px]:text-[11px]',
   incorrectCopy:
     'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.6] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[14px] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.58]',
   bubbleNav: 'lms-review-bubble-nav grid grid-cols-5 gap-2',
@@ -219,13 +216,13 @@ const summaryTileToneClass = {
   wrong:
     'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_9%,var(--surface-2))] [&_strong]:text-brand-error',
   unanswered:
-    'border-[color-mix(in_srgb,#d97706_28%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_8%,var(--surface-2))] [&_strong]:text-[#92400e] dark:[&_strong]:text-[#fbbf24]',
+    'border-line-soft bg-surface-2 [&_strong]:text-ink-strong',
 };
 
 const chipToneClass = {
   correct: 'border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] text-brand-success',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_11%,var(--surface-2))] text-brand-error',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_24%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_9%,var(--surface-2))] text-[#92400e] dark:text-[#fbbf24]',
+  unanswered: 'border-line-soft bg-surface-2 text-ink-soft',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 
@@ -235,8 +232,7 @@ const optionCardToneClass = {
     'border-[color-mix(in_srgb,var(--color-success)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))] shadow-none',
   wrong:
     'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))] shadow-none',
-  unanswered:
-    'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]',
+  unanswered: 'bg-surface-1',
 };
 
 const optionIconToneClass = {
@@ -244,17 +240,14 @@ const optionIconToneClass = {
     'border-[color-mix(in_srgb,var(--color-success)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-success)_18%,transparent)] text-brand-success shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-success)_12%,transparent)]',
   wrong:
     'border-[color-mix(in_srgb,var(--color-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-error)_18%,transparent)] text-brand-error shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-error)_12%,transparent)]',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_30%,transparent)] bg-[color-mix(in_srgb,#d97706_14%,transparent)] text-[#92400e] dark:text-[#fbbf24]',
+  unanswered: 'border-line-soft bg-surface-2 text-ink-soft',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 
 const studyCardToneClass = {
-  summary:
-    'border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))_0%,var(--surface-1)_72%)]',
-  theory:
-    'border-[color-mix(in_srgb,#8b5cf6_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_5%,var(--surface-1))_0%,var(--surface-1)_74%)]',
-  incorrect:
-    'border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-warning)_5%,var(--surface-1))_0%,var(--surface-1)_74%)]',
+  summary: 'border-line-soft bg-surface-1',
+  theory: 'border-line-soft bg-surface-1',
+  incorrect: 'border-line-soft bg-surface-1',
 };
 
 function reviewChipClass(tone = 'neutral') {
@@ -284,34 +277,6 @@ function reviewStudyCardClass(tone, extra = '') {
     'lms-key-points-card relative grid gap-3 rounded-[18px] border border-line-soft bg-surface-1 px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-[background,border-color] duration-150 ease-[var(--ease-out)] hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]',
     studyCardToneClass[tone],
     extra
-  );
-}
-
-function IcoBookmark({ filled = false }) {
-  return (
-    <svg aria-hidden="true" className="size-4" fill={filled ? 'currentColor' : 'none'} viewBox="0 0 24 24">
-      <path
-        d="M7 4.75A2.25 2.25 0 0 1 9.25 2.5h5.5A2.25 2.25 0 0 1 17 4.75v15.1a.7.7 0 0 1-1.08.59L12 17.92l-3.92 2.52A.7.7 0 0 1 7 19.85V4.75Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
-
-function IcoReport() {
-  return (
-    <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 24 24">
-      <path
-        d="M12 8.25v4.25m0 3.25h.01M10.2 3.9 2.85 17.1A2.25 2.25 0 0 0 4.82 20.5h14.36a2.25 2.25 0 0 0 1.97-3.4L13.8 3.9a2.07 2.07 0 0 0-3.6 0Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-    </svg>
   );
 }
 
@@ -514,7 +479,7 @@ function ReviewStudySupport({ question }) {
             <ul className={reviewUi.studyList}>
               {recap.keyPoints.slice(0, 4).map((point, index) => (
                 <li
-                  className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[14.5px] leading-[1.6] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-[14.5px]"
+                  className="relative rounded-[12px] border border-line-soft bg-surface-2 py-2 pl-8 pr-3 text-[14.5px] leading-[1.6] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-[14.5px]"
                   key={`${index}-${point.slice(0, 16)}`}
                 >
                   <MedicalText text={point} />
@@ -636,9 +601,6 @@ export function ReviewWorkspace({
   focusQuestionOnly = false,
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [savedQuestionIds, setSavedQuestionIds] = useState(() => new Set());
-  const [questionActionBusy, setQuestionActionBusy] = useState(false);
-  const [questionActionError, setQuestionActionError] = useState('');
   const mainRef = useRef(null);
   const questionCardRef = useRef(null);
   const safeQuestions = Array.isArray(questions) ? questions : [];
@@ -664,25 +626,11 @@ export function ReviewWorkspace({
     return () => window.cancelAnimationFrame(frame);
   }, [activeQuestion]);
 
-  useEffect(() => {
-    fetchStudyBookmarks()
-      .then((items) => {
-        setSavedQuestionIds(new Set(
-          (Array.isArray(items) ? items : [])
-            .filter((item) => item.itemType === 'question')
-            .map((item) => Number(item.itemId))
-            .filter(Boolean)
-        ));
-      })
-      .catch(() => {});
-  }, []);
-
   if (!safeQuestions.length) {
     return <div className={ui.emptyBox}>No review questions available.</div>;
   }
 
   const hasExplanation = hasReviewExplanation(activeQuestion);
-  const activeQuestionSaved = savedQuestionIds.has(Number(activeQuestion.id));
   const showBubbleNavigator = navigatorVariant === 'bubbles';
   const shellClass = focusQuestionOnly
     ? reviewUi.shellFocus
@@ -694,8 +642,10 @@ export function ReviewWorkspace({
           type="button"
           onClick={() => setActiveIndex((value) => Math.max(value - 1, 0))}
           disabled={activeIndex === 0}
+          aria-label="Previous question"
+          title="Previous"
         >
-          Previous
+          &lt;
         </button>
         {activeIndex >= safeQuestions.length - 1 ? (
           <button className={reviewPrimaryButtonClass}
@@ -710,49 +660,12 @@ export function ReviewWorkspace({
             type="button"
             onClick={() => setActiveIndex((value) => Math.min(value + 1, safeQuestions.length - 1))}
           >
-            Next
+            Next question &gt;
           </button>
         )}
       </div>
     </nav>
   );
-
-  async function toggleActiveQuestionBookmark() {
-    if (!activeQuestion) return;
-    setQuestionActionBusy(true);
-    setQuestionActionError('');
-    try {
-      const result = await toggleStudyBookmark({ itemType: 'question', itemId: activeQuestion.id });
-      setSavedQuestionIds((current) => {
-        const next = new Set(current);
-        if (result.saved) next.add(activeQuestion.id);
-        else next.delete(activeQuestion.id);
-        return next;
-      });
-    } catch {
-    } finally {
-      setQuestionActionBusy(false);
-    }
-  }
-
-  async function reportActiveQuestion() {
-    if (!activeQuestion) return;
-    const comment = window.prompt('Tell admin what is wrong with this question. You can leave it blank if you only want to flag it.');
-    if (comment === null) return;
-    setQuestionActionBusy(true);
-    setQuestionActionError('');
-    try {
-      await createQuestionReport({
-        questionId: activeQuestion.id,
-        reason: 'Student reported question',
-        comment: comment.trim() || `Student reported question #${activeQuestion.id}`,
-      });
-      window.alert(`Question #${activeQuestion.id} was reported to admin.`);
-    } catch {
-    } finally {
-      setQuestionActionBusy(false);
-    }
-  }
 
   return (
     <>
@@ -898,25 +811,6 @@ export function ReviewWorkspace({
 
           {questionNavigation}
 
-          {questionActionError ? <FeedbackNotice tone="error">{questionActionError}</FeedbackNotice> : null}
-          <div className={reviewUi.questionActions}>
-            <button
-              className={cx(
-                reviewSecondaryButtonClass,
-                activeQuestionSaved && 'border-brand-violet/25 bg-purple-100 text-brand-violet dark:bg-purple-500/15 dark:text-purple-200'
-              )}
-              type="button"
-              onClick={toggleActiveQuestionBookmark}
-              disabled={questionActionBusy}
-            >
-              <IcoBookmark filled={activeQuestionSaved} />
-              <span>{activeQuestionSaved ? 'Saved question' : 'Save question'}</span>
-            </button>
-            <button className={reviewSecondaryButtonClass} type="button" onClick={reportActiveQuestion} disabled={questionActionBusy}>
-              <IcoReport />
-              <span>Report question</span>
-            </button>
-          </div>
         </article>
       </section>
 

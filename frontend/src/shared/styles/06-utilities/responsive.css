@@ -245,13 +245,13 @@
 }
 
 :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation:not([aria-label="Answer key"]), .lms-review-question-card .lms-reading-explanation) {
-  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 15%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
-  background: color-mix(in srgb, var(--color-primary, #2563eb) 4%, var(--surface-2, var(--surface-card))) !important;
+  border-color: var(--line-soft, rgba(148, 163, 184, 0.18)) !important;
+  background: transparent !important;
   color: var(--ink-medium) !important;
 }
 
 :root[data-theme='dark'] :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation:not([aria-label="Answer key"]), .lms-review-question-card .lms-reading-explanation) {
-  background: color-mix(in srgb, var(--color-primary, #60a5fa) 4%, var(--surface-2, #0b1019)) !important;
+  background: transparent !important;
   color: rgba(226, 232, 240, 0.78) !important;
 }
 

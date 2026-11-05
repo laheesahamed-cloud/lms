@@ -1508,7 +1508,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 :root[data-theme="light"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) :where(
-  .lms-exam-nav-bubble,
+  .lms-exam-nav-bubble:not(.is-current, .is-answered, .is-review, .is-flagged),
   .practice-review-header button
 ) {
   border-color: rgba(15, 23, 42, 0.10) !important;
@@ -1517,7 +1517,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 :root[data-theme="dark"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) :where(
-  .lms-exam-nav-bubble,
+  .lms-exam-nav-bubble:not(.is-current, .is-answered, .is-review, .is-flagged),
   .practice-review-header button
 ) {
   border-color: rgba(148, 163, 184, 0.16) !important;
@@ -1538,6 +1538,18 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .lms-exam-main-footer button.border-brand-primary\/35,
   .practice-review-header button.border-brand-primary\/22
 ) {
+  border-color: rgba(96, 165, 250, 0.26) !important;
+  background: rgba(96, 165, 250, 0.14) !important;
+  color: #93c5fd !important;
+}
+
+:root[data-theme="light"] .lms-quiz-bar-layer .lms-assessment-btn--primary {
+  border-color: rgba(37, 99, 235, 0.24) !important;
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="dark"] .lms-quiz-bar-layer .lms-assessment-btn--primary {
   border-color: rgba(96, 165, 250, 0.26) !important;
   background: rgba(96, 165, 250, 0.14) !important;
   color: #93c5fd !important;
