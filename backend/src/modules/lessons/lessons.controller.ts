@@ -196,7 +196,7 @@ export class LessonsController {
   @Post(':id/pdf')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 1 } }))
   async uploadPdf(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -215,7 +215,7 @@ export class LessonsController {
   @Post(':id/canvas-image')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 8 * 1024 * 1024, files: 1 } }))
   async uploadCanvasImage(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,

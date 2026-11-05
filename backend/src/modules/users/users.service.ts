@@ -352,6 +352,8 @@ export class UsersService {
     if (updateUserDto.password) {
       updates.push('password = ?');
       params.push(await bcrypt.hash(updateUserDto.password, 10));
+      // Whoever held the old password (or a session made with it) is signed out.
+      updates.push('session_token = NULL', 'session_expires_at = NULL');
     }
 
     if (updates.length === 0) {

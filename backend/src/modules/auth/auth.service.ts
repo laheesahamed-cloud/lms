@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import { randomBytes, randomInt, createHmac, createPublicKey, verify as cryptoVerify } from 'crypto';
@@ -16,6 +16,7 @@ import { GoogleCodeLoginDto } from './dto/google-code-login.dto';
 import { AppleLoginDto } from './dto/apple-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { PAYER_EMAIL_TABLES } from '../schema/schema-sync.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
@@ -123,9 +124,54 @@ const LEGACY_SMTP_BRAND_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bERPM\b/g, 'xyndrome'],
 ];
 
+// Sign-in guessing guard, per ACCOUNT (the per-IP limit in main.ts only slows one
+// address; this stops a slow or spread-out guess against a single account).
+// Counted by email whether or not it exists, so the response gives nothing away.
+const LOGIN_FAILURE_LIMIT = 10;
+const LOGIN_FAILURE_WINDOW_MS = 15 * 60_000;
+const LOGIN_LOCK_MS = 15 * 60_000;
+const LOGIN_FAILURE_MAP_MAX = 5000;
+
+// Compared against when the email is unknown, so that path does the same work as
+// a wrong password and cannot be told apart by how long it takes.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-real-password', 10);
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  // Per process and lost on restart: it slows guessing, it is not the only defence.
+  private readonly loginFailures = new Map<string, { count: number; firstAt: number; lockedUntil: number }>();
+
+  private assertLoginNotLocked(email: string) {
+    const entry = this.loginFailures.get(email);
+    if (!entry || entry.lockedUntil <= Date.now()) return;
+    const minutes = Math.max(1, Math.ceil((entry.lockedUntil - Date.now()) / 60_000));
+    throw new HttpException(
+      `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}, or reset your password.`,
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
+  private recordLoginFailure(email: string) {
+    const now = Date.now();
+    if (this.loginFailures.size > LOGIN_FAILURE_MAP_MAX) {
+      for (const [key, value] of this.loginFailures) {
+        if (value.lockedUntil <= now && now - value.firstAt > LOGIN_FAILURE_WINDOW_MS) this.loginFailures.delete(key);
+      }
+    }
+    const current = this.loginFailures.get(email);
+    const entry = current && now - current.firstAt <= LOGIN_FAILURE_WINDOW_MS
+      ? current
+      : { count: 0, firstAt: now, lockedUntil: 0 };
+    entry.count += 1;
+    if (entry.count >= LOGIN_FAILURE_LIMIT) {
+      entry.lockedUntil = now + LOGIN_LOCK_MS;
+      entry.count = 0;
+      entry.firstAt = now;
+      this.logger.warn(`Sign-in locked for ${LOGIN_LOCK_MS / 60_000} minutes after repeated failures on one account`);
+    }
+    this.loginFailures.set(email, entry);
+  }
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
@@ -134,6 +180,7 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const email = loginDto.email.trim().toLowerCase();
+    this.assertLoginNotLocked(email);
     const [rows] = await this.db.execute<UserRow[]>(
       'SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [email]
@@ -141,16 +188,17 @@ export class AuthService {
 
     const user = rows[0];
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
     const submittedPassword = loginDto.password;
-    const passwordMatches = await bcrypt.compare(submittedPassword, user.password).catch(() => false);
+    // An unknown email still pays for a hash comparison (see DUMMY_PASSWORD_HASH).
+    const passwordMatches = await bcrypt
+      .compare(submittedPassword, user?.password || DUMMY_PASSWORD_HASH)
+      .catch(() => false);
 
-    if (!passwordMatches) {
+    if (!user || !passwordMatches) {
+      this.recordLoginFailure(email);
       throw new UnauthorizedException('Invalid email or password');
     }
+    this.loginFailures.delete(email);
 
     if (isStaffRole(user.role) && user.status !== 'active') {
       throw new UnauthorizedException('Your admin account is not active right now');
@@ -483,6 +531,26 @@ export class AuthService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
+
+      // Payment records keep the payer's address after the account is gone
+      // (accounting and refund queries still need to say who paid), so copy it
+      // onto them BEFORE the users row is scrambled below. Apple purchases are
+      // left out on purpose: iap_transactions is not in PAYER_EMAIL_TABLES and
+      // keeps no address. The new account a person may open with the same
+      // address is a different user id and sees none of this.
+      for (const table of PAYER_EMAIL_TABLES) {
+        try {
+          await connection.execute(
+            `UPDATE ${table} SET payer_email = ? WHERE user_id = ? AND payer_email IS NULL`,
+            [user.email, user.id]
+          );
+        } catch (error) {
+          // A table that was never created has no rows to keep. Anything else
+          // (e.g. the column missing) must fail the whole deletion rather than
+          // quietly lose the address.
+          if ((error as { errno?: number }).errno !== 1146) throw error;
+        }
+      }
 
       await connection.execute(
         `UPDATE users
@@ -1006,10 +1074,17 @@ If you did not try to sign in, you can safely ignore this email.`;
     }
 
     const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
-    await this.db.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
+    // A changed password must end every session that was opened with the old one
+    // (a stolen token included), exactly as a password reset does. That includes
+    // this device, so the client signs out and asks for the new password.
+    await this.db.execute(
+      'UPDATE users SET password = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?',
+      [hashedPassword, user.id]
+    );
 
     return {
       ok: true,
+      signedOut: true,
     };
   }
 

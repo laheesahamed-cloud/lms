@@ -100,7 +100,7 @@ Return ONLY valid JSON, no markdown fences, no explanation.`;
   }
 
   @Post('import')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
   async importDrugs(
     @UploadedFile() file: Express.Multer.File,
     @Headers('authorization') auth?: string,

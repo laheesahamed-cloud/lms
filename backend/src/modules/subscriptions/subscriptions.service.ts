@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { basename, join } from 'path';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
@@ -244,7 +244,7 @@ export class SubscriptionsService {
       `SELECT
          ${SUBSCRIPTION_LIST_COLUMNS},
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(us.payer_email, student.email) AS student_email,
          admin.full_name AS assigned_by_name,
          admin.email AS assigned_by_email,
          plans.name AS plan_name,
@@ -810,7 +810,7 @@ export class SubscriptionsService {
          sr.course_ids_json,
          sr.lesson_ids_json,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(sr.payer_email, student.email) AS student_email,
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
          plans.offer_price AS plan_offer_price,
@@ -990,7 +990,7 @@ export class SubscriptionsService {
          pt.created_at,
          pt.updated_at,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(pt.payer_email, student.email) AS student_email,
          plans.name AS plan_name
        FROM payment_transactions pt
        INNER JOIN users student ON student.id = pt.user_id
@@ -1049,7 +1049,7 @@ export class SubscriptionsService {
          sr.course_ids_json,
          sr.lesson_ids_json,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(sr.payer_email, student.email) AS student_email,
          plans.name AS plan_name
        FROM subscription_requests sr
        INNER JOIN users student ON student.id = sr.user_id
@@ -1337,7 +1337,7 @@ export class SubscriptionsService {
         merchantId !== settings.merchantId ||
         transaction.currency !== payhereCurrency ||
         this.formatAmount(Number(transaction.amount)) !== this.formatAmount(Number(payhereAmount)) ||
-        localSig !== md5sig) {
+        !this.signaturesMatch(localSig, md5sig)) {
       throw new BadRequestException('PayHere notification verification failed');
     }
 
@@ -1346,6 +1346,19 @@ export class SubscriptionsService {
       throw new BadRequestException('PayHere notification was already processed');
     }
     let subscriptionId = transaction?.subscription_id ? Number(transaction.subscription_id) : null;
+    // Claim the payment before anything is granted. PayHere retries, and two
+    // notifications arriving together both pass the check above, so the claim is
+    // one conditional UPDATE: only the first to run changes a row, the second
+    // finds it already paid and stops here instead of activating a second plan.
+    if (nextStatus === 'paid') {
+      const [claim] = await this.db.execute<ResultSetHeader>(
+        `UPDATE payment_transactions SET status = 'paid' WHERE id = ? AND status <> 'paid' AND subscription_id IS NULL`,
+        [transaction.id]
+      );
+      if (!claim.affectedRows) {
+        throw new BadRequestException('PayHere notification was already processed');
+      }
+    }
     const cardRequest = await this.findPayHereRequest(
       String(transaction.invoice_id || orderId),
       Number(transaction.user_id),
@@ -1579,7 +1592,7 @@ export class SubscriptionsService {
          actor.full_name AS actor_name,
          actor.email AS actor_email,
          student.full_name AS student_name,
-         student.email AS student_email
+         COALESCE(sae.payer_email, student.email) AS student_email
        FROM subscription_audit_events sae
        LEFT JOIN users actor ON actor.id = sae.actor_id
        LEFT JOIN users student ON student.id = sae.user_id
@@ -2356,7 +2369,7 @@ export class SubscriptionsService {
          sr.course_ids_json,
          sr.lesson_ids_json,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(sr.payer_email, student.email) AS student_email,
          plans.name AS plan_name
        FROM subscription_requests sr
        INNER JOIN users student ON student.id = sr.user_id
@@ -2687,6 +2700,13 @@ export class SubscriptionsService {
 
   private generateCheckoutHash(merchantId: string, orderId: string, amount: string, currency: string, merchantSecret: string) {
     return this.md5(`${merchantId}${orderId}${amount}${currency}${this.md5(merchantSecret)}`);
+  }
+
+  /** Compares two hex signatures without leaking where they first differ. */
+  private signaturesMatch(expected: string, received: string) {
+    const a = Buffer.from(String(expected || ''));
+    const b = Buffer.from(String(received || ''));
+    return a.length === b.length && a.length > 0 && timingSafeEqual(a, b);
   }
 
   private generateNotificationHash(

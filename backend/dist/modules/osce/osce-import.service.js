@@ -84,6 +84,9 @@ let OsceImportService = class OsceImportService {
                 body: str(s?.body ?? s?.why),
                 brief: str(s?.brief),
                 sound: s?.sound ? str(s.sound) : null,
+                compare: s?.compare?.media
+                    ? { label: str(s.compare.label) || 'Normal', media: str(s.compare.media) }
+                    : null,
             };
         });
         const signIds = new Set(signs.map((s) => s.id));

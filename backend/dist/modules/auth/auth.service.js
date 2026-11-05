@@ -24,6 +24,7 @@ const sql_safety_1 = require("../../database/sql-safety");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const subscription_catalog_1 = require("../plans/subscription-catalog");
 const auth_token_util_1 = require("./auth-token.util");
+const schema_sync_service_1 = require("../schema/schema-sync.service");
 const role_permissions_1 = require("./role-permissions");
 const ALLOWED_AVATAR_KEYS = new Set(['blue-tie', 'teal-coat', 'pink-necklace', 'violet-scarf', 'amber-coat', 'cyan-necklace']);
 const PASSWORD_RESET_TTL_MINUTES = 30;
@@ -50,25 +51,61 @@ const LEGACY_SMTP_BRAND_REPLACEMENTS = [
     [/\bERPM LMS\b/g, 'xyndrome'],
     [/\bERPM\b/g, 'xyndrome'],
 ];
+const LOGIN_FAILURE_LIMIT = 10;
+const LOGIN_FAILURE_WINDOW_MS = 15 * 60_000;
+const LOGIN_LOCK_MS = 15 * 60_000;
+const LOGIN_FAILURE_MAP_MAX = 5000;
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-real-password', 10);
 let AuthService = AuthService_1 = class AuthService {
+    assertLoginNotLocked(email) {
+        const entry = this.loginFailures.get(email);
+        if (!entry || entry.lockedUntil <= Date.now())
+            return;
+        const minutes = Math.max(1, Math.ceil((entry.lockedUntil - Date.now()) / 60_000));
+        throw new common_1.HttpException(`Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}, or reset your password.`, common_1.HttpStatus.TOO_MANY_REQUESTS);
+    }
+    recordLoginFailure(email) {
+        const now = Date.now();
+        if (this.loginFailures.size > LOGIN_FAILURE_MAP_MAX) {
+            for (const [key, value] of this.loginFailures) {
+                if (value.lockedUntil <= now && now - value.firstAt > LOGIN_FAILURE_WINDOW_MS)
+                    this.loginFailures.delete(key);
+            }
+        }
+        const current = this.loginFailures.get(email);
+        const entry = current && now - current.firstAt <= LOGIN_FAILURE_WINDOW_MS
+            ? current
+            : { count: 0, firstAt: now, lockedUntil: 0 };
+        entry.count += 1;
+        if (entry.count >= LOGIN_FAILURE_LIMIT) {
+            entry.lockedUntil = now + LOGIN_LOCK_MS;
+            entry.count = 0;
+            entry.firstAt = now;
+            this.logger.warn(`Sign-in locked for ${LOGIN_LOCK_MS / 60_000} minutes after repeated failures on one account`);
+        }
+        this.loginFailures.set(email, entry);
+    }
     constructor(db, configService) {
         this.db = db;
         this.configService = configService;
         this.logger = new common_1.Logger(AuthService_1.name);
+        this.loginFailures = new Map();
         this.appleKeysCache = null;
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
+        this.assertLoginNotLocked(email);
         const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         const user = rows[0];
-        if (!user) {
-            throw new common_1.UnauthorizedException('Invalid email or password');
-        }
         const submittedPassword = loginDto.password;
-        const passwordMatches = await bcrypt.compare(submittedPassword, user.password).catch(() => false);
-        if (!passwordMatches) {
+        const passwordMatches = await bcrypt
+            .compare(submittedPassword, user?.password || DUMMY_PASSWORD_HASH)
+            .catch(() => false);
+        if (!user || !passwordMatches) {
+            this.recordLoginFailure(email);
             throw new common_1.UnauthorizedException('Invalid email or password');
         }
+        this.loginFailures.delete(email);
         if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active') {
             throw new common_1.UnauthorizedException('Your admin account is not active right now');
         }
@@ -303,6 +340,15 @@ let AuthService = AuthService_1 = class AuthService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            for (const table of schema_sync_service_1.PAYER_EMAIL_TABLES) {
+                try {
+                    await connection.execute(`UPDATE ${table} SET payer_email = ? WHERE user_id = ? AND payer_email IS NULL`, [user.email, user.id]);
+                }
+                catch (error) {
+                    if (error.errno !== 1146)
+                        throw error;
+                }
+            }
             await connection.execute(`UPDATE users
          SET full_name = 'Deleted user',
              email = ?,
@@ -678,9 +724,10 @@ If you did not try to sign in, you can safely ignore this email.`;
             throw new common_1.BadRequestException('Current password is incorrect');
         }
         const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
-        await this.db.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
+        await this.db.execute('UPDATE users SET password = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?', [hashedPassword, user.id]);
         return {
             ok: true,
+            signedOut: true,
         };
     }
     async requireAdmin(authorization) {

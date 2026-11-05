@@ -80,7 +80,7 @@ export declare class PapersService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     keywordSuggestions(query?: string): Promise<string[]>;
     private transitionWorkflow;

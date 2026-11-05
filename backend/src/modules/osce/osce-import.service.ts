@@ -112,6 +112,10 @@ export class OsceImportService {
         body: str(s?.body ?? s?.why),
         brief: str(s?.brief),
         sound: s?.sound ? str(s.sound) : null,
+        // A "normal" picture shown beside the abnormal one. Optional.
+        compare: s?.compare?.media
+          ? { label: str(s.compare.label) || 'Normal', media: str(s.compare.media) }
+          : null,
       } as any;
     });
     const signIds = new Set(signs.map((s: any) => s.id));

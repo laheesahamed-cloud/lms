@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.resolveTrustProxy = resolveTrustProxy;
 exports.configureApp = configureApp;
 exports.bootstrap = bootstrap;
 const core_1 = require("@nestjs/core");
@@ -383,9 +384,20 @@ function restoreApiPrefixForMountedApp(req, _res, next) {
     rewriteRequestUrl(req, `/api${normalizedPath}`);
     next();
 }
+function resolveTrustProxy(raw) {
+    const value = String(raw ?? '').trim();
+    if (!value)
+        return 'loopback';
+    if (/^(false|off|0|no)$/i.test(value))
+        return false;
+    if (/^\d+$/.test(value))
+        return Number(value);
+    return value;
+}
 async function configureApp(app) {
     const configService = app.get(config_1.ConfigService);
     const authService = app.get(auth_service_1.AuthService);
+    app.getHttpAdapter().getInstance().set('trust proxy', resolveTrustProxy(configService.get('TRUST_PROXY')));
     const bodyLimit = configService.get('bodyLimit') || configService.get('BODY_LIMIT') || '8mb';
     const nodeEnv = configService.get('NODE_ENV') || 'development';
     const enableAccessLogs = nodeEnv !== 'production' || configService.get('ENABLE_ACCESS_LOGS') === 'true';

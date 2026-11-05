@@ -13,12 +13,18 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 var SchemaSyncService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SchemaSyncService = void 0;
+exports.SchemaSyncService = exports.PAYER_EMAIL_TABLES = void 0;
 const common_1 = require("@nestjs/common");
 const bcrypt = require("bcryptjs");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const subscription_catalog_1 = require("../plans/subscription-catalog");
+exports.PAYER_EMAIL_TABLES = [
+    'user_subscriptions',
+    'subscription_requests',
+    'payment_transactions',
+    'subscription_audit_events',
+];
 let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
     constructor(db) {
         this.db = db;
@@ -691,6 +697,9 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await step('account deletion audit', () => this.ensureAccountDeletionAuditTable(conn));
             await step('user_subscriptions.access_expires_at', () => this.ensureColumn(conn, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date'));
             await step('access_expires_at backfill', () => this.backfillAccessExpiresAt(conn));
+            for (const table of exports.PAYER_EMAIL_TABLES) {
+                await step(`${table}.payer_email`, () => this.ensureColumn(conn, table, 'payer_email', 'VARCHAR(255) NULL'));
+            }
             await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
             await step('admin audit events', () => this.ensureAdminAuditEventsTable(conn));
             await step('ai provider configs', () => this.ensureAiProviderConfigsTable(conn));

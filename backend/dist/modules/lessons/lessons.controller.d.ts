@@ -39,7 +39,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -60,7 +60,7 @@ export declare class LessonsController {
         lessonTitle: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -78,7 +78,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -89,7 +89,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -102,7 +102,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -115,7 +115,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -172,27 +172,27 @@ export declare class LessonsController {
     markDraft(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        status: "inactive" | "active";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        status: "inactive" | "active";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        status: "inactive" | "active";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        status: "inactive" | "active";
+        workflowState: "draft" | "published";
     }>;
     canvasRegenerateSection(auth: string, id: number, heading: string): Promise<import("./lessons.service").NoteCanvas>;
     canvasSourcePreview(auth: string, text: string, sourceFormat?: string): Promise<{
@@ -226,7 +226,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -262,7 +262,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -293,7 +293,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "rejected" | "draft" | "approved";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -310,7 +310,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "rejected" | "draft" | "approved";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -323,7 +323,7 @@ export declare class LessonsController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -337,7 +337,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "rejected" | "draft" | "approved";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;
@@ -355,7 +355,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "rejected" | "draft" | "approved";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -370,6 +370,7 @@ export declare class LessonsController {
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        showLock: boolean;
         appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
@@ -387,7 +388,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -406,6 +407,7 @@ export declare class LessonsController {
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
+        showLock: boolean;
         appOnly: boolean;
         upgradeLabel: string;
         lockReason: string;
@@ -423,7 +425,7 @@ export declare class LessonsController {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -457,7 +459,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "rejected" | "draft" | "approved";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;

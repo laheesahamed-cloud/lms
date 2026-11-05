@@ -145,9 +145,12 @@ class DashboardQuestionMockPool {
 // header unless the question also appears in a free quiz.
 class TheoryRecapMockPool {
   isFreeLinked: boolean;
+  /** Does the student hold an active plan covering every course? */
+  hasPlan: boolean;
 
-  constructor(input: { isFreeLinked: boolean }) {
+  constructor(input: { isFreeLinked: boolean; hasPlan?: boolean }) {
     this.isFreeLinked = input.isFreeLinked;
+    this.hasPlan = input.hasPlan ?? true;
   }
 
   async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
@@ -155,6 +158,20 @@ class TheoryRecapMockPool {
 
     if (normalizedSql.includes('FROM question_quizzes qq') && normalizedSql.includes('q.is_free = 1')) {
       return [(this.isFreeLinked ? [{ 1: 1 }] : []) as T, []];
+    }
+
+    // Entitlement (question-access.util.ts): the question's course, the quizzes
+    // that list it, and the student's active plans.
+    if (normalizedSql.startsWith('SELECT course_id FROM questions WHERE id = ?')) {
+      return [[{ course_id: 10 }] as T, []];
+    }
+
+    if (normalizedSql.includes('SELECT q.course_id, q.is_free') && normalizedSql.includes('FROM question_quizzes qq')) {
+      return [[{ course_id: 10, is_free: this.isFreeLinked ? 1 : 0 }] as T, []];
+    }
+
+    if (normalizedSql.includes('FROM user_subscriptions us')) {
+      return [(this.hasPlan ? [{ plan_slug: 'complete-prep-3m', access_scope: 'all', course_ids_json: null }] : []) as T, []];
     }
 
     if (normalizedSql.includes('FROM question_theory_recaps')) {
@@ -183,6 +200,11 @@ class StudyBookmarksMockPool {
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
     if (normalizedSql.includes('FROM study_bookmarks b')) {
       return [this.rows as T, []];
+    }
+    // The list asks what the student's plans unlock so a premium question's text
+    // is only shown to someone entitled to it. These students hold no plan.
+    if (normalizedSql.includes('FROM user_subscriptions us')) {
+      return [[] as T, []];
     }
     throw new Error(`Unexpected SQL in study bookmarks regression test: ${normalizedSql}`);
   }
@@ -404,6 +426,7 @@ const plansService = {
 // these tests exercise the subscription-scope check *behind* that gate, so
 // they pass the mobile client header, same as the real app would.
 const MOBILE_CLIENT = 'xyndrome-mobile-app';
+const STUDENT_ID = 112;
 
 async function testQuizContentDeniedWithoutCourseAccess() {
   const db = new QuizAccessMockPool({});
@@ -556,7 +579,7 @@ async function testTheoryRecapDeniedForPremiumOnlyQuestionWithoutMobileHeader() 
   const db = new TheoryRecapMockPool({ isFreeLinked: false });
   const service = new TheoryRecapService(db as any, {} as any);
   await assert.rejects(
-    () => service.getByQuestionIdForStudent(203),
+    () => service.getByQuestionIdForStudent(203, undefined, STUDENT_ID),
     AppOnlyContentException
   );
 }
@@ -564,14 +587,25 @@ async function testTheoryRecapDeniedForPremiumOnlyQuestionWithoutMobileHeader() 
 async function testTheoryRecapAllowedForPremiumOnlyQuestionWithMobileHeader() {
   const db = new TheoryRecapMockPool({ isFreeLinked: false });
   const service = new TheoryRecapService(db as any, {} as any);
-  const recap = await service.getByQuestionIdForStudent(203, MOBILE_CLIENT);
+  const recap = await service.getByQuestionIdForStudent(203, MOBILE_CLIENT, STUDENT_ID);
   assert.equal(recap?.questionId, 203);
+}
+
+// The mobile header is a value anyone can send, so it cannot be the only gate:
+// a student with no plan is refused premium recaps even when it is present.
+async function testTheoryRecapDeniedForUnentitledStudentEvenWithMobileHeader() {
+  const db = new TheoryRecapMockPool({ isFreeLinked: false, hasPlan: false });
+  const service = new TheoryRecapService(db as any, {} as any);
+  await assert.rejects(
+    () => service.getByQuestionIdForStudent(203, MOBILE_CLIENT, STUDENT_ID),
+    ForbiddenException
+  );
 }
 
 async function testTheoryRecapAllowedForFreeLinkedQuestionWithoutMobileHeader() {
   const db = new TheoryRecapMockPool({ isFreeLinked: true });
   const service = new TheoryRecapService(db as any, {} as any);
-  const recap = await service.getByQuestionIdForStudent(203);
+  const recap = await service.getByQuestionIdForStudent(203, undefined, STUDENT_ID);
   assert.equal(recap?.questionId, 203, 'a question that also appears in a free quiz stays reachable from the website');
 }
 
@@ -914,6 +948,7 @@ async function main() {
   await testFreeQuizReviewAllowedWithoutMobileHeader();
   await testTheoryRecapDeniedForPremiumOnlyQuestionWithoutMobileHeader();
   await testTheoryRecapAllowedForPremiumOnlyQuestionWithMobileHeader();
+  await testTheoryRecapDeniedForUnentitledStudentEvenWithMobileHeader();
   await testTheoryRecapAllowedForFreeLinkedQuestionWithoutMobileHeader();
   await testBookmarkedPremiumQuestionTextHiddenWithoutMobileHeader();
   await testBookmarkedFreeLinkedQuestionTextShownWithoutMobileHeader();

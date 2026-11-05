@@ -2,7 +2,7 @@ import { BadGatewayException, BadRequestException, Inject, Injectable, Logger, N
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import * as nodemailer from 'nodemailer';
-import { randomUUID } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
@@ -46,7 +46,6 @@ const POPUP_ALERT_PUBLIC_MANIFEST_FILE = 'popup-alert.json';
 const AVAILABILITY_MODE_SETTING_KEY = 'site_availability_mode';
 const AVAILABILITY_UNLOCK_CODE_SETTING_KEY = 'site_availability_unlock_code';
 const AVAILABILITY_MODES = ['live', 'maintenance', 'coming-soon'] as const;
-const DEFAULT_AVAILABILITY_UNLOCK_CODE = '1122334455';
 const DEFAULT_LANDING_PAGE_CONTENT = {
   metaTitle: 'Medical Study Platform',
   metaDescription:
@@ -433,8 +432,13 @@ export class SettingsService {
     const submittedCode = this.normalizeAvailabilityUnlockAttempt(input.code);
     const unlockCode = await this.getAvailabilityUnlockCode();
 
+    const submittedTail = unlockCode ? submittedCode.slice(-unlockCode.length) : '';
+    const matches = Boolean(unlockCode) &&
+      submittedTail.length === unlockCode.length &&
+      timingSafeEqual(Buffer.from(submittedTail), Buffer.from(unlockCode));
+
     return {
-      ok: submittedCode.endsWith(unlockCode),
+      ok: matches,
       adminLoginPath: '/auth/login?admin=1&from=%2Fadmin%2Fsettings',
     };
   }
@@ -1059,7 +1063,9 @@ export class SettingsService {
 
   private async getAvailabilityUnlockCode() {
     const value = await this.getSettingValue(AVAILABILITY_UNLOCK_CODE_SETTING_KEY);
-    return value ? this.normalizeAvailabilityUnlockCode(value) : DEFAULT_AVAILABILITY_UNLOCK_CODE;
+    // No built-in fallback: a code that ships in the source is a code everyone knows.
+    // Until an admin sets one in Settings, the launch screen cannot be unlocked.
+    return value ? this.normalizeAvailabilityUnlockCode(value) : '';
   }
 
   private normalizeAvailabilityMode(value: unknown, fallback?: AvailabilityMode): AvailabilityMode {

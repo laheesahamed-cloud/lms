@@ -78,7 +78,7 @@ export declare class CoursesService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     findStudentCourses(authorization?: string): Promise<{
         subjectCount: any;

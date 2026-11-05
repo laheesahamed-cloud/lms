@@ -268,6 +268,7 @@ let UsersService = class UsersService {
         if (updateUserDto.password) {
             updates.push('password = ?');
             params.push(await bcrypt.hash(updateUserDto.password, 10));
+            updates.push('session_token = NULL', 'session_expires_at = NULL');
         }
         if (updates.length === 0) {
             return this.mapUser(user);

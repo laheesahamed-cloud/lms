@@ -93,10 +93,32 @@ for (const dir of ['frontend/src']) {
     }
   }
 }
-const allowedRawHtmlSinks = ['frontend/src/surfaces/website/components/CinematicHero.jsx'];
+const allowedRawHtmlSinks = [
+  'frontend/src/surfaces/website/components/CinematicHero.jsx',
+  'frontend/src/shared/ui/SubjectIcon.jsx',
+];
 for (const sink of rawHtmlSinks) {
   if (!allowedRawHtmlSinks.includes(sink)) {
     fail(`unreviewed dangerouslySetInnerHTML sink: ${sink}`);
+  }
+}
+// SubjectIcon renders course icons as inline SVG. That is only safe while the
+// markup comes from the SVG files bundled at build time (the course NAME merely
+// picks which file) and none of those files can run script.
+const subjectIconComponent = read('frontend/src/shared/ui/SubjectIcon.jsx');
+if (!subjectIconComponent.includes('dangerouslySetInnerHTML={{ __html: svg }}')) {
+  fail('SubjectIcon must render only the bundled svg string, nothing interpolated');
+}
+const subjectIconSource = read('frontend/src/shared/utils/subjectIcon.js');
+if (!/import\.meta\.glob\('\.\.\/assets\/subject-icons\/\*\.svg', \{\s*query: '\?raw'/.test(subjectIconSource)) {
+  fail('subject icon markup must come from the bundled subject-icons SVG files');
+}
+const subjectIconDir = 'frontend/src/shared/assets/subject-icons';
+for (const entry of fs.readdirSync(path.join(root, subjectIconDir))) {
+  if (!entry.endsWith('.svg')) continue;
+  const markup = read(`${subjectIconDir}/${entry}`);
+  if (/<script|<foreignObject|javascript:|\son[a-z]+\s*=/i.test(markup)) {
+    fail(`${subjectIconDir}/${entry} contains script-capable markup`);
   }
 }
 const heroStyles = read('frontend/src/surfaces/website/components/CinematicHero.jsx');

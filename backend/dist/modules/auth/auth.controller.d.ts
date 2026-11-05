@@ -286,6 +286,7 @@ export declare class AuthController {
     }>;
     changePassword(authorization: string | undefined, changePasswordDto: ChangePasswordDto): Promise<{
         ok: boolean;
+        signedOut: boolean;
     }>;
     private setSessionCookie;
     private clearSessionCookie;

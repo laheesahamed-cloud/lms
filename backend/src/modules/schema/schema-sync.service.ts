@@ -5,6 +5,15 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
 import { APPLE_IAP_PRODUCTS, DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
 
+/// Non-IAP payment records that keep the payer's email when an account is
+/// deleted. Apple purchases (iap_transactions) are deliberately not here.
+export const PAYER_EMAIL_TABLES = [
+  'user_subscriptions',
+  'subscription_requests',
+  'payment_transactions',
+  'subscription_audit_events',
+] as const;
+
 @Injectable()
 export class SchemaSyncService implements OnModuleInit {
   private readonly logger = new Logger(SchemaSyncService.name);
@@ -788,6 +797,13 @@ export class SchemaSyncService implements OnModuleInit {
       await step('user_subscriptions.access_expires_at', () =>
         this.ensureColumn(conn, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date'));
       await step('access_expires_at backfill', () => this.backfillAccessExpiresAt(conn));
+      // The payer's address, kept on payment records after the account is
+      // deleted (the users row is anonymised). Written by the deletion path,
+      // so it must exist whether or not the full sync runs.
+      for (const table of PAYER_EMAIL_TABLES) {
+        await step(`${table}.payer_email`, () =>
+          this.ensureColumn(conn, table, 'payer_email', 'VARCHAR(255) NULL'));
+      }
       await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
       await step('admin audit events', () => this.ensureAdminAuditEventsTable(conn));
       // Read directly (no try/catch) by resolveActiveCanvasProvider() on every

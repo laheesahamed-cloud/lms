@@ -111,7 +111,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         const [rows] = await this.db.execute(`SELECT
          ${SUBSCRIPTION_LIST_COLUMNS},
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(us.payer_email, student.email) AS student_email,
          admin.full_name AS assigned_by_name,
          admin.email AS assigned_by_email,
          plans.name AS plan_name,
@@ -589,7 +589,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          sr.course_ids_json,
          sr.lesson_ids_json,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(sr.payer_email, student.email) AS student_email,
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
          plans.offer_price AS plan_offer_price,
@@ -737,7 +737,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          pt.created_at,
          pt.updated_at,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(pt.payer_email, student.email) AS student_email,
          plans.name AS plan_name
        FROM payment_transactions pt
        INNER JOIN users student ON student.id = pt.user_id
@@ -792,7 +792,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          sr.course_ids_json,
          sr.lesson_ids_json,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(sr.payer_email, student.email) AS student_email,
          plans.name AS plan_name
        FROM subscription_requests sr
        INNER JOIN users student ON student.id = sr.user_id
@@ -1034,7 +1034,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             merchantId !== settings.merchantId ||
             transaction.currency !== payhereCurrency ||
             this.formatAmount(Number(transaction.amount)) !== this.formatAmount(Number(payhereAmount)) ||
-            localSig !== md5sig) {
+            !this.signaturesMatch(localSig, md5sig)) {
             throw new common_1.BadRequestException('PayHere notification verification failed');
         }
         const nextStatus = this.mapPayHereStatus(statusCode);
@@ -1042,6 +1042,12 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             throw new common_1.BadRequestException('PayHere notification was already processed');
         }
         let subscriptionId = transaction?.subscription_id ? Number(transaction.subscription_id) : null;
+        if (nextStatus === 'paid') {
+            const [claim] = await this.db.execute(`UPDATE payment_transactions SET status = 'paid' WHERE id = ? AND status <> 'paid' AND subscription_id IS NULL`, [transaction.id]);
+            if (!claim.affectedRows) {
+                throw new common_1.BadRequestException('PayHere notification was already processed');
+            }
+        }
         const cardRequest = await this.findPayHereRequest(String(transaction.invoice_id || orderId), Number(transaction.user_id), Number(transaction.plan_id));
         const paymentReference = String(body.payment_id || orderId).trim();
         await this.db.execute(`
@@ -1232,7 +1238,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          actor.full_name AS actor_name,
          actor.email AS actor_email,
          student.full_name AS student_name,
-         student.email AS student_email
+         COALESCE(sae.payer_email, student.email) AS student_email
        FROM subscription_audit_events sae
        LEFT JOIN users actor ON actor.id = sae.actor_id
        LEFT JOIN users student ON student.id = sae.user_id
@@ -1731,7 +1737,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          sr.course_ids_json,
          sr.lesson_ids_json,
          student.full_name AS student_name,
-         student.email AS student_email,
+         COALESCE(sr.payer_email, student.email) AS student_email,
          plans.name AS plan_name
        FROM subscription_requests sr
        INNER JOIN users student ON student.id = sr.user_id
@@ -1994,6 +2000,11 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     }
     generateCheckoutHash(merchantId, orderId, amount, currency, merchantSecret) {
         return this.md5(`${merchantId}${orderId}${amount}${currency}${this.md5(merchantSecret)}`);
+    }
+    signaturesMatch(expected, received) {
+        const a = Buffer.from(String(expected || ''));
+        const b = Buffer.from(String(received || ''));
+        return a.length === b.length && a.length > 0 && (0, crypto_1.timingSafeEqual)(a, b);
     }
     generateNotificationHash(merchantId, orderId, amount, currency, statusCode, merchantSecret) {
         return this.md5(`${merchantId}${orderId}${amount}${currency}${statusCode}${this.md5(merchantSecret)}`);

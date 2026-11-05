@@ -7,7 +7,7 @@ import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { createConnection } from 'mysql2/promise';
 import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/main';
+import { configureApp, resolveTrustProxy } from '../src/main';
 import { DATABASE_CONNECTION } from '../src/database/database.tokens';
 import { SchemaSyncService } from '../src/modules/schema/schema-sync.service';
 import { hashSessionToken } from '../src/modules/auth/auth-token.util';
@@ -95,7 +95,7 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
-    if (normalized.includes('UPDATE users SET full_name = ?, avatar_key = ? WHERE id = ?')) {
+    if (normalized.includes('UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?')) {
       return [{ affectedRows: 1 } as T, []];
     }
 
@@ -304,6 +304,20 @@ class SecurityE2eDb {
       ] as T, []];
     }
 
+    // Theory-recap entitlement (question-access.util.ts): the question sits in a
+    // free quiz, so the website may read its recap and the student is entitled.
+    if (normalized.includes('FROM question_quizzes qq') && normalized.includes('q.is_free = 1') && normalized.includes('LIMIT 1')) {
+      return [[{ 1: 1 }] as T, []];
+    }
+
+    if (normalized.startsWith("SELECT course_id FROM questions WHERE id = ?")) {
+      return [[{ course_id: 10 }] as T, []];
+    }
+
+    if (normalized.includes('SELECT q.course_id, q.is_free') && normalized.includes('FROM question_quizzes qq')) {
+      return [[{ course_id: 10, is_free: 1 }] as T, []];
+    }
+
     if (normalized.includes('FROM question_theory_recaps') && normalized.includes('WHERE question_id IN')) {
       return [[] as T, []];
     }
@@ -453,6 +467,10 @@ class SecurityE2eDb {
 
     if (normalized.includes('INSERT INTO payment_transactions')) {
       return [{ insertId: 1, affectedRows: 1 } as T, []];
+    }
+
+    if (normalized.includes("UPDATE payment_transactions SET status = 'paid' WHERE id = ?")) {
+      return [{ affectedRows: 1 } as T, []];
     }
 
     if (normalized.includes('UPDATE payment_transactions SET status = ?')) {
@@ -1268,7 +1286,7 @@ async function testHealthProfileAndPublicCatalogRoutes() {
     .set('Authorization', auth(TOKENS.studentA))
     .send({ fullName: 'Student A Updated', avatarKey: 'blue-tie', userId: 200 });
   assert.equal(profileResponse.status, 200);
-  const profileCall = db.findCall(/UPDATE users SET full_name = \?, avatar_key = \? WHERE id = \?/i);
+  const profileCall = db.findCall(/UPDATE users SET full_name = \?, avatar_key = \?, needs_profile_setup = 0 WHERE id = \?/i);
   assert(profileCall, 'profile update must write the authenticated user row');
   assert.deepEqual(profileCall.params, ['Student A Updated', 'blue-tie', 100]);
 
@@ -1590,6 +1608,16 @@ async function testRealMySqlSecurityIntegrationIfConfigured() {
   }
 }
 
+async function testTrustProxySettingIsSafeByDefault() {
+  assert.equal(resolveTrustProxy(undefined), 'loopback');
+  assert.equal(resolveTrustProxy(''), 'loopback');
+  assert.equal(resolveTrustProxy('off'), false);
+  assert.equal(resolveTrustProxy('false'), false);
+  assert.equal(resolveTrustProxy('0'), false);
+  assert.equal(resolveTrustProxy('2'), 2);
+  assert.equal(resolveTrustProxy('10.0.0.0/8'), '10.0.0.0/8');
+}
+
 async function main() {
   await createApp();
   try {
@@ -1612,6 +1640,7 @@ async function main() {
     await testHealthProfileAndPublicCatalogRoutes();
     await testStudentLearningOwnershipAndEntitlementRoutes();
     await testRemainingAdminPermissionBoundaries();
+    await testTrustProxySettingIsSafeByDefault();
     console.log('Security HTTP e2e checks passed with mocked DATABASE_CONNECTION.');
     console.log('Database boundary: mocked DATABASE_CONNECTION only; MySQL engine behavior, migrations, indexes, and transaction isolation are not covered by this e2e test.');
     await testRealMySqlSecurityIntegrationIfConfigured();

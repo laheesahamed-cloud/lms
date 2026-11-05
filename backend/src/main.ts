@@ -400,9 +400,35 @@ function restoreApiPrefixForMountedApp(req: any, _res: any, next: any) {
   next();
 }
 
+/**
+ * Which proxies in front of the app may tell it the real client address.
+ *
+ * Without this, Express reports the PROXY's address as `req.ip` for every
+ * request, so every per-IP limit (login, password reset, content) counted all
+ * visitors as one: 8 login attempts by anyone blocked everyone. Trusting the
+ * forwarded header from a direct peer is what makes `req.ip` the client.
+ *
+ * `loopback` (the default) trusts `X-Forwarded-For` only when the connection
+ * itself comes from this machine, which is how the web server reaches the app;
+ * a visitor connecting straight to the app cannot spoof it. Set TRUST_PROXY to a
+ * hop count (e.g. `1`) or an address list when the proxy is on another host, or
+ * to `false` to switch it off.
+ */
+export function resolveTrustProxy(raw: string | undefined): boolean | number | string {
+  const value = String(raw ?? '').trim();
+  if (!value) return 'loopback';
+  if (/^(false|off|0|no)$/i.test(value)) return false;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
+}
+
 export async function configureApp(app: INestApplication) {
   const configService = app.get(ConfigService);
   const authService = app.get(AuthService);
+  (app.getHttpAdapter().getInstance() as any).set(
+    'trust proxy',
+    resolveTrustProxy(configService.get<string>('TRUST_PROXY')),
+  );
   const bodyLimit = configService.get<string>('bodyLimit') || configService.get<string>('BODY_LIMIT') || '8mb';
   const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
   const enableAccessLogs = nodeEnv !== 'production' || configService.get<string>('ENABLE_ACCESS_LOGS') === 'true';

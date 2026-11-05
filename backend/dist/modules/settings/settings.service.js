@@ -29,7 +29,6 @@ const POPUP_ALERT_PUBLIC_MANIFEST_FILE = 'popup-alert.json';
 const AVAILABILITY_MODE_SETTING_KEY = 'site_availability_mode';
 const AVAILABILITY_UNLOCK_CODE_SETTING_KEY = 'site_availability_unlock_code';
 const AVAILABILITY_MODES = ['live', 'maintenance', 'coming-soon'];
-const DEFAULT_AVAILABILITY_UNLOCK_CODE = '1122334455';
 const DEFAULT_LANDING_PAGE_CONTENT = {
     metaTitle: 'Medical Study Platform',
     metaDescription: 'xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.',
@@ -272,8 +271,12 @@ let SettingsService = SettingsService_1 = class SettingsService {
     async verifyAvailabilityUnlock(input) {
         const submittedCode = this.normalizeAvailabilityUnlockAttempt(input.code);
         const unlockCode = await this.getAvailabilityUnlockCode();
+        const submittedTail = unlockCode ? submittedCode.slice(-unlockCode.length) : '';
+        const matches = Boolean(unlockCode) &&
+            submittedTail.length === unlockCode.length &&
+            (0, crypto_1.timingSafeEqual)(Buffer.from(submittedTail), Buffer.from(unlockCode));
         return {
-            ok: submittedCode.endsWith(unlockCode),
+            ok: matches,
             adminLoginPath: '/auth/login?admin=1&from=%2Fadmin%2Fsettings',
         };
     }
@@ -774,7 +777,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
     }
     async getAvailabilityUnlockCode() {
         const value = await this.getSettingValue(AVAILABILITY_UNLOCK_CODE_SETTING_KEY);
-        return value ? this.normalizeAvailabilityUnlockCode(value) : DEFAULT_AVAILABILITY_UNLOCK_CODE;
+        return value ? this.normalizeAvailabilityUnlockCode(value) : '';
     }
     normalizeAvailabilityMode(value, fallback) {
         const normalized = String(value || '')
