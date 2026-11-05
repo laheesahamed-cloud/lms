@@ -33,13 +33,16 @@ function Toggle({ checked, onChange, id }) {
         flexShrink: 0,
         display: 'inline-flex',
         alignItems: 'center',
-        width: '40px',
-        height: '14px',
+        // A real switch: the track is taller than the knob, so the knob sits
+        // inside it (it used to be a 14px track with a 20px knob poking out).
+        width: '48px',
+        height: '28px',
+        minHeight: '28px', // buttons get a 44px minimum app-wide; a switch is not one
         borderRadius: '999px',
-        padding: '2px',
+        padding: '3px',
         background: checked
-          ? 'color-mix(in srgb, var(--color-primary, #2563eb) 50%, transparent)'
-          : 'rgba(120, 120, 128, 0.32)',
+          ? 'var(--color-primary, #2563eb)'
+          : 'rgba(120, 120, 128, 0.36)',
         border: 'none',
         cursor: 'pointer',
         transition: 'background 250ms cubic-bezier(0.32, 0.72, 0, 1)',
@@ -52,12 +55,12 @@ function Toggle({ checked, onChange, id }) {
       <span
         style={{
           display: 'block',
-          width: '20px',
-          height: '20px',
+          width: '22px',
+          height: '22px',
           borderRadius: '50%',
-          background: checked ? 'var(--color-primary, #2563eb)' : '#fff',
+          background: '#fff',
           boxShadow: '0 2px 1px -1px rgba(0,0,0,0.2), 0 1px 1px 0 rgba(0,0,0,0.14), 0 1px 3px 0 rgba(0,0,0,0.12)',
-          transform: checked ? 'translateX(16px)' : 'translateX(0)',
+          transform: checked ? 'translateX(20px)' : 'translateX(0)',
           transition: 'transform 250ms cubic-bezier(0.32, 0.72, 0, 1), background 250ms ease',
         }}
       />
@@ -244,7 +247,12 @@ export function StudyReminderSettingsCard() {
       </label>
 
       {permission === 'denied' ? (
-        <div className={ui.warningFeedback}>Notification permission is blocked. Allow notifications to receive reminders.</div>
+        // Inline notice. ui.warningFeedback is the floating pop-up toast style
+        // (fixed to the top-right of the screen), which landed on top of the
+        // reminder rows instead of sitting in the card.
+        <div className="rounded-[var(--radius-md)] border border-brand-warning/34 bg-[var(--color-warning-light)] px-4 py-3 text-[13px] font-bold leading-normal text-brand-warning" role="status">
+          Notification permission is blocked. Allow notifications to receive reminders.
+        </div>
       ) : null}
       {message ? <div className={ui.feedbackSuccess}>{message}</div> : null}
 

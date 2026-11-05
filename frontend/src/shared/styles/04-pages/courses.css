@@ -68,7 +68,7 @@
   height: 46px;
   place-items: center;
   flex: 0 0 auto;
-  border: 1px solid rgba(var(--course-accent-rgb), 0.18);
+  border: 0;
   border-radius: 16px;
   background: rgba(var(--course-accent-rgb), 0.11);
   color: var(--course-accent);
@@ -78,7 +78,6 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  border-color: rgba(var(--sa-primary-rgb), 0.18);
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
 }

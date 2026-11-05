@@ -21,7 +21,7 @@ const STUDENT_HEADER_ROUTES = [
   { re: /^\/(?:app\/)?subscriptions\/checkout\/[^/]+\/?$/, title: 'Checkout', subtitle: 'Plan Access', back: true, backTo: '/app/subscriptions' },
   { re: /^\/(?:app\/)?subscriptions\/?$/, title: 'Subscriptions' },
   { re: /^\/(?:app\/)?notifications\/?$/, title: 'Notifications', subtitle: 'Message Inbox' },
-  { re: /^\/(?:app\/)?study\/?$/, title: 'Study', subtitle: 'AI notes and study canvas' },
+  { re: /^\/(?:app\/)?study\/?$/, title: 'Study', subtitle: 'Explore' },
 ];
 
 // Returns the default header descriptor for a student route, or null when the

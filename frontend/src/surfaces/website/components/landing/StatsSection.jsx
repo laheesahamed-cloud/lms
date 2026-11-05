@@ -37,7 +37,7 @@ export function StatsSection() {
 
   return (
     <section ref={ref} className="lpv2-section bg-[#fafaf7]">
-      <div className="lpv2-shell grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5">
+      <div className="lpv2-shell grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
         {STATS.map((s, i) => (
           <motion.div
             key={s.label}
@@ -47,7 +47,7 @@ export function StatsSection() {
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: i * 0.08, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="font-display text-[clamp(40px,6vw,64px)] leading-none text-[#111118]">
+            <div className="font-display whitespace-nowrap text-[clamp(36px,4vw,56px)] leading-none text-[#111118]">
               <CountUp value={s.value} suffix={s.suffix} active={inView} />
             </div>
             <div className="mt-2 text-[13px] font-medium text-[#6b7280] md:text-sm">{s.label}</div>

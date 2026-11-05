@@ -15,7 +15,7 @@
       "runtimeArgs": ["run", "start:dev"],
       "cwd": "backend",
       "port": 3000,
-      "autoPort": false
+      "autoPort": true
     },
     {
       "name": "dashmock",

@@ -299,13 +299,12 @@ const LoginBrand = memo(function LoginBrand() {
         style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '18px 40px', minHeight: 0 }}
         className="lms-brand-stagger"
       >
-        {/* Eyebrow pill */}
+        {/* Eyebrow — plain text, no pill */}
         <div style={{
           display: 'inline-flex', width: 'fit-content', alignItems: 'center', gap: 8,
-          borderRadius: 999, border: '1px solid rgba(59,130,246,.30)',
-          background: 'rgba(59,130,246,.10)', padding: '5px 14px', marginBottom: 22,
+          marginBottom: 22,
           fontSize: 11, fontWeight: 800, color: '#3B82F6',
-          letterSpacing: '.1em', textTransform: 'uppercase',
+          letterSpacing: '.12em', textTransform: 'uppercase',
         }}>
           Trusted by medical students
         </div>

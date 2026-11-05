@@ -1834,48 +1834,38 @@
 }
 
 .study-hub-page .study-metric {
+  --metric-tone: #60a5fa;
   position: relative;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 6px;
-  align-items: center;
+  place-items: center;
   height: 74px;
   min-height: 66px;
   overflow: hidden;
   padding: 9px;
   contain: layout style;
-  /* Unified card shell — restraint pass (XYNDROME_DARK_PLAN.md): neutral
-     surface; the per-tone tinted radials moved to the icon chips only. */
-  border: 1px solid var(--line-soft);
+  text-align: center;
+  /* Unified card shell (XYNDROME_DARK_PLAN.md) with a slight wash of the
+     tile's own tone, mixed into the surface so it holds in light and dark. */
+  border: 1px solid color-mix(in srgb, var(--metric-tone) 24%, var(--line-soft));
   border-radius: var(--ds-card-radius);
-  background: var(--surface-card);
+  background: color-mix(in srgb, var(--metric-tone) 9%, var(--surface-card));
   box-shadow: var(--ds-card-shadow);
 }
 
-.study-hub-page .study-metric__icon {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 12px;
-  background: rgba(96, 165, 250, 0.20);
-  color: #60a5fa;
+.study-hub-page .study-metric--violet {
+  --metric-tone: #a78bfa;
 }
 
-.study-hub-page .study-metric--violet .study-metric__icon {
-  background: rgba(167, 139, 250, 0.22);
-  color: #a78bfa;
-}
-
-.study-hub-page .study-metric--amber .study-metric__icon {
-  background: rgba(252, 211, 77, 0.20);
-  color: #fcd34d;
+.study-hub-page .study-metric--amber {
+  --metric-tone: #f59e0b;
 }
 
 .study-hub-page .study-metric > div {
   display: grid;
+  width: 100%;
   min-width: 0;
   gap: 2px;
+  justify-items: center;
 }
 
 .study-hub-page .study-metric > div > strong {
@@ -1908,8 +1898,17 @@
   font-size: var(--type-size-2xs);
   font-weight: 700;
   line-height: 1.1;
+  text-align: center;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.study-hub-page .study-metric > div > p.study-metric__hint--up {
+  color: var(--color-success);
+}
+
+.study-hub-page .study-metric > div > p.study-metric__hint--down {
+  color: var(--color-error);
 }
 
 .study-hub-page .study-mini-rail {
@@ -2163,12 +2162,14 @@
 :root[data-theme="dark"] .study-hub-page .study-action-grid > .study-action-card,
 :root[data-theme="dark"] .student-app-shell .study-hub-page .study-action-grid > .study-action-card {
   display: grid !important;
-  grid-template-columns: 22px minmax(0, 1fr) !important;
+  /* icon + label sized to their content and centred as one group in the pill */
+  grid-template-columns: auto auto !important;
   grid-template-rows: 1fr !important;
   flex: 0 0 112px !important;
   gap: 6px !important;
   align-items: center !important;
-  justify-items: start !important;
+  justify-content: center !important;
+  justify-items: center !important;
   min-height: 48px !important;
   padding: 7px 8px !important;
   border: 0 !important;
@@ -2177,7 +2178,7 @@
   box-shadow:
     0 16px 34px -28px rgba(3, 9, 20, 0.74) !important;
   scroll-snap-align: start;
-  text-align: left !important;
+  text-align: center !important;
 }
 
 .study-hub-page .study-action-grid > .study-action-card:nth-child(2),
@@ -2208,6 +2209,29 @@
 .study-hub-page .study-action-grid > .study-action-card > span svg {
   width: 15px;
   height: 15px;
+}
+
+/* Quick actions: each icon gets its own pastel tone — a soft wash of the tone
+   behind it, the icon in a deeper shade of the same tone so it stays readable.
+   Six tones, repeated if more actions are ever added. The selectors carry
+   .student-app-shell so they outrank the shared "currentColor" reset above. */
+.study-hub-page .study-action-grid > .study-action-card:nth-child(6n + 1) { --qa-tone: #60a5fa; }
+.study-hub-page .study-action-grid > .study-action-card:nth-child(6n + 2) { --qa-tone: #34d399; }
+.study-hub-page .study-action-grid > .study-action-card:nth-child(6n + 3) { --qa-tone: #a78bfa; }
+.study-hub-page .study-action-grid > .study-action-card:nth-child(6n + 4) { --qa-tone: #fbbf24; }
+.study-hub-page .study-action-grid > .study-action-card:nth-child(6n + 5) { --qa-tone: #f472b6; }
+.study-hub-page .study-action-grid > .study-action-card:nth-child(6n + 6) { --qa-tone: #22d3ee; }
+
+.student-app-shell .study-hub-page .study-action-grid > .study-action-card > span,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-action-grid > .study-action-card > span {
+  background: color-mix(in srgb, var(--qa-tone, #60a5fa) 24%, transparent) !important;
+  color: color-mix(in srgb, var(--qa-tone, #60a5fa) 62%, #0f172a) !important;
+}
+
+:root[data-theme="dark"] .student-app-shell .study-hub-page .study-action-grid > .study-action-card > span,
+:root[data-theme="dark"] .student-app-shell .dashboard-page.study-hub-page .study-action-grid > .study-action-card > span {
+  background: color-mix(in srgb, var(--qa-tone, #60a5fa) 22%, transparent) !important;
+  color: var(--qa-tone, #60a5fa) !important;
 }
 
 .study-hub-page .study-action-grid > .study-action-card strong {
@@ -2641,6 +2665,33 @@
   }
 }
 
+/* "Coming up" inside the Exam countdown card: only in the side-by-side layout,
+   where the card is stretched to the height of Course progress. */
+.study-hub-page .study-exam-agenda {
+  display: none;
+}
+
+.study-hub-page .study-exam-agenda__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (min-width: 760px) {
+
+.study-hub-page .study-exam-agenda {
+    display: grid;
+    align-self: end;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line-soft);
+  }
+}
+
 @media (max-width: 380px) {
 
 .study-hub-page .study-upcoming-row {
@@ -2665,13 +2716,7 @@
   }
 
 .study-hub-page .study-metric {
-    grid-template-columns: 28px minmax(0, 1fr);
     padding: 8px;
-  }
-
-.study-hub-page .study-metric__icon {
-    width: 28px;
-    height: 28px;
   }
 
 .study-hub-page .study-action-grid {
@@ -2679,7 +2724,7 @@
   }
 
 .study-hub-page .study-action-grid > .study-action-card {
-    grid-template-columns: 20px minmax(0, 1fr) !important;
+    grid-template-columns: 20px auto !important;
     flex-basis: 108px !important;
     gap: 5px !important;
     padding: 7px 7px !important;
@@ -3225,4 +3270,57 @@
 ) :where(p, small, .study-eyebrow, .study-hero-lead) {
   color: var(--lms-app-card-muted, var(--ink-soft)) !important;
   -webkit-text-fill-color: var(--lms-app-card-muted, var(--ink-soft)) !important;
+}
+
+/* ── Study plan · Today's route ───────────────────────────────────────────
+   Each step reads as three lines: a small label, the title, a small detail.
+   The title is the line to read, so it gets the size and weight and the other
+   two step back. Same for all three steps. */
+.study-hub-page .study-plan-list .study-plan-row small {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.study-hub-page .study-plan-list .study-plan-row strong {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.study-hub-page .study-plan-list .study-plan-row em {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* The step number sits in the coloured chip where an icon used to be; the chip
+   keeps its per-step colour (green / purple / amber) and the digit takes it. */
+.study-hub-page .study-plan-list .study-plan-row__icon {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* The tick now takes the number's place in the chip once a step is done, so the
+   separate marker on the right is gone and the row is just chip + text. */
+.study-hub-page .study-plan-list .study-plan-row {
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.study-hub-page .study-plan-list .study-plan-row__icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 3;
+}
+
+/* A finished step is green, whichever step it is: the tick and its chip drop
+   the step's own colour (purple / amber) for the "done" green. */
+.study-hub-page .study-plan-list .study-plan-row.is-complete .study-plan-row__icon {
+  background: rgba(34, 197, 94, 0.16) !important;
+  color: #16a34a !important;
+}
+
+:root[data-theme="dark"] .study-hub-page .study-plan-list .study-plan-row.is-complete .study-plan-row__icon {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #4ade80 !important;
 }

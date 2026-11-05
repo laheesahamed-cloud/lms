@@ -94,7 +94,7 @@ export function TextRevealManifesto() {
   }, [words.length]);
 
   return (
-    <section id="about" className="relative z-0 bg-[#faf9f6]">
+    <section id="about" className="relative z-0 bg-[#faf9f6] pb-20 sm:pb-28">
       <div ref={trackRef} className="relative h-[235vh]">
         <div className="sticky top-16 mx-auto flex h-[calc(100vh-4rem)] max-w-4xl flex-col items-center justify-center overflow-hidden px-5 sm:px-8">
           <p className="font-display flex flex-wrap justify-center gap-x-1 sm:gap-x-2 text-[clamp(15px,5vw,48px)] leading-[1.3] text-[#111118]">

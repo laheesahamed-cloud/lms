@@ -50,7 +50,11 @@ export function ProfilePage() {
     try {
       await changePassword(passwordForm);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setPasswordStatus({ loading: false, error: '', success: 'Password changed.' });
+      setPasswordStatus({ loading: false, error: '', success: 'Password changed. Signing you out…' });
+      // The server ends every session when the password changes, this one
+      // included, so sign out here and ask for the new password.
+      await signOut();
+      navigate('/auth/login', { replace: true });
     } catch (error) {
       setPasswordStatus({ loading: false, error: getErrorMessage(error, 'Unable to change password'), success: '' });
     }
@@ -71,7 +75,7 @@ export function ProfilePage() {
   }
 
   return (
-    <main className={ui.screenShell}>
+    <main className={cx(ui.screenShell, !isStaff && 'student-profile-page')}>
       <section className={cx(ui.managementLayout, 'gap-section')}>
         <AppHeader title="Profile" subtitle="Account Settings" back />
 
@@ -163,7 +167,7 @@ export function ProfilePage() {
             </button>
           </form>
 
-          <form className={cx(ui.dashboardCard, 'grid gap-4 p-card')} onSubmit={handlePasswordSubmit}>
+          <form className={cx(ui.dashboardCard, 'grid content-start gap-4 p-card')} onSubmit={handlePasswordSubmit}>
             <div className="grid gap-2">
               <span className={ui.eyebrow}>Security</span>
               <h3 className="m-0 text-xl text-ink-strong">Change password</h3>
@@ -214,8 +218,10 @@ export function ProfilePage() {
               <span className={cx(ui.eyebrow, 'text-[var(--color-error)]')}>Danger zone</span>
               <h3 className="m-0 text-xl text-ink-strong">Delete account</h3>
               <p className="m-0 max-w-prose text-[13px] leading-relaxed text-ink-soft">
-                This permanently deletes your account. Your name and email are removed and you will be
-                signed out. This cannot be undone.
+                This permanently deletes your account. Your name, profile and sign-in details are removed and
+                you will be signed out. Payment records (such as bank transfers and card payments) are kept,
+                with the email used to pay, for accounting and refund queries. If you sign up again with the
+                same email it is a new account with no link to this one. This cannot be undone.
               </p>
             </div>
 

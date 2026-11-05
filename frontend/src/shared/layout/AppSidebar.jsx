@@ -7,6 +7,7 @@ import { isStaffUser, roleRouteMode, userHasPermissions } from '../auth/roleAcce
 import { XyndromeLogoMark } from '../brand/XyndromeBrand.jsx';
 import { cx } from '../styles/tailwindClasses.js';
 import { nativeSelection } from '../utils/nativeHaptics.js';
+import { LAUNCH_FLAGS } from '../config/launchFlags.js';
 
 /* ── Icon Set (16×16) — standard stroke-based icons ──────────── */
 const Icons = {
@@ -243,9 +244,9 @@ const studentLinks = [
   { to: '/flashcards',    label: 'Flashcards',    icon: 'Flashcards' },
   { to: '/planner',       label: 'Planner',       icon: 'Planner'    },
   { to: '/bookmarks',     label: 'Saved',         icon: 'Bookmarks'  },
-  { to: '/drugs',         label: 'Drugs',         icon: 'Drugs'      },
-  { to: '/ecg',           label: 'ECG',           icon: 'Ecg'        },
-  { to: '/auscultation',  label: 'Auscultation',  icon: 'Auscultation' },
+  ...(LAUNCH_FLAGS.drugs ? [{ to: '/drugs', label: 'Drugs', icon: 'Drugs' }] : []),
+  ...(LAUNCH_FLAGS.ecg ? [{ to: '/ecg', label: 'ECG', icon: 'Ecg' }] : []),
+  ...(LAUNCH_FLAGS.auscultation ? [{ to: '/auscultation', label: 'Auscultation', icon: 'Auscultation' }] : []),
 ];
 
 const END_EXACT = new Set([

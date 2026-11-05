@@ -54,7 +54,7 @@ const sections = [
   },
   {
     title: '8. Data Retention',
-    body: 'We keep account, learning, audit, and transaction records for as long as needed to provide the LMS, resolve disputes, maintain subscription history, improve academic support, and meet legal or accounting requirements.',
+    body: 'We keep account, learning, audit, and transaction records for as long as needed to provide the LMS, resolve disputes, maintain subscription history, improve academic support, and meet legal or accounting requirements. If you delete your account, your name, profile, and sign-in details are removed. Payment records, such as bank-transfer and card payments, are kept with the email address used to pay for accounting and refund purposes; Apple in-app purchases are handled by Apple and are not kept this way. Signing up again later creates a new account that is not linked to the deleted one.',
   },
   {
     title: '9. Your Choices',

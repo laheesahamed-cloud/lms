@@ -23,7 +23,7 @@ if (typeof window !== 'undefined') {
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
 const ASSET = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
-const med = (name) => `${ASSET}medical/${name}.svg`;
+const med = (name) => `${ASSET}medical/${name}.svg?v=2`;
 
 const FG = '#EAF1F8';
 const CTA_GRADIENT = 'linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%)';
@@ -78,10 +78,13 @@ const INJECTED_STYLES = `
   .cinhero .cin-aurora .a3 { top: 38%; left: 42%; width: 36vw; height: 36vw; background: radial-gradient(circle at center, rgba(74,163,244,0.22) 0%, rgba(74,163,244,0) 60%); animation: cinAuroraA 26s ease-in-out infinite reverse; }
 
   /* Floating medical icons */
-  .cinhero .cin-med { position: absolute; z-index: 4; pointer-events: none; opacity: 0; filter: brightness(0) invert(1) drop-shadow(0 0 16px rgba(82,116,243,0.5)); will-change: transform; }
-  /* 0.34 (was 0.18): Safari often drops the drop-shadow glow from the chained
-     filter on an <img> SVG, and 18% white with no glow is invisible on the dark
-     hero. A higher base opacity keeps the icons readable even without the glow. */
+  .cinhero .cin-med { position: absolute; z-index: 4; pointer-events: none; opacity: 0; filter: drop-shadow(0 0 16px rgba(82,116,243,0.5)); will-change: transform; }
+  /* The icon files are white (#FFFFFF) in the SVG itself. They used to fill
+     with currentColor, which inside an <img> is always black, and a
+     brightness(0) invert(1) filter turned them white — a filter some browsers
+     (Safari especially) don't apply, leaving the icons black. Nothing here
+     recolours them any more; only the glow on the wrapper is a filter.
+     0.34 (was 0.18) keeps the icons readable even where the glow is dropped. */
   .cinhero.cin-ready .cin-med { opacity: 0.34; transition: opacity 1.2s ease; }
   .cinhero .cin-med img { width: 100%; height: 100%; display: block; }
 
@@ -187,7 +190,7 @@ const INJECTED_STYLES = `
       .cinhero .cin-aurora span { mix-blend-mode: normal; will-change: auto; }
       .cinhero .cin-aurora .a3 { display: none; }
       .cinhero .card-sheen { display: none; }
-      .cinhero .cin-med { filter: brightness(0) invert(1); }
+      .cinhero .cin-med { filter: none; }
       /* Stop the continuously-running decorative animations on phones — they
          repaint every frame and fight the scrubbed pin for the compositor,
          which is the main remaining source of Android scroll jank. The aurora

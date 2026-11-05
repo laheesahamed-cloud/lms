@@ -95,7 +95,7 @@ export function ProblemSolutionSection() {
     <section className="lpv2-section relative overflow-hidden bg-[#fafaf7]">
       <div className="lpv2-shell relative z-[2] flex flex-col items-center text-center">
         <motion.span
-          className="mb-4 inline-block rounded-full bg-[#ffd6d6]/70 px-4 py-1.5 text-[12px] font-bold uppercase tracking-[0.12em] text-[#b91c1c]"
+          className="mb-4 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#b91c1c]"
           initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
         >
           Sound familiar?

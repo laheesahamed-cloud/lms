@@ -7,7 +7,7 @@ import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } fro
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
-import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
+import { CourseProgressCard } from '../../../../shared/ui/CourseProgressCard.jsx';
 import { isNativeLessonNoteAvailable, openNativeLessonNote } from '../../../../shared/native/nativeLessonNote.js';
 
 function runWhenIdle(task) {
@@ -117,9 +117,6 @@ function subjectNotes(subject) {
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
-function CourseIcon() {
-  return <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3.5 5.5C5.5 5.5 8 6 10 7.5C12 6 14.5 5.5 16.5 5.5V16C14.5 16 12 16.5 10 18C8 16.5 5.5 16 3.5 16V5.5Z" stroke="currentColor" strokeWidth="1.55" strokeLinejoin="round"/><path d="M10 7.5V18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
-}
 function LessonIcon() {
   return <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.55"/><path d="M7 7.5H13M7 10.5H13M7 13.5H10.5" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round"/></svg>;
 }
@@ -148,35 +145,21 @@ function PdfIcon() {
   return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="1.5" width="9" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5.5h6M5 8h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M11.5 9.5l2 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
 }
 // ── Course card (hub view) ────────────────────────────────────────────────────
-function CourseCard({ course, onClick }) {
-  const subjects = [...course.subjects.values()];
-  const count = subjects.reduce((n, s) => n + subjectNotes(s).length, 0);
+// The same card as the Courses and Q-Bank lists; the bar shows how many of the
+// course's lessons are completed.
+function CourseCard({ course, index, onClick }) {
+  const notes = [...course.subjects.values()].flatMap(subjectNotes);
+  const total = notes.length;
+  const done = notes.filter((n) => n.lessonCompleted || n.lessonProgressStatus === 'completed' || Number(n.lessonProgressPercent || 0) >= 100).length;
 
   return (
-    <button
-      onClick={onClick}
-      className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary/22"
-    >
-      <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="student-lessons-course-card__icon grid size-11 shrink-0 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
-            <CourseIcon />
-          </span>
-          <div>
-            <div className="line-clamp-2 text-[15px] font-extrabold leading-snug text-ink-strong">
-              {course.label || 'General'}
-            </div>
-            <div className="mt-1 text-[11px] font-semibold text-ink-muted">
-              {subjects.length} subject{subjects.length !== 1 ? 's' : ''}
-            </div>
-          </div>
-        </div>
-        <div className="student-lessons-course-card__count text-right shrink-0">
-          <div className="text-[30px] font-extrabold leading-none text-ink-strong">{count}</div>
-          <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{count === 1 ? 'lesson' : 'lessons'}</div>
-        </div>
-      </div>
-    </button>
+    <CourseProgressCard
+      title={course.label || 'General'}
+      meta={`${total} ${total === 1 ? 'lesson' : 'lessons'}`}
+      progress={total ? (done / total) * 100 : 0}
+      index={index}
+      onOpen={onClick}
+    />
   );
 }
 
@@ -254,12 +237,27 @@ function LessonHeaderTitle({ label }) {
 }
 
 // ── Course detail (flat lesson cards) ────────────────────────────────────────
+const FREE_CHIP = '__free__';
+
 function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBase, isDark, disableOpen }) {
   const navigate = useNavigate();
   const subjects = [...course.subjects.values()];
   const [activeSubj, setActiveSubj] = useState(null);
   const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
-  const visibleSubjects = activeSubj ? subjects.filter(s => s.label === activeSubj) : subjects;
+  // "Free" is a filter inside the course: the same cards, keeping only the free
+  // lessons (and dropping any subject or topic left empty).
+  const hasFree = subjects.some((s) => subjectNotes(s).some((n) => n.isFree));
+  const freeOnly = activeSubj === FREE_CHIP;
+  const visibleSubjects = freeOnly
+    ? subjects
+        .map((s) => ({
+          ...s,
+          topics: s.topics
+            .map((t) => ({ ...t, notes: t.notes.filter((n) => n.isFree) }))
+            .filter((t) => t.notes.length),
+        }))
+        .filter((s) => s.topics.length)
+    : (activeSubj ? subjects.filter(s => s.label === activeSubj) : subjects);
   const visibleNotes = visibleSubjects.flatMap(subjectNotes);
 
   useEffect(() => {
@@ -290,7 +288,7 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
         </div>
       </div>
 
-      {subjects.length > 1 ? (
+      {subjects.length > 1 || hasFree ? (
         <div className="student-lessons-filter-bar">
           <button
             className={cx(
@@ -301,7 +299,15 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
           >
             All subjects
           </button>
-          {subjects.map((s, i) => (
+          {hasFree ? (
+            <button
+              className={cx('student-lessons-filter-chip', freeOnly && 'is-active')}
+              onClick={() => setActiveSubj(freeOnly ? null : FREE_CHIP)}
+            >
+              Free
+            </button>
+          ) : null}
+          {subjects.length > 1 ? subjects.map((s, i) => (
             <button key={i} className={cx(
                 'student-lessons-filter-chip',
                 activeSubj === s.label && 'is-active'
@@ -309,7 +315,7 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
               onClick={() => setActiveSubj(activeSubj === s.label ? null : s.label)}>
               {s.label || 'General'}
             </button>
-          ))}
+          )) : null}
         </div>
       ) : null}
 
@@ -372,7 +378,7 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
                             style={{ '--lesson-row-delay': `${Math.min(runningIndex + noteIndex, 8) * 18}ms` }}
                             onStart={disableOpen
                               ? () => { if (isNativeLessonNoteAvailable()) openNativeLessonNote(note); }
-                              : () => navigate(`${routeBase}/${note.id}${note.engine ? `?engine=${encodeURIComponent(note.engine)}` : ''}`, {
+                              : () => navigate(`${routeBase}/${note.id}`, {
                               state: {
                                 engineKey: note.engine || null,
                                 lessonId: note.lessonId || null,
@@ -564,7 +570,6 @@ export function AiNotesListPage({
             <section className="student-lessons-hub">
               <div className="student-lessons-section-head mb-5 flex flex-wrap items-end justify-between gap-3">
                 <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
-                  <StudyMascot variant="stetho" mood="lesson" size="md" label="Lessons study buddy" />
                   <div>
                     <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Lesson</h2>
                     <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{notes.length} lesson{notes.length !== 1 ? 's' : ''} available</p>
@@ -595,9 +600,9 @@ export function AiNotesListPage({
                   ))}
                 </div>
               ) : null}
-              <div className="student-lessons-course-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 max-[520px]:grid-cols-1 max-[520px]:gap-2">
                 {filteredHierarchy.map((course, i) => (
-                  <CourseCard key={i} course={course} onClick={() => selectCourse(course.label)} />
+                  <CourseCard key={i} index={i} course={course} onClick={() => selectCourse(course.label)} />
                 ))}
               </div>
             </section>

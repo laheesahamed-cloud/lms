@@ -143,8 +143,12 @@ const editorUi = {
   statusLabel: 'flex-1 text-xs font-semibold text-ink-muted',
   freeLabel: 'mt-1 flex items-center gap-2 text-xs font-semibold text-ink-muted',
   settingsButton: 'mt-0.5 px-3 py-[5px] text-xs',
-  flashcardPanel:
-    'lms-card-compact mx-auto mb-4 mt-4 grid w-[min(980px,calc(100%-28px))] gap-3 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card p-4 shadow-[var(--ds-card-shadow)] max-[640px]:w-[calc(100%-20px)] max-[640px]:p-3',
+  flashcardOverlay:
+    'fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px] max-[640px]:p-2',
+  flashcardModal:
+    'flex max-h-[92vh] w-[min(980px,100%)] flex-col gap-3 overflow-y-auto rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card p-4 shadow-[var(--ds-card-shadow)] max-[640px]:p-3',
+  flashcardModalHeader:
+    'sticky -top-4 z-10 -mx-4 -mt-4 grid gap-3 border-b border-line-soft bg-surface-card px-4 pb-3 pt-4 max-[640px]:-top-3 max-[640px]:-mx-3 max-[640px]:-mt-3 max-[640px]:px-3 max-[640px]:pt-3',
   flashcardHead:
     'flex flex-wrap items-start justify-between gap-3',
   flashcardKicker:
@@ -265,7 +269,15 @@ export function AdminAiNotesEditorPage({
   const [isFree,      setIsFree]     = useState(false);
   const [metaSaving,  setMetaSaving] = useState(false);
   const [flashcards, setFlashcards] = useState([]);
+  const [flashcardsOpen, setFlashcardsOpen] = useState(false);
   const [flashcardsLoading, setFlashcardsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!flashcardsOpen) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setFlashcardsOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [flashcardsOpen]);
   const [flashcardsGenerating, setFlashcardsGenerating] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(24);
   const [flashcardMessage, setFlashcardMessage] = useState('');
@@ -1014,6 +1026,22 @@ export function AdminAiNotesEditorPage({
           <span className={editorUi.unsavedText}>unsaved lesson</span>
         )}
 
+        <button
+          className={cx(ui.secondaryAction, editorUi.smallAction)}
+          type="button"
+          onClick={() => setFlashcardsOpen(true)}
+        >
+          <SparkleIcon/> Flashcards
+          {flashcards.length > 0 && (
+            <span className="ml-1 text-[11px] font-extrabold text-ink-muted">
+              {approvedFlashcardCount}/{flashcards.length}
+            </span>
+          )}
+          {draftFlashcardCount > 0 && (
+            <span className="ml-1 size-2 rounded-full bg-brand-primary" aria-label={`${draftFlashcardCount} drafts waiting`} />
+          )}
+        </button>
+
         {hasCanvas && (
           <div className={editorUi.toolbarActions}>
             <button className={cx(editMode ? ui.primaryAction : ui.secondaryAction, editorUi.smallAction)}
@@ -1324,7 +1352,13 @@ export function AdminAiNotesEditorPage({
 
         {/* canvas panel */}
         <div className={editorUi.outputPanel}>
-          <section className={editorUi.flashcardPanel} aria-labelledby="lesson-flashcards-title">
+          {flashcardsOpen && (
+          <div
+            className={editorUi.flashcardOverlay}
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setFlashcardsOpen(false); }}
+          >
+          <section className={editorUi.flashcardModal} role="dialog" aria-modal="true" aria-labelledby="lesson-flashcards-title">
+            <div className={editorUi.flashcardModalHeader}>
             <div className={editorUi.flashcardHead}>
               <div>
                 <p className={editorUi.flashcardKicker}>Reviewed Q&amp;A flashcards</p>
@@ -1359,10 +1393,18 @@ export function AdminAiNotesEditorPage({
                 >
                   <EditIcon/> Add Draft
                 </button>
+                <button
+                  className={cx(ui.secondaryAction, editorUi.smallAction)}
+                  type="button"
+                  onClick={() => setFlashcardsOpen(false)}
+                  aria-label="Close flashcards"
+                >
+                  Close
+                </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 text-[11px] font-extrabold text-ink-muted">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-extrabold text-ink-muted">
               <span className={cx(editorUi.flashcardStatus, 'border-brand-success/28 bg-[var(--color-success-light)] text-brand-success')}>
                 {approvedFlashcardCount} approved
               </span>
@@ -1370,13 +1412,14 @@ export function AdminAiNotesEditorPage({
                 {draftFlashcardCount} draft
               </span>
               <button
-                className={cx(ui.successAction, 'min-h-7 px-2.5 py-0.5 text-[11px]')}
+                className={cx(ui.successAction, 'ml-auto min-h-9 px-3.5 py-1 text-xs')}
                 type="button"
                 onClick={handleBulkApproveFlashcards}
                 disabled={bulkApprovingFlashcards || flashcardsGenerating || savingCardId || draftFlashcardCount === 0}
               >
-                <DoneIcon/> {bulkApprovingFlashcards ? 'Approving...' : `Approve Drafts`}
+                <DoneIcon/> {bulkApprovingFlashcards ? 'Approving...' : `Approve all${draftFlashcardCount ? ` (${draftFlashcardCount})` : ''}`}
               </button>
+            </div>
             </div>
 
             {flashcardMessage && (
@@ -1545,6 +1588,8 @@ export function AdminAiNotesEditorPage({
               </div>
             )}
           </section>
+          </div>
+          )}
 
           {processing && (
             <div className={editorUi.loadingState}>

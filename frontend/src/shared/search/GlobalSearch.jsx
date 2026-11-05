@@ -12,12 +12,15 @@ const searchUi = {
     'lms-global-search-backdrop fixed inset-0 z-[10095] flex items-start justify-center bg-black/45 px-4 pb-4 pt-[72px] backdrop-blur animate-overlayIn',
   modal:
     'w-full max-w-[560px] overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-overlayIn',
+  // The field is a round pill. The stroke lives on the pill, not the input, so
+  // the active state is a thick ring that follows the round shape; the input
+  // itself draws no outline (a global focus rule would square it off).
   inputRow:
-    'flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5 text-ink-soft',
+    'm-3 mb-1 flex items-center gap-2.5 rounded-full border-2 border-line-medium bg-surface-1 px-4 py-2.5 text-ink-soft transition-[border-color,box-shadow] duration-150 focus-within:border-brand-primary focus-within:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_28%,transparent)]',
   input:
-    'min-h-0 flex-1 border-0 bg-transparent p-0 font-body text-[15px] text-ink-strong shadow-none outline-none placeholder:text-ink-muted focus:border-0 focus:bg-transparent focus:shadow-none',
+    'min-h-0 flex-1 rounded-full border-0 !bg-transparent p-0 font-body text-[15px] text-ink-strong shadow-none !outline-none placeholder:text-ink-muted focus:border-0 focus:!bg-transparent focus:shadow-none focus:!outline-none focus-visible:!outline-none',
   close:
-    'flex min-h-0 items-center justify-center rounded-xs border-0 bg-transparent p-1 text-ink-muted shadow-none transition-[color,background] duration-150 hover:translate-y-0 hover:bg-surface-2 hover:text-ink-strong hover:shadow-none hover:brightness-100 focus-visible:ring-2 focus-visible:ring-brand-primary/20',
+    'flex min-h-0 items-center justify-center rounded-full border-0 bg-transparent p-1 text-ink-muted shadow-none transition-[color,background] duration-150 hover:translate-y-0 hover:bg-surface-2 hover:text-ink-strong hover:shadow-none hover:brightness-100 focus-visible:ring-2 focus-visible:ring-brand-primary/20',
   body: 'max-h-[360px] min-h-20 overflow-y-auto py-2',
   hint:
     'px-[18px] py-5 text-center text-[13px] text-ink-muted [&_strong]:text-ink-medium',

@@ -2138,6 +2138,15 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   letter-spacing: 0;
 }
 
+/* Profile uses the generic route shell, which paints a flat --sa-bg over the
+   page. The other student pages are transparent so the shell gradient shows
+   through; let the profile do the same. The :not() chain mirrors the rule
+   above so this wins on specificity, in dark mode as well. */
+.student-app-shell .lms-route-page.student-profile-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page),
+:root[data-theme="dark"] .student-app-shell .lms-route-page.student-profile-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+  background: transparent !important;
+}
+
 .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) .lms-topbar {
   margin-bottom: 6px;
   padding-bottom: 8px;

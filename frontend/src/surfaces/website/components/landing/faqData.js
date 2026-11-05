@@ -18,7 +18,7 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'How is this different from a normal question bank?',
-    a: 'A question bank just gives you questions. xyndrome also gives you a full doctor-written explanation, the key points to remember, why each wrong option is wrong, and a quick theory recap right beside the question. You can also switch between relaxed practice and a timed exam mode, plus you get notes, flashcards, mock exams and a study planner in the same place.',
+    a: 'A question bank just gives you questions. xyndrome also gives you a full, up-to-date explanation, the key points to remember, why each wrong option is wrong, and a quick theory recap right beside the question. You can also switch between relaxed practice and a timed exam mode, plus you get notes, flashcards, mock exams and a study planner in the same place.',
   },
   {
     q: 'Which subjects are covered?',

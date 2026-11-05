@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 
 const FEATURES = [
   'Exam-style MCQs (10,000+)',
-  'Doctor-written explanations',
+  'Updated explanations',
   'Subject mastery tracking',
   'Timed mock exams',
   'Updated for 2025 exams',

@@ -2863,8 +2863,11 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     boxShadow: lessonButtonShadow,
   };
   const pages = localData?.pages || EMPTY_CANVAS_PAGES;
+  // Students read every lesson as one full-width column of cards. The saved
+  // layout (2col/3col) is an authoring choice; on the page it left half-width
+  // cards beside empty space, so it is not applied here.
   const studentCanvasData = useMemo(
-    () => mergeStudentCanvasPages(pages, note || {}),
+    () => ({ ...mergeStudentCanvasPages(pages, note || {}), layout: '1col' }),
     [pages, note]
   );
 

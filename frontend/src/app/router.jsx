@@ -10,6 +10,7 @@ import { detectPlatform } from '../shared/platform/detect.js';
 import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/config.js';
 import { configureRoutePreloaders } from './routePreloading.js';
 import { peekGestureCommitPop, clearGestureCommitPop } from '../shared/routing/routeTransitionContext.js';
+import { LAUNCH_FLAGS } from '../shared/config/launchFlags.js';
 import { LoginPage } from '../surfaces/website/auth/LoginPage.jsx';
 
 const PLATFORM = detectPlatform();
@@ -691,31 +692,31 @@ const studentPanelRoutes = [
   },
   {
     path: 'drugs',
-    element: withSuspense(<DrugRandomizerPage />),
+    element: LAUNCH_FLAGS.drugs ? withSuspense(<DrugRandomizerPage />) : <Navigate to="../dashboard" replace />,
   },
   {
     path: 'ecg',
-    element: withSuspense(<EcgPage />),
+    element: LAUNCH_FLAGS.ecg ? withSuspense(<EcgPage />) : <Navigate to="../dashboard" replace />,
   },
   {
     path: 'ecg/topic/:id',
-    element: withSuspense(<EcgTopicPage />),
+    element: LAUNCH_FLAGS.ecg ? withSuspense(<EcgTopicPage />) : <Navigate to="../dashboard" replace />,
   },
   {
     path: 'ecg/quiz',
-    element: withSuspense(<EcgQuizPage />),
+    element: LAUNCH_FLAGS.ecg ? withSuspense(<EcgQuizPage />) : <Navigate to="../dashboard" replace />,
   },
   {
     path: 'auscultation',
-    element: withSuspense(<AuscultationPage />),
+    element: LAUNCH_FLAGS.auscultation ? withSuspense(<AuscultationPage />) : <Navigate to="../dashboard" replace />,
   },
   {
     path: 'auscultation/topic/:id',
-    element: withSuspense(<AuscTopicPage />),
+    element: LAUNCH_FLAGS.auscultation ? withSuspense(<AuscTopicPage />) : <Navigate to="../dashboard" replace />,
   },
   {
     path: 'auscultation/quiz',
-    element: withSuspense(<AuscQuizPage />),
+    element: LAUNCH_FLAGS.auscultation ? withSuspense(<AuscQuizPage />) : <Navigate to="../dashboard" replace />,
   },
   {
     path: 'study/lesson/:lessonId',

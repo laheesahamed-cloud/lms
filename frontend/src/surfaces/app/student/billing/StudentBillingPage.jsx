@@ -6,7 +6,6 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
-import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 
 function featureMessageForKey(featureKey) {
   if (featureKey === 'aiNotes' || featureKey === 'notesCanvasStudyMode') {
@@ -26,17 +25,6 @@ function featureMessageForKey(featureKey) {
   }
   return '';
 }
-
-const comparisonRows = [
-  { label: 'Lessons', note: 'Notes and lesson library access', keys: ['lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode'] },
-  { label: 'Q-Bank', note: 'Question bank and topic practice', keys: ['question_bank_full', 'question_bank_limited'] },
-  { label: 'Practice mode', note: 'Untimed practice quizzes', keys: ['practice_mode'] },
-  { label: 'Exam mode', note: 'Timed exam-style attempts', keys: ['exam_mode'] },
-  { label: 'Study mode', note: 'Focused lesson reading workspace', keys: ['notes_canvas_study_mode'] },
-  { label: 'Results', note: 'Attempt history and review', keys: ['results_tracking'] },
-  { label: 'Analytics', note: 'Weak areas and progress insights', keys: ['performance_analytics', 'weak_area_analysis', 'progress_tracking_advanced'] },
-  { label: 'AI tools', note: 'AI quiz generation tools', keys: ['ai_quiz_generator'] },
-];
 
 const recommendedPlanSlugs = ['quick-revision-7d', 'monthly-prep-1m', 'complete-prep-3m', 'master-prep-6m', 'single-course-3m'];
 
@@ -63,11 +51,6 @@ const planMarketing = {
   },
 };
 
-
-function planHasAnyFeature(plan, keys) {
-  const planKeys = Array.isArray(plan?.featureKeys) ? plan.featureKeys : [];
-  return keys.some((key) => planKeys.includes(key));
-}
 
 function getSavingsPercent(plan) {
   const regular = Number(plan?.regularPrice || 0);
@@ -101,14 +84,6 @@ function paymentMethodLabel(method) {
   if (normalized === 'bank_transfer') return 'Bank transfer';
   if (normalized === 'coupon') return 'Coupon approval';
   return method || '';
-}
-
-function getPlanSummary(plan) {
-  if (String(plan?.slug || '').toLowerCase() === 'free' || Number(plan?.effectivePrice || 0) <= 0) {
-    return 'Unlimited access';
-  }
-  const featureCount = Array.isArray(plan?.enabledFeatures) ? plan.enabledFeatures.filter(Boolean).length : 0;
-  return `${Number(plan?.durationDays || 0)} days${featureCount ? ` • ${featureCount} features` : ''}`;
 }
 
 function isFreePlanSubscription(subscription) {
@@ -178,22 +153,10 @@ const billingUi = {
     'text-2xl font-extrabold leading-none text-ink-strong max-[520px]:text-[22px]',
   planFeatureList:
     'grid gap-2 text-[13px] font-semibold text-ink-medium max-[520px]:gap-1.5 max-[520px]:text-[12.5px]',
-  mobileToolbar:
-    'mb-4 grid grid-cols-2 gap-2 max-[440px]:grid-cols-1 [&_button]:w-full',
   planCarousel:
     'grid grid-cols-4 gap-4 max-[1180px]:grid-cols-2 max-[640px]:-mx-4 max-[640px]:flex max-[640px]:snap-x max-[640px]:snap-mandatory max-[640px]:overflow-x-auto max-[640px]:overscroll-x-contain max-[640px]:scroll-smooth max-[640px]:px-4 max-[640px]:pb-3 max-[640px]:[-webkit-overflow-scrolling:touch] max-[520px]:-mx-3.5 max-[520px]:gap-3 max-[520px]:px-3.5',
   planCarouselItem:
     'min-w-0 [&>article]:h-full max-[640px]:w-[76%] max-[640px]:min-w-[240px] max-[640px]:shrink-0 max-[640px]:snap-start',
-  comparisonDesktop:
-    'overflow-x-auto rounded-lg border border-line-soft bg-surface-card max-[760px]:hidden',
-  comparisonMobile:
-    'hidden gap-3 max-[760px]:grid',
-  comparisonPlanCard:
-    'grid gap-3 rounded-xl border border-line-soft bg-surface-card p-3.5 shadow-xs',
-  comparisonFeatureGrid:
-    'grid grid-cols-2 gap-2 max-[420px]:grid-cols-1',
-  comparisonFeature:
-    'rounded-lg border border-line-soft bg-surface-1 px-3 py-2',
   historyDesktop:
     'max-[760px]:hidden',
   historyMobile:
@@ -272,7 +235,6 @@ export function StudentBillingPage() {
       .filter(Boolean);
   }, [availablePlans]);
 
-  const comparisonPlans = recommendedPlans.length ? recommendedPlans : availablePlans.slice(0, 4);
   const recommendedCarouselPlans = recommendedPlans.length ? recommendedPlans : availablePlans.filter((plan) => plan.slug !== 'free').slice(0, 4);
 
   const pendingPlanIds = useMemo(() => new Set(
@@ -386,10 +348,6 @@ export function StudentBillingPage() {
     } finally {
       setCancellingInvoiceId(null);
     }
-  }
-
-  function scrollToComparison() {
-    document.getElementById('plan-comparison')?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: 'start' });
   }
 
   function optionCardClass(isSelected) {
@@ -538,7 +496,9 @@ export function StudentBillingPage() {
                         {proofUploaded ? 'Payment proof uploaded. Waiting for admin approval.' : 'Upload your bank slip to complete this payment.'}
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    {/* One row at every width: on a phone the two buttons share the full width
+                        side by side instead of wrapping onto two lines. */}
+                    <div className="flex w-full flex-nowrap items-center gap-2 min-[521px]:w-auto [&>button]:min-w-0 [&>button]:flex-1 [&>button]:whitespace-nowrap">
                       <button
                         type="button"
                         className={proofUploaded ? ui.secondaryAction : ui.primaryAction}
@@ -699,13 +659,6 @@ export function StudentBillingPage() {
             <div className={ui.emptyBox}>No subscription plans are available right now.</div>
           ) : null}
           {!loading ? (
-            <div className={billingUi.mobileToolbar}>
-              <button type="button" className={ui.secondaryAction} onClick={scrollToComparison}>
-                Compare plans
-              </button>
-            </div>
-          ) : null}
-          {!loading ? (
             <div className={billingUi.planCarousel} aria-label="Recommended subscription plans" tabIndex={0}>
               {recommendedCarouselPlans.map((plan) => (
                 <div className={billingUi.planCarouselItem} key={`recommended-${plan.id}`}>
@@ -718,85 +671,6 @@ export function StudentBillingPage() {
             </div>
           ) : null}
         </section>
-
-        <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')} id="plan-comparison">
-          <div className={ui.panelTop}>
-            <div>
-              <h2 className={ui.panelTitle}>Plan comparison</h2>
-              <p className={ui.panelText}>A quick view of the major LMS areas included in each plan.</p>
-            </div>
-          </div>
-
-          <div className={billingUi.comparisonDesktop}>
-            <table className="min-w-[760px] w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-line-soft bg-surface-2/70">
-                  <th className="sticky left-0 z-[1] min-w-[220px] bg-surface-2/95 px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">Feature</th>
-                  {comparisonPlans.map((plan) => (
-                    <th className="min-w-[150px] px-4 py-3 text-center" key={plan.id}>
-                      <span className="block text-[13px] font-extrabold text-ink-strong">{plan.name}</span>
-                      <span className="mt-1 block text-[11px] font-bold text-ink-muted">{formatPlanPrice(plan)}</span>
-                      <span className="mt-0.5 block text-[11px] font-semibold text-ink-muted">{getPlanSummary(plan)}</span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonRows.map((row) => (
-                  <tr className="border-b border-line-soft last:border-b-0 hover:bg-surface-2/50" key={row.label}>
-                    <td className="sticky left-0 z-[1] bg-surface-card px-4 py-3 text-left">
-                      <strong className="block text-[13px] text-ink-strong">{row.label}</strong>
-                      <span className="mt-0.5 block text-[11px] font-semibold text-ink-muted">{row.note}</span>
-                    </td>
-                    {comparisonPlans.map((plan) => (
-                      <td className="px-4 py-3 text-center" key={`${row.label}-${plan.id}`}>
-                        {planHasAnyFeature(plan, row.keys) ? (
-                          <span className="mx-auto inline-flex size-7 items-center justify-center rounded-full bg-brand-success/12 text-[15px] font-black leading-none text-brand-success" aria-label="Included">✓</span>
-                        ) : (
-                          <span className="mx-auto inline-flex size-7 items-center justify-center rounded-full bg-brand-error/10 text-[17px] font-black leading-none text-brand-error" aria-label="Not included">×</span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className={billingUi.comparisonMobile}>
-            {comparisonPlans.map((plan) => (
-              <article className={billingUi.comparisonPlanCard} key={`mobile-${plan.id}`}>
-                <div className="flex min-w-0 items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="m-0 text-[15px] font-extrabold leading-tight text-ink-strong">{plan.name}</h3>
-                    <p className="m-0 mt-1 text-[12px] font-bold text-ink-muted">{formatPlanPrice(plan)} • {getPlanSummary(plan)}</p>
-                  </div>
-                  {plan.id === recommendedPlanId ? <span className={ui.tablePill}>Best fit</span> : null}
-                </div>
-                <div className={billingUi.comparisonFeatureGrid}>
-                  {comparisonRows.map((row) => {
-                    const included = planHasAnyFeature(plan, row.keys);
-                    return (
-                      <div className={billingUi.comparisonFeature} key={`${plan.id}-${row.label}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <strong className="text-[12.5px] text-ink-strong">{row.label}</strong>
-                          <span className={cx(
-                            'inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[14px] font-black leading-none',
-                            included ? 'bg-brand-success/12 text-brand-success' : 'bg-brand-error/10 text-brand-error'
-                          )} aria-label={included ? 'Included' : 'Not included'}>
-                            {included ? '✓' : '×'}
-                          </span>
-                        </div>
-                        <p className="m-0 mt-1 line-clamp-2 text-[11px] leading-snug text-ink-muted">{row.note}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
 
         <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')}>
           <div className={ui.panelTop}>

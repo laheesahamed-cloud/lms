@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { preloadRouteByPath } from '../../../../app/routePreloading.js';
+import { LAUNCH_FLAGS } from '../../../../shared/config/launchFlags.js';
 import './StudentStudyPage.css';
 
 const studyItems = [
@@ -62,6 +63,7 @@ const studyItems = [
   },
   {
     to: '/app/drugs',
+    hidden: !LAUNCH_FLAGS.drugs,
     preload: '/drugs',
     label: 'Drug Randomizer',
     eyebrow: 'Pharmacology',
@@ -81,10 +83,10 @@ export function StudentStudyPage() {
   return (
     <main className="dashboard-page study-hub-page student-study-page">
       <div className="study-hub-shell student-study-shell">
-        <AppHeader title="Study" subtitle="AI notes and study canvas" />
+        <AppHeader title="Study" subtitle="Explore" />
 
         <nav className="student-study-card-stack" aria-label="Study shortcuts">
-          {studyItems.map((item) => (
+          {studyItems.filter((item) => !item.hidden).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

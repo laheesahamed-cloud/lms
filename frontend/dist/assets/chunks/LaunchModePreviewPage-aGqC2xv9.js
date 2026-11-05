@@ -1,1 +1,0 @@
-import{Eo as e,Po as t,Ro as n}from"./app-shared-DWTjhSmg.js";/* empty css                        */import{s as r}from"./main-har1PJB9.js";var i=n();function a(){let{mode:n}=t();return n!==`maintenance`&&n!==`coming-soon`?(0,i.jsx)(e,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:n,preview:!0})}export{a as LaunchModePreviewPage};

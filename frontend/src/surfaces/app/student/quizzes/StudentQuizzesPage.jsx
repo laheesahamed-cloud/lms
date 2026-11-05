@@ -9,6 +9,7 @@ import { preloadRouteByPath } from '../../../../app/routePreloading.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
+import { CourseProgressCard } from '../../../../shared/ui/CourseProgressCard.jsx';
 import { getQuizTitleText } from './quizLabels.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 
@@ -37,7 +38,6 @@ function runWhenIdle(task) {
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function IcoBook()        { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 2h4a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-4V2z" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M7.5 3h4v9h-4" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M7.5 7h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>; }
 function IcoBookmark()    { return <svg width="14" height="14" viewBox="0 0 13 13" fill="none"><path d="M2.5 1.5h8a.5.5 0 0 1 .5.5v9l-4.5-2.5L2 11V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none"/></svg>; }
 function IcoBookmarkFilled() { return <svg width="14" height="14" viewBox="0 0 13 13" fill="currentColor"><path d="M2.5 1.5h8a.5.5 0 0 1 .5.5v9l-4.5-2.5L2 11V2a.5.5 0 0 1 .5-.5z"/></svg>; }
 function IcoChevron()     { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 4l4 3-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
@@ -179,7 +179,6 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
     <section className="student-lessons-hub">
       <div className="student-lessons-section-head student-quiz-course-picker-head mb-5 flex flex-wrap items-end justify-between gap-3">
         <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
-          <StudyMascot variant="stetho" mood="lesson" size="md" label={isExamPage ? 'Exam navigator mascot' : 'Q-Bank study buddy'} />
           <div>
             <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Course</h2>
             <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{totalSets} {setLabel}{totalSets !== 1 ? 's' : ''} available</p>
@@ -190,36 +189,19 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
         </span>
       </div>
 
-      <div className="student-lessons-course-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
-        {courses.map((course) => {
-          const subjects = new Set(course.quizzes.map(q => q.subjectName || (q.isGeneral ? 'General / Full Course Revision' : 'General')).filter(Boolean));
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 max-[520px]:grid-cols-1 max-[520px]:gap-2">
+        {courses.map((course, index) => {
+          const total = course.quizzes.length;
+          const done = course.quizzes.filter(isQuizDone).length;
           return (
-            <button
+            <CourseProgressCard
               key={course.name}
-              type="button"
-              onClick={() => onSelect(course.name)}
-              className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22"
-            >
-              <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="student-lessons-course-card__icon grid size-11 shrink-0 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
-                    <IcoBook />
-                  </span>
-                  <div>
-                    <div className="line-clamp-2 text-[15px] font-extrabold leading-snug text-ink-strong">
-                      {course.name || 'General'}
-                    </div>
-                    <div className="mt-1 text-[11px] font-semibold text-ink-muted">
-                      {subjects.size} subject{subjects.size !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </div>
-                <div className="student-lessons-course-card__count text-right shrink-0">
-                  <div className="text-[30px] font-extrabold leading-none text-ink-strong">{course.quizzes.length}</div>
-                  <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{(isExamPage ? 'exam' : 'set') + (course.quizzes.length === 1 ? '' : 's')}</div>
-                </div>
-              </div>
-            </button>
+              title={course.name || 'General'}
+              meta={`${total} ${isExamPage ? 'exam' : 'set'}${total === 1 ? '' : 's'}`}
+              progress={total ? (done / total) * 100 : 0}
+              index={index}
+              onOpen={() => onSelect(course.name)}
+            />
           );
         })}
       </div>
@@ -347,6 +329,8 @@ function groupQuizzesByTopic(subject) {
   return order.map((key) => ({ label: single ? '' : key, quizzes: byTopic.get(key) }));
 }
 
+const FREE_CHIP = '__free__';
+
 function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, onStartReady, pageMode, scope, onScopeChange }) {
   const isExamPage = pageMode === 'exam';
   const setLabel = isExamPage ? 'Exam Set' : 'Practice Set';
@@ -354,6 +338,10 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
   const groupingLabel = scope === 'lesson' ? 'lesson' : scope === 'full-course' ? 'revision group' : 'subject';
   const [activeSubject, setActiveSubject] = useState(null);
   const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
+  // "Free" is a filter inside the course: the same cards, keeping only the free
+  // sets (and dropping any subject left empty).
+  const hasFree = useMemo(() => quizzes.some((quiz) => quiz.isFree), [quizzes]);
+  const freeOnly = activeSubject === FREE_CHIP;
   const subjects = useMemo(() => {
     const map = new Map();
     sortQuizzesByHierarchy(quizzes).forEach((quiz) => {
@@ -367,7 +355,11 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
     });
     return [...map.entries()].map(([label, items]) => ({ label, quizzes: items }));
   }, [courseName, quizzes, scope]);
-  const visibleSubjects = activeSubject ? subjects.filter(subject => subject.label === activeSubject) : subjects;
+  const visibleSubjects = freeOnly
+    ? subjects
+        .map((subject) => ({ ...subject, quizzes: subject.quizzes.filter((quiz) => quiz.isFree) }))
+        .filter((subject) => subject.quizzes.length)
+    : (activeSubject ? subjects.filter(subject => subject.label === activeSubject) : subjects);
 
   useEffect(() => {
     setCollapsedSubjects(new Set());
@@ -420,12 +412,17 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
         </select>
       </div>
 
-      {subjects.length > 1 ? (
+      {subjects.length > 1 || hasFree ? (
         <div className="student-lessons-filter-bar">
           <button type="button" className={cx('student-lessons-filter-chip', !activeSubject && 'is-active')} onClick={() => setActiveSubject(null)}>
             All {groupingLabel}s
           </button>
-          {subjects.map((subject) => (
+          {hasFree ? (
+            <button type="button" className={cx('student-lessons-filter-chip', freeOnly && 'is-active')} onClick={() => setActiveSubject(freeOnly ? null : FREE_CHIP)}>
+              Free
+            </button>
+          ) : null}
+          {subjects.length > 1 ? subjects.map((subject) => (
             <button
               type="button"
               key={subject.label}
@@ -434,7 +431,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
             >
               {subject.label || 'General'}
             </button>
-          ))}
+          )) : null}
         </div>
       ) : null}
 

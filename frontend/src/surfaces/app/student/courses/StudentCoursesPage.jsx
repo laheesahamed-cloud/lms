@@ -4,103 +4,12 @@ import { fetchStudentCourses, fetchStudentCourseDetail, readStudentCoursesCache 
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { CourseProgressCard } from '../../../../shared/ui/CourseProgressCard.jsx';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { CourseDetailPage } from './CourseDetailPage.jsx';
 
-function BookIcon() {
-  return (
-    <svg className="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M5 4.75C5 3.78 5.78 3 6.75 3H19v16.5H7.25A2.25 2.25 0 0 0 5 21.75v-17Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M5 18.75A2.25 2.25 0 0 1 7.25 16.5H19M8.5 7.5h6.5M8.5 10.75h4.75"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-const courseVisualPresets = [
-  {
-    key: 'cardio',
-    label: 'Clinical rhythm',
-    keywords: ['cardio', 'heart', 'ecg', 'physiology', 'circulation'],
-  },
-  {
-    key: 'pharma',
-    label: 'Therapy logic',
-    keywords: ['pharma', 'drug', 'medicine', 'therapy', 'prescription'],
-  },
-  {
-    key: 'micro',
-    label: 'Pattern recall',
-    keywords: ['micro', 'infection', 'pathogen', 'immunology', 'biology'],
-  },
-  {
-    key: 'anatomy',
-    label: 'Body systems',
-    keywords: ['anatomy', 'body', 'organ', 'clinical', 'surgery'],
-  },
-  {
-    key: 'default',
-    label: 'Study pathway',
-    keywords: [],
-  },
-];
-
-function getCourseVisual(course, index = 0) {
-  const haystack = `${course.courseTitle || ''} ${course.description || ''}`.toLowerCase();
-  const matched = courseVisualPresets.find((preset) =>
-    preset.key !== 'default' && preset.keywords.some((keyword) => haystack.includes(keyword))
-  );
-
-  return matched || courseVisualPresets[index % courseVisualPresets.length] || courseVisualPresets[courseVisualPresets.length - 1];
-}
-
-function clampPercent(value) {
-  const numericValue = Number(value || 0);
-  if (!Number.isFinite(numericValue)) return 0;
-  return Math.max(0, Math.min(100, Math.round(numericValue)));
-}
-
-function getCourseStatus(progress) {
-  if (progress >= 100) {
-    return {
-      label: 'Completed',
-      className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200',
-    };
-  }
-
-  if (progress > 0) {
-    return {
-      label: 'In progress',
-      className: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-200',
-    };
-  }
-
-  return {
-    label: 'Ready',
-    className: 'border-line-soft bg-surface-2 text-ink-medium dark:border-white/10 dark:bg-white/[0.05] dark:text-white/70',
-  };
-}
-
 function getLessonCounts(course) {
-  const totalLessons = Number(course.totalLessonsCount || 0);
-  const completedLessons = Number(course.completedLessonsCount || 0);
-
-  return {
-    totalLessons,
-    completedLessons,
-    remainingLessons: Math.max(0, totalLessons - completedLessons),
-  };
+  return { totalLessons: Number(course.totalLessonsCount || 0) };
 }
 
 function CourseSkeleton() {
@@ -122,54 +31,18 @@ function CourseSkeleton() {
 }
 
 function CourseCard({ course, onOpen }) {
-  const progress = clampPercent(course.progressPercent);
-  const status = getCourseStatus(progress);
-  const { totalLessons, completedLessons, remainingLessons } = getLessonCounts(course);
-  const visual = getCourseVisual(course, Number(course.id || 0));
-  const leftLabel = totalLessons ? `${remainingLessons} left` : 'No lessons yet';
-  const metaLabel = `${totalLessons} lessons · ${completedLessons} done · ${leftLabel}`;
+  const { totalLessons } = getLessonCounts(course);
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`Open ${course.courseTitle}`}
-      className={cx(
-        'lms-quiz-card lms-quiz-course-card student-course-card student-course-card--simple lms-card-clickable group grid min-h-[112px] gap-3.5 rounded-[var(--ds-card-radius)] border border-line-soft bg-surface-card p-4 text-left shadow-[var(--ds-card-shadow)] outline-none transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/18 hover:bg-surface-2/35 active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:p-3.5',
-        `student-course-card--${visual.key}`
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <span className="student-course-card__icon grid size-10 shrink-0 place-items-center rounded-xl">
-          <BookIcon />
-        </span>
-        <div className="min-w-0 flex-1 pt-0.5">
-          <h2 className="lms-card-title line-clamp-2 dark:text-white max-[520px]:text-[14px]" title={course.courseTitle}>
-            {course.courseTitle}
-          </h2>
-          <span className={cx('mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-black uppercase', status.className)}>
-            {status.label}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
-          <span className="truncate text-ink-muted" title={metaLabel}>
-            {metaLabel}
-          </span>
-          <span className={cx('font-extrabold', progress >= 100 ? 'text-brand-primary dark:text-sky-300' : 'text-ink-strong dark:text-white')}>
-            {progress}%
-          </span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-surface-3 dark:bg-white/[0.09]">
-          <span
-            className="student-course-card__progress-fill block h-full w-full origin-left rounded-full transition-transform duration-500 ease-out"
-            style={{ transform: `scaleX(${progress / 100})` }}
-          />
-        </div>
-      </div>
-    </button>
+    <CourseProgressCard
+      title={course.courseTitle}
+      description={course.description}
+      // Just the lesson count; the percentage beside it says how far along they are.
+      meta={`${totalLessons} ${totalLessons === 1 ? 'lesson' : 'lessons'}`}
+      progress={course.progressPercent}
+      index={Number(course.id || 0)}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -333,7 +206,7 @@ export function StudentCoursesPage() {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-3 max-[520px]:grid-cols-1 max-[520px]:gap-2">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 max-[520px]:grid-cols-1 max-[520px]:gap-2">
             {loading ? [1, 2, 3, 4, 5, 6].map((item) => <CourseSkeleton key={item} />) : null}
 
             {!loading && visibleCourses.length === 0 ? (

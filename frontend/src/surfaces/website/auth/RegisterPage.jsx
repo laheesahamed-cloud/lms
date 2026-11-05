@@ -16,7 +16,7 @@ const auth = {
   shell: 'auth-route-scene lms-register-page grid min-h-dvh place-items-center bg-page px-6 py-6',
   scene: 'lms-register-scene mx-auto grid w-[min(1100px,100%)] items-center gap-12 lg:grid-cols-[minmax(0,1fr)_480px]',
   visual:
-    'relative flex min-h-[540px] flex-col justify-center gap-5 overflow-hidden rounded-2xl bg-[var(--brand-gradient-hero)] px-[clamp(24px,4vw,52px)] py-[clamp(32px,5vw,64px)] text-white shadow-xl before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(ellipse_at_70%_20%,rgba(255,255,255,0.12),transparent_55%),radial-gradient(ellipse_at_20%_80%,rgba(14,165,233,0.18),transparent_50%)] max-lg:hidden',
+    'relative flex min-h-[540px] flex-col justify-center gap-5 overflow-hidden rounded-2xl bg-[image:var(--brand-gradient-hero)] px-[clamp(24px,4vw,52px)] py-[clamp(32px,5vw,64px)] text-white shadow-xl before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(ellipse_at_70%_20%,rgba(255,255,255,0.12),transparent_55%),radial-gradient(ellipse_at_20%_80%,rgba(14,165,233,0.18),transparent_50%)] max-lg:hidden',
   visualEyebrow: 'relative z-[1] inline-block text-[11px] font-extrabold uppercase tracking-[0.12em] text-white/70',
   visualTitle: 'relative z-[1] m-0 max-w-[400px] font-display text-[32px] max-[640px]:text-[24px] font-extrabold leading-tight text-white',
   visualText: 'relative z-[1] m-0 max-w-[380px] text-[15px] leading-[1.7] text-white/80',
@@ -92,7 +92,9 @@ export function RegisterPage() {
       email: String(formData.get('email') || '').trim().toLowerCase(),
       password: String(formData.get('password') || ''),
       confirmPassword: String(formData.get('confirmPassword') || ''),
-      acceptedTerms: formData.get('acceptedTerms') === 'on',
+      // No checkbox: pressing Create Profile is the acceptance, and the notice
+      // under the button says so. The API still requires the flag.
+      acceptedTerms: true,
     };
 
     setStatus({ loading: true, error: '', success: '' });
@@ -188,17 +190,14 @@ export function RegisterPage() {
             ariaInvalid={status.error ? 'true' : undefined}
             ariaDescribedBy={feedbackId}
           />
-          <label className={ui.checkboxRow}>
-            <input className="shrink-0" name="acceptedTerms" type="checkbox" required />
-            <span>
-              I agree to the <Link to="/terms" className={auth.inlineLink}>terms and conditions</Link> and <Link to="/privacy-policy" className={auth.inlineLink}>privacy policy</Link>, and understand some features may be locked until I upgrade.
-              {' '}I also understand the <Link to="/refund-policy" className={auth.inlineLink}>refund policy</Link> and <Link to="/cookie-policy" className={auth.inlineLink}>cookie policy</Link>.
-            </span>
-          </label>
-
           <button type="submit" className={ui.primaryAction} disabled={status.loading}>
             {status.loading ? 'Creating profile...' : 'Create Profile'}
           </button>
+
+          <p className="m-0 text-center text-[12.5px] leading-relaxed text-ink-soft">
+            By clicking Create Profile, you agree to the <Link to="/terms" className={auth.inlineLink}>terms and conditions</Link> and <Link to="/privacy-policy" className={auth.inlineLink}>privacy policy</Link>, and understand some features may be locked until you upgrade.
+            {' '}You also accept the <Link to="/refund-policy" className={auth.inlineLink}>refund policy</Link> and <Link to="/cookie-policy" className={auth.inlineLink}>cookie policy</Link>.
+          </p>
 
           <div className={auth.linkRow}>
             Already registered?{' '}

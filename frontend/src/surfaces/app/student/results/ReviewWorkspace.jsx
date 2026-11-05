@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { ApproachSteps } from '../../../../shared/components/ApproachSteps.jsx';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { HighlightedQuestionText } from '../../../../shared/components/HighlightedQuestionText.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
@@ -608,9 +609,7 @@ function ReviewApproach({ question }) {
       </div>
       <div className={reviewUi.explanationGrid}>
         <div className={reviewUi.explanationCopy}>
-          {approachBlocks.map((block, index) => (
-            <MedicalText as="p" key={`${index}-${block.slice(0, 16)}`} text={block} />
-          ))}
+          <ApproachSteps text={approachText} />
         </div>
       </div>
     </section>

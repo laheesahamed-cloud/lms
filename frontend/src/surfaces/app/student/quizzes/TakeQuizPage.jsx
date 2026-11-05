@@ -11,6 +11,7 @@ import {
 import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage, isAppOnlyContentError } from '../../../../shared/api/client.js';
+import { ApproachSteps } from '../../../../shared/components/ApproachSteps.jsx';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { HighlightedQuestionText } from '../../../../shared/components/HighlightedQuestionText.jsx';
 import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
@@ -1540,9 +1541,7 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
           </div>
           <div className={quizReviewExplanationGridClass}>
             <div className={quizReviewExplanationCopyClass}>
-              {approachBlocks.map((part, index) => (
-                <MedicalText as="p" key={`${index}-${part.slice(0, 24)}`} text={part} />
-              ))}
+              <ApproachSteps text={getQuestionApproachText(currentQuestion)} />
             </div>
           </div>
         </section>

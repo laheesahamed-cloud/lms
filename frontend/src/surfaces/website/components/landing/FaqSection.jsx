@@ -35,7 +35,7 @@ export function FaqSection() {
           className="mb-10 text-center"
           initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
         >
-          <span className="mb-3 inline-block rounded-full bg-[#2563eb]/8 px-4 py-1.5 text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]">Questions</span>
+          <span className="mb-3 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]">Questions</span>
           <h2 className="font-display text-[clamp(30px,5vw,48px)] leading-tight text-[#111118]">Everything you’re wondering, answered.</h2>
         </motion.div>
         <div>

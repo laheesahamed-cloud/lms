@@ -19,7 +19,6 @@ const FEATURES = [
   {
     id: 'canvas',
     eyebrow: 'Notes you can write on',
-    accent: '#e8f5e9',
     h2: 'Notes you can actually write on, not just read.',
     lede:
       'The lesson is your canvas. Write, draw and highlight right on top.',
@@ -34,7 +33,6 @@ const FEATURES = [
   {
     id: 'mcqs',
     eyebrow: 'A Q-Bank that teaches',
-    accent: '#d6ffe8',
     h2: 'A question bank that teaches you, not just tests you.',
     lede:
       'Every answer comes with the key point and a quick theory recap at once, plus why every other option is right or wrong.',
@@ -49,7 +47,6 @@ const FEATURES = [
   {
     id: 'flashcards',
     eyebrow: 'Flashcards you build',
-    accent: '#ffd6f0',
     h2: 'Flashcards you can build yourself, not just ours.',
     lede:
       'Use our decks or add your own. Each fact returns right before you forget it.',
@@ -64,7 +61,6 @@ const FEATURES = [
   {
     id: 'instant-notes',
     eyebrow: 'Instant lesson notes',
-    accent: '#ffe8d6',
     h2: 'Turn any lesson into clean notes, instantly.',
     lede:
       'Dense topic in, exam-ready notes out, with high-yield points already flagged.',
@@ -79,7 +75,6 @@ const FEATURES = [
   {
     id: 'mocks',
     eyebrow: 'Mock exams & progress',
-    accent: '#fff3d6',
     h2: 'Walk into the real exam already calm.',
     lede:
       'Timed mocks that feel real, a predicted score, mastery climbing subject by subject.',
@@ -99,7 +94,6 @@ const FEATURES = [
   {
     id: 'planner',
     eyebrow: 'Planner & reminders',
-    accent: '#e8d6ff',
     h2: 'Plan your week, and actually get reminded.',
     lede:
       'Map your revision, set priorities and get nudged, right beside your lessons.',
@@ -129,18 +123,18 @@ function Feature({ f, index }) {
       <div className="lpv2-shell">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           <motion.div
-            className={flip ? 'lg:order-2' : ''}
+            className={`text-center lg:pt-14 ${flip ? 'lg:order-2' : ''}`}
             initial={{ y: 28 }}
             whileInView={{ y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            <span className="mb-4 inline-block rounded-full px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[#111118]" style={{ background: f.accent }}>
+            <span className="mb-4 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]">
               {f.eyebrow}
             </span>
             <h2 id={`feat-${f.id}`} className="font-display lpv2-feature-h2 text-[#111118]">{f.h2}</h2>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-[#4b5563] md:text-base">{f.lede}</p>
-            <ul className="mt-6 space-y-3">
+            <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-[#4b5563] md:text-base">{f.lede}</p>
+            <ul className="mx-auto mt-6 w-fit space-y-3 text-left">
               {f.bullets.map((b) => (
                 <li key={b} className="flex gap-2.5 text-[14px] leading-snug text-[#374151] md:text-[15px]">
                   <CheckIcon />
@@ -150,7 +144,7 @@ function Feature({ f, index }) {
             </ul>
             {/* Only the first section keeps its "Replaces…" pill, and without the dot. */}
             {f.id === 'canvas' && f.replaces && (
-              <p className="mt-5 inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-[#6b7280] ring-1 ring-black/5">
+              <p className="mt-5 text-[12.5px] font-semibold text-[#6b7280]">
                 {f.replaces}
               </p>
             )}
@@ -176,7 +170,7 @@ export function FeatureDeepDives() {
       <div className="lpv2-section bg-[#fafaf7] !pb-0 text-center">
         <div className="lpv2-shell">
           <motion.span
-            className="mb-4 inline-block rounded-full bg-[#2563eb]/8 px-4 py-1.5 text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]"
+            className="mb-4 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]"
             initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
           >
             Everything in one place

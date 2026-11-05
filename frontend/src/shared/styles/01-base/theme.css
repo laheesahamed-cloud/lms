@@ -1661,7 +1661,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   width: 100% !important;
   max-width: none !important;
   margin-inline: 0 !important;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)) !important;
   justify-content: stretch !important;
 }
 
@@ -2106,6 +2106,30 @@ body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordm
   content: none !important;
 }
 
+/* Course / subject icon (see shared/ui/SubjectIcon.jsx). It fills its chip with
+   a soft wash of the subject's colour and draws the icon in a deeper shade of
+   it; dark mode uses the bright tone. */
+.subject-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  color: color-mix(in srgb, var(--subject-tone) 62%, #0f172a);
+  background: color-mix(in srgb, var(--subject-tone) 18%, var(--surface-card, #fff));
+}
+
+:root[data-theme="dark"] .subject-icon {
+  color: var(--subject-tone);
+  background: color-mix(in srgb, var(--subject-tone) 20%, var(--surface-card, #0f1623));
+}
+
+.subject-icon svg {
+  display: block;
+  width: 56%;
+  height: 56%;
+}
+
 .student-lessons-topic-divider {
   display: flex;
   align-items: center;
@@ -2121,6 +2145,13 @@ body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordm
   background: var(--line-soft);
 }
 
+/* The divider already draws its own rule on both sides of the label, so the
+   first row under it must not add a second line of its own (rows get a
+   top border from the list rule above). Applies to Lessons and Q-Bank. */
+.student-app-shell.student-app-shell :is(.student-lessons-page, .student-lessons-detail) .student-lessons-topic-divider + .student-lessons-lesson-row {
+  border-top: 0 !important;
+}
+
 .student-lessons-topic-divider span {
   font-size: 11px;
   font-weight: 800;
@@ -2134,7 +2165,7 @@ body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordm
   width: 100% !important;
   max-width: none !important;
   margin-inline: 0 !important;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)) !important;
   justify-content: stretch !important;
 }
 

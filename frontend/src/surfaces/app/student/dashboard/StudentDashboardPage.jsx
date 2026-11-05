@@ -5,7 +5,7 @@ import { useCountUp } from '../../../../shared/hooks/useCountUp.js';
 import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
 import { listAiNotes, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { fetchStudentQuizzes, readStudentQuizzesCache } from '../../../../shared/api/quizAttempts.api.js';
+import { fetchStudentQuizzes, readStudentQuizzesCache, fetchStudentResults, readStudentResultsCache } from '../../../../shared/api/quizAttempts.api.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache } from '../../../../shared/api/studyBookmarks.api.js';
 import { fetchPlannerAgenda, readPlannerAgendaCache } from '../../../../shared/api/workspace.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -499,7 +499,29 @@ function prefersReducedMotionNow() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0 }) {
+// Mean of every attempt's percentage, mirroring the app's computeExamAverage.
+// Percentage, not raw score (attempts carry different question counts), and
+// FLOORED so the figure never sits above the marks actually earned. The delta
+// subtracts the two floored averages so it only describes numbers on screen.
+function computeExamAverage(results) {
+  const list = Array.isArray(results) ? results : [];
+  if (!list.length) return { attempts: 0, average: 0, delta: null };
+  const stamp = (r) => {
+    const t = Date.parse(r?.submittedAt);
+    return Number.isNaN(t) ? 0 : t;
+  };
+  const sorted = [...list].sort((a, b) => (stamp(b) - stamp(a)) || (Number(b?.attemptId || 0) - Number(a?.attemptId || 0)));
+  const mean = (xs) => xs.reduce((sum, r) => sum + (Number(r?.percentage) || 0), 0) / xs.length;
+  const average = Math.floor(mean(sorted));
+  const rest = sorted.slice(1);
+  return {
+    attempts: sorted.length,
+    average,
+    delta: rest.length ? average - Math.floor(mean(rest)) : null,
+  };
+}
+
+function MetricCard({ label, value, hint, hintTrend = null, tone, progress = null, index = 0 }) {
   const ref = useRef(null);
   const inView = useInViewOnce(ref, '-40px');
   const reduce = prefersReducedMotionNow() || isNativePhoneRuntime();
@@ -521,11 +543,10 @@ function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0
       className={`study-metric study-metric--${tone}${animClass}`}
       style={{ '--metric-index': index }}
     >
-      <span className="study-metric__icon"><Icon name={icon} /></span>
       <div>
         <strong className="tabular-nums">{display}</strong>
         <span>{label}</span>
-        <p>{hint}</p>
+        <p className={hintTrend === null ? undefined : hintTrend ? 'study-metric__hint--up' : 'study-metric__hint--down'}>{hint}</p>
       </div>
       {progress !== null ? (
         <div className="study-mini-rail" aria-hidden="true">
@@ -790,7 +811,6 @@ function StudyMoodCard({ mood, className = '' }) {
 }
 
 function StudyPlanCard({ items, onOpenPlanner }) {
-  const icons = ['target', 'review', 'book'];
   const visibleItems = items.slice(0, 3);
 
   return (
@@ -813,15 +833,18 @@ function StudyPlanCard({ items, onOpenPlanner }) {
             onFocus={() => preloadStudyRoute(item.route)}
             onClick={item.action}
           >
-            <span className="study-plan-row__icon"><Icon name={icons[index] || 'calendar'} /></span>
+            <span
+              className="study-plan-row__icon"
+              role="img"
+              aria-label={item.completed ? `Step ${index + 1} completed` : `Step ${index + 1}`}
+            >
+              {item.completed ? <Icon name="check" /> : index + 1}
+            </span>
             <div>
               <small>{item.label || `Step ${index + 1}`}</small>
               <strong>{item.title}</strong>
               <em>{item.detail}</em>
             </div>
-            <i aria-label={item.completed ? 'Completed' : `Step ${index + 1}`}>
-              {item.completed ? <Icon name="check" /> : index + 1}
-            </i>
           </button>
         ))}
       </div>
@@ -939,7 +962,7 @@ function UpcomingTasksCard({ items, serverDateKey, onOpenItem, onOpenPlanner }) 
   );
 }
 
-function ExamCountdownCard({ item, serverClock, onOpen }) {
+function ExamCountdownCard({ item, serverClock, onOpen, agenda = [], onOpenItem, onOpenPlanner }) {
   const serverDateKey = serverClock?.dateKey || '';
   const hasDueDate = Boolean(item?.dueAt);
   const daysLeft = hasDueDate ? daysFromServerDate(item.dueAt, serverDateKey) : null;
@@ -979,6 +1002,39 @@ function ExamCountdownCard({ item, serverClock, onOpen }) {
       {import.meta.env.DEV ? (
         <small className="study-server-clock">Server date {serverDateKey || 'unknown'} · {serverClock?.timeZone || 'server-local'}</small>
       ) : null}
+
+      {/* Side-by-side with Course progress this card is stretched to match it
+          and reads as empty, so on wide layouts it carries the next few planner
+          items too. Hidden on narrow screens, where the card is short anyway. */}
+      <div className="study-exam-agenda" aria-label="Coming up">
+        <span className="study-eyebrow">Coming up</span>
+        {agenda.length ? (
+          <div className="study-upcoming-list">
+            {agenda.map((entry) => (
+              <button
+                type="button"
+                className={`study-upcoming-row is-${String(entry.status || 'optional').replace(/_/g, '-')}`}
+                key={entry.id}
+                onPointerDown={() => preloadStudyRoute(agendaRoute(entry))}
+                onTouchStart={() => preloadStudyRoute(agendaRoute(entry))}
+                onFocus={() => preloadStudyRoute(agendaRoute(entry))}
+                onClick={() => onOpenItem(entry)}
+              >
+                <span className="study-upcoming-type">{titleCaseLabel(entry.type)}</span>
+                <span className="study-upcoming-copy">
+                  <strong>{cleanPlannerTitle(entry.title)}</strong>
+                  <small>{formatServerDueLabel(entry.dueAt, serverDateKey)} · {getAgendaCourseLabel(entry)}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="study-empty-copy">
+            Nothing else is planned.{' '}
+            <button type="button" className="study-exam-agenda__link" onClick={onOpenPlanner}>Open Planner</button>
+          </p>
+        )}
+      </div>
     </section>
   );
 }
@@ -1047,6 +1103,7 @@ export function StudentDashboardPage() {
   const user = useAuthStore((state) => state.user);
   const [dashboard, setDashboard] = useState(() => normalizeDashboardState(readStudentDashboardCache() || defaultDashboardState));
   const [studentQuizzes, setStudentQuizzes] = useState(() => readStudentQuizzesCache() || []);
+  const [examResults, setExamResults] = useState(() => readStudentResultsCache() || []);
   const [aiNotes, setAiNotes] = useState(() => readAiNotesCache() || []);
   const [bookmarks, setBookmarks] = useState(() => readStudyBookmarksCache() || []);
   const [plannerAgendaItems, setPlannerAgendaItems] = useState(() => {
@@ -1069,6 +1126,7 @@ export function StudentDashboardPage() {
       // instead of waiting for the dashboard before starting quizzes/agenda.
       const dashboardRequest = fetchStudentDashboard();
       const quizzesRequest = fetchStudentQuizzes().catch(() => []);
+      const resultsRequest = fetchStudentResults().catch(() => null);
       const agendaRequest = fetchPlannerAgenda().catch(() => ({ items: [] }));
 
       try {
@@ -1081,8 +1139,9 @@ export function StudentDashboardPage() {
         if (!cancelled) setLoading(false);
       }
 
-      const [quizzes, agenda] = await Promise.all([quizzesRequest, agendaRequest]);
+      const [quizzes, agenda, results] = await Promise.all([quizzesRequest, agendaRequest, resultsRequest]);
       if (cancelled) return;
+      if (Array.isArray(results)) setExamResults(results);
       setStudentQuizzes(Array.isArray(quizzes) ? quizzes : []);
       setPlannerAgendaItems(Array.isArray(agenda?.items) ? agenda.items : Array.isArray(agenda) ? agenda : []);
       cancelSecondary = runWhenIdle(async () => {
@@ -1158,7 +1217,7 @@ export function StudentDashboardPage() {
 
   const readinessScore = clampPercent(dashboard.performanceSnapshot?.readinessScore || dashboard.avgScore);
   const levelProgress = useMemo(() => buildDashboardLevelProgress(dashboard), [dashboard]);
-  const scoreDelta = Number(dashboard.performanceSnapshot?.scoreDelta || 0);
+  const examAverage = useMemo(() => computeExamAverage(examResults), [examResults]);
   const studyMood = getStudyMood({
     attempts: dashboard.totalAttempts,
     readinessScore,
@@ -1193,23 +1252,27 @@ export function StudentDashboardPage() {
       hint: courseProgressSummary.totalLessons
         ? `${clampPercent(courseProgressSummary.overallProgressPercent)}% lessons`
         : 'In progress',
-      icon: 'book',
       tone: 'cyan',
       progress: courseProgressSummary.totalLessons ? courseProgressSummary.overallProgressPercent : null,
     },
     {
-      label: 'Readiness',
-      value: `${readinessScore}%`,
-      hint: scoreDelta ? `${scoreDelta > 0 ? '+' : ''}${scoreDelta}%` : 'Avg. readiness',
-      icon: 'target',
+      label: 'Avg. marks',
+      value: examAverage.attempts ? `${examAverage.average}%` : '—',
+      hint: examAverage.attempts === 0
+        ? 'No exams yet'
+        : examAverage.attempts === 1
+          ? '1 exam'
+          : examAverage.delta === 0
+            ? 'No change'
+            : `${examAverage.delta > 0 ? '+' : ''}${examAverage.delta}%`,
+      hintTrend: examAverage.attempts > 1 && examAverage.delta ? examAverage.delta > 0 : null,
       tone: 'violet',
-      progress: readinessScore,
+      progress: examAverage.attempts ? examAverage.average : null,
     },
     {
       label: 'Streak',
       value: dashboard.quizDayStreak,
       hint: dashboard.quizDayStreak > 0 ? plural(dashboard.quizDayStreak, 'active day') : 'Keep it going',
-      icon: 'flame',
       tone: 'amber',
     },
   ];
@@ -1400,7 +1463,7 @@ export function StudentDashboardPage() {
               label={metric.label}
               value={metric.value}
               hint={metric.hint}
-              icon={metric.icon}
+              hintTrend={metric.hintTrend ?? null}
               tone={metric.tone}
               progress={metric.progress}
               index={index}
@@ -1419,6 +1482,9 @@ export function StudentDashboardPage() {
             item={nextExamItem}
             serverClock={dashboard.serverClock}
             onOpen={() => onNavigate(nextExamItem ? agendaRoute(nextExamItem, '/exams') : appRoute('/exams'))}
+            agenda={upcomingAgendaItems.filter((entry) => entry.id !== nextExamItem?.id).slice(0, 3)}
+            onOpenItem={(entry) => onNavigate(agendaRoute(entry))}
+            onOpenPlanner={() => onNavigate(appRoute('/planner'))}
           />
         </section>
 
