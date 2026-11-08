@@ -441,6 +441,14 @@ const adminPanelRoutes = [
     ),
   },
   {
+    path: 'question-reports',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['questions.manage']}>
+        <AdminQuestionReportsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: 'quizzes',
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage']}>

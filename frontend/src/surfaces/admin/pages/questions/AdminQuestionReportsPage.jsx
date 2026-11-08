@@ -23,6 +23,7 @@ export function AdminQuestionReportsPage() {
   const [filter, setFilter] = useState('open');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
 
   const load = useCallback(async (nextFilter = 'open') => {
     setLoading(true);
@@ -47,8 +48,17 @@ export function AdminQuestionReportsPage() {
   }
 
   async function setStatus(item, status) {
-    await updateQuestionReport(item.id, { status });
-    await load(filter);
+    if (busyId) return;
+    setBusyId(item.id);
+    setError('');
+    try {
+      await updateQuestionReport(item.id, { status });
+      await load(filter);
+    } catch (statusError) {
+      setError(getErrorMessage(statusError, 'Unable to update this report'));
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -106,16 +116,26 @@ export function AdminQuestionReportsPage() {
                   </div>
                 </div>
 
-                <div className={ui.buttonRow}>
-                  <button className={ui.primaryAction} type="button" onClick={() => setStatus(item, 'resolved')}>
-                    Mark resolved
-                  </button>
-                  <button className={ui.secondaryAction} type="button" onClick={() => setStatus(item, 'open')}>
-                    Reopen
-                  </button>
-                  <button className={ui.secondaryAction} type="button" onClick={() => setStatus(item, 'rejected')}>
-                    Reject
-                  </button>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {item.status === 'open' ? (
+                    <>
+                      <button className={cx(ui.primaryAction, '!w-auto !min-h-10 !px-4')} type="button" disabled={busyId === item.id} onClick={() => setStatus(item, 'resolved')}>
+                        {busyId === item.id ? 'Saving…' : 'Mark resolved'}
+                      </button>
+                      <button className={cx(ui.secondaryAction, '!w-auto !min-h-10 !px-4')} type="button" disabled={busyId === item.id} onClick={() => setStatus(item, 'rejected')}>
+                        Reject
+                      </button>
+                    </>
+                  ) : (
+                    <button className={cx(ui.secondaryAction, '!w-auto !min-h-10 !px-4')} type="button" disabled={busyId === item.id} onClick={() => setStatus(item, 'open')}>
+                      {busyId === item.id ? 'Saving…' : 'Reopen'}
+                    </button>
+                  )}
+                  {item.createdAt ? (
+                    <span className="ml-auto text-[12px] font-semibold text-ink-soft">
+                      Reported {new Date(item.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  ) : null}
                 </div>
               </article>
             ))}
