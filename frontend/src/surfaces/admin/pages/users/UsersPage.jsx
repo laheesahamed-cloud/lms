@@ -28,22 +28,6 @@ const initialUserForm = {
   status: 'inactive',
 };
 
-const usersPageUi = {
-  accountHeader:
-    'flex flex-wrap items-start justify-between gap-3 max-[640px]:grid max-[640px]:grid-cols-1',
-  accountHeaderCopy: 'min-w-0',
-  accountHeaderAction:
-    'max-[640px]:w-full max-[640px]:min-h-11',
-  filterActions:
-    'items-end max-[520px]:items-stretch',
-  statusActions:
-    'flex flex-wrap items-center gap-2 max-[520px]:grid max-[520px]:w-full max-[520px]:grid-cols-1 max-[520px]:items-stretch',
-  compactRowAction:
-    'max-[520px]:min-h-10 max-[520px]:w-full',
-  tableActions:
-    'max-[520px]:grid max-[520px]:w-full max-[520px]:grid-cols-[minmax(0,1fr)_40px_40px] max-[520px]:items-center',
-};
-
 function EntityModal({ open, title, subtitle, children, onClose }) {
   if (!open) {
     return null;
@@ -70,62 +54,36 @@ function EntityModal({ open, title, subtitle, children, onClose }) {
 
 function UserOverviewCards({ summary, activeQuickFilter, onQuickFilter }) {
   const cards = [
-    { key: 'all', label: 'Total Users', value: summary.totalUsers, icon: '◎', tone: 'blue', badge: 'All users' },
-    { key: 'active', label: 'Active Users', value: summary.activeUsers, icon: '●', tone: 'green', badge: 'Active' },
-    { key: 'pending', label: 'Pending Approval', value: summary.pendingUsers, icon: '◔', tone: 'amber', badge: 'Pending' },
-    { key: 'admins', label: 'Admins', value: summary.adminUsers, icon: '👤', tone: 'violet', badge: 'Admin role' },
-    { key: 'students', label: 'Students', value: summary.studentUsers, icon: '🎓', tone: 'teal', badge: 'Student role' },
+    { key: 'all', label: 'Total users', value: summary.totalUsers },
+    { key: 'active', label: 'Active', value: summary.activeUsers },
+    { key: 'pending', label: 'Pending approval', value: summary.pendingUsers },
+    { key: 'admins', label: 'Admins', value: summary.adminUsers },
+    { key: 'students', label: 'Students', value: summary.studentUsers },
   ];
 
+  // The tiles ARE the quick filters — one control, not tiles plus a duplicate row of chips.
   return (
-    <section className="grid gap-3">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
-        {cards.map((card) => (
-          <button className={cx(
-              'grid min-h-[132px] gap-3 rounded-lg border bg-surface-1 p-4 text-left shadow-xs transition hover:-translate-y-0.5 hover:border-brand-primary/25 hover:shadow-md',
-              activeQuickFilter === card.key ? 'border-brand-primary/50 ring-4 ring-brand-primary/10' : 'border-line-soft'
-            )}
-            key={card.key}
-            type="button"
-           
-            onClick={() => onQuickFilter(card.key)}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="grid size-9 place-items-center rounded-md bg-brand-primary-light text-base text-brand-primary" aria-hidden="true">{card.icon}</span>
-              <span className={ui.tablePill}>{card.badge}</span>
-            </div>
-            <strong className="text-3xl font-black text-ink-strong">{card.value}</strong>
-            <span className="text-xs font-bold uppercase tracking-[0.06em] text-ink-soft">{card.label}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {[
-          { key: 'all', label: 'All' },
-          { key: 'pending', label: 'Pending' },
-          { key: 'active', label: 'Active' },
-          { key: 'admins', label: 'Admins' },
-          { key: 'students', label: 'Students' },
-        ].map((chip) => (
-          <button className={cx(
-              'inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-extrabold transition',
-              activeQuickFilter === chip.key
-                ? 'border-brand-primary bg-brand-primary-light text-brand-primary'
-                : 'border-line-soft bg-surface-1 text-ink-soft hover:border-brand-primary/30 hover:text-brand-primary'
-            )}
-            key={chip.key}
-            type="button"
-           
-            onClick={() => onQuickFilter(chip.key)}
-          >
-            {chip.label}
-          </button>
-        ))}
-      </div>
+    <section className="grid grid-cols-5 gap-3 max-[1000px]:grid-cols-3 max-[640px]:grid-cols-2" aria-label="Filter users">
+      {cards.map((card) => (
+        <button
+          key={card.key}
+          type="button"
+          aria-pressed={activeQuickFilter === card.key}
+          onClick={() => onQuickFilter(card.key)}
+          className={cx(
+            'grid gap-0.5 rounded-xl border !bg-surface-1 px-4 py-3 text-left shadow-none transition hover:border-brand-primary/30',
+            activeQuickFilter === card.key ? 'border-brand-primary/60 ring-2 ring-brand-primary/15' : 'border-line-soft',
+          )}
+        >
+          <strong className="text-[24px] font-black leading-none text-ink-strong">{card.value}</strong>
+          <span className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-ink-soft">{card.label}</span>
+        </button>
+      ))}
     </section>
   );
 }
+
+const PAGE_SIZE = 20;
 
 export function UsersPage() {
   const navigate = useNavigate();
@@ -146,6 +104,7 @@ export function UsersPage() {
   const [userForm, setUserForm] = useState(initialUserForm);
   const [editingUserId, setEditingUserId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const showToast = useCallback((text, type = 'success') => {
     setToast({ text, type });
@@ -203,10 +162,12 @@ export function UsersPage() {
 
   function handleChange(event) {
     const { name, value } = event.target;
+    setPage(1);
     setFilters((current) => ({ ...current, [name]: value }));
   }
 
   function handleQuickFilter(nextQuickFilter) {
+    setPage(1);
     setQuickFilter(nextQuickFilter);
 
     if (nextQuickFilter === 'all') {
@@ -353,6 +314,9 @@ export function UsersPage() {
   }
 
   const isEditing = Boolean(editingUserId);
+  const pageCount = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageUsers = users.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
       <main className={ui.screenShell}>
@@ -378,31 +342,28 @@ export function UsersPage() {
 
         <UserOverviewCards summary={summary} activeQuickFilter={quickFilter} onQuickFilter={handleQuickFilter} />
 
-        <section className={ui.panelCard}>
-          <form className="grid gap-4 md:grid-cols-[minmax(220px,1fr)_180px_180px_auto]" onSubmit={handleFilterSubmit}>
-            <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink-muted">
+        <section className={cx(ui.panelCard, '!p-4')}>
+          <form
+            className="grid grid-cols-[minmax(220px,1.6fr)_minmax(140px,1fr)_minmax(140px,1fr)_auto_auto] items-end gap-3 max-[1000px]:grid-cols-2 max-[560px]:grid-cols-1"
+            onSubmit={handleFilterSubmit}
+          >
+            <label className="grid min-w-0 gap-1.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink-muted">
               Search
-              <input className="min-h-control rounded-md border border-line-medium bg-input-bg px-3 text-sm font-semibold normal-case tracking-normal text-ink-strong outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/20"
-               
-                name="search"
-                value={filters.search}
-                onChange={handleChange}
-                placeholder="Search by email address"
-              />
+              <input className={ui.input} name="search" value={filters.search} onChange={handleChange} placeholder="Search by email address" />
             </label>
 
-            <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink-muted">
+            <label className="grid min-w-0 gap-1.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink-muted">
               Status
-              <select className="min-h-control rounded-md border border-line-medium bg-input-bg px-3 text-sm font-semibold normal-case tracking-normal text-ink-strong outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/20" name="status" value={filters.status} onChange={handleChange}>
+              <select className={ui.input} name="status" value={filters.status} onChange={handleChange}>
                 <option value="">All</option>
                 <option value="inactive">Pending approval</option>
                 <option value="active">Active</option>
               </select>
             </label>
 
-            <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink-muted">
+            <label className="grid min-w-0 gap-1.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink-muted">
               Role
-              <select className="min-h-control rounded-md border border-line-medium bg-input-bg px-3 text-sm font-semibold normal-case tracking-normal text-ink-strong outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/20" name="role" value={filters.role} onChange={handleChange}>
+              <select className={ui.input} name="role" value={filters.role} onChange={handleChange}>
                 <option value="">All</option>
                 <option value="admin">Admin</option>
                 <option value="staff">Staff</option>
@@ -410,23 +371,11 @@ export function UsersPage() {
               </select>
             </label>
 
-            <div className={cx(ui.buttonRow, usersPageUi.filterActions)}>
-              <button type="submit" className={ui.secondaryAction}>Refresh</button>
-              <button type="button" className={ui.secondaryAction} onClick={handleReset}>Reset</button>
-            </div>
-          </form>
-        </section>
-
-        <section className={ui.panelCard}>
-          <div className={usersPageUi.accountHeader}>
-            <div className={usersPageUi.accountHeaderCopy}>
-              <h2 className={ui.panelTitle}>User accounts</h2>
-              <p className={ui.panelText}>Create student and admin accounts, or update existing user details.</p>
-            </div>
-            <button type="button" className={cx(ui.secondaryAction, usersPageUi.accountHeaderAction)} onClick={handleOpenCreateUser}>
-              Create new user
+            <button type="button" className={cx(ui.secondaryAction, '!min-h-10 whitespace-nowrap !px-4')} onClick={handleReset}>Reset</button>
+            <button type="button" className={cx(ui.primaryAction, '!min-h-10 whitespace-nowrap !px-4 max-[1000px]:col-span-2 max-[560px]:col-span-1')} onClick={handleOpenCreateUser}>
+              + Create user
             </button>
-          </div>
+          </form>
         </section>
 
         <EntityModal
@@ -512,46 +461,64 @@ export function UsersPage() {
           </form>
         </EntityModal>
 
-        <section className={ui.panelCard}>
+        <section className={cx(ui.panelCard, 'grid gap-3 !p-4')}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="m-0 text-[15px] font-black text-ink-strong">
+              User accounts <span className="ml-1 font-bold text-ink-soft">· {users.length}</span>
+            </h2>
+            {users.length > PAGE_SIZE ? (
+              <span className="text-[12.5px] font-bold text-ink-soft">
+                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, users.length)} of {users.length}
+              </span>
+            ) : null}
+          </div>
+
           <div className={ui.tableShell}>
-            <table className={ui.modernTable}>
+            <table className={ui.modernTable} style={{ width: '100%', minWidth: 760 }}>
               <thead>
                 <tr>
-                  <th className={ui.tableHeadCell}>Email address</th>
-                  <th className={ui.tableHeadCell}>Name</th>
+                  <th className={ui.tableHeadCell}>User</th>
                   <th className={ui.tableHeadCell}>Role</th>
                   <th className={ui.tableHeadCell}>Status</th>
                   <th className={ui.tableHeadCell}>Created</th>
-                  <th className={ui.tableHeadCell}>Actions</th>
+                  <th className={cx(ui.tableHeadCell, 'text-right')}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className={ui.tableEmpty}>Loading users...</td>
+                    <td colSpan="5" className={ui.tableEmpty}>Loading users...</td>
                   </tr>
                 ) : null}
                 {!loading && users.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className={ui.tableEmpty}>No users found.</td>
+                    <td colSpan="5" className={ui.tableEmpty}>No users found.</td>
                   </tr>
                 ) : null}
-                {!loading && users.map((user) => {
+                {!loading && pageUsers.map((user) => {
                   const userIdentifier = getAdminUserIdentifier(user);
                   const userSecondaryIdentifier = getAdminUserSecondaryIdentifier(user);
+                  const pending = user.status !== 'active';
+                  const smallButton = 'inline-flex min-h-8 items-center justify-center whitespace-nowrap rounded-md border px-3 text-xs font-extrabold transition';
 
                   return (
-                    <tr key={user.id}>
-                      <td className={ui.tableCell}><strong>{userIdentifier}</strong></td>
-                      <td className={ui.tableCell}>{userSecondaryIdentifier || '-'}</td>
-                      <td className={ui.tableCell}><span className={ui.tablePill}>{user.role}</span></td>
-                      <td className={ui.tableCell}>
-                        <div className={usersPageUi.statusActions}>
-                          <span className={statusPill(user.status)}>
-                            {user.status === 'inactive' ? 'Pending approval' : 'Active'}
-                          </span>
-                          {user.status !== 'active' ? (
-                            <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-success/25 bg-[var(--color-success-light)] px-3 text-xs font-extrabold text-brand-success transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
+                    <tr key={user.id} className="transition hover:bg-surface-2/50 [&>td]:!py-2.5">
+                      <td className={cx(ui.tableCell, 'min-w-[220px]')}>
+                        <strong className="block truncate text-[13.5px] text-ink-strong">{userIdentifier}</strong>
+                        {userSecondaryIdentifier ? <div className={cx(ui.tableSubtext, 'truncate')}>{userSecondaryIdentifier}</div> : null}
+                      </td>
+                      <td className={cx(ui.tableCell, 'whitespace-nowrap')}><span className={ui.tablePill}>{user.role}</span></td>
+                      <td className={cx(ui.tableCell, 'whitespace-nowrap')}>
+                        <span className={statusPill(user.status)}>{pending ? 'Pending' : 'Active'}</span>
+                      </td>
+                      <td className={cx(ui.tableCell, 'whitespace-nowrap text-ink-soft')}>
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                      </td>
+                      <td className={cx(ui.tableCell, 'whitespace-nowrap')}>
+                        <div className="flex items-center justify-end gap-2">
+                          {pending ? (
+                            <button
+                              className={cx(smallButton, 'border-brand-success/25 bg-[var(--color-success-light)] text-brand-success')}
                               type="button"
                               aria-label={`Approve ${userIdentifier}`}
                               onClick={() => handleStatusChange(user, 'active')}
@@ -559,38 +526,22 @@ export function UsersPage() {
                               Approve
                             </button>
                           ) : null}
-                          {user.role !== 'admin' && user.status === 'active' ? (
-                            <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
+                          {user.role !== 'admin' ? (
+                            <button
+                              className={cx(smallButton, 'border-brand-error/20 bg-brand-error/10 text-brand-error')}
                               type="button"
-                              aria-label={`Inactivate ${userIdentifier}`}
+                              aria-label={`${pending ? 'Reject' : 'Disable'} ${userIdentifier}`}
                               onClick={() => handleStatusChange(user, 'inactive')}
                             >
-                              Disable
+                              {pending ? 'Reject' : 'Disable'}
                             </button>
                           ) : null}
-                          {user.status !== 'active' && user.role !== 'admin' ? (
-                            <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
-                              type="button"
-                              aria-label={`Reject ${userIdentifier}`}
-                              onClick={() => handleStatusChange(user, 'inactive')}
-                            >
-                              Reject
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className={ui.tableCell}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
-                      <td className={ui.tableCell}>
-                        <div className={cx(ui.iconRow, usersPageUi.tableActions)}>
                           {user.role === 'student' ? (
-                            <button className={cx(ui.secondaryAction, usersPageUi.compactRowAction)}
-                              type="button"
-                              onClick={() => navigate(`/users/${user.id}`)}
-                            >
+                            <button className={cx(ui.secondaryAction, '!min-h-8 !px-3 text-xs')} type="button" onClick={() => navigate(`/users/${user.id}`)}>
                               View
                             </button>
                           ) : null}
-                          <button className={ui.iconButton}
+                          <button className={cx(ui.iconButton, '!size-8 !min-h-0 !min-w-0')}
                             type="button"
                             aria-label={`Edit ${userIdentifier}`}
                             title="Edit user"
@@ -598,7 +549,7 @@ export function UsersPage() {
                           >
                             <EditActionIcon />
                           </button>
-                          <button className={ui.dangerIconButton}
+                          <button className={cx(ui.dangerIconButton, '!size-8 !min-h-0 !min-w-0')}
                             type="button"
                             aria-label={`Delete ${userIdentifier}`}
                             title="Delete user"
@@ -614,6 +565,14 @@ export function UsersPage() {
               </tbody>
             </table>
           </div>
+
+          {pageCount > 1 ? (
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>← Previous</button>
+              <span className="text-[12.5px] font-bold text-ink-soft">Page {currentPage} of {pageCount}</span>
+              <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Next →</button>
+            </div>
+          ) : null}
         </section>
         </section>
       </main>

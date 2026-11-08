@@ -342,8 +342,12 @@ export function statusPill(tone = '') {
   if (['active', 'pass', 'paid', 'completed', 'waived', 'free', 'free_plan'].includes(normalizedTone)) {
     return `${base} border-brand-success/22 bg-[var(--color-success-light)] text-brand-success`;
   }
-  if (['inactive', 'fail', 'failed', 'cancelled', 'expired'].includes(normalizedTone)) {
+  if (['inactive', 'fail', 'failed', 'expired'].includes(normalizedTone)) {
     return `${base} border-brand-error/18 bg-[var(--color-error-light)] text-brand-error`;
+  }
+  // Cancelled is its own colour so it is never mistaken for Expired (red).
+  if (normalizedTone === 'cancelled') {
+    return `${base} border-brand-violet/25 bg-brand-violet/10 text-brand-violet`;
   }
   if (['pending', 'in_progress', 'processing'].includes(normalizedTone)) {
     return `${base} border-brand-warning/22 bg-[var(--color-warning-light)] text-brand-warning`;

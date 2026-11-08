@@ -14,11 +14,11 @@ import { getAdminUserIdentifier } from '../../../../shared/utils/userIdentity.js
 
 const dashboardLayoutClass = 'gap-5';
 const heroClass =
-  'lms-dashboard-card grid gap-4 rounded-lg border border-line-soft bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary-light)_48%,transparent),transparent_50%),var(--surface-card)] p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-end';
-const heroRailClass = 'flex min-w-[300px] flex-wrap justify-end gap-2 max-[760px]:min-w-0 max-[760px]:justify-start';
+  'lms-dashboard-card grid gap-4 rounded-lg border border-line-soft bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary-light)_48%,transparent),transparent_50%),var(--surface-card)] p-4 shadow-sm min-[1180px]:grid-cols-[minmax(0,1fr)_minmax(0,500px)] min-[1180px]:items-end';
+const heroRailClass = 'flex min-w-0 flex-wrap justify-start gap-2 min-[1180px]:justify-end';
 const heroMiniStatClass =
   'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line-soft bg-surface-1 px-2.5 text-[11px] font-extrabold text-ink-medium';
-const moneyGridClass = 'grid grid-cols-4 gap-4 max-[1120px]:grid-cols-2 max-[640px]:grid-cols-1';
+const moneyGridClass = 'grid grid-cols-4 gap-4 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1';
 const metricValueClass = 'mt-2 block break-words text-[28px] max-[640px]:text-[22px] font-black leading-tight text-ink-strong';
 const metricLabelClass = 'm-0 mt-2 text-[11.5px] font-bold leading-relaxed text-ink-soft';
 const metricCardBase =
@@ -31,13 +31,13 @@ const metricCardAmber =
   'border-amber-600/22 bg-[linear-gradient(145deg,rgba(245,158,11,0.09),transparent_46%),var(--surface-card)]';
 const metricCardViolet =
   'border-violet-600/16 bg-[linear-gradient(145deg,rgba(124,58,237,0.065),transparent_46%),var(--surface-card)]';
-const panelGridClass = 'grid grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] gap-5 max-[1080px]:grid-cols-1';
+const panelGridClass = 'grid grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] items-start gap-5 max-[1080px]:grid-cols-1';
 const queueListClass = 'grid gap-3';
 const queueItemClass =
   'grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-xl border border-line-soft bg-surface-card p-4 shadow-xs max-[700px]:grid-cols-1';
 const compactGridClass = 'grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[520px]:grid-cols-1';
 const compactTileClass = 'rounded-xl border border-line-soft bg-surface-card p-3.5 shadow-xs';
-const sectionClass = 'grid gap-3';
+const sectionClass = 'grid content-start gap-3';
 const sectionHeadClass = 'flex flex-wrap items-end justify-between gap-3';
 const dashboardButtonClass =
   'inline-flex h-10 min-w-0 items-center justify-center rounded-[16px] border-0 bg-[linear-gradient(135deg,#4aa3f4_0%,#5274f3_52%,#6d35df_100%)] px-4 text-[13px] font-extrabold text-white no-underline shadow-[0_14px_28px_-22px_rgba(82,116,243,0.7)] transition-[filter,transform,box-shadow] duration-150 hover:brightness-105 hover:saturate-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 disabled:opacity-50';
@@ -58,6 +58,8 @@ const emptyUserSummary = {
   activeUsers: 0,
   adminUsers: 0,
   studentUsers: 0,
+  newToday: 0,
+  newTodayLatest: [],
 };
 
 function todayKey() {
@@ -337,7 +339,7 @@ export function AdminDashboardPage() {
           fetchAdminDashboard(),
           fetchAdminSubscriptions(),
           fetchAdminSubscriptionRequests(),
-          fetchUsersSummary(),
+          fetchUsersSummary({ today: todayKey() }),
         ]);
         if (!active) return;
         setDashboard(dashboardData || emptyDashboard);
@@ -414,10 +416,10 @@ export function AdminDashboardPage() {
               Earnings, payment proofs, student approvals, and subscription health are prioritized here.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button className={dashboardButtonClass} type="button" onClick={() => navigate('/subscriptions')}>
+              <button className={cx(dashboardButtonClass, 'whitespace-nowrap')} type="button" onClick={() => navigate('/subscriptions')}>
                 Review payments
               </button>
-              <button className={dashboardButtonSoftClass} type="button" onClick={() => navigate('/users')}>
+              <button className={cx(dashboardButtonSoftClass, 'whitespace-nowrap')} type="button" onClick={() => navigate('/users')}>
                 Review students
               </button>
             </div>
@@ -450,12 +452,6 @@ export function AdminDashboardPage() {
             tone="green"
           />
           <MoneyCard
-            label="Total Collected"
-            value={formatMoney(finance.totalRevenue, finance.currency)}
-            hint="All paid subscription revenue."
-            tone="blue"
-          />
-          <MoneyCard
             label="Awaiting Approval"
             value={finance.pendingRequests}
             hint={`${formatMoney(finance.pendingManualAmount, finance.currency)} in pending requests.`}
@@ -466,6 +462,17 @@ export function AdminDashboardPage() {
             value={userSummary.pendingUsers || 0}
             hint="Pending/inactive student accounts."
             tone="violet"
+          />
+          <MoneyCard
+            label="New Users Today"
+            value={userSummary.newToday || 0}
+            hint={
+              userSummary.newToday
+                ? (userSummary.newTodayLatest || []).map((user) => user.name || user.email).filter(Boolean).join(', ')
+                  + (userSummary.newToday > (userSummary.newTodayLatest || []).length ? ' and more' : '')
+                : 'No new sign-ups yet today.'
+            }
+            tone="blue"
           />
         </section>
 

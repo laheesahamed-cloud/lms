@@ -41,56 +41,11 @@ type AiProviderRow = RowDataPacket & {
 };
 
 const WHATSAPP_NUMBER_SETTING_KEY = 'contact_whatsapp_number';
-const LANDING_PAGE_SETTING_KEY = 'landing_page_content';
+const NEW_CONTENT_NOTIFICATIONS_SETTING_KEY = 'new_content_notifications_enabled';
 const POPUP_ALERT_PUBLIC_MANIFEST_FILE = 'popup-alert.json';
 const AVAILABILITY_MODE_SETTING_KEY = 'site_availability_mode';
 const AVAILABILITY_UNLOCK_CODE_SETTING_KEY = 'site_availability_unlock_code';
 const AVAILABILITY_MODES = ['live', 'maintenance', 'coming-soon'] as const;
-const DEFAULT_LANDING_PAGE_CONTENT = {
-  metaTitle: 'Medical Study Platform',
-  metaDescription:
-    'xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.',
-  heroKicker: 'Built for medical students in Sri Lanka',
-  heroTitleLine1: 'The smarter way to',
-  heroTitleAccent: 'prepare for',
-  heroTitleLine3: 'medical exams.',
-  heroSubtitle:
-    'Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.',
-  heroPrimaryLabel: 'Start Studying Free',
-  heroSecondaryLabel: 'Explore Platform',
-  featuresEyebrow: 'Platform Features',
-  featuresTitle: 'The full study loop, not just a pile of MCQs.',
-  featuresText:
-    'Read, revise, practise, and review - inside one calm academic workspace built for medical preparation.',
-  howEyebrow: 'Getting Started',
-  howTitle: 'Up and revising in three steps.',
-  howText: 'No complicated setup. Sign up and start revising your medical subjects today.',
-  whyEyebrow: 'Why Choose Us',
-  whyTitle: 'More than just another MCQ bank.',
-  whyText:
-    'While others give you a flat list of questions, we give you the full study experience - structured, visual, and data-driven.',
-  testimonialsEyebrow: 'Student Stories',
-  testimonialsTitle: 'What medical students say.',
-  testimonialsText:
-    'Real feedback from students across Sri Lanka using the platform for their revision.',
-  faqEyebrow: 'FAQ',
-  faqTitle: 'Questions students usually ask first.',
-  faqText: 'Clear answers about how the platform works before you start your revision journey.',
-  pricingEyebrow: 'Pricing',
-  pricingTitle: 'Transparent plans for Sri Lankan students.',
-  pricingText: 'No hidden fees. Choose the plan that fits your exam timeline and study intensity.',
-  customPlanTitle: 'Need a customized subscription?',
-  customPlanText: 'Create a package around your courses, study timeline, and exam goals.',
-  ctaEyebrow: 'Ready to begin?',
-  ctaTitle: 'Join the most complete medical study platform in Sri Lanka.',
-  ctaText:
-    'Interactive lessons, a full quiz engine, and performance tracking - everything you need to walk into your examination with confidence.',
-  ctaPrimaryLabel: 'Create Free Account',
-  ctaSecondaryLabel: 'Sign In',
-  footerText:
-    'A focused study platform for medical students in Sri Lanka - notes, quizzes, and analytics in one place.',
-  footerTagline: 'Built for Sri Lankan medical education.',
-} as const;
 const PAYMENT_SETTING_KEYS = {
   enabled: 'payment_payhere_enabled',
   sandboxMode: 'payment_payhere_sandbox_mode',
@@ -238,10 +193,6 @@ export type FcmSettings = {
   serviceAccountJson: string;
 };
 
-export type LandingPageContent = {
-  [Key in keyof typeof DEFAULT_LANDING_PAGE_CONTENT]: string;
-};
-
 export type AvailabilityMode = typeof AVAILABILITY_MODES[number];
 type SerializedAvailabilitySettings = {
   mode: AvailabilityMode;
@@ -253,7 +204,6 @@ type SerializedAvailabilitySettings = {
 type PublicSettingsResponse = {
   ok: true;
   whatsappUrl: string;
-  landingPage: LandingPageContent;
   popupAlert: Record<string, unknown>;
   availability: SerializedAvailabilitySettings;
   auth: {
@@ -283,18 +233,10 @@ export class SettingsService {
 
     return {
       ok: true,
+      newContentNotifications: await this.isNewContentNotificationsEnabled(),
       whatsappNumber,
       whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
       note: 'These lightweight system preferences are saved inside the LMS database and can be updated without changing environment files.',
-    };
-  }
-
-  async getLandingPageSettings() {
-    return {
-      ok: true,
-      content: await this.getLandingPageContent(),
-      defaults: DEFAULT_LANDING_PAGE_CONTENT,
-      note: 'Landing page text is stored in the LMS database. Visitors see saved edits without rebuilding the frontend.',
     };
   }
 
@@ -349,7 +291,6 @@ export class SettingsService {
   private async buildPublicSettings(): Promise<PublicSettingsResponse> {
     const values = await this.getSettingMap([
       WHATSAPP_NUMBER_SETTING_KEY,
-      LANDING_PAGE_SETTING_KEY,
       AVAILABILITY_MODE_SETTING_KEY,
       ...Object.values(POPUP_ALERT_SETTING_KEYS),
     ]);
@@ -358,7 +299,6 @@ export class SettingsService {
     return {
       ok: true,
       whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
-      landingPage: this.getLandingPageContentFromRaw(values.get(LANDING_PAGE_SETTING_KEY) || ''),
       popupAlert: this.serializePublicPopupAlertSettings(popupAlert),
       availability: this.serializeAvailabilitySettings(
         this.normalizeAvailabilityMode(values.get(AVAILABILITY_MODE_SETTING_KEY), 'live')
@@ -393,23 +333,23 @@ export class SettingsService {
       .find(Boolean) || '';
   }
 
-  async updateGeneralSettings(input: { whatsappNumber?: string }) {
-    const whatsappNumber = this.normalizeWhatsAppNumber(input.whatsappNumber);
+  /// On unless an admin has switched it off. Read on every publish, so flipping it
+  /// in the admin panel takes effect immediately — no app build or redeploy.
+  async isNewContentNotificationsEnabled() {
+    const raw = (await this.getSettingValue(NEW_CONTENT_NOTIFICATIONS_SETTING_KEY)).toLowerCase();
+    return !['0', 'false', 'off', 'no'].includes(raw);
+  }
 
-    await this.saveSettingValue(WHATSAPP_NUMBER_SETTING_KEY, whatsappNumber);
+  async updateGeneralSettings(input: { whatsappNumber?: string; newContentNotifications?: boolean }) {
+    if (input.whatsappNumber !== undefined) {
+      await this.saveSettingValue(WHATSAPP_NUMBER_SETTING_KEY, this.normalizeWhatsAppNumber(input.whatsappNumber));
+    }
+    if (input.newContentNotifications !== undefined) {
+      await this.saveSettingValue(NEW_CONTENT_NOTIFICATIONS_SETTING_KEY, input.newContentNotifications ? '1' : '0');
+    }
     this.clearPublicSettingsCache();
 
     return this.getGeneralSettings();
-  }
-
-  async updateLandingPageSettings(input: Partial<LandingPageContent>) {
-    const current = await this.getLandingPageContent();
-    const next = this.normalizeLandingPageContent({ ...current, ...input });
-
-    await this.saveSettingValue(LANDING_PAGE_SETTING_KEY, JSON.stringify(next));
-    this.clearPublicSettingsCache();
-
-    return this.getLandingPageSettings();
   }
 
   async updateAvailabilitySettings(input: { mode?: AvailabilityMode; unlockCode?: string }) {
@@ -1006,55 +946,6 @@ export class SettingsService {
     );
 
     return new Map(rows.map((row) => [String(row.setting_key), String(row.setting_value || '').trim()]));
-  }
-
-  private async getLandingPageContent(): Promise<LandingPageContent> {
-    return this.getLandingPageContentFromRaw(await this.getSettingValue(LANDING_PAGE_SETTING_KEY));
-  }
-
-  private getLandingPageContentFromRaw(raw: string): LandingPageContent {
-    if (!raw) {
-      return this.normalizeLandingPageContent({});
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return this.normalizeLandingPageContent({});
-      }
-      return this.normalizeLandingPageContent(parsed as Partial<LandingPageContent>);
-    } catch {
-      return this.normalizeLandingPageContent({});
-    }
-  }
-
-  private normalizeLandingPageContent(input: Partial<LandingPageContent>): LandingPageContent {
-    const next = {} as Record<keyof LandingPageContent, string>;
-    const maxByKey: Partial<Record<keyof LandingPageContent, number>> = {
-      metaTitle: 80,
-      metaDescription: 220,
-      heroKicker: 90,
-      heroSubtitle: 260,
-      featuresText: 260,
-      howText: 260,
-      whyText: 260,
-      testimonialsText: 260,
-      faqText: 260,
-      pricingText: 260,
-      customPlanText: 220,
-      ctaText: 280,
-      footerText: 220,
-      footerTagline: 120,
-    };
-
-    (Object.keys(DEFAULT_LANDING_PAGE_CONTENT) as Array<keyof LandingPageContent>).forEach((key) => {
-      const fallback = DEFAULT_LANDING_PAGE_CONTENT[key];
-      const value = String(input[key] ?? fallback).trim() || fallback;
-      const max = maxByKey[key] || 120;
-      next[key] = value.slice(0, max);
-    });
-
-    return next as LandingPageContent;
   }
 
   private async getAvailabilityMode(): Promise<AvailabilityMode> {

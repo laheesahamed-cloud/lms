@@ -55,7 +55,6 @@ const shellUi = {
 
 const adminWarmRoutes = [
   '/dashboard',
-  '/courses',
   '/structure',
   '/questions',
   '/quizzes',

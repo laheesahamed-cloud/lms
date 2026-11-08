@@ -5,6 +5,7 @@ import { RequirePermissions } from '../auth/permissions.decorator';
 import { QuizzesService } from './quizzes.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
 
 @Controller('quizzes')
 export class QuizzesController {
@@ -23,16 +24,35 @@ export class QuizzesController {
     @Query('status') status?: string,
     @Query('limit') limit?: string,
     @Query('page') page?: string,
-    @Query('offset') offset?: string
+    @Query('offset') offset?: string,
+    @Query('order') order?: string
   ) {
     return this.quizzesService.findAll({
       search,
       courseId: courseId ? parseInt(courseId, 10) : undefined,
       topicId: topicId || undefined,
       status,
+      order: order === 'asc' ? 'asc' : undefined,
       limit: this.parsePositiveNumber(limit),
       page: this.parsePositiveNumber(page),
       offset: this.parseNonNegativeNumber(offset),
+    });
+  }
+
+  @Get('summary')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('quizzes.manage')
+  summary(
+    @Query('search') search?: string,
+    @Query('courseId') courseId?: string,
+    @Query('topicId') topicId?: string,
+    @Query('status') status?: string
+  ) {
+    return this.quizzesService.summary({
+      search,
+      courseId: courseId ? parseInt(courseId, 10) : undefined,
+      topicId: topicId || undefined,
+      status,
     });
   }
 
@@ -113,6 +133,21 @@ export class QuizzesController {
   ) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.quizzesService.update(id, updateQuizDto, actor);
+  }
+
+  @Post('bulk-delete/preview')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('quizzes.manage')
+  async bulkDeletePreview(@Body() dto: BulkDeleteQuizzesDto) {
+    return this.quizzesService.bulkDeletePreview(dto);
+  }
+
+  @Post('bulk-delete')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('quizzes.manage')
+  async bulkDelete(@Headers('authorization') authorization: string | undefined, @Body() dto: BulkDeleteQuizzesDto) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.quizzesService.bulkDelete(dto, actor);
   }
 
   @Delete(':id')

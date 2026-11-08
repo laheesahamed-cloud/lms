@@ -267,8 +267,7 @@ const breadcrumbRouteLabels = {
   admin: {
     '/dashboard': 'Admin Hub',
     '/profile': 'Profile',
-    '/courses': 'Courses',
-    '/structure': 'Structure',
+    '/structure': 'Courses',
     '/questions': 'Questions',
     '/questions/bulk': 'Bulk Question Input',
     '/question-reports': 'Question Reports',

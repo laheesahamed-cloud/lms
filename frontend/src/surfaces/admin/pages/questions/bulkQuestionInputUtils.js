@@ -1,5 +1,17 @@
 import { createQuestion, updateQuestion } from '../../../../shared/api/questions.api.js';
 import { upsertTheoryRecap } from '../../../../shared/api/theoryRecap.api.js';
+import { retryOnRateLimit } from '../../../../shared/utils/retryOnRateLimit.js';
+
+// Saves in a batch are spaced out a little. The server allows 240 per minute per
+// admin, and a shared host's firewall can also dislike a burst from one address;
+// ~3 a second stays well inside both, and a single save is never delayed.
+const MIN_SAVE_GAP_MS = 300;
+let lastSaveAt = 0;
+async function paceSave() {
+  const wait = lastSaveAt + MIN_SAVE_GAP_MS - Date.now();
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  lastSaveAt = Date.now();
+}
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 
@@ -1040,13 +1052,17 @@ export async function saveQuestionRecord({ question, resolved }) {
     return { savedId: question.savedId, signature, skipped: true };
   }
 
+  await paceSave();
+
   if (question.savedId) {
-    await updateQuestion(question.savedId, payload);
+    await retryOnRateLimit(() => updateQuestion(question.savedId, payload));
     const theoryWarning = await saveTheoryRecap(question.savedId, question.theoryRecap);
     return { savedId: question.savedId, signature, theoryWarning };
   }
 
-  const result = await createQuestion(payload);
+  // A big batch saves faster than the server's per-minute allowance; wait and
+  // retry on 429 rather than failing every question after the limit is hit.
+  const result = await retryOnRateLimit(() => createQuestion(payload));
   const savedId = Number(result.id);
   const theoryWarning = await saveTheoryRecap(savedId, question.theoryRecap);
   return { savedId, signature, theoryWarning };
@@ -1065,7 +1081,7 @@ export async function saveQuestionRecord({ question, resolved }) {
 async function saveTheoryRecap(questionId, recap) {
   if (!questionId || !recap) return '';
   try {
-    await upsertTheoryRecap(questionId, recap);
+    await retryOnRateLimit(() => upsertTheoryRecap(questionId, recap));
     return '';
   } catch (error) {
     const detail = error?.response?.data?.message || error?.message || '';

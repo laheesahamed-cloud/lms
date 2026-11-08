@@ -50,19 +50,30 @@ let UsersService = class UsersService {
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapUser(row));
     }
-    async summary(actor) {
+    async summary(actor, today) {
         this.assertActiveStaff(actor);
         const where = this.canManageStaff(actor) ? '' : "WHERE role = 'student'";
+        const hasDay = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today);
+        const dayClause = hasDay ? 'DATE(created_at) = ?' : 'DATE(created_at) = CURDATE()';
+        const dayParams = hasDay ? [today] : [];
         const [rows] = await this.db.execute(`
       SELECT
         COUNT(*) AS total_users,
         SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS pending_users,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_users,
         SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS admin_users,
-        SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) AS student_users
+        SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) AS student_users,
+        SUM(CASE WHEN ${dayClause} AND deleted_at IS NULL THEN 1 ELSE 0 END) AS new_today
       FROM users
       ${where}
-    `);
+    `, dayParams);
+        const [newRows] = await this.db.execute(`
+      SELECT full_name, email
+      FROM users
+      WHERE ${dayClause} AND deleted_at IS NULL ${where ? "AND role = 'student'" : ''}
+      ORDER BY id DESC
+      LIMIT 3
+    `, dayParams);
         const row = rows[0] || {};
         return {
             totalUsers: Number(row.total_users || 0),
@@ -70,6 +81,8 @@ let UsersService = class UsersService {
             activeUsers: Number(row.active_users || 0),
             adminUsers: Number(row.admin_users || 0),
             studentUsers: Number(row.student_users || 0),
+            newToday: Number(row.new_today || 0),
+            newTodayLatest: newRows.map((user) => ({ name: String(user.full_name || ''), email: String(user.email || '') })),
         };
     }
     async listStaff(actor) {

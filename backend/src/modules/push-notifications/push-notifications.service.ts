@@ -288,6 +288,13 @@ export class PushNotificationsService implements OnModuleDestroy {
   /// created_by = NULL) then sends native push to all students. Callers should never
   /// await this into a save/publish request path; catch on the call site.
   async notifyStudentsOfNewContent(payload: { title: string; body: string; url?: string }) {
+    // Admin switch (Settings → General): off means publishing stays silent.
+    try {
+      if (!(await this.settingsService.isNewContentNotificationsEnabled())) return;
+    } catch (error: any) {
+      this.logger.warn(`New-content switch lookup failed, notifying anyway: ${error?.message || error}`);
+    }
+
     try {
       await this.db.execute(
         `INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)

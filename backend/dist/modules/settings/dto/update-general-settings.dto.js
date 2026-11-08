@@ -20,4 +20,9 @@ __decorate([
     (0, class_validator_1.MaxLength)(80),
     __metadata("design:type", String)
 ], UpdateGeneralSettingsDto.prototype, "whatsappNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateGeneralSettingsDto.prototype, "newContentNotifications", void 0);
 //# sourceMappingURL=update-general-settings.dto.js.map

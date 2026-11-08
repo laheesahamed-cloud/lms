@@ -4,7 +4,6 @@ import { RequirePermissions } from '../auth/permissions.decorator';
 import { CreateAiProviderDto } from './dto/create-ai-provider.dto';
 import { UpdateGeneralSettingsDto } from './dto/update-general-settings.dto';
 import { UpdateAiProviderDto } from './dto/update-ai-provider.dto';
-import { UpdateLandingPageSettingsDto } from './dto/update-landing-page-settings.dto';
 import { UpdateAvailabilitySettingsDto, VerifyAvailabilityUnlockDto } from './dto/update-availability-settings.dto';
 import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
@@ -33,13 +32,6 @@ export class SettingsController {
   async getGeneralSettings(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.settingsService.getGeneralSettings();
-  }
-
-  @Get('landing-page')
-  @RequirePermissions('settings.manage')
-  async getLandingPageSettings(@Headers('authorization') authorization?: string) {
-    await this.authService.requireAdmin(authorization);
-    return this.settingsService.getLandingPageSettings();
   }
 
   @Get('availability')
@@ -123,16 +115,6 @@ export class SettingsController {
   ) {
     await this.authService.requireAdmin(authorization);
     return this.settingsService.updateGeneralSettings(dto);
-  }
-
-  @Put('landing-page')
-  @RequirePermissions('settings.manage')
-  async updateLandingPageSettings(
-    @Headers('authorization') authorization: string | undefined,
-    @Body() dto: UpdateLandingPageSettingsDto
-  ) {
-    await this.authService.requireAdmin(authorization);
-    return this.settingsService.updateLandingPageSettings(dto);
   }
 
   @Put('availability')

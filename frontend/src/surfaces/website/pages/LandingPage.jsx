@@ -26,6 +26,7 @@ import { FaqSection } from '../components/landing/FaqSection.jsx';
 import { FAQ_ITEMS } from '../components/landing/faqData.js';
 import { FinalCTA } from '../components/landing/FinalCTA.jsx';
 import { SiteFooter } from '../components/landing/SiteFooter.jsx';
+import { WhatsAppButton } from '../components/landing/WhatsAppButton.jsx';
 
 // Landing typefaces start loading as soon as the landing chunk arrives.
 ensureLandingFonts();
@@ -179,6 +180,7 @@ export function LandingPage() {
       <FaqSection />
       <FinalCTA primaryTo="/register" />
       <SiteFooter />
+      <WhatsAppButton visible={heroAnimationReady} />
     </main>
   );
 }

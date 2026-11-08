@@ -173,26 +173,26 @@ export declare class LessonsController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     canvasRegenerateSection(auth: string, id: number, heading: string): Promise<import("./lessons.service").NoteCanvas>;
     canvasSourcePreview(auth: string, text: string, sourceFormat?: string): Promise<{
@@ -233,7 +233,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -269,7 +269,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -293,9 +293,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "rejected" | "approved";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -310,9 +310,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "rejected" | "approved";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -323,7 +323,7 @@ export declare class LessonsController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -337,9 +337,9 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "rejected" | "approved";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;
@@ -355,9 +355,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "rejected" | "approved";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -395,7 +395,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -432,7 +432,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -459,9 +459,9 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "rejected" | "approved";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;

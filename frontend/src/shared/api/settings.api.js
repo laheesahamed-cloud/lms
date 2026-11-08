@@ -16,11 +16,6 @@ export async function fetchGeneralSettings() {
   return response.data;
 }
 
-export async function fetchLandingPageSettings() {
-  const response = await apiClient.get('/admin/settings/landing-page');
-  return response.data;
-}
-
 export async function fetchAvailabilitySettings() {
   const response = await apiClient.get('/admin/settings/availability');
   return response.data;
@@ -115,11 +110,6 @@ export async function testAiProviderConfig(payload) {
 
 export async function updateGeneralSettings(payload) {
   const response = await apiClient.put('/admin/settings/general', payload);
-  return response.data;
-}
-
-export async function updateLandingPageSettings(payload) {
-  const response = await apiClient.put('/admin/settings/landing-page', payload);
   return response.data;
 }
 

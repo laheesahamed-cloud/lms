@@ -88,7 +88,7 @@ export declare class QuizAttemptsController {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "expired" | "submitted";
+            status: "in_progress" | "submitted" | "expired";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;

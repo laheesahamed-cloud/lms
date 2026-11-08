@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createCourse, deleteCourse, fetchCourses, updateCourse } from '../../../../shared/api/courses.api.js';
 import { createTopic, deleteTopic, fetchTopic, fetchTopics, reorderTopics, updateTopic } from '../../../../shared/api/topics.api.js';
 import { createSubtopic, deleteSubtopic, fetchSubtopics, reorderSubtopics, updateSubtopic } from '../../../../shared/api/subtopics.api.js';
@@ -100,7 +100,7 @@ const structureUi = {
   folderHeadCopy:
     'min-w-0 [&_h2]:m-0 [&_h2]:text-[19px] [&_h2]:font-black [&_h2]:uppercase [&_h2]:leading-tight [&_p]:m-0 [&_p]:mt-1 [&_p]:text-[13px] [&_p]:leading-relaxed [&_p]:text-ink-soft',
   folderGrid:
-    'grid grid-cols-[repeat(auto-fit,minmax(min(100%,250px),1fr))] gap-4 max-[520px]:gap-3',
+    'grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4 max-[520px]:gap-3',
   folderCard:
     'glass-card group flex min-h-[132px] min-w-0 w-full cursor-pointer flex-col justify-center overflow-hidden rounded-xl border border-line-soft bg-surface-card text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22 hover:border-brand-primary/24 hover:shadow-md',
   folderCardTop:
@@ -283,7 +283,7 @@ function FolderToolbar({ title, contextLabel, onBack, countLabel, actionLabel, o
           <span>Back</span>
         </button>
         <div className="min-w-0">
-          <div className={structureUi.folderToolbarTitle}>{title || 'Structure'}</div>
+          <div className={structureUi.folderToolbarTitle}>{title || 'Courses'}</div>
           {contextLabel ? <div className={structureUi.folderToolbarContext}>{contextLabel}</div> : null}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start">
@@ -297,7 +297,7 @@ function FolderToolbar({ title, contextLabel, onBack, countLabel, actionLabel, o
       </div>
       <div className={structureUi.pathBar}>
         <span className={structureUi.pathLabel}>Path</span>
-        <StructureBreadcrumb items={breadcrumbItems || [title || 'Structure']} />
+        <StructureBreadcrumb items={breadcrumbItems || [title || 'Courses']} />
       </div>
     </div>
   );
@@ -319,8 +319,8 @@ function FolderActions({ label, onEdit, onDelete, extraAction, className }) {
 
 function FolderCard({ title, meta, count, countLabel, status, onOpen, onEdit, onDelete }) {
   return (
-    <article className={cx(structureUi.folderCard, 'grid grid-cols-[minmax(0,1fr)_auto] items-center max-[700px]:grid-cols-1')}>
-      <button type="button" className="grid min-w-0 border-0 bg-transparent p-0 text-left" onClick={onOpen}>
+    <article className={cx(structureUi.folderCard, '!justify-between')}>
+      <button type="button" className="grid min-w-0 flex-1 border-0 !bg-transparent p-0 text-left shadow-none" onClick={onOpen}>
         <div className={structureUi.folderCardTop}>
             <div className="flex min-w-0 items-start gap-3">
               <span className={structureUi.folderIcon}>
@@ -340,7 +340,7 @@ function FolderCard({ title, meta, count, countLabel, status, onOpen, onEdit, on
             </div>
         </div>
       </button>
-      <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} className={structureUi.inlineActions} />
+      <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} className="border-t border-line-soft/70 px-4 py-2" />
     </article>
   );
 }
@@ -429,11 +429,11 @@ function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, 
 function LessonPeek({ lessons, onOpen }) {
   if (!lessons.length) return null;
   return (
-    <ol className="mx-3 mb-2.5 grid gap-1 border-t border-line-soft pt-2">
+    <ol className="m-0 mx-3 mb-2.5 grid list-none gap-0.5 border-t border-line-soft p-0 pt-2">
       {lessons.map((lesson, index) => (
         <li key={lesson.id}>
           <button type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-surface-muted"
+                  className="flex w-full items-center gap-2 rounded-md border-0 !bg-transparent px-1.5 py-1 text-left shadow-none hover:!bg-surface-2"
                   onClick={(event) => stopAndRun(event, () => onOpen(lesson))}>
             <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-ink-muted">
               {index + 1}
@@ -462,10 +462,27 @@ export function StructurePage() {
   const [aiLessons, setAiLessons] = useState([]);
   const [courseSubjectCounts, setCourseSubjectCounts] = useState({});
 
-  const [selectedCourseId, setSelectedCourseId] = useState(null);
-  const [selectedSubjectId, setSelectedSubjectId] = useState(null);
-  const [selectedTopicId, setSelectedTopicId] = useState(null);
-  const [activeLevel, setActiveLevel] = useState('courses');
+  // Which folder you are in lives in the address (?course=&subject=&topic=), so
+  // opening a lesson and coming back — or refreshing — lands on the same folder
+  // instead of the first level.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const toId = (value) => {
+    const id = Number(value);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  };
+  const selectedCourseId = toId(searchParams.get('course'));
+  const selectedSubjectId = selectedCourseId ? toId(searchParams.get('subject')) : null;
+  const selectedTopicId = selectedSubjectId ? toId(searchParams.get('topic')) : null;
+  const activeLevel = selectedTopicId ? 'lessons' : selectedSubjectId ? 'topics' : selectedCourseId ? 'subjects' : 'courses';
+  const goTo = ({ course = null, subject = null, topic = null } = {}, { replace = false } = {}) => {
+    const next = new URLSearchParams();
+    if (course) next.set('course', String(course));
+    if (course && subject) next.set('subject', String(subject));
+    if (course && subject && topic) next.set('topic', String(topic));
+    setSearchParams(next, { replace });
+  };
+  // Handed to the lesson page so its Back button returns to this exact folder.
+  const returnState = { returnTo: `/structure${searchParams.toString() ? `?${searchParams.toString()}` : ''}` };
 
   const [courseForm, setCourseForm] = useState(courseDefaults);
   const [subjectForm, setSubjectForm] = useState(subjectDefaults);
@@ -498,6 +515,7 @@ export function StructurePage() {
   useEffect(() => {
     loadCourses();
     loadAiLessons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadAiLessons() {
@@ -515,21 +533,21 @@ export function StructurePage() {
   useEffect(() => {
     if (!selectedCourseId) {
       setSubjects([]);
-      setSelectedSubjectId(null);
       return;
     }
 
     loadSubjects(selectedCourseId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCourseId]);
 
   useEffect(() => {
     if (!selectedSubjectId) {
       setTopics([]);
-      setSelectedTopicId(null);
       return;
     }
 
     loadTopics(selectedSubjectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubjectId]);
 
   const selectedCourse = useMemo(
@@ -546,35 +564,29 @@ export function StructurePage() {
   );
 
   function openCourseFolder(course) {
-    setSelectedCourseId(course.id);
-    setSelectedSubjectId(null);
-    setSelectedTopicId(null);
-    setActiveLevel('subjects');
+    goTo({ course: course.id });
   }
 
   function openSubjectFolder(subject) {
-    setSelectedSubjectId(subject.id);
-    setSelectedTopicId(null);
-    setActiveLevel('topics');
+    goTo({ course: selectedCourseId, subject: subject.id });
   }
 
   function openTopicFolder(topic) {
-    setSelectedTopicId(topic.id);
-    setActiveLevel('lessons');
+    goTo({ course: selectedCourseId, subject: selectedSubjectId, topic: topic.id });
   }
 
   function goBackFolder() {
     if (activeLevel === 'lessons') {
-      setActiveLevel('topics');
+      goTo({ course: selectedCourseId, subject: selectedSubjectId });
       return;
     }
 
     if (activeLevel === 'topics') {
-      setActiveLevel('subjects');
+      goTo({ course: selectedCourseId });
       return;
     }
 
-    setActiveLevel('courses');
+    goTo();
   }
 
   async function loadCourses() {
@@ -586,7 +598,7 @@ export function StructurePage() {
       ]);
       setCourses(data);
       setCourseSubjectCounts(buildCourseSubjectCounts(allSubjects));
-      setSelectedCourseId((current) => (current && data.some((course) => course.id === current) ? current : null));
+      if (selectedCourseId && !data.some((course) => course.id === selectedCourseId)) goTo({}, { replace: true });
     } catch (error) {
       setFeedback({ error: getErrorMessage(error, 'Unable to load courses'), success: '' });
     } finally {
@@ -608,7 +620,7 @@ export function StructurePage() {
     try {
       const data = await fetchTopics(courseId);
       setSubjects(data);
-      setSelectedSubjectId((current) => (current && data.some((subject) => subject.id === current) ? current : null));
+      if (selectedSubjectId && !data.some((subject) => subject.id === selectedSubjectId)) goTo({ course: courseId }, { replace: true });
     } catch (error) {
       setFeedback({ error: getErrorMessage(error, 'Unable to load subjects'), success: '' });
     } finally {
@@ -621,7 +633,7 @@ export function StructurePage() {
     try {
       const data = await fetchSubtopics(subjectId);
       setTopics(data);
-      setSelectedTopicId((current) => (current && data.some((topic) => topic.id === current) ? current : null));
+      if (selectedTopicId && !data.some((topic) => topic.id === selectedTopicId)) goTo({ course: selectedCourseId, subject: subjectId }, { replace: true });
     } catch (error) {
       setFeedback({ error: getErrorMessage(error, 'Unable to load topics'), success: '' });
     } finally {
@@ -858,10 +870,7 @@ export function StructurePage() {
     try {
       await deleteCourse(course.id);
       if (selectedCourseId === course.id) {
-        setSelectedCourseId(null);
-        setSelectedSubjectId(null);
-        setSelectedTopicId(null);
-        setActiveLevel('courses');
+        goTo({}, { replace: true });
       }
       await loadCourses();
       flashMessage({ error: '', success: 'Course deleted' });
@@ -879,9 +888,7 @@ export function StructurePage() {
     try {
       await deleteTopic(subject.id);
       if (selectedSubjectId === subject.id) {
-        setSelectedSubjectId(null);
-        setSelectedTopicId(null);
-        setActiveLevel('subjects');
+        goTo({ course: selectedCourseId }, { replace: true });
       }
       await Promise.all([
         loadSubjects(selectedCourseId),
@@ -902,8 +909,7 @@ export function StructurePage() {
     try {
       await deleteSubtopic(topic.id);
       if (selectedTopicId === topic.id) {
-        setSelectedTopicId(null);
-        setActiveLevel('topics');
+        goTo({ course: selectedCourseId, subject: selectedSubjectId }, { replace: true });
       }
       await loadTopics(selectedSubjectId);
       await loadSubjects(selectedCourseId);
@@ -941,7 +947,7 @@ export function StructurePage() {
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
         <AppHeader
-          title="Structure"
+          title="Courses"
           subtitle="Curriculum Builder"
         />
 
@@ -1062,7 +1068,7 @@ export function StructurePage() {
                         onMoveUp={index > 0 ? () => moveSubject(index, -1) : null}
                         onMoveDown={index < subjects.length - 1 ? () => moveSubject(index, 1) : null}
                       >
-                        <LessonPeek lessons={subjectLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`)} />
+                        <LessonPeek lessons={subjectLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`, { state: returnState })} />
                       </StructureRow>
                     );
                   })}
@@ -1107,7 +1113,7 @@ export function StructurePage() {
                         onMoveUp={index > 0 ? () => moveTopic(index, -1) : null}
                         onMoveDown={index < topics.length - 1 ? () => moveTopic(index, 1) : null}
                       >
-                        <LessonPeek lessons={topicLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`)} />
+                        <LessonPeek lessons={topicLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`, { state: returnState })} />
                       </StructureRow>
                     );
                   })}
@@ -1140,8 +1146,8 @@ export function StructurePage() {
                         title={title}
                         meta={`${lesson.status === 'active' ? 'Published' : 'Inactive'} • ${selectedTopic?.subtopicName || 'Topic'}`}
                         status={lesson.status || 'active'}
-                        onOpen={() => navigate(`/ai-notes/${lesson.id}`)}
-                        onEdit={(event) => stopAndRun(event, () => navigate(`/ai-notes/${lesson.id}`))}
+                        onOpen={() => navigate(`/ai-notes/${lesson.id}`, { state: returnState })}
+                        onEdit={(event) => stopAndRun(event, () => navigate(`/ai-notes/${lesson.id}`, { state: returnState }))}
                         onDelete={(event) => stopAndRun(event, () => handleLessonDelete(lesson, event))}
                         extraAction={(
                           <button
@@ -1149,7 +1155,7 @@ export function StructurePage() {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              navigate(`/ai-notes/${lesson.id}`);
+                              navigate(`/ai-notes/${lesson.id}`, { state: returnState });
                             }}
                             aria-label={`Open ${title}`}
                             title="Open lesson"

@@ -1479,8 +1479,25 @@ export class SubscriptionsService {
   async renewSubscription(id: number, dto: { planId: number; startDate?: string; endDate?: string; notes?: string; paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'free_plan' }, adminId: number) {
     const existing = await this.getSubscriptionOrThrow(id);
     const plan = await this.plansService.findById(dto.planId);
-    const startBase = this.normalizeDate(dto.startDate) || this.addDays(String(existing.end_date), 1);
-    const startDate = startBase < this.toDateOnly(new Date()) ? this.toDateOnly(new Date()) : startBase;
+
+    // mysql2 hands DATE columns back as JS Date objects, so String(end_date) is
+    // "Fri Apr 02 2027 ..." — not a date this code can add days to. That made every
+    // renewal fail. Read it as YYYY-MM-DD first.
+    const existingEnd = this.dateValueToText(existing.end_date);
+    const today = this.toDateOnly(new Date());
+
+    // Renewing replaces the current subscription (it is cancelled), but a renewal of
+    // something still running would not start until the day after it ends — leaving
+    // the student with no access in between. Adding days is the right move there.
+    const stillActive = existing.status === 'active'
+      && existingEnd >= today
+      && Number(existing.access_lapsed) !== 1;
+    if (stillActive) {
+      throw new BadRequestException('This subscription is still active, so it cannot be renewed yet. Use Extend to add more days instead.');
+    }
+
+    const startBase = this.normalizeDate(dto.startDate) || this.addDays(existingEnd, 1);
+    const startDate = startBase < today ? today : startBase;
     const paymentStatus = this.isFreePlan(plan) ? 'free_plan' : dto.paymentStatus || 'manual';
     const endDate = this.isFreePlanAssignment(paymentStatus, plan)
       ? this.unlimitedFreePlanEndDate

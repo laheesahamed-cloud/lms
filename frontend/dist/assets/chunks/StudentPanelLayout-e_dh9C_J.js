@@ -1,0 +1,1 @@
+/* empty css                        */import{PanelLayout as e}from"./PanelLayout-xlajkS6T.js";import{Bo as t}from"./app-shared-DeJKEHpO.js";var n=t();function r(){return(0,n.jsx)(e,{})}export{r as StudentPanelLayout};

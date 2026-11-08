@@ -38,10 +38,10 @@ const CookiePolicyPage = lazyNamed(() => import('../surfaces/website/pages/Cooki
 const DeleteAccountPage = lazyNamed(() => import('../surfaces/website/pages/DeleteAccountPage.jsx'),      'DeleteAccountPage');
 const SupportPage = lazyNamed(() => import('../surfaces/website/pages/SupportPage.jsx'),                  'SupportPage');
 
-const CoursesPage = lazyNamed(() => import('../surfaces/admin/pages/courses/CoursesPage.jsx'), 'CoursesPage');
 const AdminDashboardPage = lazyNamed(() => import('../surfaces/admin/pages/dashboard/AdminDashboardPage.jsx'), 'AdminDashboardPage');
 const QuizzesPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizzesPage.jsx'), 'QuizzesPage');
 const QuizBuilderPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizBuilderPage.jsx'), 'QuizBuilderPage');
+const QuizSetImportPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizSetImportPage.jsx'), 'QuizSetImportPage');
 const AdminSubscriptionsPage = lazyNamed(() => import('../surfaces/admin/pages/subscriptions/AdminSubscriptionsPage.jsx'), 'AdminSubscriptionsPage');
 const AdminFinancePage = lazyNamed(() => import('../surfaces/admin/pages/finance/AdminFinancePage.jsx'), 'AdminFinancePage');
 const QuestionsPage = lazyNamed(() => import('../surfaces/admin/pages/questions/QuestionsPage.jsx'), 'QuestionsPage');
@@ -101,7 +101,6 @@ const commonRoutePreloaders = new Map([
 const roleRoutePreloaders = {
   admin: new Map([
     ['/dashboard', AdminDashboardPage.preload],
-    ['/courses', CoursesPage.preload],
     ['/structure', StructurePage.preload],
     ['/questions', QuestionsPage.preload],
     ['/questions/bulk', BulkQuestionInputPage.preload],
@@ -391,11 +390,7 @@ const adminPanelRoutes = [
   },
   {
     path: 'courses',
-    element: withSuspense(
-      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
-        <CoursesPage />
-      </ProtectedRoute>
-    ),
+    element: <Navigate to="/admin/structure" replace />,
   },
   {
     path: 'structure',
@@ -450,6 +445,14 @@ const adminPanelRoutes = [
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage']}>
         <QuizzesPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'quizzes/import-sets',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage', 'questions.manage']}>
+        <QuizSetImportPage />
       </ProtectedRoute>
     ),
   },
@@ -914,7 +917,7 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute>
                 <RoleSwitch
-                  admin={withSuspense(<CoursesPage />)}
+                  admin={<Navigate to="/admin/structure" replace />}
                   student={withSuspense(<StudentCoursesPage />)}
                   adminPermissions={['content.manage']}
                 />

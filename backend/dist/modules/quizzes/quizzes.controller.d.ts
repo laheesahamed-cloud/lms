@@ -2,11 +2,12 @@ import { AuthService } from '../auth/auth.service';
 import { QuizzesService } from './quizzes.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
 export declare class QuizzesController {
     private readonly quizzesService;
     private readonly authService;
     constructor(quizzesService: QuizzesService, authService: AuthService);
-    findAll(search?: string, courseId?: string, topicId?: string, status?: string, limit?: string, page?: string, offset?: string): Promise<{
+    findAll(search?: string, courseId?: string, topicId?: string, status?: string, limit?: string, page?: string, offset?: string, order?: string): Promise<{
         id: number;
         courseId: number;
         topicId: number | null;
@@ -53,6 +54,15 @@ export declare class QuizzesController {
         topicName: string;
         lessonTitle: string;
         paperTitle: string;
+    }[]>;
+    summary(search?: string, courseId?: string, topicId?: string, status?: string): Promise<{
+        courseId: number;
+        courseTitle: string;
+        isGeneral: boolean;
+        topicId: number | null;
+        subjectName: string;
+        total: number;
+        active: number;
     }[]>;
     meta(includeQuestions?: string): Promise<{
         courses: {
@@ -169,26 +179,26 @@ export declare class QuizzesController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     create(authorization: string | undefined, createQuizDto: CreateQuizDto): Promise<{
         ok: boolean;
@@ -197,6 +207,19 @@ export declare class QuizzesController {
     update(authorization: string | undefined, id: number, updateQuizDto: UpdateQuizDto): Promise<{
         ok: boolean;
         id: number;
+    }>;
+    bulkDeletePreview(dto: BulkDeleteQuizzesDto): Promise<{
+        quizzes: number;
+        questionsInside: number;
+        questionsOnlyHere: number;
+        questionsShared: number;
+        attempts: number;
+    }>;
+    bulkDelete(authorization: string | undefined, dto: BulkDeleteQuizzesDto): Promise<{
+        ok: boolean;
+        deletedQuizzes: number;
+        deletedQuestions: number;
+        keptQuestions: number;
     }>;
     remove(authorization: string | undefined, id: number): Promise<{
         ok: boolean;

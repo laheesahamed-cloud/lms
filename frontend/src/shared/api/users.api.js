@@ -7,8 +7,8 @@ export async function fetchUsers(params) {
   return response.data;
 }
 
-export async function fetchUsersSummary() {
-  const response = await apiClient.get('/admin/users/summary');
+export async function fetchUsersSummary(params) {
+  const response = await apiClient.get('/admin/users/summary', { params: params || {} });
   return response.data;
 }
 

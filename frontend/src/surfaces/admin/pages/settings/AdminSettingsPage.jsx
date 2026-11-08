@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { AdminGeneralSettingsPanel } from './AdminGeneralSettingsPanel.jsx';
-import { AdminLandingPageSettingsPanel } from './AdminLandingPageSettingsPanel.jsx';
 import { AdminAvailabilitySettingsPanel } from './AdminAvailabilitySettingsPanel.jsx';
 import { AdminAiSettingsPanel } from './AdminAiSettingsPanel.jsx';
 import { AdminPaymentSettingsPanel } from './AdminPaymentSettingsPanel.jsx';
@@ -26,13 +25,6 @@ const settingsCategories = [
     title: 'WhatsApp settings',
     description: 'Store the main support or admissions WhatsApp number for the LMS.',
     panel: <AdminGeneralSettingsPanel />,
-  },
-  {
-    id: 'landing-page',
-    label: 'Landing Page',
-    title: 'Landing page',
-    description: 'Edit the public landing page hero, section headings, CTA text, footer copy, and SEO preview.',
-    panel: <AdminLandingPageSettingsPanel />,
   },
   {
     id: 'launch-mode',
@@ -93,7 +85,7 @@ const settingsCategories = [
 ];
 
 export function AdminSettingsPage() {
-  const [activeCategoryId, setActiveCategoryId] = useState('landing-page');
+  const [activeCategoryId, setActiveCategoryId] = useState('whatsapp');
   const activeCategory = settingsCategories.find((category) => category.id === activeCategoryId) || settingsCategories[0];
 
   return (

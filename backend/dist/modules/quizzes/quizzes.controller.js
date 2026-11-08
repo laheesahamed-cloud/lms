@@ -20,20 +20,30 @@ const permissions_decorator_1 = require("../auth/permissions.decorator");
 const quizzes_service_1 = require("./quizzes.service");
 const create_quiz_dto_1 = require("./dto/create-quiz.dto");
 const update_quiz_dto_1 = require("./dto/update-quiz.dto");
+const bulk_delete_quizzes_dto_1 = require("./dto/bulk-delete-quizzes.dto");
 let QuizzesController = class QuizzesController {
     constructor(quizzesService, authService) {
         this.quizzesService = quizzesService;
         this.authService = authService;
     }
-    findAll(search, courseId, topicId, status, limit, page, offset) {
+    findAll(search, courseId, topicId, status, limit, page, offset, order) {
         return this.quizzesService.findAll({
             search,
             courseId: courseId ? parseInt(courseId, 10) : undefined,
             topicId: topicId || undefined,
             status,
+            order: order === 'asc' ? 'asc' : undefined,
             limit: this.parsePositiveNumber(limit),
             page: this.parsePositiveNumber(page),
             offset: this.parseNonNegativeNumber(offset),
+        });
+    }
+    summary(search, courseId, topicId, status) {
+        return this.quizzesService.summary({
+            search,
+            courseId: courseId ? parseInt(courseId, 10) : undefined,
+            topicId: topicId || undefined,
+            status,
         });
     }
     meta(includeQuestions) {
@@ -71,6 +81,13 @@ let QuizzesController = class QuizzesController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.quizzesService.update(id, updateQuizDto, actor);
     }
+    async bulkDeletePreview(dto) {
+        return this.quizzesService.bulkDeletePreview(dto);
+    }
+    async bulkDelete(authorization, dto) {
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.quizzesService.bulkDelete(dto, actor);
+    }
     async remove(authorization, id) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.quizzesService.remove(id, actor);
@@ -102,10 +119,23 @@ __decorate([
     __param(4, (0, common_1.Query)('limit')),
     __param(5, (0, common_1.Query)('page')),
     __param(6, (0, common_1.Query)('offset')),
+    __param(7, (0, common_1.Query)('order')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuizzesController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('summary'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('quizzes.manage'),
+    __param(0, (0, common_1.Query)('search')),
+    __param(1, (0, common_1.Query)('courseId')),
+    __param(2, (0, common_1.Query)('topicId')),
+    __param(3, (0, common_1.Query)('status')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], QuizzesController.prototype, "summary", null);
 __decorate([
     (0, common_1.Get)('meta'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
@@ -195,6 +225,25 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, update_quiz_dto_1.UpdateQuizDto]),
     __metadata("design:returntype", Promise)
 ], QuizzesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)('bulk-delete/preview'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('quizzes.manage'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [bulk_delete_quizzes_dto_1.BulkDeleteQuizzesDto]),
+    __metadata("design:returntype", Promise)
+], QuizzesController.prototype, "bulkDeletePreview", null);
+__decorate([
+    (0, common_1.Post)('bulk-delete'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('quizzes.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, bulk_delete_quizzes_dto_1.BulkDeleteQuizzesDto]),
+    __metadata("design:returntype", Promise)
+], QuizzesController.prototype, "bulkDelete", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),

@@ -5,6 +5,7 @@ import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { AdminApnsSettingsPanel } from './AdminApnsSettingsPanel.jsx';
 import { AdminFcmSettingsPanel } from './AdminFcmSettingsPanel.jsx';
 import { AdminLocalNotificationTestPanel } from './AdminLocalNotificationTestPanel.jsx';
+import { NewContentNotificationsSwitch } from './NewContentNotificationsSwitch.jsx';
 
 const emptyPushForm = {
   title: 'xyndrome',
@@ -64,6 +65,8 @@ export function AdminNotificationSettingsPanel() {
 
   return (
     <div className="grid gap-4">
+      <NewContentNotificationsSwitch />
+
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] gap-3">
         <div className={cx('rounded-xl border px-4 py-3', statusTone(nativeReady))}>
           <strong className="block text-[22px] font-black leading-none">{nativeReady ? 'Ready' : 'Setup needed'}</strong>

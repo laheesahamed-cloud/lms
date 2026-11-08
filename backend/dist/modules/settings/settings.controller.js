@@ -19,7 +19,6 @@ const permissions_decorator_1 = require("../auth/permissions.decorator");
 const create_ai_provider_dto_1 = require("./dto/create-ai-provider.dto");
 const update_general_settings_dto_1 = require("./dto/update-general-settings.dto");
 const update_ai_provider_dto_1 = require("./dto/update-ai-provider.dto");
-const update_landing_page_settings_dto_1 = require("./dto/update-landing-page-settings.dto");
 const update_availability_settings_dto_1 = require("./dto/update-availability-settings.dto");
 const update_payment_settings_dto_1 = require("./dto/update-payment-settings.dto");
 const update_smtp_settings_dto_1 = require("./dto/update-smtp-settings.dto");
@@ -40,10 +39,6 @@ let SettingsController = class SettingsController {
     async getGeneralSettings(authorization) {
         await this.authService.requireAdmin(authorization);
         return this.settingsService.getGeneralSettings();
-    }
-    async getLandingPageSettings(authorization) {
-        await this.authService.requireAdmin(authorization);
-        return this.settingsService.getLandingPageSettings();
     }
     async getAvailabilitySettings(authorization) {
         await this.authService.requireAdmin(authorization);
@@ -89,10 +84,6 @@ let SettingsController = class SettingsController {
     async updateGeneralSettings(authorization, dto) {
         await this.authService.requireAdmin(authorization);
         return this.settingsService.updateGeneralSettings(dto);
-    }
-    async updateLandingPageSettings(authorization, dto) {
-        await this.authService.requireAdmin(authorization);
-        return this.settingsService.updateLandingPageSettings(dto);
     }
     async updateAvailabilitySettings(authorization, dto) {
         await this.authService.requireAdmin(authorization);
@@ -152,14 +143,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], SettingsController.prototype, "getGeneralSettings", null);
-__decorate([
-    (0, common_1.Get)('landing-page'),
-    (0, permissions_decorator_1.RequirePermissions)('settings.manage'),
-    __param(0, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], SettingsController.prototype, "getLandingPageSettings", null);
 __decorate([
     (0, common_1.Get)('availability'),
     (0, permissions_decorator_1.RequirePermissions)('settings.manage'),
@@ -256,15 +239,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_general_settings_dto_1.UpdateGeneralSettingsDto]),
     __metadata("design:returntype", Promise)
 ], SettingsController.prototype, "updateGeneralSettings", null);
-__decorate([
-    (0, common_1.Put)('landing-page'),
-    (0, permissions_decorator_1.RequirePermissions)('settings.manage'),
-    __param(0, (0, common_1.Headers)('authorization')),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, update_landing_page_settings_dto_1.UpdateLandingPageSettingsDto]),
-    __metadata("design:returntype", Promise)
-], SettingsController.prototype, "updateLandingPageSettings", null);
 __decorate([
     (0, common_1.Put)('availability'),
     (0, permissions_decorator_1.RequirePermissions)('settings.manage'),

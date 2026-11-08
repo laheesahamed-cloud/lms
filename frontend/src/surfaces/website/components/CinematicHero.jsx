@@ -163,6 +163,10 @@ const INJECTED_STYLES = `
 
   .cinhero .progress-ring { transform: rotate(-90deg); transform-origin: center; stroke-dasharray: 402; stroke-dashoffset: 402; stroke-linecap: round; }
 
+  @keyframes cinPointIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .cinhero .cin-point { opacity: 0; }
+  .cinhero .cin-point.is-in { animation: cinPointIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(0.9s + var(--i) * 0.25s); }
+  @media (prefers-reduced-motion: reduce) { .cinhero .cin-point, .cinhero .cin-point.is-in { animation: none; opacity: 1; } }
   @keyframes cinAuroraA { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(6%, -5%, 0) scale(1.12); } }
   @keyframes cinAuroraB { 0%,100% { transform: translate3d(0,0,0) scale(1.05); } 50% { transform: translate3d(-7%, 4%, 0) scale(0.92); } }
   @keyframes cinFloatA { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-22px) rotate(3deg); } }
@@ -240,6 +244,11 @@ function GlyphChart() {
     </svg>
   );
 }
+
+const HERO_LINES = [
+  { label: 'All in one clinical platform for medicos', icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>) },
+  { label: 'Learn, practise and test', icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" /><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20" /></svg>) },
+];
 
 export function CinematicHero({
   animationReady = true,
@@ -405,17 +414,17 @@ export function CinematicHero({
         </h1>
         <h1 className="text-days gsap-reveal text-grad-cta text-5xl md:text-7xl lg:text-[6rem] font-extrabold tracking-tighter">{tagline2}</h1>
         <div className="hero-accents gsap-reveal mt-6 flex flex-col items-center gap-4">
-          <p className="max-w-xl text-sm font-medium leading-relaxed text-white/65 md:text-base">
-            The all-in-one study app for Sri Lankan medical students: write-on notes, a
-            teaching Q-Bank, your own flashcards, mock exams and a study planner.
+          <p className="whitespace-nowrap text-[clamp(10.5px,3.1vw,16px)] font-medium leading-relaxed text-white/65">
+            The all-in-one study app for Sri Lankan medical students.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-2.5 text-[13px] font-semibold">
-            {[{ icon: <GlyphPulse />, label: 'Q-Bank that explains every answer' }, { icon: <GlyphChart />, label: 'Notes you can write on' }].map((p) => (
-              <span key={p.label} className="inline-flex items-center gap-2 rounded-full border border-[#8a7bf0]/26 bg-[#5274f3]/10 px-3.5 py-1.5 text-[#d6cdff]">
-                <span className="w-4 h-4 text-[#a99cff] [&_svg]:w-full [&_svg]:h-full">{p.icon}</span>{p.label}
-              </span>
+          <ul className="m-0 flex w-full list-none flex-col items-center gap-2.5 p-0 text-center">
+            {HERO_LINES.map((line, i) => (
+              <li key={line.label} style={{ '--i': i }} className={cx('cin-point inline-flex items-center gap-2.5 text-[13px] font-medium leading-none text-white/75', animationReady && 'is-in')}>
+                <span className="inline-flex shrink-0 items-center justify-center leading-none text-[#a99cff]">{line.icon}</span>
+                {line.label}
+              </li>
             ))}
-          </div>
+          </ul>
 
           <Link to={secondaryCta.to} className="btn-ghost-dark inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold no-underline focus:no-underline hover:no-underline focus:outline-none">
             <span>{secondaryCta.label}</span>

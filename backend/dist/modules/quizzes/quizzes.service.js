@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuizzesService = void 0;
 const common_1 = require("@nestjs/common");
 const pagination_1 = require("../../common/utils/pagination");
+const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 const database_tokens_1 = require("../../database/database.tokens");
@@ -30,6 +31,63 @@ let QuizzesService = class QuizzesService {
         if (!Number.isFinite(numeric) || numeric <= 0)
             return DEFAULT_PASSING_MARKS;
         return numeric;
+    }
+    buildListFilter(filters) {
+        let where = '';
+        const params = [];
+        if (filters.search?.trim()) {
+            where += ' AND (COALESCE(NULLIF(quizzes.admin_name, \'\'), quizzes.quiz_title) LIKE ? OR COALESCE(NULLIF(quizzes.student_title, \'\'), quizzes.quiz_title) LIKE ? OR quizzes.quiz_title LIKE ?)';
+            const like = `%${filters.search.trim()}%`;
+            params.push(like, like, like);
+        }
+        if (filters.courseId && filters.courseId > 0) {
+            where += ' AND quizzes.course_id = ?';
+            params.push(filters.courseId);
+        }
+        if (filters.topicId) {
+            if (filters.topicId === 'general') {
+                where += ' AND quizzes.is_general = 1';
+            }
+            else {
+                where += ' AND quizzes.topic_id = ? AND quizzes.is_general = 0';
+                params.push(Number(filters.topicId));
+            }
+        }
+        if (filters.status === 'active' || filters.status === 'inactive') {
+            where += ' AND quizzes.status = ?';
+            params.push(filters.status);
+        }
+        return { where, params };
+    }
+    async summary(filters) {
+        const { where, params } = this.buildListFilter(filters);
+        const [rows] = await this.db.execute(`
+        SELECT
+          quizzes.course_id,
+          courses.course_title,
+          quizzes.is_general,
+          CASE WHEN quizzes.is_general = 1 THEN NULL ELSE quizzes.topic_id END AS topic_id,
+          CASE WHEN quizzes.is_general = 1 THEN NULL ELSE topics.topic_name END AS subject_name,
+          COUNT(*) AS total,
+          SUM(CASE WHEN quizzes.status = 'active' THEN 1 ELSE 0 END) AS active_count
+        FROM quizzes
+        INNER JOIN courses ON quizzes.course_id = courses.id
+        LEFT JOIN topics ON quizzes.topic_id = topics.id
+        WHERE 1 = 1 ${where}
+        GROUP BY quizzes.course_id, courses.course_title, quizzes.is_general,
+                 CASE WHEN quizzes.is_general = 1 THEN NULL ELSE quizzes.topic_id END,
+                 CASE WHEN quizzes.is_general = 1 THEN NULL ELSE topics.topic_name END
+        ORDER BY courses.course_title ASC, quizzes.is_general DESC, subject_name ASC
+      `, params);
+        return rows.map((row) => ({
+            courseId: Number(row.course_id),
+            courseTitle: String(row.course_title || ''),
+            isGeneral: Number(row.is_general) === 1,
+            topicId: row.topic_id === null || row.topic_id === undefined ? null : Number(row.topic_id),
+            subjectName: row.subject_name ? String(row.subject_name) : '',
+            total: Number(row.total || 0),
+            active: Number(row.active_count || 0),
+        }));
     }
     async findAll(filters) {
         const { limit, offset } = (0, pagination_1.normalizePagination)(filters, { defaultLimit: 50, maxLimit: 100 });
@@ -76,30 +134,10 @@ let QuizzesService = class QuizzesService {
       LEFT JOIN papers ON quizzes.paper_id = papers.id
       WHERE 1 = 1
     `;
-        const params = [];
-        if (filters.search?.trim()) {
-            sql += ' AND (COALESCE(NULLIF(quizzes.admin_name, \'\'), quizzes.quiz_title) LIKE ? OR COALESCE(NULLIF(quizzes.student_title, \'\'), quizzes.quiz_title) LIKE ? OR quizzes.quiz_title LIKE ?)';
-            const like = `%${filters.search.trim()}%`;
-            params.push(like, like, like);
-        }
-        if (filters.courseId && filters.courseId > 0) {
-            sql += ' AND quizzes.course_id = ?';
-            params.push(filters.courseId);
-        }
-        if (filters.topicId) {
-            if (filters.topicId === 'general') {
-                sql += ' AND quizzes.is_general = 1';
-            }
-            else {
-                sql += ' AND quizzes.topic_id = ? AND quizzes.is_general = 0';
-                params.push(Number(filters.topicId));
-            }
-        }
-        if (filters.status === 'active' || filters.status === 'inactive') {
-            sql += ' AND quizzes.status = ?';
-            params.push(filters.status);
-        }
-        sql += ' ORDER BY quizzes.id DESC LIMIT ? OFFSET ?';
+        const listFilter = this.buildListFilter(filters);
+        sql += listFilter.where;
+        const params = [...listFilter.params];
+        sql += filters.order === 'asc' ? ' ORDER BY quizzes.id ASC LIMIT ? OFFSET ?' : ' ORDER BY quizzes.id DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapQuiz(row));
@@ -540,6 +578,117 @@ let QuizzesService = class QuizzesService {
             connection.release();
         }
         return { ok: true, id };
+    }
+    async planBulkDelete(quizIds) {
+        const ids = Array.from(new Set((quizIds || []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
+        if (ids.length === 0)
+            throw new common_1.BadRequestException('Please select at least one assessment');
+        const placeholders = (0, sql_safety_1.sqlPlaceholders)(ids);
+        const [quizRows] = await this.db.execute(`SELECT id, status FROM quizzes WHERE id IN (${placeholders})`, ids);
+        if (quizRows.length !== ids.length)
+            throw new common_1.NotFoundException('One or more assessments could not be found');
+        const [inside] = await this.db.execute(`SELECT DISTINCT question_id FROM question_quizzes WHERE quiz_id IN (${placeholders})`, ids);
+        const questionIds = inside.map((row) => Number(row.question_id)).filter((id) => id > 0);
+        let sharedIds = [];
+        if (questionIds.length) {
+            const qPlaceholders = (0, sql_safety_1.sqlPlaceholders)(questionIds);
+            const [shared] = await this.db.execute(`SELECT DISTINCT question_id FROM question_quizzes
+          WHERE question_id IN (${qPlaceholders}) AND quiz_id NOT IN (${placeholders})`, [...questionIds, ...ids]);
+            sharedIds = shared.map((row) => Number(row.question_id));
+        }
+        const sharedSet = new Set(sharedIds);
+        const onlyHereIds = questionIds.filter((id) => !sharedSet.has(id));
+        const [attemptRows] = await this.db.execute(`SELECT COUNT(*) AS total FROM quiz_attempts WHERE quiz_id IN (${placeholders})`, ids);
+        return {
+            ids,
+            quizRows,
+            questionIds,
+            sharedIds,
+            onlyHereIds,
+            attempts: Number(attemptRows[0]?.total || 0),
+        };
+    }
+    async bulkDeletePreview(dto) {
+        const plan = await this.planBulkDelete(dto.quizIds);
+        return {
+            quizzes: plan.ids.length,
+            questionsInside: plan.questionIds.length,
+            questionsOnlyHere: plan.onlyHereIds.length,
+            questionsShared: plan.sharedIds.length,
+            attempts: plan.attempts,
+        };
+    }
+    async bulkDelete(dto, actor) {
+        const plan = await this.planBulkDelete(dto.quizIds);
+        const deleteQuestions = dto.deleteQuestions === true;
+        for (const row of plan.quizRows)
+            this.assertCanModifyExistingStatus(actor, String(row.status || ''));
+        if (deleteQuestions && plan.onlyHereIds.length) {
+            const allowed = !actor || typeof actor === 'number'
+                || actor.role === 'admin'
+                || Boolean(actor.permissions?.includes('questions.manage'));
+            if (!allowed)
+                throw new common_1.ForbiddenException('Deleting questions requires the questions permission');
+            const [statusRows] = await this.db.execute(`SELECT COUNT(*) AS active_count FROM questions WHERE id IN (${(0, sql_safety_1.sqlPlaceholders)(plan.onlyHereIds)}) AND status = 'active'`, plan.onlyHereIds);
+            if (!this.canReviewContent(actor) && Number(statusRows[0]?.active_count || 0) > 0) {
+                throw new common_1.ForbiddenException('Published questions require review permission before deletion');
+            }
+        }
+        const placeholders = (0, sql_safety_1.sqlPlaceholders)(plan.ids);
+        const connection = await this.db.getConnection();
+        try {
+            await connection.beginTransaction();
+            await connection.execute(`DELETE FROM question_quizzes WHERE quiz_id IN (${placeholders})`, plan.ids);
+            await connection.execute(`DELETE FROM quizzes WHERE id IN (${placeholders})`, plan.ids);
+            for (const id of plan.ids) {
+                await this.recordContentAudit(connection, {
+                    entityType: 'quiz',
+                    entityId: id,
+                    action: 'deleted',
+                    summary: `Quiz ${id} deleted (bulk)`,
+                    actorId: this.getActorId(actor),
+                    before: { id },
+                });
+            }
+            let deletedQuestions = 0;
+            if (deleteQuestions) {
+                for (let i = 0; i < plan.onlyHereIds.length; i += 500) {
+                    const chunk = plan.onlyHereIds.slice(i, i + 500);
+                    const qp = (0, sql_safety_1.sqlPlaceholders)(chunk);
+                    await connection.execute(`DELETE FROM question_theory_recaps WHERE question_id IN (${qp})`, chunk);
+                    await connection.execute(`DELETE FROM question_keyword_map WHERE question_id IN (${qp})`, chunk);
+                    await connection.execute(`DELETE FROM question_options WHERE question_id IN (${qp})`, chunk);
+                    await connection.execute(`DELETE FROM question_reports WHERE question_id IN (${qp})`, chunk);
+                    await connection.execute(`DELETE FROM student_answers WHERE question_id IN (${qp})`, chunk);
+                    const [result] = await connection.execute(`DELETE FROM questions WHERE id IN (${qp})`, chunk);
+                    deletedQuestions += result.affectedRows;
+                }
+                if (deletedQuestions) {
+                    await this.recordContentAudit(connection, {
+                        entityType: 'question',
+                        entityId: 0,
+                        action: 'bulk_deleted',
+                        summary: `${deletedQuestions} question(s) deleted with ${plan.ids.length} assessment(s)`,
+                        actorId: this.getActorId(actor),
+                        before: { questionIds: plan.onlyHereIds },
+                    });
+                }
+            }
+            await connection.commit();
+            return {
+                ok: true,
+                deletedQuizzes: plan.ids.length,
+                deletedQuestions,
+                keptQuestions: deleteQuestions ? plan.sharedIds.length : plan.questionIds.length,
+            };
+        }
+        catch (error) {
+            await connection.rollback();
+            throw error;
+        }
+        finally {
+            connection.release();
+        }
     }
     async listVersions(id) {
         await this.findOne(id);

@@ -242,7 +242,7 @@ export function GlobalSearch({ onClose }) {
         id: c.id,
         title: c.title || c.courseTitle || c.name || 'Course',
         sub: isAdmin ? 'Course management' : 'Course library',
-        url: rolePath('/courses', isAdmin),
+        url: rolePath(isAdmin ? '/structure' : '/courses', isAdmin),
         state: isAdmin ? undefined : { selectedCourseId: c.id },
       }));
 

@@ -2,7 +2,6 @@ import { AuthService } from '../auth/auth.service';
 import { CreateAiProviderDto } from './dto/create-ai-provider.dto';
 import { UpdateGeneralSettingsDto } from './dto/update-general-settings.dto';
 import { UpdateAiProviderDto } from './dto/update-ai-provider.dto';
-import { UpdateLandingPageSettingsDto } from './dto/update-landing-page-settings.dto';
 import { UpdateAvailabilitySettingsDto, VerifyAvailabilityUnlockDto } from './dto/update-availability-settings.dto';
 import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
@@ -19,7 +18,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -35,7 +34,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -60,51 +59,9 @@ export declare class SettingsController {
     }>;
     getGeneralSettings(authorization?: string): Promise<{
         ok: boolean;
+        newContentNotifications: boolean;
         whatsappNumber: string;
         whatsappUrl: string;
-        note: string;
-    }>;
-    getLandingPageSettings(authorization?: string): Promise<{
-        ok: boolean;
-        content: import("./settings.service").LandingPageContent;
-        defaults: {
-            readonly metaTitle: "Medical Study Platform";
-            readonly metaDescription: "xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.";
-            readonly heroKicker: "Built for medical students in Sri Lanka";
-            readonly heroTitleLine1: "The smarter way to";
-            readonly heroTitleAccent: "prepare for";
-            readonly heroTitleLine3: "medical exams.";
-            readonly heroSubtitle: "Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.";
-            readonly heroPrimaryLabel: "Start Studying Free";
-            readonly heroSecondaryLabel: "Explore Platform";
-            readonly featuresEyebrow: "Platform Features";
-            readonly featuresTitle: "The full study loop, not just a pile of MCQs.";
-            readonly featuresText: "Read, revise, practise, and review - inside one calm academic workspace built for medical preparation.";
-            readonly howEyebrow: "Getting Started";
-            readonly howTitle: "Up and revising in three steps.";
-            readonly howText: "No complicated setup. Sign up and start revising your medical subjects today.";
-            readonly whyEyebrow: "Why Choose Us";
-            readonly whyTitle: "More than just another MCQ bank.";
-            readonly whyText: "While others give you a flat list of questions, we give you the full study experience - structured, visual, and data-driven.";
-            readonly testimonialsEyebrow: "Student Stories";
-            readonly testimonialsTitle: "What medical students say.";
-            readonly testimonialsText: "Real feedback from students across Sri Lanka using the platform for their revision.";
-            readonly faqEyebrow: "FAQ";
-            readonly faqTitle: "Questions students usually ask first.";
-            readonly faqText: "Clear answers about how the platform works before you start your revision journey.";
-            readonly pricingEyebrow: "Pricing";
-            readonly pricingTitle: "Transparent plans for Sri Lankan students.";
-            readonly pricingText: "No hidden fees. Choose the plan that fits your exam timeline and study intensity.";
-            readonly customPlanTitle: "Need a customized subscription?";
-            readonly customPlanText: "Create a package around your courses, study timeline, and exam goals.";
-            readonly ctaEyebrow: "Ready to begin?";
-            readonly ctaTitle: "Join the most complete medical study platform in Sri Lanka.";
-            readonly ctaText: "Interactive lessons, a full quiz engine, and performance tracking - everything you need to walk into your examination with confidence.";
-            readonly ctaPrimaryLabel: "Create Free Account";
-            readonly ctaSecondaryLabel: "Sign In";
-            readonly footerText: "A focused study platform for medical students in Sri Lanka - notes, quizzes, and analytics in one place.";
-            readonly footerTagline: "Built for Sri Lankan medical education.";
-        };
         note: string;
     }>;
     getAvailabilitySettings(authorization?: string): Promise<{
@@ -125,7 +82,6 @@ export declare class SettingsController {
     getPublicSettings(): Promise<{
         ok: true;
         whatsappUrl: string;
-        landingPage: import("./settings.service").LandingPageContent;
         popupAlert: Record<string, unknown>;
         availability: {
             mode: import("./settings.service").AvailabilityMode;
@@ -229,7 +185,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -272,7 +228,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -288,7 +244,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -313,7 +269,7 @@ export declare class SettingsController {
     }>;
     testAiProvider(authorization: string | undefined, dto: CreateAiProviderDto): Promise<{
         ok: boolean;
-        providerKey: "gemini" | "openai" | "claude" | "openrouter";
+        providerKey: "openai" | "gemini" | "claude" | "openrouter";
         providerLabel: string;
         message: string;
         modeOptions: any;
@@ -322,51 +278,9 @@ export declare class SettingsController {
     }>;
     updateGeneralSettings(authorization: string | undefined, dto: UpdateGeneralSettingsDto): Promise<{
         ok: boolean;
+        newContentNotifications: boolean;
         whatsappNumber: string;
         whatsappUrl: string;
-        note: string;
-    }>;
-    updateLandingPageSettings(authorization: string | undefined, dto: UpdateLandingPageSettingsDto): Promise<{
-        ok: boolean;
-        content: import("./settings.service").LandingPageContent;
-        defaults: {
-            readonly metaTitle: "Medical Study Platform";
-            readonly metaDescription: "xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.";
-            readonly heroKicker: "Built for medical students in Sri Lanka";
-            readonly heroTitleLine1: "The smarter way to";
-            readonly heroTitleAccent: "prepare for";
-            readonly heroTitleLine3: "medical exams.";
-            readonly heroSubtitle: "Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.";
-            readonly heroPrimaryLabel: "Start Studying Free";
-            readonly heroSecondaryLabel: "Explore Platform";
-            readonly featuresEyebrow: "Platform Features";
-            readonly featuresTitle: "The full study loop, not just a pile of MCQs.";
-            readonly featuresText: "Read, revise, practise, and review - inside one calm academic workspace built for medical preparation.";
-            readonly howEyebrow: "Getting Started";
-            readonly howTitle: "Up and revising in three steps.";
-            readonly howText: "No complicated setup. Sign up and start revising your medical subjects today.";
-            readonly whyEyebrow: "Why Choose Us";
-            readonly whyTitle: "More than just another MCQ bank.";
-            readonly whyText: "While others give you a flat list of questions, we give you the full study experience - structured, visual, and data-driven.";
-            readonly testimonialsEyebrow: "Student Stories";
-            readonly testimonialsTitle: "What medical students say.";
-            readonly testimonialsText: "Real feedback from students across Sri Lanka using the platform for their revision.";
-            readonly faqEyebrow: "FAQ";
-            readonly faqTitle: "Questions students usually ask first.";
-            readonly faqText: "Clear answers about how the platform works before you start your revision journey.";
-            readonly pricingEyebrow: "Pricing";
-            readonly pricingTitle: "Transparent plans for Sri Lankan students.";
-            readonly pricingText: "No hidden fees. Choose the plan that fits your exam timeline and study intensity.";
-            readonly customPlanTitle: "Need a customized subscription?";
-            readonly customPlanText: "Create a package around your courses, study timeline, and exam goals.";
-            readonly ctaEyebrow: "Ready to begin?";
-            readonly ctaTitle: "Join the most complete medical study platform in Sri Lanka.";
-            readonly ctaText: "Interactive lessons, a full quiz engine, and performance tracking - everything you need to walk into your examination with confidence.";
-            readonly ctaPrimaryLabel: "Create Free Account";
-            readonly ctaSecondaryLabel: "Sign In";
-            readonly footerText: "A focused study platform for medical students in Sri Lanka - notes, quizzes, and analytics in one place.";
-            readonly footerTagline: "Built for Sri Lankan medical education.";
-        };
         note: string;
     }>;
     updateAvailabilitySettings(authorization: string | undefined, dto: UpdateAvailabilitySettingsDto): Promise<{
@@ -465,7 +379,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -508,7 +422,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -524,7 +438,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -551,7 +465,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -567,7 +481,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -594,7 +508,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -610,7 +524,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;

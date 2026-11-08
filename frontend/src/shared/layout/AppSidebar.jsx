@@ -204,8 +204,10 @@ function ChevronIcon() {
 /* ── Nav data ─────────────────────────────────────────────────── */
 const adminLinks = [
   { to: '/dashboard',     label: 'Admin Hub',     icon: 'Dashboard' },
-  { to: '/courses',       label: 'Courses',       icon: 'Courses', requiredPermissions: ['content.manage'] },
-  { to: '/structure',     label: 'Structure',     icon: 'Structure', requiredPermissions: ['content.manage'] },
+
+  { section: 'Content' },
+  { to: '/structure',     label: 'Courses',       icon: 'Courses', requiredPermissions: ['content.manage'] },
+  { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes', requiredPermissions: ['content.manage'] },
   { to: '/questions',     label: 'Questions',     icon: 'Questions', requiredPermissions: ['questions.manage'] },
   { to: '/question-reports', label: 'Question Reports', icon: 'Questions', requiredPermissions: ['questions.manage'] },
   { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes', requiredPermissions: ['quizzes.manage'] },
@@ -219,17 +221,24 @@ const adminLinks = [
       { to: '/ai/chatgpt',  label: 'ChatGPT AI', requiredPermissions: ['ai.manage'] },
     ],
   },
-  { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing', requiredPermissions: ['subscriptions.manage'] },
-  { to: '/finance',       label: 'Finance',       icon: 'Finance', requiredPermissions: ['subscriptions.manage', 'reports.view'] },
-  { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes', requiredPermissions: ['content.manage'] },
+
+  { section: 'Clinical tools' },
   { to: '/drugs',         label: 'Drug Randomizer', icon: 'Drugs', requiredPermissions: ['content.manage'] },
   { to: '/ecg',           label: 'ECG Library',   icon: 'Ecg', requiredPermissions: ['content.manage'] },
   { to: '/auscultation',  label: 'Auscultation',  icon: 'Auscultation', requiredPermissions: ['content.manage'] },
   { to: '/osce',          label: 'OSCE Clinical', icon: 'Osce', requiredPermissions: ['content.manage'] },
+
+  { section: 'People & billing' },
   { to: '/users',         label: 'Users',         icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/roles',         label: 'Roles & Access', icon: 'Users', requiredPermissions: ['students.manage'] },
+  { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing', requiredPermissions: ['subscriptions.manage'] },
+  { to: '/finance',       label: 'Finance',       icon: 'Finance', requiredPermissions: ['subscriptions.manage', 'reports.view'] },
+
+  { section: 'Engagement' },
   { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },
   { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },
+
+  { section: 'System' },
   { to: '/setup',         label: 'Setup',         icon: 'Setup', requiredPermissions: ['settings.manage'] },
   { to: '/settings',      label: 'Settings',      icon: 'Settings', requiredPermissions: ['settings.manage'] },
 ];
@@ -563,10 +572,6 @@ export function AppSidebar({
 
       </div>
 
-      {/* ── Section label ─────────────────────────────────────────── */}
-      {isAdminConsole ? (
-        <p className={cx('lms-sidebar-section-label', sidebarUi.navLabel)}>Navigation</p>
-      ) : null}
 
       {/* ── Nav ───────────────────────────────────────────────────── */}
       <nav
@@ -707,6 +712,13 @@ function filterLinksByAccess(items, user) {
       if (!canAccessNavItem(item, user)) return false;
       if (item.children) return item.children.length > 0;
       return true;
+    })
+    // A category heading with nothing under it (every link in it is off-limits for
+    // this user) would just be an empty label, so drop it.
+    .filter((item, index, list) => {
+      if (!item.section) return true;
+      const next = list[index + 1];
+      return Boolean(next) && !next.section;
     });
 }
 

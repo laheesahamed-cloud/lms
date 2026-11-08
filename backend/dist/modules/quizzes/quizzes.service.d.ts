@@ -11,17 +11,34 @@ type ContentActorInput = ContentActor | number | undefined;
 type ContentWorkflowState = 'draft' | 'in_review' | 'published' | 'archived';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
 export declare class QuizzesService {
     private readonly db;
     private readonly authService;
     private readonly pushNotificationsService;
     constructor(db: Pool, authService: AuthService, pushNotificationsService: PushNotificationsService);
     private resolvePassingMarks;
+    private buildListFilter;
+    summary(filters: {
+        search?: string;
+        courseId?: number;
+        topicId?: string;
+        status?: string;
+    }): Promise<{
+        courseId: number;
+        courseTitle: string;
+        isGeneral: boolean;
+        topicId: number | null;
+        subjectName: string;
+        total: number;
+        active: number;
+    }[]>;
     findAll(filters: {
         search?: string;
         courseId?: number;
         topicId?: string;
         status?: string;
+        order?: string;
     } & PaginationInput): Promise<{
         id: number;
         courseId: number;
@@ -188,6 +205,20 @@ export declare class QuizzesService {
         ok: boolean;
         id: number;
     }>;
+    private planBulkDelete;
+    bulkDeletePreview(dto: BulkDeleteQuizzesDto): Promise<{
+        quizzes: number;
+        questionsInside: number;
+        questionsOnlyHere: number;
+        questionsShared: number;
+        attempts: number;
+    }>;
+    bulkDelete(dto: BulkDeleteQuizzesDto, actor?: ContentActorInput): Promise<{
+        ok: boolean;
+        deletedQuizzes: number;
+        deletedQuestions: number;
+        keptQuestions: number;
+    }>;
     listVersions(id: number): Promise<{
         id: number;
         versionNumber: number;
@@ -218,7 +249,7 @@ export declare class QuizzesService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     private validateQuiz;
     private cleanQuestionIds;

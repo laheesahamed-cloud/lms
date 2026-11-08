@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   createPlan,
@@ -38,11 +38,11 @@ import {
 } from '../../../../shared/utils/userIdentity.js';
 
 const subscriptionUi = {
-  overviewGrid: 'grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[700px]:grid-cols-1',
+  overviewGrid: 'grid grid-cols-4 gap-3 max-[560px]:grid-cols-2',
   overviewCard:
-    'grid gap-2 rounded-lg border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.045)),var(--surface-card)] px-[18px] py-4 shadow-md',
+    'grid gap-0.5 rounded-xl border border-line-soft bg-surface-1 px-4 py-3 shadow-none',
   overviewLabel: 'text-[11px] font-bold uppercase tracking-[0.06em] text-ink-soft',
-  overviewValue: 'text-[24px] max-[640px]:text-[20px] leading-none text-ink-strong',
+  overviewValue: 'text-[24px] max-[640px]:text-[22px] font-black leading-none text-ink-strong',
   overviewText: 'm-0 text-[12.5px] text-ink-soft',
   adminGrid: `${ui.managementGrid} items-start`,
   templateRow: 'flex flex-wrap gap-2.5',
@@ -125,6 +125,8 @@ const emptySubscriptionFilters = {
   paymentStatus: '',
   expiring: '',
 };
+
+const SUB_PAGE_SIZE = 15;
 
 function toDateOnly(date) {
   const year = date.getFullYear();
@@ -440,6 +442,226 @@ function StudentSearchSelect({ students, value, onChange }) {
   );
 }
 
+const STATUS_ORDER = { active: 0, pending: 1, expired: 2, cancelled: 3 };
+
+/**
+ * Active first, then pending, expired, cancelled. Active ones list the soonest
+ * ending first (those are the ones to renew); the rest list the most recently
+ * ended first.
+ */
+function compareSubscriptions(a, b) {
+  const statusA = String(a?.computedStatus || a?.status || '').toLowerCase();
+  const statusB = String(b?.computedStatus || b?.status || '').toLowerCase();
+  const rankA = STATUS_ORDER[statusA] ?? 4;
+  const rankB = STATUS_ORDER[statusB] ?? 4;
+  if (rankA !== rankB) return rankA - rankB;
+  const endA = String(a?.endDate || '');
+  const endB = String(b?.endDate || '');
+  if (endA !== endB) return rankA === 0 ? endA.localeCompare(endB) : endB.localeCompare(endA);
+  return Number(b?.id || 0) - Number(a?.id || 0);
+}
+
+/** The auto-assigned Free plan every student gets on signup — not something to manage here. */
+function isFreePlanSubscription(subscription) {
+  if (subscription?.paymentStatus === 'free_plan') return true;
+  return String(subscription?.planName || '').trim().toLowerCase() === 'free'
+    && Number(subscription?.planEffectivePrice || 0) <= 0;
+}
+
+/** End date plus N days, as YYYY-MM-DD (what the "extend" confirmation shows). */
+function addDays(dateText, days) {
+  const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '';
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  date.setDate(date.getDate() + days);
+  return toDateOnly(date);
+}
+
+function DetailRow({ label, children }) {
+  return (
+    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 border-b border-line-soft py-2 text-[13px] last:border-b-0 max-[520px]:grid-cols-1 max-[520px]:gap-0.5">
+      <span className="text-[11.5px] font-extrabold uppercase tracking-[0.06em] text-ink-soft">{label}</span>
+      <span className="min-w-0 [overflow-wrap:anywhere] font-semibold text-ink-strong">{children}</span>
+    </div>
+  );
+}
+
+/**
+ * A student's subscription in a popup: the details first, then the actions. Every
+ * action asks "are you sure?" inside the popup before anything is changed.
+ */
+function SubscriptionDetailModal({ subscription, courseTitleById, lessonTitleById, onClose, onRun }) {
+  const [step, setStep] = useState(null); // null | { type, ... }
+  const [payment, setPayment] = useState({ amount: '', method: 'manual', reference: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const who = getAdminUserIdentifier(subscription, 'Student');
+  const active = (subscription.computedStatus || subscription.status) === 'active';
+
+  const startStep = (type) => {
+    setError('');
+    // A subscription that is still running is extended, not renewed: renewing would
+    // cancel it and leave the student without access until the new one starts.
+    if (type === 'renew' && active && String(subscription.endDate || '') >= toDateOnly(new Date())) {
+      setError('This subscription is still active, so it cannot be renewed yet. Use Extend 7 days or Extend 30 days to add more time instead.');
+      return;
+    }
+    if (type === 'paid') {
+      setPayment({
+        amount: String(subscription.amountPaid ?? subscription.planEffectivePrice ?? ''),
+        method: subscription.paymentMethod || 'manual',
+        reference: subscription.paymentReference || '',
+      });
+    }
+    setStep({ type });
+  };
+
+  const describe = () => {
+    if (!step) return null;
+    switch (step.type) {
+      case 'extend7':
+      case 'extend30': {
+        const days = step.type === 'extend7' ? 7 : 30;
+        const next = addDays(subscription.endDate, days);
+        return {
+          title: `Extend by ${days} days?`,
+          body: next
+            ? `${who}'s ${subscription.planName} ends on ${subscription.endDate}. It will end on ${next} instead.`
+            : `Add ${days} days to ${who}'s ${subscription.planName}.`,
+          confirm: `Yes, extend ${days} days`,
+        };
+      }
+      case 'renew':
+        return {
+          title: 'Renew this subscription?',
+          body: `Renews ${who} on the same plan (${subscription.planName}). The new period starts today and runs for the plan's full length.`,
+          confirm: 'Yes, renew',
+        };
+      case 'paid':
+        return {
+          title: 'Mark this payment as paid?',
+          body: 'Record what was received. This is saved to the audit log.',
+          confirm: 'Yes, mark as paid',
+        };
+      case 'cancel':
+        return {
+          title: 'Cancel this subscription?',
+          body: `${who}'s ${subscription.planName} will be marked cancelled. This cannot be undone from here.`,
+          confirm: 'Yes, cancel subscription',
+          danger: true,
+        };
+      default:
+        return null;
+    }
+  };
+
+  const confirmStep = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await onRun(step.type, payment);
+      onClose();
+    } catch (runError) {
+      setError(getErrorMessage(runError, 'Unable to update subscription'));
+      setBusy(false);
+    }
+  };
+
+  const info = describe();
+  const actionButton = 'inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-xl border px-4 text-[13px] font-extrabold transition';
+
+  return (
+    <EntityModal open title={who} subtitle="Subscription details" onClose={busy ? () => {} : onClose}>
+      <div className="grid gap-4 px-5 pb-5">
+        <div>
+          <DetailRow label="Student">
+            {who}
+            {getAdminUserSecondaryIdentifier(subscription) ? <span className="block text-[12px] font-medium text-ink-soft">{getAdminUserSecondaryIdentifier(subscription)}</span> : null}
+          </DetailRow>
+          <DetailRow label="Plan">
+            {subscription.planName}
+            <span className="block text-[12px] font-medium text-ink-soft">{subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}</span>
+          </DetailRow>
+          <DetailRow label="Access">
+            {subscription.accessScope === 'courses'
+              ? `Courses: ${(subscription.courseIds || []).map((id) => courseTitleById.get(Number(id)) || `#${id}`).join(', ') || '-'}`
+              : subscription.accessScope === 'lessons'
+                ? `Lessons: ${(subscription.lessonIds || []).map((id) => lessonTitleById.get(Number(id)) || `#${id}`).join(', ') || '-'}`
+                : 'All paid lessons'}
+          </DetailRow>
+          <DetailRow label="Dates">
+            {subscription.startDate} → {subscription.endDate}
+            {subscription.isExpiringSoon ? <span className="block text-[12px] font-medium text-amber-700 dark:text-amber-300">Expires in {subscription.daysRemaining} day(s)</span> : null}
+          </DetailRow>
+          <DetailRow label="Status"><span className={statusPill(subscription.computedStatus || subscription.status)}>{subscription.computedStatus || subscription.status}</span></DetailRow>
+          <DetailRow label="Payment">
+            <span className={statusPill(subscription.paymentStatus)}>{formatPaymentStatus(subscription.paymentStatus)}</span>
+            {subscription.amountPaid !== null && subscription.amountPaid !== undefined ? (
+              <span className="block text-[12px] font-medium text-ink-soft">{subscription.planCurrency} {Number(subscription.amountPaid).toFixed(2)} {subscription.paymentMethod || ''}</span>
+            ) : null}
+            {subscription.paymentReference ? <span className="block text-[12px] font-medium text-ink-soft">Ref: {subscription.paymentReference}</span> : null}
+          </DetailRow>
+          {subscription.assignedByEmail || subscription.assignedByName ? (
+            <DetailRow label="Assigned by">{getAdminUserIdentifier({ email: subscription.assignedByEmail, fullName: subscription.assignedByName }, '-')}</DetailRow>
+          ) : null}
+        </div>
+
+        {!info ? (
+          <div className="grid gap-2">
+            <span className="text-[11px] font-black uppercase tracking-[0.12em] text-ink-soft">Actions</span>
+            {error ? <div className={ui.feedbackError} role="alert">{error}</div> : null}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={cx(actionButton, 'border-line-medium bg-surface-2 text-ink-strong hover:border-brand-primary/40')} onClick={() => startStep('extend7')}>Extend 7 days</button>
+              <button type="button" className={cx(actionButton, 'border-line-medium bg-surface-2 text-ink-strong hover:border-brand-primary/40')} onClick={() => startStep('extend30')}>Extend 30 days</button>
+              <button type="button" className={cx(actionButton, 'border-line-medium bg-surface-2 text-ink-strong hover:border-brand-primary/40')} onClick={() => startStep('renew')}>Renew</button>
+              <button type="button" className={cx(actionButton, 'border-line-medium bg-surface-2 text-ink-strong hover:border-brand-primary/40')} onClick={() => startStep('paid')}>Mark paid</button>
+              {active || subscription.status === 'pending' ? (
+                <button type="button" className={cx(actionButton, 'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300')} onClick={() => startStep('cancel')}>Cancel subscription</button>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className={cx('grid gap-3 rounded-xl border p-4', info.danger ? 'border-red-500/30 bg-red-500/[0.06]' : 'border-brand-primary/30 bg-brand-primary/[0.05]')} role="alertdialog" aria-label={info.title}>
+            <div className="grid gap-1">
+              <strong className="text-[15px] text-ink-strong">{info.title}</strong>
+              <span className="text-[13px] leading-relaxed text-ink-soft">{info.body}</span>
+            </div>
+
+            {step.type === 'paid' ? (
+              <div className="grid grid-cols-3 gap-2 max-[560px]:grid-cols-1">
+                <label className="grid gap-1 text-[11.5px] font-extrabold uppercase tracking-[0.05em] text-ink-soft">Amount paid
+                  <input className={ui.input} inputMode="decimal" value={payment.amount} onChange={(event) => setPayment({ ...payment, amount: event.target.value })} />
+                </label>
+                <label className="grid gap-1 text-[11.5px] font-extrabold uppercase tracking-[0.05em] text-ink-soft">Method
+                  <input className={ui.input} value={payment.method} onChange={(event) => setPayment({ ...payment, method: event.target.value })} />
+                </label>
+                <label className="grid gap-1 text-[11.5px] font-extrabold uppercase tracking-[0.05em] text-ink-soft">Reference
+                  <input className={ui.input} value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} />
+                </label>
+              </div>
+            ) : null}
+
+            {error ? <div className={ui.feedbackError}>{error}</div> : null}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" className={cx(actionButton, 'border-line-medium bg-surface-2 text-ink-strong')} disabled={busy} onClick={() => { setStep(null); setError(''); }}>Back</button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={confirmStep}
+                className={cx(actionButton, 'disabled:cursor-not-allowed disabled:opacity-60', info.danger ? 'border-red-600 bg-red-600 text-white hover:bg-red-700' : 'border-brand-primary bg-brand-primary text-white hover:opacity-90')}
+              >
+                {busy ? 'Working…' : info.confirm}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </EntityModal>
+  );
+}
+
 export function AdminSubscriptionsPage() {
   const [plans, setPlans] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -455,6 +677,14 @@ export function AdminSubscriptionsPage() {
   const [editingCouponId, setEditingCouponId] = useState(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [subscriptionView, setSubscriptionView] = useState('students');
+  // Which section of the page is showing; the page is split into tabs instead of one long scroll.
+  const [tab, setTab] = useState('requests');
+  const [manageTab, setManageTab] = useState('plans');
+  const tabTouched = useRef(false);
+  // The everyday actions open as dialogs: 'assign' | 'coupon' | 'invoice' | null.
+  const [quickModal, setQuickModal] = useState(null);
+  // The subscription whose details popup is open (by id, so it refreshes after an action).
+  const [detailId, setDetailId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingPlan, setSavingPlan] = useState(false);
   const [togglingOffers, setTogglingOffers] = useState(false);
@@ -463,6 +693,7 @@ export function AdminSubscriptionsPage() {
   const [actionBusyId, setActionBusyId] = useState('');
   const [proofPreviewRequest, setProofPreviewRequest] = useState(null);
   const [subscriptionFilters, setSubscriptionFilters] = useState(emptySubscriptionFilters);
+  const [subPage, setSubPage] = useState(1);
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [invoiceLookup, setInvoiceLookup] = useState(null);
   const [invoiceLookupLoading, setInvoiceLookupLoading] = useState(false);
@@ -498,6 +729,7 @@ export function AdminSubscriptionsPage() {
   const filteredSubscriptions = useMemo(() => {
     const search = subscriptionFilters.search.trim().toLowerCase();
     return safeSubscriptions.filter((subscription) => {
+      if (isFreePlanSubscription(subscription)) return false;
       if (search) {
         const haystack = `${subscription.studentName || ''} ${subscription.studentEmail || ''} ${subscription.planName || ''}`.toLowerCase();
         if (!haystack.includes(search)) return false;
@@ -507,13 +739,23 @@ export function AdminSubscriptionsPage() {
       if (subscriptionFilters.paymentStatus && subscription.paymentStatus !== subscriptionFilters.paymentStatus) return false;
       if (subscriptionFilters.expiring === 'soon' && !subscription.isExpiringSoon) return false;
       return true;
-    });
+    }).sort(compareSubscriptions);
   }, [safeSubscriptions, subscriptionFilters]);
 
   const pendingRequests = useMemo(
     () => safeRequests.filter((request) => request?.status === 'pending'),
     [safeRequests]
   );
+  // Open on the first thing that needs doing: pending requests, else the subscriptions list.
+  useEffect(() => {
+    if (loading || tabTouched.current) return;
+    if (pendingRequests.length === 0) setTab('subscriptions');
+  }, [loading, pendingRequests.length]);
+
+  const detailSubscription = detailId ? safeSubscriptions.find((item) => item.id === detailId) || null : null;
+  const subPageCount = Math.max(1, Math.ceil(filteredSubscriptions.length / SUB_PAGE_SIZE));
+  const subCurrentPage = Math.min(subPage, subPageCount);
+  const pagedSubscriptions = filteredSubscriptions.slice((subCurrentPage - 1) * SUB_PAGE_SIZE, subCurrentPage * SUB_PAGE_SIZE);
   const expiringSoonCount = useMemo(
     () => safeSubscriptions.filter((subscription) => subscription?.isExpiringSoon).length,
     [safeSubscriptions]
@@ -597,6 +839,7 @@ export function AdminSubscriptionsPage() {
 
   function handleSubscriptionFilterChange(event) {
     const { name, value } = event.target;
+    setSubPage(1);
     setSubscriptionFilters((current) => ({ ...current, [name]: value }));
   }
 
@@ -826,6 +1069,8 @@ export function AdminSubscriptionsPage() {
       });
       setAssignForm(emptyAssignForm);
       setSuccess('Student subscription assigned successfully.');
+      setQuickModal(null);
+      setTab('subscriptions');
       await loadAll();
     } catch (assignError) {
       setError(getErrorMessage(assignError, 'Unable to assign subscription'));
@@ -863,6 +1108,7 @@ export function AdminSubscriptionsPage() {
       }
 
       resetCouponForm();
+      setQuickModal(null);
       await loadAll();
     } catch (saveError) {
       setError(getErrorMessage(saveError, 'Unable to save coupon code'));
@@ -901,55 +1147,33 @@ export function AdminSubscriptionsPage() {
     }
   }
 
-  function handleExtend(subscription, days) {
-    const studentIdentifier = getAdminUserIdentifier(subscription);
-    runSubscriptionAction(
-      `extend-${subscription.id}-${days}`,
-      () => extendSubscription(subscription.id, { days, notes: `Quick extension: ${days} days` }),
-      `Extended ${studentIdentifier}'s subscription by ${days} days.`
-    );
-  }
-
-  function handleRenew(subscription) {
-    const studentIdentifier = getAdminUserIdentifier(subscription);
-    runSubscriptionAction(
-      `renew-${subscription.id}`,
-      () => renewSubscription(subscription.id, { planId: subscription.planId, notes: 'Renewed same plan from admin quick action.', paymentStatus: subscription.paymentStatus || 'manual' }),
-      `Renewed ${studentIdentifier}'s subscription.`
-    );
-  }
-
-  function handleCancel(subscription) {
-    const studentIdentifier = getAdminUserIdentifier(subscription);
-    const confirmed = window.confirm(`Cancel ${studentIdentifier}'s ${subscription.planName} subscription?`);
-    if (!confirmed) return;
-    runSubscriptionAction(
-      `cancel-${subscription.id}`,
-      () => cancelSubscription(subscription.id, { notes: 'Cancelled from admin subscription table.' }),
-      `Cancelled ${studentIdentifier}'s subscription.`
-    );
-  }
-
-  function handlePayment(subscription) {
-    const studentIdentifier = getAdminUserIdentifier(subscription);
-    const amount = window.prompt('Amount paid', subscription.amountPaid ?? subscription.planEffectivePrice ?? '');
-    if (amount === null) return;
-    const method = window.prompt('Payment method', subscription.paymentMethod || 'manual');
-    if (method === null) return;
-    const reference = window.prompt('Reference / transaction ID', subscription.paymentReference || '');
-    if (reference === null) return;
-
-    runSubscriptionAction(
-      `payment-${subscription.id}`,
-      () => updateSubscriptionPayment(subscription.id, {
+  // Runs a confirmed action from the details popup. Throws on failure so the popup
+  // can show the error and stay open; reloads the list on success.
+  async function runDetailAction(subscription, type, payment) {
+    const who = getAdminUserIdentifier(subscription);
+    setError('');
+    setSuccess('');
+    if (type === 'extend7' || type === 'extend30') {
+      const days = type === 'extend7' ? 7 : 30;
+      await extendSubscription(subscription.id, { days, notes: `Extended ${days} days from the subscription details popup` });
+      setSuccess(`Extended ${who}'s subscription by ${days} days.`);
+    } else if (type === 'renew') {
+      await renewSubscription(subscription.id, { planId: subscription.planId, notes: 'Renewed same plan from the subscription details popup.', paymentStatus: subscription.paymentStatus || 'manual' });
+      setSuccess(`Renewed ${who}'s subscription.`);
+    } else if (type === 'paid') {
+      await updateSubscriptionPayment(subscription.id, {
         paymentStatus: 'paid',
-        amountPaid: amount === '' ? undefined : Number(amount),
-        paymentMethod: method,
-        paymentReference: reference,
+        amountPaid: payment.amount === '' ? undefined : Number(payment.amount),
+        paymentMethod: payment.method,
+        paymentReference: payment.reference,
         paymentDate: new Date().toISOString().slice(0, 10),
-      }),
-      `Marked ${studentIdentifier}'s payment as paid.`
-    );
+      });
+      setSuccess(`Marked ${who}'s payment as paid.`);
+    } else if (type === 'cancel') {
+      await cancelSubscription(subscription.id, { notes: 'Cancelled from the subscription details popup.' });
+      setSuccess(`Cancelled ${who}'s subscription.`);
+    }
+    await loadAll();
   }
 
   function handleResolveRequest(request, status) {
@@ -966,521 +1190,26 @@ export function AdminSubscriptionsPage() {
 
   const manageToolsVisible = subscriptionView === 'manage';
 
-  return (
-    <main className={ui.screenShell}>
-      <section className={ui.managementLayout}>
-        <AppHeader
-          title={manageToolsVisible ? 'Manage Packages' : 'Subscriptions'}
-          subtitle={manageToolsVisible
-            ? 'Package Controls'
-            : 'Payment Review'}
-          actions={(
-            <div className={ui.buttonRow}>
-              <button
-                type="button"
-                className={manageToolsVisible ? ui.secondaryAction : ui.primaryAction}
-                aria-expanded={manageToolsVisible}
-                onClick={() => setSubscriptionView(manageToolsVisible ? 'students' : 'manage')}
-              >
-                {manageToolsVisible ? 'Hide manage' : 'Manage'}
-              </button>
-              {manageToolsVisible ? (
-                <>
-                  <button
-                    type="button"
-                    className={ui.secondaryAction}
-                    onClick={handleToggleAllOffers}
-                    disabled={togglingOffers}
-                  >
-                    {togglingOffers
-                      ? 'Updating prices...'
-                      : safePlans.some((plan) => plan.offerEnabled)
-                        ? 'Switch all to usual price'
-                        : 'Enable all discounts'}
-                  </button>
-                  <button type="button" className={ui.primaryAction} onClick={handleOpenCreatePlan}>Add Plan</button>
-                </>
-              ) : null}
-            </div>
-          )}
-        />
+  const studentTabs = [
+    { key: 'requests', label: 'Requests', count: pendingRequests.length, alert: pendingRequests.length > 0 },
+    { key: 'subscriptions', label: 'Subscriptions', count: safeSubscriptions.filter((item) => !isFreePlanSubscription(item)).length },
+    { key: 'apple', label: 'Apple purchases', count: appleTransactions.length || null },
+    { key: 'audit', label: 'Audit log', count: null },
+  ];
+  const manageTabs = [
+    { key: 'plans', label: 'Plans', count: safePlans.length },
+    { key: 'coupons', label: 'Coupons', count: safeCoupons.length },
+  ];
+  const visibleTabs = manageToolsVisible ? manageTabs : studentTabs;
+  const activeTab = manageToolsVisible ? manageTab : tab;
+  const selectTab = (key) => {
+    tabTouched.current = true;
+    if (manageToolsVisible) setManageTab(key); else setTab(key);
+  };
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
-        {success ? <div className={ui.feedbackSuccess}>{success}</div> : null}
-
-        <section className={subscriptionUi.overviewGrid}>
-          <article className={subscriptionUi.overviewCard}>
-            <span className={subscriptionUi.overviewLabel}>{manageToolsVisible ? 'Plans' : 'Students'}</span>
-            <strong className={subscriptionUi.overviewValue}>{manageToolsVisible ? safePlans.length : safeStudents.length}</strong>
-            <p className={subscriptionUi.overviewText}>{manageToolsVisible ? 'Subscription plans currently configured in the LMS.' : 'Student accounts available for subscription assignment.'}</p>
-          </article>
-          <article className={subscriptionUi.overviewCard}>
-            <span className={subscriptionUi.overviewLabel}>{manageToolsVisible ? 'Coupons' : 'Pending Requests'}</span>
-            <strong className={subscriptionUi.overviewValue}>{manageToolsVisible ? safeCoupons.length : pendingRequests.length}</strong>
-            <p className={subscriptionUi.overviewText}>{manageToolsVisible ? 'Bank-transfer coupon codes currently configured.' : 'Student requests waiting for admin decision.'}</p>
-          </article>
-          <article className={subscriptionUi.overviewCard}>
-            <span className={subscriptionUi.overviewLabel}>Active Subs</span>
-            <strong className={subscriptionUi.overviewValue}>{safeSubscriptions.filter((subscription) => subscription?.status === 'active').length}</strong>
-            <p className={subscriptionUi.overviewText}>Students currently on an active subscription window.</p>
-          </article>
-          <article className={subscriptionUi.overviewCard}>
-            <span className={subscriptionUi.overviewLabel}>Requests / Expiring</span>
-            <strong className={subscriptionUi.overviewValue}>{pendingRequests.length} / {expiringSoonCount}</strong>
-            <p className={subscriptionUi.overviewText}>Pending upgrade requests and subscriptions ending within 7 days.</p>
-          </article>
-        </section>
-
-        {manageToolsVisible ? (
-          <>
-        <section className={cx(ui.panelCard, subscriptionUi.planLibrary)}>
-          <div className={ui.panelTop}>
-            <div>
-              <h2>Subscription plans</h2>
-              <p>{loading ? 'Loading plans...' : `${safePlans.length} plan(s) configured`}</p>
-            </div>
-          </div>
-
-          {loading ? <div className={ui.emptyBox}>Loading plans...</div> : null}
-          {!loading && safePlans.length === 0 ? <div className={ui.emptyBox}>No subscription plans created yet.</div> : null}
-          {!loading && safePlans.length ? (
-            <div className={ui.tableShell}>
-              <table className={ui.modernTable}>
-                <thead>
-                  <tr>
-                    <th className={ui.tableHeadCell}>Plan</th>
-                    <th className={ui.tableHeadCell}>Price</th>
-                    <th className={ui.tableHeadCell}>Duration</th>
-                    <th className={ui.tableHeadCell}>Status</th>
-                    <th className={ui.tableHeadCell}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {safePlans.map((plan) => (
-                    <tr key={plan.id}>
-                      <td className={ui.tableCell}>
-                        <div className={ui.buttonRow}>
-                          <strong>{plan.name}</strong>
-                          {plan.recommended ? <span className={ui.tablePill}>Recommended</span> : null}
-                        </div>
-                        <div className={ui.tableSubtext}>{plan.description || 'Subscription plan description.'}</div>
-                      </td>
-                      <td className={ui.tableCell}>
-                        <strong>{plan.currency} {Number(plan.effectivePrice).toFixed(2)}</strong>
-                        {plan.offerEnabled && plan.offerPrice !== null ? (
-                          <div className={cx(ui.tableSubtext, 'line-through')}>{plan.currency} {Number(plan.regularPrice).toFixed(2)}</div>
-                        ) : null}
-                      </td>
-                      <td className={ui.tableCell}>
-                        <strong>{plan.durationDays} days</strong>
-                        <div className={ui.tableSubtext}>Sort {plan.sortOrder}</div>
-                      </td>
-                      <td className={ui.tableCell}><span className={statusPill(plan.status)}>{plan.status}</span></td>
-                      <td className={ui.tableCell}>
-                        <div className={ui.iconRow}>
-                          <button type="button" className={ui.iconButton} aria-label={`Edit ${plan.name}`} title="Edit plan" onClick={() => startEditPlan(plan)}>
-                            <EditActionIcon />
-                          </button>
-                          <button type="button" className={ui.dangerIconButton} aria-label={`Delete ${plan.name}`} title="Delete plan" onClick={() => handlePlanDelete(plan)}>
-                            <DeleteActionIcon />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
-
-        <section className={ui.panelCard}>
-          <div className={ui.panelTop}>
-            <div>
-              <h2>Subscription coupons</h2>
-              <p>Create bank transfer coupons that either reduce money or apply only to selected packages.</p>
-            </div>
-          </div>
-
-          <form className={ui.stackForm} onSubmit={handleCouponSubmit}>
-            <div className={subscriptionUi.metaGrid}>
-              <label className={ui.formLabel}>
-                Coupon code
-                <input className={ui.input} name="code" value={couponForm.code} onChange={handleCouponChange} placeholder="ERPM25" required />
-              </label>
-              <label className={ui.formLabel}>
-                Label
-                <input className={ui.input} name="label" value={couponForm.label} onChange={handleCouponChange} placeholder="New student offer" />
-              </label>
-              <label className={ui.formLabel}>
-                Coupon mode
-                <select className={ui.input} name="couponMode" value={couponForm.couponMode} onChange={handleCouponChange}>
-                  <option value="discount">Reduce money</option>
-                  <option value="package">Package only</option>
-                </select>
-              </label>
-              <label className={ui.formLabel}>
-                Discount type
-                <select className={ui.input} name="discountType" value={couponForm.discountType} onChange={handleCouponChange}>
-                  <option value="percent">Percent</option>
-                  <option value="fixed">Fixed amount</option>
-                </select>
-              </label>
-              <label className={ui.formLabel}>
-                Discount value
-                <input className={ui.input} type="number" min="0" step="0.01" name="discountValue" value={couponForm.discountValue} onChange={handleCouponChange} placeholder="25" required />
-              </label>
-              {couponForm.couponMode === 'package' ? (
-                <label className={ui.formLabel}>
-                  Packages
-                  <select className={ui.input} name="planIds" value={couponForm.planIds.map(String)} onChange={handleCouponPlanChange} multiple required>
-                    {safePlans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>{plan.name}</option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <label className={ui.formLabel}>
-                Starts
-                <input className={ui.input} type="date" name="startsAt" value={couponForm.startsAt} onChange={handleCouponChange} />
-              </label>
-              <label className={ui.formLabel}>
-                Expires
-                <input className={ui.input} type="date" name="expiresAt" value={couponForm.expiresAt} onChange={handleCouponChange} />
-              </label>
-              <label className={ui.formLabel}>
-                Usage limit
-                <input className={ui.input} type="number" min="1" name="maxRedemptions" value={couponForm.maxRedemptions} onChange={handleCouponChange} placeholder="Unlimited" />
-              </label>
-              <label className={ui.formLabel}>
-                Status
-                <select className={ui.input} name="status" value={couponForm.status} onChange={handleCouponChange}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </label>
-            </div>
-
-            <div className={ui.buttonRow}>
-              <button type="submit" className={ui.primaryAction} disabled={savingCoupon}>
-                {savingCoupon ? 'Saving...' : editingCouponId ? 'Update coupon' : 'Create coupon'}
-              </button>
-              {editingCouponId ? (
-                <button type="button" className={ui.secondaryAction} onClick={resetCouponForm} disabled={savingCoupon}>
-                  Cancel edit
-                </button>
-              ) : null}
-            </div>
-          </form>
-
-          <div className="mt-5">
-            {!loading && safeCoupons.length === 0 ? <div className={ui.emptyBox}>No coupon codes created yet.</div> : null}
-            {safeCoupons.length ? (
-              <div className={ui.tableShell}>
-                <table className={ui.modernTable}>
-                  <thead>
-                    <tr>
-                      <th className={ui.tableHeadCell}>Code</th>
-                      <th className={ui.tableHeadCell}>Mode</th>
-                      <th className={ui.tableHeadCell}>Window</th>
-                      <th className={ui.tableHeadCell}>Usage</th>
-                      <th className={ui.tableHeadCell}>Status</th>
-                      <th className={ui.tableHeadCell}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {safeCoupons.map((coupon) => (
-                      <tr key={coupon.id}>
-                        <td className={ui.tableCell}>
-                          <strong>{coupon.code}</strong>
-                          {coupon.label ? <div className={ui.tableSubtext}>{coupon.label}</div> : null}
-                        </td>
-                        <td className={ui.tableCell}>
-                          <strong>{coupon.couponMode === 'package' ? 'Package + discount' : 'Reduce money'}</strong>
-                          <div className={ui.tableSubtext}>
-                            {coupon.discountType === 'percent' ? `${Number(coupon.discountValue).toFixed(2)}% off` : `Fixed ${Number(coupon.discountValue).toFixed(2)} off`}
-                            {coupon.couponMode === 'package' && Array.isArray(coupon.planIds) && coupon.planIds.length
-                              ? ` · ${coupon.planIds.map((planId) => planNameById.get(Number(planId)) || `Plan #${planId}`).join(', ')}`
-                              : null}
-                          </div>
-                        </td>
-                        <td className={ui.tableCell}>
-                          <strong>{coupon.startsAt ? String(coupon.startsAt).slice(0, 10) : 'Now'}</strong>
-                          <div className={ui.tableSubtext}>Ends {coupon.expiresAt ? String(coupon.expiresAt).slice(0, 10) : 'never'}</div>
-                        </td>
-                        <td className={ui.tableCell}>
-                          {Number(coupon.redemptionCount || 0)} / {coupon.maxRedemptions || 'Unlimited'}
-                        </td>
-                        <td className={ui.tableCell}><span className={statusPill(coupon.status)}>{coupon.status}</span></td>
-                        <td className={ui.tableCell}>
-                          <div className={ui.buttonRow}>
-                            <button type="button" className={ui.secondaryAction} onClick={() => startEditCoupon(coupon)}>Edit</button>
-                            <button type="button" className={ui.dangerAction} onClick={() => handleCouponDelete(coupon)}>Delete</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-          </>
-        ) : null}
-
-        {subscriptionView === 'students' ? (
-          <>
-        <section className={ui.panelCard}>
-          <div className={ui.panelTop}>
-            <div>
-              <h2>Invoice lookup</h2>
-              <p>Enter a simple invoice ID like 1122 to check card or bank transfer details.</p>
-            </div>
-          </div>
-          <form className="grid gap-3 md:grid-cols-[minmax(180px,260px)_auto]" onSubmit={handleInvoiceLookup}>
-            <input
-              className={ui.input}
-              value={invoiceSearch}
-              onChange={(event) => setInvoiceSearch(event.target.value.replace(/\D/g, ''))}
-              placeholder="1122"
-              inputMode="numeric"
-              aria-label="Invoice ID"
-            />
-            <button type="submit" className={ui.primaryAction} disabled={invoiceLookupLoading || !invoiceSearch.trim()}>
-              {invoiceLookupLoading ? 'Checking...' : 'Check invoice'}
-            </button>
-          </form>
-          {invoiceLookup ? (
-            <div className="mt-4">
-              {!invoiceLookup.found ? (
-                <div className="rounded-lg border border-line-soft bg-surface-1 p-4">
-                  <strong className="text-ink-strong">No invoice found for {invoiceLookup.invoiceId}.</strong>
-                </div>
-              ) : (
-                <div className={ui.tableShell}>
-                  <table className={ui.modernTable}>
-                    <thead>
-                      <tr>
-                        <th className={ui.tableHeadCell}>Invoice Number</th>
-                        <th className={ui.tableHeadCell}>Email</th>
-                        <th className={ui.tableHeadCell}>Subscription Name</th>
-                        <th className={ui.tableHeadCell}>Which Subscription</th>
-                        <th className={ui.tableHeadCell}>Payment</th>
-                        <th className={ui.tableHeadCell}>Proof</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className={ui.tableCell}>
-                          <strong>#{invoiceLookup.invoiceId}</strong>
-                          {invoiceLookup.orderId && invoiceLookup.orderId !== invoiceLookup.invoiceId ? (
-                            <div className={ui.tableSubtext}>Order #{invoiceLookup.orderId}</div>
-                          ) : null}
-                        </td>
-                        <td className={ui.tableCell}>
-                          <strong>{getAdminUserIdentifier(invoiceLookup, 'Student')}</strong>
-                          <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(invoiceLookup) || '-'}</div>
-                        </td>
-                        <td className={ui.tableCell}>
-                          <strong>{invoiceLookup.planName || '-'}</strong>
-                          {invoiceLookup.adminNote ? <div className={ui.tableSubtext}>{invoiceLookup.adminNote}</div> : null}
-                        </td>
-                        <td className={ui.tableCell}>
-                          <span className={ui.tablePill}>{invoiceLookup.type === 'card' ? 'Card / PayHere' : 'Bank transfer'}</span>
-                          <div className="mt-1">{statusPill(invoiceLookup.status)}</div>
-                        </td>
-                        <td className={ui.tableCell}>
-                          <strong>
-                            {invoiceLookup.currency} {invoiceLookup.amount === null || invoiceLookup.amount === undefined ? '-' : Number(invoiceLookup.amount).toFixed(2)}
-                          </strong>
-                          {invoiceLookup.type === 'card' && invoiceLookup.payherePaymentId ? (
-                            <div className={ui.tableSubtext}>PayHere: {invoiceLookup.payherePaymentId}</div>
-                          ) : null}
-                          {invoiceLookup.type !== 'card' && invoiceLookup.paymentReference ? (
-                            <div className={ui.tableSubtext}>Reference: {invoiceLookup.paymentReference}</div>
-                          ) : null}
-                        </td>
-                        <td className={ui.tableCell}>
-                          {invoiceLookup.paymentProofDataUrl ? (
-                            <button type="button" className={ui.secondaryAction} onClick={() => setProofPreviewRequest(invoiceLookup)}>
-                              View proof
-                            </button>
-                          ) : (
-                            <span className={ui.tableSubtext}>No proof uploaded</span>
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </section>
-
-        <section className={ui.panelCard}>
-          <div className={ui.panelTop}>
-            <div>
-              <h2>Apple in-app purchases</h2>
-              <p>
-                Every StoreKit purchase this server has verified, newest first. Read-only &mdash;
-                access is granted by redemption, not from here.
-              </p>
-            </div>
-          </div>
-
-          {!loading && appleTransactions.length === 0 ? (
-            <div className={ui.emptyBox}>No Apple purchases recorded yet.</div>
-          ) : null}
-          {appleTransactions.length ? (
-            <div className={ui.tableShell}>
-              <table className={ui.modernTable}>
-                <thead>
-                  <tr>
-                    <th className={ui.tableHeadCell}>Student</th>
-                    <th className={ui.tableHeadCell}>Product</th>
-                    <th className={ui.tableHeadCell}>Plan</th>
-                    <th className={ui.tableHeadCell}>Purchased</th>
-                    <th className={ui.tableHeadCell}>Expires</th>
-                    <th className={ui.tableHeadCell}>Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appleTransactions.map((transaction) => (
-                    <tr key={transaction.id}>
-                      <td className={ui.tableCell}>
-                        <strong>{transaction.userName || `User #${transaction.userId}`}</strong>
-                        <div className={ui.tableSubtext}>{transaction.userEmail || '-'}</div>
-                      </td>
-                      <td className={ui.tableCell}>
-                        <code className="text-[12px]">{transaction.productId}</code>
-                        {/* Sandbox purchases are test data — worth calling out so
-                            they are never mistaken for real revenue. */}
-                        {transaction.environment
-                          && transaction.environment.toLowerCase() !== 'production' ? (
-                          <div className="mt-1">
-                            <span className={ui.tablePill}>{transaction.environment}</span>
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className={ui.tableCell}>
-                        {transaction.planName ? (
-                          transaction.planName
-                        ) : (
-                          // The unmapped-product signature. This is what the
-                          // rejected yearly purchase looked like.
-                          <span className={statusPill('failed')}>No plan mapped</span>
-                        )}
-                      </td>
-                      <td className={ui.tableCell}>{formatAdminDateTime(transaction.purchaseDate) || '-'}</td>
-                      <td className={ui.tableCell}>{formatAdminDateTime(transaction.expiresDate) || '-'}</td>
-                      <td className={ui.tableCell}>
-                        {transaction.revocationDate ? (
-                          <span className={statusPill('failed')}>Refunded</span>
-                        ) : transaction.subscriptionId ? (
-                          <>
-                            <span className={statusPill(transaction.subscriptionStatus || 'active')}>
-                              {transaction.subscriptionStatus || 'active'}
-                            </span>
-                            <div className={ui.tableSubtext}>
-                              Subscription #{transaction.subscriptionId}
-                            </div>
-                          </>
-                        ) : (
-                          <span className={statusPill('pending')}>No access granted</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
-
-        <section className={ui.panelCard}>
-          <div className={ui.panelTop}>
-            <div>
-              <h2>Upgrade requests</h2>
-              <p>Approve or reject student plan requests before manually tracking payment.</p>
-            </div>
-          </div>
-
-          {!loading && safeRequests.length === 0 ? <div className={ui.emptyBox}>No upgrade requests yet.</div> : null}
-          {safeRequests.length ? (
-            <div className={ui.tableShell}>
-              <table className={ui.modernTable}>
-                <thead>
-                  <tr>
-                    <th className={ui.tableHeadCell}>Student</th>
-                    <th className={ui.tableHeadCell}>Plan</th>
-                    <th className={ui.tableHeadCell}>Requested</th>
-                    <th className={ui.tableHeadCell}>Status</th>
-                    <th className={ui.tableHeadCell}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {safeRequests.map((request) => (
-                    <tr key={request.id}>
-                      <td className={ui.tableCell}>
-                        <strong>{getAdminUserIdentifier(request, 'Student')}</strong>
-                        <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(request) || '-'}</div>
-                        {request.invoiceId ? <div className={ui.tableSubtext}>Invoice #{request.invoiceId}</div> : null}
-                        {request.message ? <div className={ui.tableSubtext}>{request.message}</div> : null}
-                        {request.paymentProofDataUrl ? (
-                          <div className="mt-2 grid gap-1">
-                            <span className={statusPill('paid')}>Bank transfer proof uploaded</span>
-                            <div className={ui.tableSubtext}>Uploaded: {formatAdminDateTime(request.requestedAt)}</div>
-                            {request.paymentReference ? <div className={ui.tableSubtext}>Reference: {request.paymentReference}</div> : null}
-                            <button type="button" className="justify-self-start border-0 bg-transparent p-0 text-[12px] font-bold text-brand-primary" onClick={() => setProofPreviewRequest(request)}>
-                              View slip / screenshot
-                            </button>
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className={ui.tableCell}>
-                        <strong>{request.planName}</strong>
-                        <div className={ui.tableSubtext}>{request.planCurrency} {Number(request.planEffectivePrice).toFixed(2)}</div>
-                        {request.couponCode ? (
-                          <div className={ui.tableSubtext}>
-                            {Number(request.discountAmount || 0) > 0
-                              ? `Coupon ${request.couponCode}: -${request.paymentCurrency || request.planCurrency} ${Number(request.discountAmount || 0).toFixed(2)}`
-                              : `Coupon ${request.couponCode} applied`}
-                          </div>
-                        ) : null}
-                        {request.paymentAmount !== null && request.paymentAmount !== undefined ? (
-                          <div className={ui.tableSubtext}>Uploaded payment: {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount).toFixed(2)}</div>
-                        ) : null}
-                      </td>
-                      <td className={ui.tableCell}>{formatAdminDateTime(request.requestedAt)}</td>
-                      <td className={ui.tableCell}><span className={statusPill(request.status)}>{request.status}</span></td>
-                      <td className={ui.tableCell}>
-                        {request.status === 'pending' ? (
-                          <div className={ui.buttonRow}>
-                            <button type="button" className={ui.primaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleResolveRequest(request, 'approved')}>
-                              {actionBusyId === `request-${request.id}-approved` ? 'Approving...' : 'Approve'}
-                            </button>
-                            <button type="button" className={ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleResolveRequest(request, 'rejected')}>
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span className={ui.tableSubtext}>
-                            {request.adminNote || getAdminUserIdentifier({ email: request.resolvedByEmail, fullName: request.resolvedByName }, '-')}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
-
-        <div className={subscriptionUi.adminGrid}>
+  // The three everyday forms, written once and shown inside a quick-action dialog
+  // (or, for coupons, also on the Manage > Coupons tab).
+  const assignPanel = (
           <section className={ui.panelCard}>
             <div className={ui.panelTop}>
               <div>
@@ -1662,7 +1391,576 @@ export function AdminSubscriptionsPage() {
               </div>
             </form>
           </section>
+  );
+  const invoicePanel = (
+        <section className={ui.panelCard}>
+          <div className={ui.panelTop}>
+            <div>
+              <h2>Invoice lookup</h2>
+              <p>Enter a simple invoice ID like 1122 to check card or bank transfer details.</p>
+            </div>
+          </div>
+          <form className="grid gap-3 md:grid-cols-[minmax(180px,260px)_auto]" onSubmit={handleInvoiceLookup}>
+            <input
+              className={ui.input}
+              value={invoiceSearch}
+              onChange={(event) => setInvoiceSearch(event.target.value.replace(/\D/g, ''))}
+              placeholder="1122"
+              inputMode="numeric"
+              aria-label="Invoice ID"
+            />
+            <button type="submit" className={ui.primaryAction} disabled={invoiceLookupLoading || !invoiceSearch.trim()}>
+              {invoiceLookupLoading ? 'Checking...' : 'Check invoice'}
+            </button>
+          </form>
+          {invoiceLookup ? (
+            <div className="mt-4">
+              {!invoiceLookup.found ? (
+                <div className="rounded-lg border border-line-soft bg-surface-1 p-4">
+                  <strong className="text-ink-strong">No invoice found for {invoiceLookup.invoiceId}.</strong>
+                </div>
+              ) : (
+                <div className={ui.tableShell}>
+                  <table className={ui.modernTable}>
+                    <thead>
+                      <tr>
+                        <th className={ui.tableHeadCell}>Invoice Number</th>
+                        <th className={ui.tableHeadCell}>Email</th>
+                        <th className={ui.tableHeadCell}>Subscription Name</th>
+                        <th className={ui.tableHeadCell}>Which Subscription</th>
+                        <th className={ui.tableHeadCell}>Payment</th>
+                        <th className={ui.tableHeadCell}>Proof</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className={ui.tableCell}>
+                          <strong>#{invoiceLookup.invoiceId}</strong>
+                          {invoiceLookup.orderId && invoiceLookup.orderId !== invoiceLookup.invoiceId ? (
+                            <div className={ui.tableSubtext}>Order #{invoiceLookup.orderId}</div>
+                          ) : null}
+                        </td>
+                        <td className={ui.tableCell}>
+                          <strong>{getAdminUserIdentifier(invoiceLookup, 'Student')}</strong>
+                          <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(invoiceLookup) || '-'}</div>
+                        </td>
+                        <td className={ui.tableCell}>
+                          <strong>{invoiceLookup.planName || '-'}</strong>
+                          {invoiceLookup.adminNote ? <div className={ui.tableSubtext}>{invoiceLookup.adminNote}</div> : null}
+                        </td>
+                        <td className={ui.tableCell}>
+                          <span className={ui.tablePill}>{invoiceLookup.type === 'card' ? 'Card / PayHere' : 'Bank transfer'}</span>
+                          <div className="mt-1">{statusPill(invoiceLookup.status)}</div>
+                        </td>
+                        <td className={ui.tableCell}>
+                          <strong>
+                            {invoiceLookup.currency} {invoiceLookup.amount === null || invoiceLookup.amount === undefined ? '-' : Number(invoiceLookup.amount).toFixed(2)}
+                          </strong>
+                          {invoiceLookup.type === 'card' && invoiceLookup.payherePaymentId ? (
+                            <div className={ui.tableSubtext}>PayHere: {invoiceLookup.payherePaymentId}</div>
+                          ) : null}
+                          {invoiceLookup.type !== 'card' && invoiceLookup.paymentReference ? (
+                            <div className={ui.tableSubtext}>Reference: {invoiceLookup.paymentReference}</div>
+                          ) : null}
+                        </td>
+                        <td className={ui.tableCell}>
+                          {invoiceLookup.paymentProofDataUrl ? (
+                            <button type="button" className={ui.secondaryAction} onClick={() => setProofPreviewRequest(invoiceLookup)}>
+                              View proof
+                            </button>
+                          ) : (
+                            <span className={ui.tableSubtext}>No proof uploaded</span>
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </section>
+  );
+  const couponPanel = (
+        <section className={ui.panelCard}>
+          <div className={ui.panelTop}>
+            <div>
+              <h2>Subscription coupons</h2>
+              <p>Create bank transfer coupons that either reduce money or apply only to selected packages.</p>
+            </div>
+          </div>
 
+          <form className={ui.stackForm} onSubmit={handleCouponSubmit}>
+            <div className={subscriptionUi.metaGrid}>
+              <label className={ui.formLabel}>
+                Coupon code
+                <input className={ui.input} name="code" value={couponForm.code} onChange={handleCouponChange} placeholder="ERPM25" required />
+              </label>
+              <label className={ui.formLabel}>
+                Label
+                <input className={ui.input} name="label" value={couponForm.label} onChange={handleCouponChange} placeholder="New student offer" />
+              </label>
+              <label className={ui.formLabel}>
+                Coupon mode
+                <select className={ui.input} name="couponMode" value={couponForm.couponMode} onChange={handleCouponChange}>
+                  <option value="discount">Reduce money</option>
+                  <option value="package">Package only</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Discount type
+                <select className={ui.input} name="discountType" value={couponForm.discountType} onChange={handleCouponChange}>
+                  <option value="percent">Percent</option>
+                  <option value="fixed">Fixed amount</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Discount value
+                <input className={ui.input} type="number" min="0" step="0.01" name="discountValue" value={couponForm.discountValue} onChange={handleCouponChange} placeholder="25" required />
+              </label>
+              {couponForm.couponMode === 'package' ? (
+                <label className={ui.formLabel}>
+                  Packages
+                  <select className={ui.input} name="planIds" value={couponForm.planIds.map(String)} onChange={handleCouponPlanChange} multiple required>
+                    {safePlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>{plan.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <label className={ui.formLabel}>
+                Starts
+                <input className={ui.input} type="date" name="startsAt" value={couponForm.startsAt} onChange={handleCouponChange} />
+              </label>
+              <label className={ui.formLabel}>
+                Expires
+                <input className={ui.input} type="date" name="expiresAt" value={couponForm.expiresAt} onChange={handleCouponChange} />
+              </label>
+              <label className={ui.formLabel}>
+                Usage limit
+                <input className={ui.input} type="number" min="1" name="maxRedemptions" value={couponForm.maxRedemptions} onChange={handleCouponChange} placeholder="Unlimited" />
+              </label>
+              <label className={ui.formLabel}>
+                Status
+                <select className={ui.input} name="status" value={couponForm.status} onChange={handleCouponChange}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+            </div>
+
+            <div className={ui.buttonRow}>
+              <button type="submit" className={ui.primaryAction} disabled={savingCoupon}>
+                {savingCoupon ? 'Saving...' : editingCouponId ? 'Update coupon' : 'Create coupon'}
+              </button>
+              {editingCouponId ? (
+                <button type="button" className={ui.secondaryAction} onClick={resetCouponForm} disabled={savingCoupon}>
+                  Cancel edit
+                </button>
+              ) : null}
+            </div>
+          </form>
+
+          <div className="mt-5">
+            {!loading && safeCoupons.length === 0 ? <div className={ui.emptyBox}>No coupon codes created yet.</div> : null}
+            {safeCoupons.length ? (
+              <div className={ui.tableShell}>
+                <table className={ui.modernTable}>
+                  <thead>
+                    <tr>
+                      <th className={ui.tableHeadCell}>Code</th>
+                      <th className={ui.tableHeadCell}>Mode</th>
+                      <th className={ui.tableHeadCell}>Window</th>
+                      <th className={ui.tableHeadCell}>Usage</th>
+                      <th className={ui.tableHeadCell}>Status</th>
+                      <th className={ui.tableHeadCell}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {safeCoupons.map((coupon) => (
+                      <tr key={coupon.id}>
+                        <td className={ui.tableCell}>
+                          <strong>{coupon.code}</strong>
+                          {coupon.label ? <div className={ui.tableSubtext}>{coupon.label}</div> : null}
+                        </td>
+                        <td className={ui.tableCell}>
+                          <strong>{coupon.couponMode === 'package' ? 'Package + discount' : 'Reduce money'}</strong>
+                          <div className={ui.tableSubtext}>
+                            {coupon.discountType === 'percent' ? `${Number(coupon.discountValue).toFixed(2)}% off` : `Fixed ${Number(coupon.discountValue).toFixed(2)} off`}
+                            {coupon.couponMode === 'package' && Array.isArray(coupon.planIds) && coupon.planIds.length
+                              ? ` · ${coupon.planIds.map((planId) => planNameById.get(Number(planId)) || `Plan #${planId}`).join(', ')}`
+                              : null}
+                          </div>
+                        </td>
+                        <td className={ui.tableCell}>
+                          <strong>{coupon.startsAt ? String(coupon.startsAt).slice(0, 10) : 'Now'}</strong>
+                          <div className={ui.tableSubtext}>Ends {coupon.expiresAt ? String(coupon.expiresAt).slice(0, 10) : 'never'}</div>
+                        </td>
+                        <td className={ui.tableCell}>
+                          {Number(coupon.redemptionCount || 0)} / {coupon.maxRedemptions || 'Unlimited'}
+                        </td>
+                        <td className={ui.tableCell}><span className={statusPill(coupon.status)}>{coupon.status}</span></td>
+                        <td className={ui.tableCell}>
+                          <div className={ui.buttonRow}>
+                            <button type="button" className={ui.secondaryAction} onClick={() => startEditCoupon(coupon)}>Edit</button>
+                            <button type="button" className={ui.dangerAction} onClick={() => handleCouponDelete(coupon)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        </section>
+  );
+
+  return (
+    <main className={ui.screenShell}>
+      <section className={ui.managementLayout}>
+        <AppHeader
+          title={manageToolsVisible ? 'Manage Packages' : 'Subscriptions'}
+          subtitle={manageToolsVisible
+            ? 'Package Controls'
+            : 'Payment Review'}
+          actions={(
+            <div className={ui.buttonRow}>
+              <button
+                type="button"
+                className={manageToolsVisible ? ui.secondaryAction : ui.primaryAction}
+                aria-expanded={manageToolsVisible}
+                onClick={() => setSubscriptionView(manageToolsVisible ? 'students' : 'manage')}
+              >
+                {manageToolsVisible ? 'Hide manage' : 'Manage'}
+              </button>
+              {manageToolsVisible ? (
+                <>
+                  <button
+                    type="button"
+                    className={ui.secondaryAction}
+                    onClick={handleToggleAllOffers}
+                    disabled={togglingOffers}
+                  >
+                    {togglingOffers
+                      ? 'Updating prices...'
+                      : safePlans.some((plan) => plan.offerEnabled)
+                        ? 'Switch all to usual price'
+                        : 'Enable all discounts'}
+                  </button>
+                  <button type="button" className={ui.primaryAction} onClick={handleOpenCreatePlan}>Add Plan</button>
+                </>
+              ) : null}
+            </div>
+          )}
+        />
+
+        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {success ? <div className={ui.feedbackSuccess}>{success}</div> : null}
+
+        <section className={subscriptionUi.overviewGrid}>
+          {[
+            manageToolsVisible
+              ? { label: 'Plans', value: safePlans.length, hint: 'Subscription plans currently configured in the LMS.' }
+              : { label: 'Students', value: safeStudents.length, hint: 'Student accounts available for subscription assignment.' },
+            manageToolsVisible
+              ? { label: 'Coupons', value: safeCoupons.length, hint: 'Bank-transfer coupon codes currently configured.' }
+              : { label: 'Pending requests', value: pendingRequests.length, hint: 'Student requests waiting for admin decision.', alert: pendingRequests.length > 0 },
+            { label: 'Active subs', value: safeSubscriptions.filter((subscription) => subscription?.status === 'active' && !isFreePlanSubscription(subscription)).length, hint: 'Paid or assigned subscriptions that are active right now (the free plan is not counted).' },
+            { label: 'Expiring soon', value: expiringSoonCount, hint: 'Subscriptions ending within 7 days.', alert: expiringSoonCount > 0 },
+          ].map((card) => (
+            <article key={card.label} className={subscriptionUi.overviewCard} title={card.hint}>
+              <strong className={cx(subscriptionUi.overviewValue, card.alert && 'text-amber-600 dark:text-amber-300')}>{card.value}</strong>
+              <span className={subscriptionUi.overviewLabel}>{card.label}</span>
+            </article>
+          ))}
+        </section>
+
+        {!manageToolsVisible ? (
+          <section className="flex flex-wrap items-center gap-2" aria-label="Quick actions">
+            <span className="mr-1 text-[11px] font-black uppercase tracking-[0.12em] text-ink-soft">Quick actions</span>
+            <button type="button" className={cx(ui.primaryAction, '!min-h-10 whitespace-nowrap !px-4')} onClick={() => setQuickModal('assign')}>
+              + Assign subscription
+            </button>
+            <button type="button" className={cx(ui.secondaryAction, '!min-h-10 whitespace-nowrap !px-4')} onClick={() => { resetCouponForm(); setQuickModal('coupon'); }}>
+              + Create coupon
+            </button>
+            <button type="button" className={cx(ui.secondaryAction, '!min-h-10 whitespace-nowrap !px-4')} onClick={() => setQuickModal('invoice')}>
+              Invoice lookup
+            </button>
+          </section>
+        ) : null}
+
+        <nav className="flex flex-wrap gap-1.5 rounded-xl border border-line-soft bg-surface-1 p-1.5" role="tablist" aria-label="Subscription sections">
+          {visibleTabs.map((item) => {
+            const active = activeTab === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => selectTab(item.key)}
+                className={cx(
+                  'inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg border px-3.5 text-[13px] font-extrabold shadow-none transition',
+                  active
+                    ? 'border-brand-primary/30 !bg-[var(--color-primary-light)] text-brand-primary'
+                    : 'border-transparent !bg-transparent text-ink-soft hover:!bg-surface-2 hover:text-ink-strong',
+                )}
+              >
+                {item.label}
+                {item.count !== null && item.count !== undefined ? (
+                  <span className={cx(
+                    'rounded-full px-2 py-0.5 text-[11px] font-black leading-none',
+                    item.alert ? 'bg-amber-400/20 text-amber-700 dark:text-amber-300' : 'bg-surface-3 text-ink-soft',
+                  )}>
+                    {item.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
+
+        {manageToolsVisible ? (
+          <>
+        {manageTab === 'plans' ? (
+        <section className={cx(ui.panelCard, subscriptionUi.planLibrary)}>
+          <div className={ui.panelTop}>
+            <div>
+              <h2>Subscription plans</h2>
+              <p>{loading ? 'Loading plans...' : `${safePlans.length} plan(s) configured`}</p>
+            </div>
+          </div>
+
+          {loading ? <div className={ui.emptyBox}>Loading plans...</div> : null}
+          {!loading && safePlans.length === 0 ? <div className={ui.emptyBox}>No subscription plans created yet.</div> : null}
+          {!loading && safePlans.length ? (
+            <div className={ui.tableShell}>
+              <table className={ui.modernTable}>
+                <thead>
+                  <tr>
+                    <th className={ui.tableHeadCell}>Plan</th>
+                    <th className={ui.tableHeadCell}>Price</th>
+                    <th className={ui.tableHeadCell}>Duration</th>
+                    <th className={ui.tableHeadCell}>Status</th>
+                    <th className={ui.tableHeadCell}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {safePlans.map((plan) => (
+                    <tr key={plan.id}>
+                      <td className={ui.tableCell}>
+                        <div className={ui.buttonRow}>
+                          <strong>{plan.name}</strong>
+                          {plan.recommended ? <span className={ui.tablePill}>Recommended</span> : null}
+                        </div>
+                        <div className={ui.tableSubtext}>{plan.description || 'Subscription plan description.'}</div>
+                      </td>
+                      <td className={ui.tableCell}>
+                        <strong>{plan.currency} {Number(plan.effectivePrice).toFixed(2)}</strong>
+                        {plan.offerEnabled && plan.offerPrice !== null ? (
+                          <div className={cx(ui.tableSubtext, 'line-through')}>{plan.currency} {Number(plan.regularPrice).toFixed(2)}</div>
+                        ) : null}
+                      </td>
+                      <td className={ui.tableCell}>
+                        <strong>{plan.durationDays} days</strong>
+                        <div className={ui.tableSubtext}>Sort {plan.sortOrder}</div>
+                      </td>
+                      <td className={ui.tableCell}><span className={statusPill(plan.status)}>{plan.status}</span></td>
+                      <td className={ui.tableCell}>
+                        <div className={ui.iconRow}>
+                          <button type="button" className={ui.iconButton} aria-label={`Edit ${plan.name}`} title="Edit plan" onClick={() => startEditPlan(plan)}>
+                            <EditActionIcon />
+                          </button>
+                          <button type="button" className={ui.dangerIconButton} aria-label={`Delete ${plan.name}`} title="Delete plan" onClick={() => handlePlanDelete(plan)}>
+                            <DeleteActionIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+        ) : null}
+
+        {manageTab === 'coupons' ? couponPanel : null}
+
+          </>
+        ) : null}
+
+        {subscriptionView === 'students' ? (
+          <>
+
+        {tab === 'apple' ? (
+        <section className={ui.panelCard}>
+          <div className={ui.panelTop}>
+            <div>
+              <h2>Apple in-app purchases</h2>
+              <p>
+                Every StoreKit purchase this server has verified, newest first. Read-only &mdash;
+                access is granted by redemption, not from here.
+              </p>
+            </div>
+          </div>
+
+          {!loading && appleTransactions.length === 0 ? (
+            <div className={ui.emptyBox}>No Apple purchases recorded yet.</div>
+          ) : null}
+          {appleTransactions.length ? (
+            <div className={ui.tableShell}>
+              <table className={ui.modernTable}>
+                <thead>
+                  <tr>
+                    <th className={ui.tableHeadCell}>Student</th>
+                    <th className={ui.tableHeadCell}>Product</th>
+                    <th className={ui.tableHeadCell}>Plan</th>
+                    <th className={ui.tableHeadCell}>Purchased</th>
+                    <th className={ui.tableHeadCell}>Expires</th>
+                    <th className={ui.tableHeadCell}>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appleTransactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td className={ui.tableCell}>
+                        <strong>{transaction.userName || `User #${transaction.userId}`}</strong>
+                        <div className={ui.tableSubtext}>{transaction.userEmail || '-'}</div>
+                      </td>
+                      <td className={ui.tableCell}>
+                        <code className="text-[12px]">{transaction.productId}</code>
+                        {/* Sandbox purchases are test data — worth calling out so
+                            they are never mistaken for real revenue. */}
+                        {transaction.environment
+                          && transaction.environment.toLowerCase() !== 'production' ? (
+                          <div className="mt-1">
+                            <span className={ui.tablePill}>{transaction.environment}</span>
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className={ui.tableCell}>
+                        {transaction.planName ? (
+                          transaction.planName
+                        ) : (
+                          // The unmapped-product signature. This is what the
+                          // rejected yearly purchase looked like.
+                          <span className={statusPill('failed')}>No plan mapped</span>
+                        )}
+                      </td>
+                      <td className={ui.tableCell}>{formatAdminDateTime(transaction.purchaseDate) || '-'}</td>
+                      <td className={ui.tableCell}>{formatAdminDateTime(transaction.expiresDate) || '-'}</td>
+                      <td className={ui.tableCell}>
+                        {transaction.revocationDate ? (
+                          <span className={statusPill('failed')}>Refunded</span>
+                        ) : transaction.subscriptionId ? (
+                          <>
+                            <span className={statusPill(transaction.subscriptionStatus || 'active')}>
+                              {transaction.subscriptionStatus || 'active'}
+                            </span>
+                            <div className={ui.tableSubtext}>
+                              Subscription #{transaction.subscriptionId}
+                            </div>
+                          </>
+                        ) : (
+                          <span className={statusPill('pending')}>No access granted</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+        ) : null}
+
+        {tab === 'requests' ? (
+        <section className={ui.panelCard}>
+          <div className={ui.panelTop}>
+            <div>
+              <h2>Upgrade requests</h2>
+              <p>Approve or reject student plan requests before manually tracking payment.</p>
+            </div>
+          </div>
+
+          {!loading && safeRequests.length === 0 ? <div className={ui.emptyBox}>No upgrade requests yet.</div> : null}
+          {safeRequests.length ? (
+            <div className={ui.tableShell}>
+              <table className={ui.modernTable}>
+                <thead>
+                  <tr>
+                    <th className={ui.tableHeadCell}>Student</th>
+                    <th className={ui.tableHeadCell}>Plan</th>
+                    <th className={ui.tableHeadCell}>Requested</th>
+                    <th className={ui.tableHeadCell}>Status</th>
+                    <th className={ui.tableHeadCell}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {safeRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td className={ui.tableCell}>
+                        <strong>{getAdminUserIdentifier(request, 'Student')}</strong>
+                        <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(request) || '-'}</div>
+                        {request.invoiceId ? <div className={ui.tableSubtext}>Invoice #{request.invoiceId}</div> : null}
+                        {request.message ? <div className={ui.tableSubtext}>{request.message}</div> : null}
+                        {request.paymentProofDataUrl ? (
+                          <div className="mt-2 grid gap-1">
+                            <span className={statusPill('paid')}>Bank transfer proof uploaded</span>
+                            <div className={ui.tableSubtext}>Uploaded: {formatAdminDateTime(request.requestedAt)}</div>
+                            {request.paymentReference ? <div className={ui.tableSubtext}>Reference: {request.paymentReference}</div> : null}
+                            <button type="button" className="justify-self-start border-0 bg-transparent p-0 text-[12px] font-bold text-brand-primary" onClick={() => setProofPreviewRequest(request)}>
+                              View slip / screenshot
+                            </button>
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className={ui.tableCell}>
+                        <strong>{request.planName}</strong>
+                        <div className={ui.tableSubtext}>{request.planCurrency} {Number(request.planEffectivePrice).toFixed(2)}</div>
+                        {request.couponCode ? (
+                          <div className={ui.tableSubtext}>
+                            {Number(request.discountAmount || 0) > 0
+                              ? `Coupon ${request.couponCode}: -${request.paymentCurrency || request.planCurrency} ${Number(request.discountAmount || 0).toFixed(2)}`
+                              : `Coupon ${request.couponCode} applied`}
+                          </div>
+                        ) : null}
+                        {request.paymentAmount !== null && request.paymentAmount !== undefined ? (
+                          <div className={ui.tableSubtext}>Uploaded payment: {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount).toFixed(2)}</div>
+                        ) : null}
+                      </td>
+                      <td className={ui.tableCell}>{formatAdminDateTime(request.requestedAt)}</td>
+                      <td className={ui.tableCell}><span className={statusPill(request.status)}>{request.status}</span></td>
+                      <td className={ui.tableCell}>
+                        {request.status === 'pending' ? (
+                          <div className={ui.buttonRow}>
+                            <button type="button" className={ui.primaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleResolveRequest(request, 'approved')}>
+                              {actionBusyId === `request-${request.id}-approved` ? 'Approving...' : 'Approve'}
+                            </button>
+                            <button type="button" className={ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleResolveRequest(request, 'rejected')}>
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className={ui.tableSubtext}>
+                            {request.adminNote || getAdminUserIdentifier({ email: request.resolvedByEmail, fullName: request.resolvedByName }, '-')}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+        ) : null}
+
+
+        {tab === 'subscriptions' ? (
           <section className={ui.panelCard}>
             <div className={ui.panelTop}>
               <div>
@@ -1671,7 +1969,7 @@ export function AdminSubscriptionsPage() {
               </div>
             </div>
 
-            <div className="mb-4 grid gap-3 md:grid-cols-[minmax(180px,1fr)_150px_140px_140px_130px_auto]">
+            <div className="mb-3 flex flex-wrap items-center gap-2.5 [&>input]:min-w-[200px] [&>input]:flex-[2_1_220px] [&>select]:min-w-[130px] [&>select]:flex-[1_1_140px]">
               <input className={ui.input} name="search" value={subscriptionFilters.search} onChange={handleSubscriptionFilterChange} placeholder="Search student or plan" aria-label="Search subscriptions by student or plan" />
               <select className={ui.input} name="planId" value={subscriptionFilters.planId} onChange={handleSubscriptionFilterChange} aria-label="Filter subscriptions by plan">
                 <option value="">All plans</option>
@@ -1689,95 +1987,74 @@ export function AdminSubscriptionsPage() {
                 <option value="manual">Manual</option>
                 <option value="paid">Paid</option>
                 <option value="unpaid">Unpaid</option>
-                <option value="free_plan">Free Plan</option>
               </select>
               <select className={ui.input} name="expiring" value={subscriptionFilters.expiring} onChange={handleSubscriptionFilterChange} aria-label="Filter subscriptions by expiry">
                 <option value="">Any expiry</option>
                 <option value="soon">Expiring soon</option>
               </select>
-              <button type="button" className={ui.secondaryAction} onClick={() => setSubscriptionFilters(emptySubscriptionFilters)}>Reset</button>
+              <button type="button" className={cx(ui.secondaryAction, '!min-h-[var(--control-h)] shrink-0 whitespace-nowrap !px-4')} onClick={() => { setSubPage(1); setSubscriptionFilters(emptySubscriptionFilters); }}>Reset</button>
             </div>
 
             <div className={ui.tableShell}>
-              <table className={ui.modernTable}>
+              <table className={ui.modernTable} style={{ width: '100%', minWidth: 620 }}>
                 <thead>
                   <tr>
                     <th className={ui.tableHeadCell}>Student</th>
                     <th className={ui.tableHeadCell}>Plan</th>
-                    <th className={ui.tableHeadCell}>Dates</th>
+                    <th className={ui.tableHeadCell}>Ends</th>
                     <th className={ui.tableHeadCell}>Status</th>
-                    <th className={ui.tableHeadCell}>Payment</th>
-                    <th className={ui.tableHeadCell}>Assigned by</th>
-                    <th className={ui.tableHeadCell}>Actions</th>
+                    <th className={cx(ui.tableHeadCell, 'w-10')}><span className="sr-only">Open</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" className={ui.tableEmpty}>Loading subscriptions...</td>
+                      <td colSpan="5" className={ui.tableEmpty}>Loading subscriptions...</td>
                     </tr>
                   ) : null}
                   {!loading && filteredSubscriptions.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className={ui.tableEmpty}>No subscriptions match the current filters.</td>
+                      <td colSpan="5" className={ui.tableEmpty}>No subscriptions match the current filters.</td>
                     </tr>
                   ) : null}
-                    {!loading && filteredSubscriptions.map((subscription) => (
-                      <tr key={subscription.id}>
-                        <td className={ui.tableCell}>
-                          <strong>{getAdminUserIdentifier(subscription, 'Student')}</strong>
-                          <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(subscription) || '-'}</div>
+                    {!loading && pagedSubscriptions.map((subscription) => (
+                      <tr key={subscription.id} className="cursor-pointer transition hover:bg-surface-2/60 [&>td]:!py-2.5" onClick={() => setDetailId(subscription.id)}>
+                        <td className={cx(ui.tableCell, 'min-w-[170px]')}>
+                          <button
+                            type="button"
+                            className="block max-w-full border-0 !bg-transparent p-0 text-left font-extrabold text-ink-strong shadow-none hover:text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30"
+                            onClick={(event) => { event.stopPropagation(); setDetailId(subscription.id); }}
+                            aria-label={`Open subscription details for ${getAdminUserIdentifier(subscription, 'Student')}`}
+                          >
+                            {getAdminUserIdentifier(subscription, 'Student')}
+                          </button>
                       </td>
-                      <td className={ui.tableCell}>
-                        <strong>{subscription.planName}</strong>
-                        <div className={ui.tableSubtext}>
-                          {subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}
-                        </div>
-                        {subscription.accessScope === 'courses' ? (
-                          <div className={ui.tableSubtext}>
-                            Courses: {(subscription.courseIds || []).map((id) => courseTitleById.get(Number(id)) || `#${id}`).join(', ') || '-'}
-                          </div>
-                        ) : subscription.accessScope === 'lessons' ? (
-                          <div className={ui.tableSubtext}>
-                            Lessons: {(subscription.lessonIds || []).map((id) => lessonTitleById.get(Number(id)) || `#${id}`).join(', ') || '-'}
-                          </div>
-                        ) : (
-                          <div className={ui.tableSubtext}>Access: all paid lessons</div>
-                        )}
+                      <td className={ui.tableCell}><strong>{subscription.planName}</strong></td>
+                      <td className={cx(ui.tableCell, 'whitespace-nowrap')}>
+                        {subscription.endDate}
+                        {subscription.isExpiringSoon ? <div className="text-xs font-bold text-amber-600 dark:text-amber-300">in {subscription.daysRemaining} day(s)</div> : null}
                       </td>
-                      <td className={ui.tableCell}>
-                        <strong>{subscription.startDate}</strong>
-                        <div className={ui.tableSubtext}>Ends {subscription.endDate}</div>
-                        {subscription.isExpiringSoon ? <div className={ui.tableSubtext}>Expires in {subscription.daysRemaining} day(s)</div> : null}
-                      </td>
-                      <td className={ui.tableCell}><span className={statusPill(subscription.computedStatus || subscription.status)}>{subscription.computedStatus || subscription.status}</span></td>
-                      <td className={ui.tableCell}>
-                        <span className={statusPill(subscription.paymentStatus)}>{formatPaymentStatus(subscription.paymentStatus)}</span>
-                        {subscription.amountPaid !== null && subscription.amountPaid !== undefined ? (
-                          <div className={ui.tableSubtext}>{subscription.planCurrency} {Number(subscription.amountPaid).toFixed(2)} {subscription.paymentMethod || ''}</div>
-                        ) : null}
-                        {subscription.paymentReference ? <div className={ui.tableSubtext}>{subscription.paymentReference}</div> : null}
-                      </td>
-                      <td className={ui.tableCell}>
-                        {getAdminUserIdentifier({ email: subscription.assignedByEmail, fullName: subscription.assignedByName }, '-')}
-                      </td>
-                      <td className={ui.tableCell}>
-                        <div className={ui.buttonRow}>
-                          <button type="button" className={ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleExtend(subscription, 7)}>+7d</button>
-                          <button type="button" className={ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleExtend(subscription, 30)}>+30d</button>
-                          <button type="button" className={ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleRenew(subscription)}>Renew</button>
-                          <button type="button" className={ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handlePayment(subscription)}>Paid</button>
-                          <button type="button" className={ui.dangerAction || ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleCancel(subscription)}>Cancel</button>
-                        </div>
-                      </td>
+                      <td className={cx(ui.tableCell, 'whitespace-nowrap')}><span className={statusPill(subscription.computedStatus || subscription.status)}>{subscription.computedStatus || subscription.status}</span></td>
+                      <td className={cx(ui.tableCell, 'text-right text-ink-soft')} aria-hidden="true">›</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </section>
-        </div>
 
+            {subPageCount > 1 ? (
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} disabled={subCurrentPage <= 1} onClick={() => setSubPage(subCurrentPage - 1)}>← Previous</button>
+                <span className="text-[12.5px] font-bold text-ink-soft">
+                  {(subCurrentPage - 1) * SUB_PAGE_SIZE + 1}–{Math.min(subCurrentPage * SUB_PAGE_SIZE, filteredSubscriptions.length)} of {filteredSubscriptions.length}
+                </span>
+                <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} disabled={subCurrentPage >= subPageCount} onClick={() => setSubPage(subCurrentPage + 1)}>Next →</button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {tab === 'audit' ? (
         <section className={ui.panelCard}>
           <div className={ui.panelTop}>
             <div>
@@ -1803,9 +2080,31 @@ export function AdminSubscriptionsPage() {
             </div>
           ) : null}
         </section>
+        ) : null}
 
           </>
         ) : null}
+
+        {detailSubscription ? (
+          <SubscriptionDetailModal
+            key={detailSubscription.id}
+            subscription={detailSubscription}
+            courseTitleById={courseTitleById}
+            lessonTitleById={lessonTitleById}
+            onClose={() => setDetailId(null)}
+            onRun={(type, payment) => runDetailAction(detailSubscription, type, payment)}
+          />
+        ) : null}
+
+        <EntityModal open={quickModal === 'assign'} onClose={() => setQuickModal(null)} title="Assign subscription" subtitle="Quick action" wide>
+          <div className="px-5 pb-5 [&>section]:!border-0 [&>section]:!bg-transparent [&>section]:!p-0 [&>section]:!shadow-none [&>section>div:first-child]:hidden">{assignPanel}</div>
+        </EntityModal>
+        <EntityModal open={quickModal === 'coupon'} onClose={() => setQuickModal(null)} title="Create coupon" subtitle="Quick action" wide>
+          <div className="px-5 pb-5 [&>section]:!border-0 [&>section]:!bg-transparent [&>section]:!p-0 [&>section]:!shadow-none [&>section>div:first-child]:hidden">{couponPanel}</div>
+        </EntityModal>
+        <EntityModal open={quickModal === 'invoice'} onClose={() => setQuickModal(null)} title="Invoice lookup" subtitle="Quick action">
+          <div className="px-5 pb-5 [&>section]:!border-0 [&>section]:!bg-transparent [&>section]:!p-0 [&>section]:!shadow-none [&>section>div:first-child]:hidden">{invoicePanel}</div>
+        </EntityModal>
 
         <EntityModal
           open={planModalOpen}

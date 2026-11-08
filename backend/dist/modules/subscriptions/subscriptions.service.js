@@ -1149,8 +1149,16 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     async renewSubscription(id, dto, adminId) {
         const existing = await this.getSubscriptionOrThrow(id);
         const plan = await this.plansService.findById(dto.planId);
-        const startBase = this.normalizeDate(dto.startDate) || this.addDays(String(existing.end_date), 1);
-        const startDate = startBase < this.toDateOnly(new Date()) ? this.toDateOnly(new Date()) : startBase;
+        const existingEnd = this.dateValueToText(existing.end_date);
+        const today = this.toDateOnly(new Date());
+        const stillActive = existing.status === 'active'
+            && existingEnd >= today
+            && Number(existing.access_lapsed) !== 1;
+        if (stillActive) {
+            throw new common_1.BadRequestException('This subscription is still active, so it cannot be renewed yet. Use Extend to add more days instead.');
+        }
+        const startBase = this.normalizeDate(dto.startDate) || this.addDays(existingEnd, 1);
+        const startDate = startBase < today ? today : startBase;
         const paymentStatus = this.isFreePlan(plan) ? 'free_plan' : dto.paymentStatus || 'manual';
         const endDate = this.isFreePlanAssignment(paymentStatus, plan)
             ? this.unlimitedFreePlanEndDate

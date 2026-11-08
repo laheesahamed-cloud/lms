@@ -24,13 +24,13 @@ const emptyFilters = {
 const PAYMENT_CURRENCY = 'LKR';
 
 const financeUi = {
-  layout: cx(ui.managementLayout, 'max-w-[980px]'),
+  layout: ui.managementLayout,
   panel: ui.panelCard,
   metric:
-    'grid min-h-[124px] min-w-0 content-between gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs',
+    'grid min-w-0 content-start gap-1 rounded-xl border border-line-soft bg-surface-1 px-4 py-3 shadow-none',
   summaryList: 'grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1',
   filterGrid:
-    'grid gap-3 min-[760px]:grid-cols-[minmax(180px,1.2fr)_150px_150px_150px_150px]',
+    'grid items-end gap-3 min-[900px]:grid-cols-[minmax(170px,1.3fr)_repeat(4,minmax(120px,1fr))_auto] max-[900px]:grid-cols-2 max-[560px]:grid-cols-1',
   searchShell: 'relative min-w-0',
   searchInput: cx(ui.input, 'pr-12'),
   clearSearch:
@@ -336,14 +336,96 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
 </html>`;
 }
 
+const CHART_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#8b5cf6', '#ef4444', '#0891b2', '#64748b'];
+
+function ChartCard({ title, text, children }) {
+  return (
+    <article className={financeUi.panel}>
+      <PanelHeader title={title} text={text} />
+      {children}
+    </article>
+  );
+}
+
+function formatCompact(value) {
+  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}
+
+function RevenueBars({ data }) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  if (total === 0) return <div className={ui.emptyBox}>No revenue in the last 6 months.</div>;
+  return (
+    <div className="flex h-[200px] items-end gap-3 pt-6" role="img" aria-label="Revenue by month">
+      {data.map((d) => (
+        <div key={d.key} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-1.5 text-center">
+          <span className="text-[11px] font-bold text-ink-soft tabular-nums">{d.value ? formatCompact(d.value) : ''}</span>
+          <div className="rounded-t-md bg-brand-primary" style={{ height: `${Math.max((d.value / max) * 100, d.value ? 3 : 0)}%`, minHeight: d.value ? 4 : 0 }} title={formatCurrency(PAYMENT_CURRENCY, d.value)} />
+          <span className="text-[12px] font-bold text-ink-soft">{d.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HorizontalBars({ rows, emptyText }) {
+  const max = Math.max(...rows.map((r) => r.value), 1);
+  if (!rows.length) return <div className={ui.emptyBox}>{emptyText}</div>;
+  return (
+    <div className="grid gap-3">
+      {rows.map((row, i) => (
+        <div key={row.label} className="grid gap-1">
+          <div className="flex items-baseline justify-between gap-3 text-[13px]">
+            <strong className="min-w-0 truncate text-ink-strong">{row.label}</strong>
+            <span className="whitespace-nowrap font-bold tabular-nums text-ink-soft">{row.display || formatCurrency(PAYMENT_CURRENCY, row.value)}</span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-surface-3">
+            <div className="h-full rounded-full" style={{ width: `${(row.value / max) * 100}%`, background: CHART_COLORS[i % CHART_COLORS.length] }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Donut({ rows }) {
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  if (!total) return <div className={ui.emptyBox}>No payment records match these filters.</div>;
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <svg viewBox="0 0 140 140" className="h-[150px] w-[150px] shrink-0 -rotate-90" role="img" aria-label="Payment status split">
+        <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--line-soft, #e5e7eb)" strokeWidth="18" />
+        {rows.map((row, i) => {
+          const length = (row.value / total) * circumference;
+          const circle = (
+            <circle key={row.label} cx="70" cy="70" r={radius} fill="none" stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth="18" strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-offset} />
+          );
+          offset += length;
+          return circle;
+        })}
+      </svg>
+      <ul className="m-0 grid min-w-0 flex-1 list-none gap-2 p-0">
+        {rows.map((row, i) => (
+          <li key={row.label} className="flex items-center gap-2 text-[13px]">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+            <span className="min-w-0 flex-1 truncate text-ink-strong">{row.label}</span>
+            <strong className="tabular-nums text-ink-soft">{row.value} <span className="font-semibold">({Math.round((row.value / total) * 100)}%)</span></strong>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Metric({ label, value, hint }) {
   return (
-    <article className={financeUi.metric}>
-      <div className="min-w-0">
-        <span className={ui.eyebrow}>{label}</span>
-        <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-ink-soft">{hint}</p>
-      </div>
+    <article className={financeUi.metric} title={hint}>
       <strong className="block whitespace-nowrap text-left text-[22px] max-[560px]:text-[18px] font-extrabold leading-tight text-ink-strong tabular-nums max-[560px]:whitespace-normal">{value}</strong>
+      <span className={ui.eyebrow}>{label}</span>
+      {hint ? <p className="m-0 truncate text-[12px] leading-snug text-ink-soft">{hint}</p> : null}
     </article>
   );
 }
@@ -591,15 +673,50 @@ export function AdminFinancePage() {
       .slice(0, 10);
   }, [filteredRequests]);
 
-  const activeCoupons = useMemo(
-    () => safeArray(coupons).filter((coupon) => coupon.status === 'active'),
-    [coupons]
-  );
-
   const reportPayments = useMemo(
     () => safeArray(reports?.subscriptions?.payments),
     [reports]
   );
+  const monthlyRevenue = useMemo(() => {
+    const now = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString(undefined, { month: 'short' }), value: 0 });
+    }
+    const index = new Map(months.map((m) => [m.key, m]));
+    filteredSubscriptions.forEach((subscription) => {
+      const amount = financePaymentAmount(subscription);
+      if (amount <= 0) return;
+      const date = parseDate(paymentRecordDate(subscription));
+      if (!date) return;
+      const bucket = index.get(`${date.getFullYear()}-${date.getMonth()}`);
+      if (bucket) bucket.value += amount;
+    });
+    filteredRequests.forEach((request) => {
+      if (request.status !== 'approved' || request.subscriptionId) return;
+      const amount = toNumber(request.paymentAmount ?? request.planEffectivePrice);
+      const date = parseDate(request.resolvedAt || request.requestedAt);
+      const bucket = date ? index.get(`${date.getFullYear()}-${date.getMonth()}`) : null;
+      if (bucket) bucket.value += amount;
+    });
+    return months;
+  }, [filteredRequests, filteredSubscriptions]);
+
+  const planChartRows = useMemo(
+    () => planRows
+      .map((row) => ({ label: row.name, value: Object.values(row.collectedTotals).reduce((sum, v) => sum + v, 0), sub: `${row.paid} paid / ${row.total}` }))
+      .filter((row) => row.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6),
+    [planRows]
+  );
+
+  const statusChartRows = useMemo(
+    () => paymentBreakdown.map((item) => ({ label: formatPaymentStatus(item.status), value: item.count })),
+    [paymentBreakdown]
+  );
+
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
   function handleFilterChange(event) {
@@ -643,18 +760,7 @@ export function AdminFinancePage() {
           subtitle="Payments, invoices, coupons and LKR finance reports"
         />
 
-        <section className={financeUi.panel}>
-          <div className={ui.panelTop}>
-            <div>
-              <h2>Filters</h2>
-              <p>Find payments by student, date, invoice, or status.</p>
-            </div>
-            <div className={ui.buttonRow}>
-              <button type="button" className={ui.primaryAction} onClick={handleCreatePdf} disabled={loading}>
-                <PdfIcon /> Create PDF
-              </button>
-            </div>
-          </div>
+        <section className={cx(financeUi.panel, '!p-4')}>
           <div className={financeUi.filterGrid}>
             <div className={ui.formLabel}>
               <label htmlFor="finance-filter-search">Search</label>
@@ -702,6 +808,9 @@ export function AdminFinancePage() {
                 <option value="cancelled">Cancelled</option>
               </select>
             </label>
+            <button type="button" className={cx(ui.primaryAction, '!min-h-[var(--control-h)] whitespace-nowrap !px-4 max-[900px]:col-span-2 max-[560px]:col-span-1')} onClick={handleCreatePdf} disabled={loading}>
+              <PdfIcon /> Create PDF
+            </button>
           </div>
         </section>
 
@@ -717,12 +826,34 @@ export function AdminFinancePage() {
 
         {loading ? <div className={ui.emptyBox}>Loading finance records...</div> : null}
 
-        <section className={financeUi.sectionStack}>
-          <article className={financeUi.panel}>
+        <section className="grid gap-4">
+          <div className="grid gap-4 min-[1100px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <ChartCard title="Revenue" text="Collected per month, last 6 months.">
+              <RevenueBars data={monthlyRevenue} />
+            </ChartCard>
+            <ChartCard title="Payment status" text="Share of subscription payment records.">
+              <Donut rows={statusChartRows} />
+            </ChartCard>
+          </div>
+
+          <div className="grid gap-4 min-[1100px]:grid-cols-2">
+            <ChartCard title="Revenue by plan" text="Collected value per plan.">
+              <HorizontalBars rows={planChartRows} emptyText="No plan revenue for the current filters." />
+            </ChartCard>
+            <ChartCard title="Gateway totals" text="Payment transaction totals from reports.">
+              <HorizontalBars
+                emptyText="No gateway transaction data yet."
+                rows={reportPayments.map((item) => ({ label: `${item.status} (${item.count})`, value: toNumber(item.amount ?? item.count), display: formatGatewayAmount(item) }))}
+              />
+            </ChartCard>
+          </div>
+
+          <div className="grid gap-4 min-[1100px]:grid-cols-2">
+            <article className={financeUi.panel}>
             <PanelHeader title="Needs Review" text="Pending invoices and proof uploads." />
             <div className={financeUi.list}>
               {pendingInvoices.length === 0 ? <div className={ui.emptyBox}>No pending invoices or proof uploads.</div> : null}
-              {pendingInvoices.map((request) => (
+              {pendingInvoices.slice(0, 6).map((request) => (
                 <div className={financeUi.row} key={request.id}>
                   <div className={financeUi.rowMain}>
                     <strong>{request.invoiceId ? `Invoice #${request.invoiceId}` : `Request #${request.id}`}</strong>
@@ -737,12 +868,11 @@ export function AdminFinancePage() {
               ))}
             </div>
           </article>
-
-          <article className={financeUi.panel}>
+            <article className={financeUi.panel}>
             <PanelHeader title="Recent Payments" text="Approved card, bank transfer, and manual records." />
             <div className={financeUi.list}>
               {recentPaymentRecords.length === 0 ? <div className={ui.emptyBox}>No approved payments match these filters.</div> : null}
-              {recentPaymentRecords.map((subscription) => (
+              {recentPaymentRecords.slice(0, 6).map((subscription) => (
                 <div className={financeUi.row} key={subscription.recordKey || subscription.id}>
                   <div className={financeUi.rowMain}>
                     <strong>{getAdminUserIdentifier(subscription, 'Student')}</strong>
@@ -758,115 +888,6 @@ export function AdminFinancePage() {
               ))}
             </div>
           </article>
-
-          <article className={financeUi.panel}>
-            <PanelHeader title="Plans" text="Collected and expected value by plan." />
-            <div className={financeUi.list}>
-              {planRows.length === 0 ? <div className={ui.emptyBox}>No plan revenue for the current filters.</div> : null}
-              {planRows.map((row) => (
-                <div className={financeUi.row} key={row.id}>
-                  <div className={financeUi.rowMain}>
-                    <strong>{row.name}</strong>
-                    <span>{row.total} subscription(s) - {row.active} active - {row.paid} paid</span>
-                  </div>
-                  <div className={financeUi.rowStat}>
-                    <strong>{formatCurrencyTotals(row.collectedTotals)}</strong>
-                    <span>Expected {formatCurrencyTotals(row.expectedTotals)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className={financeUi.panel}>
-            <PanelHeader title="Payment Status" text="Subscription payment states in this view." />
-            <div className={financeUi.list}>
-              {paymentBreakdown.length === 0 ? <div className={ui.emptyBox}>No payment records match these filters.</div> : null}
-              {paymentBreakdown.map((item) => (
-                <div className={financeUi.row} key={item.status}>
-                  <div className={financeUi.rowMain}>
-                    <strong>{formatPaymentStatus(item.status)}</strong>
-                    <span>{item.count} subscription payment record(s)</span>
-                  </div>
-                  <div className={financeUi.rowStat}>
-                    <strong>{formatCurrencyTotals(item.totals)}</strong>
-                    <span className={statusPill(item.status)}>{formatPaymentStatus(item.status)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-        </section>
-
-        <section className={financeUi.sectionStack}>
-          <article className={financeUi.panel}>
-            <PanelHeader title="Coupons" text="Active discount codes and redemption volume." />
-            <div className={financeUi.splitGrid}>
-              <div className={financeUi.miniCard}>
-                <span className={ui.eyebrow}>Active Codes</span>
-                <strong className="mt-2 block text-2xl text-ink-strong">{activeCoupons.length}</strong>
-                <p className="m-0 mt-1 text-[12.5px] text-ink-soft">{safeArray(coupons).length} total coupon record(s)</p>
-              </div>
-              <div className={financeUi.miniCard}>
-                <span className={ui.eyebrow}>Redemptions</span>
-                <strong className="mt-2 block text-2xl text-ink-strong">{safeArray(coupons).reduce((sum, coupon) => sum + toNumber(coupon.redemptionCount), 0)}</strong>
-                <p className="m-0 mt-1 text-[12.5px] text-ink-soft">Across all coupons</p>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-2">
-              {safeArray(coupons).slice(0, 8).map((coupon) => (
-                <div className={financeUi.row} key={coupon.id}>
-                  <div className={financeUi.rowMain}>
-                    <strong>{coupon.code}</strong>
-                    <span>{coupon.label || `${formatCouponDiscount(coupon)} off`}</span>
-                  </div>
-                  <div className={financeUi.rowStat}>
-                    <strong>{coupon.redemptionCount}{coupon.maxRedemptions ? ` / ${coupon.maxRedemptions}` : ''}</strong>
-                    <span className={statusPill(coupon.status)}>{coupon.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className={financeUi.panel}>
-            <PanelHeader title="Gateway Totals" text="Payment transaction totals from reports." />
-            <div className={financeUi.list}>
-              {reportPayments.length === 0 ? <div className={ui.emptyBox}>No gateway transaction data yet.</div> : null}
-              {reportPayments.map((item) => (
-                <div className={financeUi.row} key={item.status}>
-                  <div className={financeUi.rowMain}>
-                    <strong>{item.status}</strong>
-                    <span>{item.count} transaction(s)</span>
-                  </div>
-                  <div className={financeUi.rowStat}>
-                    <strong>{formatGatewayAmount(item)}</strong>
-                    <span>reported amount</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-        </section>
-
-        <section className={financeUi.panel}>
-          <PanelHeader title="Activity" text="Recent finance changes." />
-          <div className={financeUi.list}>
-            {filteredAuditEvents.length === 0 ? <div className={ui.emptyBox}>No finance activity matches these filters.</div> : null}
-            {filteredAuditEvents.slice(0, 18).map((event) => (
-              <article className={financeUi.row} key={event.id}>
-                <div className={financeUi.rowMain}>
-                  <strong>{event.summary || event.eventType}</strong>
-                  <span>
-                    {getAdminUserIdentifier({ fullName: event.studentName, email: event.studentEmail }, 'System')} - {getAdminUserIdentifier({ fullName: event.actorName, email: event.actorEmail }, 'System')}
-                  </span>
-                </div>
-                <div className={financeUi.rowStat}>
-                  <strong>{dateOnly(event.createdAt)}</strong>
-                  <span>{event.eventType}</span>
-                </div>
-              </article>
-            ))}
           </div>
         </section>
       </section>

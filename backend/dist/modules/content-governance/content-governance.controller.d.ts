@@ -10,7 +10,7 @@ export declare class ContentGovernanceController {
         evidence: {
             entityType: string;
             entityId: number;
-            workflowState: "published" | "draft" | "archived" | "in_review";
+            workflowState: "draft" | "in_review" | "published" | "archived";
             author: {
                 id: number;
                 name: string;

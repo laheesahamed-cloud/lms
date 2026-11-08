@@ -38,9 +38,9 @@ let UsersController = class UsersController {
             offset: this.parseNonNegativeNumber(offset),
         });
     }
-    async summary(authorization) {
+    async summary(authorization, today) {
         const actor = await this.authService.requireAdmin(authorization);
-        return this.usersService.summary(actor);
+        return this.usersService.summary(actor, today);
     }
     async listStaff(authorization) {
         const actor = await this.authService.requireAdmin(authorization);
@@ -102,8 +102,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('summary'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('today')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "summary", null);
 __decorate([

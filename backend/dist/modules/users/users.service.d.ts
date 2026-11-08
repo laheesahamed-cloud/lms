@@ -21,22 +21,27 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
-    summary(actor: UserManagementActor): Promise<{
+    summary(actor: UserManagementActor, today?: string): Promise<{
         totalUsers: number;
         pendingUsers: number;
         activeUsers: number;
         adminUsers: number;
         studentUsers: number;
+        newToday: number;
+        newTodayLatest: {
+            name: string;
+            email: string;
+        }[];
     }>;
     listStaff(actor: UserManagementActor): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
@@ -46,7 +51,7 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
@@ -57,7 +62,7 @@ export declare class UsersService {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
             status: "active" | "inactive";
             createdAt: string | null;
         };
@@ -95,19 +100,19 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         status: string;
     }>;
     update(actor: UserManagementActor, id: number, updateUserDto: UpdateUserDto): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         status: "active" | "inactive";
         createdAt: string | null;
     } | {
         status: "active" | "inactive";
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         email: string;
         fullName: string;
         ok: boolean;

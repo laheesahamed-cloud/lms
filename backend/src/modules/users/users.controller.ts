@@ -39,9 +39,9 @@ export class UsersController {
   }
 
   @Get('summary')
-  async summary(@Headers('authorization') authorization?: string) {
+  async summary(@Headers('authorization') authorization?: string, @Query('today') today?: string) {
     const actor = await this.authService.requireAdmin(authorization);
-    return this.usersService.summary(actor);
+    return this.usersService.summary(actor, today);
   }
 
   @Get('staff')

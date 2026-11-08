@@ -211,6 +211,13 @@ let PushNotificationsService = PushNotificationsService_1 = class PushNotificati
     }
     async notifyStudentsOfNewContent(payload) {
         try {
+            if (!(await this.settingsService.isNewContentNotificationsEnabled()))
+                return;
+        }
+        catch (error) {
+            this.logger.warn(`New-content switch lookup failed, notifying anyway: ${error?.message || error}`);
+        }
+        try {
             await this.db.execute(`INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
          VALUES (?, ?, 'student', 'published', NULL, NULL)`, [payload.title.slice(0, 180), payload.body]);
         }

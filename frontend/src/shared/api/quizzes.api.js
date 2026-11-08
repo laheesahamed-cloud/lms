@@ -7,6 +7,21 @@ export async function fetchQuizzes(params) {
   return response.data;
 }
 
+export async function previewBulkDeleteQuizzes(quizIds) {
+  const response = await apiClient.post('/admin/quizzes/bulk-delete/preview', { quizIds });
+  return response.data;
+}
+
+export async function bulkDeleteQuizzes(quizIds, deleteQuestions) {
+  const response = await apiClient.post('/admin/quizzes/bulk-delete', { quizIds, deleteQuestions: Boolean(deleteQuestions) }, { timeout: 120000 });
+  return response.data;
+}
+
+export async function fetchQuizzesSummary(params) {
+  const response = await apiClient.get('/admin/quizzes/summary', { params: params || {} });
+  return response.data;
+}
+
 export async function fetchQuizzesMeta(options = {}) {
   const response = await apiClient.get('/admin/quizzes/meta', {
     params: options.includeQuestions ? { includeQuestions: '1' } : {},

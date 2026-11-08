@@ -290,15 +290,27 @@ async function testChangingPasswordSignsEveryDeviceOut() {
 }
 
 class SettingsPool {
-  constructor(private readonly unlockCode: string | null) {}
+  constructor(private readonly unlockCode: string | null, private readonly newContentSwitch: string | null = null) {}
   async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
     const normalized = sql.replace(/\s+/g, ' ').trim();
     if (normalized.includes('FROM system_settings') && normalized.includes('WHERE setting_key = ?')) {
+      if (params[0] === 'new_content_notifications_enabled') {
+        return [(this.newContentSwitch === null ? [] : [{ setting_key: params[0], setting_value: this.newContentSwitch }]) as T, []];
+      }
       const isUnlock = params[0] === 'site_availability_unlock_code';
       return [(isUnlock && this.unlockCode ? [{ setting_key: params[0], setting_value: this.unlockCode }] : []) as T, []];
     }
     throw new Error(`Unexpected SQL in settings regression test: ${normalized}`);
   }
+}
+
+async function testNewContentNotificationsSwitch() {
+  const on = (value: string | null) =>
+    new SettingsService(new SettingsPool(null, value) as any, createConfig() as any).isNewContentNotificationsEnabled();
+  assert.equal(await on(null), true, 'defaults to on');
+  assert.equal(await on('1'), true);
+  assert.equal(await on('0'), false);
+  assert.equal(await on('off'), false);
 }
 
 async function testLaunchUnlockHasNoBuiltInCode() {
@@ -332,6 +344,7 @@ async function main() {
   await testUnknownEmailStillPaysForAPasswordCheck();
   await testChangingPasswordSignsEveryDeviceOut();
   await testLaunchUnlockHasNoBuiltInCode();
+  await testNewContentNotificationsSwitch();
 
   console.log('Auth regression checks passed.');
 }

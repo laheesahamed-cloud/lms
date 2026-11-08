@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { NoteCanvas } from '../../../app/student/ai-notes/NoteCanvas.jsx';
 import { optimizeImageFile, IMAGE_OPTIMIZER_MAX_BYTES } from '../../../../shared/utils/imageOptimizer.js';
 import {
@@ -220,6 +220,8 @@ export function AdminAiNotesEditorPage({
 }) {
   const { id }    = useParams();
   const navigate  = useNavigate();
+  // Set when the lesson was opened from the Courses page, so Back returns to that folder.
+  const returnTo  = useLocation().state?.returnTo || null;
   const bookRef   = useRef(null);
   const saveTimer = useRef(null);
   const saveStatusTimer = useRef(null);
@@ -986,7 +988,7 @@ export function AdminAiNotesEditorPage({
   const draftFlashcardCount = flashcards.filter((card) => card.status === 'draft').length;
 
   if (loading) return <div className={editorUi.loadingFallback}>Loading…</div>;
-  if (!note)   return <div className={editorUi.notFoundFallback}>Not found. <button className={ui.secondaryAction} onClick={() => navigate(routeBase)}>Back</button></div>;
+  if (!note)   return <div className={editorUi.notFoundFallback}>Not found. <button className={ui.secondaryAction} onClick={() => navigate(returnTo || routeBase)}>Back</button></div>;
 
   return (
     <div className={editorUi.editorShell}>
@@ -994,7 +996,7 @@ export function AdminAiNotesEditorPage({
       {/* top bar */}
       <div className={editorUi.topBar}>
         <button className={cx(ui.secondaryAction, 'px-3 py-1.5 text-[13px]')}
-                onClick={() => navigate(routeBase)}><BackIcon/> {listLabel}</button>
+                onClick={() => navigate(returnTo || routeBase)}><BackIcon/> {returnTo ? 'Back' : listLabel}</button>
         <BreadcrumbTrail
           className="lms-editor-breadcrumb"
           items={[

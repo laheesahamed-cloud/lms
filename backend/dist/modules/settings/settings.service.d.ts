@@ -1,44 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'mysql2/promise';
 declare const AVAILABILITY_MODES: readonly ["live", "maintenance", "coming-soon"];
-declare const DEFAULT_LANDING_PAGE_CONTENT: {
-    readonly metaTitle: "Medical Study Platform";
-    readonly metaDescription: "xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.";
-    readonly heroKicker: "Built for medical students in Sri Lanka";
-    readonly heroTitleLine1: "The smarter way to";
-    readonly heroTitleAccent: "prepare for";
-    readonly heroTitleLine3: "medical exams.";
-    readonly heroSubtitle: "Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.";
-    readonly heroPrimaryLabel: "Start Studying Free";
-    readonly heroSecondaryLabel: "Explore Platform";
-    readonly featuresEyebrow: "Platform Features";
-    readonly featuresTitle: "The full study loop, not just a pile of MCQs.";
-    readonly featuresText: "Read, revise, practise, and review - inside one calm academic workspace built for medical preparation.";
-    readonly howEyebrow: "Getting Started";
-    readonly howTitle: "Up and revising in three steps.";
-    readonly howText: "No complicated setup. Sign up and start revising your medical subjects today.";
-    readonly whyEyebrow: "Why Choose Us";
-    readonly whyTitle: "More than just another MCQ bank.";
-    readonly whyText: "While others give you a flat list of questions, we give you the full study experience - structured, visual, and data-driven.";
-    readonly testimonialsEyebrow: "Student Stories";
-    readonly testimonialsTitle: "What medical students say.";
-    readonly testimonialsText: "Real feedback from students across Sri Lanka using the platform for their revision.";
-    readonly faqEyebrow: "FAQ";
-    readonly faqTitle: "Questions students usually ask first.";
-    readonly faqText: "Clear answers about how the platform works before you start your revision journey.";
-    readonly pricingEyebrow: "Pricing";
-    readonly pricingTitle: "Transparent plans for Sri Lankan students.";
-    readonly pricingText: "No hidden fees. Choose the plan that fits your exam timeline and study intensity.";
-    readonly customPlanTitle: "Need a customized subscription?";
-    readonly customPlanText: "Create a package around your courses, study timeline, and exam goals.";
-    readonly ctaEyebrow: "Ready to begin?";
-    readonly ctaTitle: "Join the most complete medical study platform in Sri Lanka.";
-    readonly ctaText: "Interactive lessons, a full quiz engine, and performance tracking - everything you need to walk into your examination with confidence.";
-    readonly ctaPrimaryLabel: "Create Free Account";
-    readonly ctaSecondaryLabel: "Sign In";
-    readonly footerText: "A focused study platform for medical students in Sri Lanka - notes, quizzes, and analytics in one place.";
-    readonly footerTagline: "Built for Sri Lankan medical education.";
-};
 export type PayHerePaymentSettings = {
     enabled: boolean;
     sandboxMode: boolean;
@@ -101,9 +63,6 @@ export type FcmSettings = {
     serviceAccountPath: string;
     serviceAccountJson: string;
 };
-export type LandingPageContent = {
-    [Key in keyof typeof DEFAULT_LANDING_PAGE_CONTENT]: string;
-};
 export type AvailabilityMode = typeof AVAILABILITY_MODES[number];
 type SerializedAvailabilitySettings = {
     mode: AvailabilityMode;
@@ -115,7 +74,6 @@ type SerializedAvailabilitySettings = {
 type PublicSettingsResponse = {
     ok: true;
     whatsappUrl: string;
-    landingPage: LandingPageContent;
     popupAlert: Record<string, unknown>;
     availability: SerializedAvailabilitySettings;
     auth: {
@@ -133,51 +91,9 @@ export declare class SettingsService {
     private clearPublicSettingsCache;
     getGeneralSettings(): Promise<{
         ok: boolean;
+        newContentNotifications: boolean;
         whatsappNumber: string;
         whatsappUrl: string;
-        note: string;
-    }>;
-    getLandingPageSettings(): Promise<{
-        ok: boolean;
-        content: LandingPageContent;
-        defaults: {
-            readonly metaTitle: "Medical Study Platform";
-            readonly metaDescription: "xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.";
-            readonly heroKicker: "Built for medical students in Sri Lanka";
-            readonly heroTitleLine1: "The smarter way to";
-            readonly heroTitleAccent: "prepare for";
-            readonly heroTitleLine3: "medical exams.";
-            readonly heroSubtitle: "Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.";
-            readonly heroPrimaryLabel: "Start Studying Free";
-            readonly heroSecondaryLabel: "Explore Platform";
-            readonly featuresEyebrow: "Platform Features";
-            readonly featuresTitle: "The full study loop, not just a pile of MCQs.";
-            readonly featuresText: "Read, revise, practise, and review - inside one calm academic workspace built for medical preparation.";
-            readonly howEyebrow: "Getting Started";
-            readonly howTitle: "Up and revising in three steps.";
-            readonly howText: "No complicated setup. Sign up and start revising your medical subjects today.";
-            readonly whyEyebrow: "Why Choose Us";
-            readonly whyTitle: "More than just another MCQ bank.";
-            readonly whyText: "While others give you a flat list of questions, we give you the full study experience - structured, visual, and data-driven.";
-            readonly testimonialsEyebrow: "Student Stories";
-            readonly testimonialsTitle: "What medical students say.";
-            readonly testimonialsText: "Real feedback from students across Sri Lanka using the platform for their revision.";
-            readonly faqEyebrow: "FAQ";
-            readonly faqTitle: "Questions students usually ask first.";
-            readonly faqText: "Clear answers about how the platform works before you start your revision journey.";
-            readonly pricingEyebrow: "Pricing";
-            readonly pricingTitle: "Transparent plans for Sri Lankan students.";
-            readonly pricingText: "No hidden fees. Choose the plan that fits your exam timeline and study intensity.";
-            readonly customPlanTitle: "Need a customized subscription?";
-            readonly customPlanText: "Create a package around your courses, study timeline, and exam goals.";
-            readonly ctaEyebrow: "Ready to begin?";
-            readonly ctaTitle: "Join the most complete medical study platform in Sri Lanka.";
-            readonly ctaText: "Interactive lessons, a full quiz engine, and performance tracking - everything you need to walk into your examination with confidence.";
-            readonly ctaPrimaryLabel: "Create Free Account";
-            readonly ctaSecondaryLabel: "Sign In";
-            readonly footerText: "A focused study platform for medical students in Sri Lanka - notes, quizzes, and analytics in one place.";
-            readonly footerTagline: "Built for Sri Lankan medical education.";
-        };
         note: string;
     }>;
     getAvailabilitySettings(): Promise<{
@@ -203,55 +119,15 @@ export declare class SettingsService {
     private buildPublicSettings;
     private getPublicAuthSettings;
     private getPublicGoogleClientId;
+    isNewContentNotificationsEnabled(): Promise<boolean>;
     updateGeneralSettings(input: {
         whatsappNumber?: string;
+        newContentNotifications?: boolean;
     }): Promise<{
         ok: boolean;
+        newContentNotifications: boolean;
         whatsappNumber: string;
         whatsappUrl: string;
-        note: string;
-    }>;
-    updateLandingPageSettings(input: Partial<LandingPageContent>): Promise<{
-        ok: boolean;
-        content: LandingPageContent;
-        defaults: {
-            readonly metaTitle: "Medical Study Platform";
-            readonly metaDescription: "xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.";
-            readonly heroKicker: "Built for medical students in Sri Lanka";
-            readonly heroTitleLine1: "The smarter way to";
-            readonly heroTitleAccent: "prepare for";
-            readonly heroTitleLine3: "medical exams.";
-            readonly heroSubtitle: "Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.";
-            readonly heroPrimaryLabel: "Start Studying Free";
-            readonly heroSecondaryLabel: "Explore Platform";
-            readonly featuresEyebrow: "Platform Features";
-            readonly featuresTitle: "The full study loop, not just a pile of MCQs.";
-            readonly featuresText: "Read, revise, practise, and review - inside one calm academic workspace built for medical preparation.";
-            readonly howEyebrow: "Getting Started";
-            readonly howTitle: "Up and revising in three steps.";
-            readonly howText: "No complicated setup. Sign up and start revising your medical subjects today.";
-            readonly whyEyebrow: "Why Choose Us";
-            readonly whyTitle: "More than just another MCQ bank.";
-            readonly whyText: "While others give you a flat list of questions, we give you the full study experience - structured, visual, and data-driven.";
-            readonly testimonialsEyebrow: "Student Stories";
-            readonly testimonialsTitle: "What medical students say.";
-            readonly testimonialsText: "Real feedback from students across Sri Lanka using the platform for their revision.";
-            readonly faqEyebrow: "FAQ";
-            readonly faqTitle: "Questions students usually ask first.";
-            readonly faqText: "Clear answers about how the platform works before you start your revision journey.";
-            readonly pricingEyebrow: "Pricing";
-            readonly pricingTitle: "Transparent plans for Sri Lankan students.";
-            readonly pricingText: "No hidden fees. Choose the plan that fits your exam timeline and study intensity.";
-            readonly customPlanTitle: "Need a customized subscription?";
-            readonly customPlanText: "Create a package around your courses, study timeline, and exam goals.";
-            readonly ctaEyebrow: "Ready to begin?";
-            readonly ctaTitle: "Join the most complete medical study platform in Sri Lanka.";
-            readonly ctaText: "Interactive lessons, a full quiz engine, and performance tracking - everything you need to walk into your examination with confidence.";
-            readonly ctaPrimaryLabel: "Create Free Account";
-            readonly ctaSecondaryLabel: "Sign In";
-            readonly footerText: "A focused study platform for medical students in Sri Lanka - notes, quizzes, and analytics in one place.";
-            readonly footerTagline: "Built for Sri Lankan medical education.";
-        };
         note: string;
     }>;
     updateAvailabilitySettings(input: {
@@ -330,7 +206,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "starttls" | "ssl";
+        security: "ssl" | "starttls";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -354,7 +230,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -485,7 +361,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "starttls" | "ssl";
+        security: "ssl" | "starttls";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -516,7 +392,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -804,9 +680,6 @@ export declare class SettingsService {
     }>;
     private getSettingValue;
     private getSettingMap;
-    private getLandingPageContent;
-    private getLandingPageContentFromRaw;
-    private normalizeLandingPageContent;
     private getAvailabilityMode;
     private getAvailabilityUnlockCode;
     private normalizeAvailabilityMode;
