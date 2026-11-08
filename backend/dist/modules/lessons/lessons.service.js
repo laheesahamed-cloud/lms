@@ -27,6 +27,7 @@ const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const fetch_with_retry_1 = require("../../common/utils/fetch-with-retry");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const mobile_table_layout_1 = require("./mobile-table-layout");
+const mobile_text_layout_1 = require("./mobile-text-layout");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
@@ -1898,7 +1899,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         const mapped = this.mapCanvasStudentNote(rows[0], accessProfile, true);
         return (0, mobile_client_util_1.isMobileAppClient)(appClient) && mapped.noteData
-            ? { ...mapped, noteData: (0, mobile_table_layout_1.reshapeTablesForPhone)(mapped.noteData) }
+            ? { ...mapped, noteData: (0, mobile_text_layout_1.calmTextForPhone)((0, mobile_table_layout_1.reshapeTablesForPhone)(mapped.noteData)) }
             : mapped;
     }
     async canvasStudentFlashcards(id, token, engineKey = 'gemini', appClient) {

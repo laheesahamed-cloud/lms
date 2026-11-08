@@ -1,10 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.splitValue = splitValue;
 exports.reshapeTablesForPhone = reshapeTablesForPhone;
 const WIDE_COLUMNS = 4;
 const SIDEWAYS_MAX_ROWS = 2;
 function text(value) {
     return value == null ? '' : String(value);
+}
+function stripMarkers(value) {
+    return value.replace(/\*\*|==/g, '').trim();
+}
+const balanced = (piece) => (piece.match(/\*\*/g) || []).length % 2 === 0 && (piece.match(/==/g) || []).length % 2 === 0;
+function splitValue(value) {
+    const parts = value
+        .split(/;\s+|(?<=[.!?])\s+(?=[A-Z0-9])/)
+        .map((piece) => piece.trim())
+        .filter(Boolean);
+    return parts.length > 1 && parts.every(balanced) ? parts : [value.trim()];
 }
 function reshapeSection(section) {
     if (!section || typeof section !== 'object')
@@ -27,18 +39,22 @@ function reshapeSection(section) {
     }
     const accentColor = table.accentColor;
     const cards = [];
-    if (text(table.heading).trim()) {
-        cards.push({ heading: table.heading, bullets: [], span: 'full', ...(accentColor ? { accentColor } : {}) });
+    const tableHeading = stripMarkers(text(table.heading));
+    if (tableHeading) {
+        cards.push({ heading: tableHeading, bullets: [], span: 'full', ...(accentColor ? { accentColor } : {}) });
     }
     for (const row of rows) {
         const bullets = [];
         headers.slice(1).forEach((header, index) => {
             const value = (row[index + 1] || '').trim();
-            if (value)
-                bullets.push(`**${header.trim() || `Column ${index + 2}`}:** ${value}`);
+            if (!value)
+                return;
+            const label = stripMarkers(header) || `Column ${index + 2}`;
+            bullets.push(`${label.replace(/:+$/, '')}:`);
+            splitValue(value).forEach((piece) => bullets.push(`→ ${piece.replace(/\*\*/g, '')}`));
         });
         cards.push({
-            heading: (row[0] || '').trim() || text(table.heading),
+            heading: stripMarkers(row[0] || '') || tableHeading,
             bullets,
             span: 'full',
             ...(accentColor ? { accentColor } : {}),

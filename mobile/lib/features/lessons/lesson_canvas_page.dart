@@ -3963,7 +3963,7 @@ class _NoteContent extends StatelessWidget {
                   const SizedBox(height: 14),
                   for (var i = 0; i < note.sections.length; i++)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.only(bottom: 16),
                       child: _SectionCard(
                           section: note.sections[i],
                           index: i,
@@ -4159,7 +4159,7 @@ Widget _bullet(String raw, Color ink, Color accent,
   final isParent = !isSub && raw.trimRight().endsWith(':');
   final text = isSub ? raw.replaceFirst(RegExp(r'^→\s*'), '') : raw;
   return Padding(
-    padding: EdgeInsets.only(left: isSub ? 18 : 0, top: isParent ? 8 : 0),
+    padding: EdgeInsets.only(left: isSub ? 18 : 0, top: isParent ? 12 : 0),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4184,7 +4184,7 @@ Widget _bullet(String raw, Color ink, Color accent,
             text,
             TextStyle(
                 fontSize: isSub ? 13.5 : 14,
-                height: isSub ? 1.5 : 1.45,
+                height: isSub ? 1.55 : 1.55,
                 fontFamily: isParent ? 'PatrickHand' : null,
                 fontWeight: isParent ? FontWeight.w600 : FontWeight.w400,
                 color: isParent
@@ -4917,7 +4917,8 @@ class _SectionCard extends StatelessWidget {
         : null;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      // Roomier than before (was 12): dense lessons read as a wall of text on a phone.
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -4981,10 +4982,10 @@ class _SectionCard extends StatelessWidget {
             if (section.type == 'image-explained') _imageExplainedBody(accent),
           ],
           if (siWidget != null && si!.position == 'top') siWidget,
-          if (section.bullets.isNotEmpty) const SizedBox(height: 8),
+          if (section.bullets.isNotEmpty) const SizedBox(height: 12),
           for (var i = 0; i < section.bullets.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: EdgeInsets.only(bottom: section.bullets[i].startsWith('→') ? 5 : 9),
               child: _bullet(section.bullets[i], ink, accent,
                   index: i, dark: dark),
             ),
@@ -5245,7 +5246,7 @@ class _SectionCard extends StatelessWidget {
   Widget _mnemonic(Color accent) {
     final amber = const Color(0xFFD97706);
     return Container(
-      margin: const EdgeInsets.only(top: 8),
+      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF1C1A10) : const Color(0xFFFFFBEB),
@@ -5275,7 +5276,7 @@ class _SectionCard extends StatelessWidget {
 
   Widget _stickyNote(Color accent) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
+      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: dark ? Colors.white.withValues(alpha: 0.04) : accent.withValues(alpha: 0.07),
@@ -5360,7 +5361,7 @@ class _SectionCard extends StatelessWidget {
     final text =
         isTrap ? section.callout.replaceFirst(trap, '') : section.callout;
     return Container(
-      margin: const EdgeInsets.only(top: 6),
+      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color:

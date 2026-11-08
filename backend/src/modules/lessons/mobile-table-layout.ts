@@ -6,8 +6,8 @@
 //
 //   3 columns or fewer      -> left alone (already fits)
 //   4+ columns, 1-2 rows    -> turned on its side: the rows become the columns
-//   4+ columns, 3+ rows     -> one small card per row (first column = card title,
-//                              other columns = "**Header:** value" lines)
+//   4+ columns, 3+ rows     -> one small card per row (first column = card title; every
+//                              other column = a label line with its value under it)
 //
 // Everything produced here uses section types the app already draws.
 
@@ -18,6 +18,25 @@ const SIDEWAYS_MAX_ROWS = 2;
 
 function text(value: unknown): string {
   return value == null ? '' : String(value);
+}
+
+// Card headings and labels are drawn as plain text (no **bold** / ==highlight== parsing),
+// so any marker left in them would show up literally on the phone.
+function stripMarkers(value: string): string {
+  return value.replace(/\*\*|==/g, '').trim();
+}
+
+const balanced = (piece: string) =>
+  (piece.match(/\*\*/g) || []).length % 2 === 0 && (piece.match(/==/g) || []).length % 2 === 0;
+
+// A long cell becomes several short lines instead of one dense paragraph. Split only at
+// sentence ends and semicolons, and only when no **bold** / ==highlight== run is cut in half.
+export function splitValue(value: string): string[] {
+  const parts = value
+    .split(/;\s+|(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .map((piece) => piece.trim())
+    .filter(Boolean);
+  return parts.length > 1 && parts.every(balanced) ? parts : [value.trim()];
 }
 
 function reshapeSection(section: unknown): unknown[] {
@@ -41,17 +60,26 @@ function reshapeSection(section: unknown): unknown[] {
 
   const accentColor = table.accentColor;
   const cards: Json[] = [];
-  if (text(table.heading).trim()) {
-    cards.push({ heading: table.heading, bullets: [], span: 'full', ...(accentColor ? { accentColor } : {}) });
+  const tableHeading = stripMarkers(text(table.heading));
+  if (tableHeading) {
+    cards.push({ heading: tableHeading, bullets: [], span: 'full', ...(accentColor ? { accentColor } : {}) });
   }
   for (const row of rows) {
+    // The app styles a line ending in ":" as a label (accent colour, handwritten font, extra
+    // space above) and a line starting with "→" as an indented sub-line — so each column
+    // becomes a label with its value underneath, which scans far better than "Label: value".
     const bullets: string[] = [];
     headers.slice(1).forEach((header, index) => {
       const value = (row[index + 1] || '').trim();
-      if (value) bullets.push(`**${header.trim() || `Column ${index + 2}`}:** ${value}`);
+      if (!value) return;
+      const label = stripMarkers(header) || `Column ${index + 2}`;
+      bullets.push(`${label.replace(/:+$/, '')}:`);
+      // **bold** is dropped inside these cards (==highlights== stay): it adds little on a card
+      // that is already label-and-value, and a build that can't draw it would print the asterisks.
+      splitValue(value).forEach((piece) => bullets.push(`→ ${piece.replace(/\*\*/g, '')}`));
     });
     cards.push({
-      heading: (row[0] || '').trim() || text(table.heading),
+      heading: stripMarkers(row[0] || '') || tableHeading,
       bullets,
       span: 'full',
       ...(accentColor ? { accentColor } : {}),
