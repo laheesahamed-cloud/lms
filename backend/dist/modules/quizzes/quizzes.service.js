@@ -618,6 +618,77 @@ let QuizzesService = class QuizzesService {
             attempts: plan.attempts,
         };
     }
+    async bulkSetStatus(dto, actor) {
+        const ids = Array.from(new Set((dto.quizIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0)));
+        if (!ids.length)
+            throw new common_1.BadRequestException('Select at least one assessment');
+        const target = dto.status;
+        this.assertCanSaveStatus(actor, target);
+        const [rows] = await this.db.execute(`SELECT id, status FROM quizzes WHERE id IN (${(0, sql_safety_1.sqlPlaceholders)(ids)})`, ids);
+        const current = new Map(rows.map((row) => [Number(row.id), String(row.status)]));
+        const skipped = [];
+        const changes = [];
+        for (const id of ids) {
+            const status = current.get(id);
+            if (!status) {
+                skipped.push({ id, reason: 'Not found' });
+                continue;
+            }
+            if (status === target) {
+                skipped.push({ id, reason: target === 'active' ? 'Already active' : 'Already a draft' });
+                continue;
+            }
+            this.assertCanModifyExistingStatus(actor, status);
+            const quiz = await this.findOne(id);
+            if (target === 'active') {
+                try {
+                    this.validateQuiz(quiz);
+                }
+                catch (error) {
+                    skipped.push({ id, reason: error instanceof Error ? error.message : 'Cannot be published' });
+                    continue;
+                }
+            }
+            changes.push({ id, quiz });
+        }
+        if (changes.length) {
+            const changedIds = changes.map((change) => change.id);
+            const connection = await this.db.getConnection();
+            try {
+                await connection.beginTransaction();
+                await connection.execute(`UPDATE quizzes SET status = ? WHERE id IN (${(0, sql_safety_1.sqlPlaceholders)(changedIds)})`, [target, ...changedIds]);
+                for (const { id, quiz } of changes) {
+                    const snapshot = this.buildQuizSnapshot({ ...quiz, status: target });
+                    await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
+                    await this.setWorkflowState(connection, 'quiz', id, target === 'active' ? 'published' : 'draft', this.getActorId(actor));
+                    await this.recordContentAudit(connection, {
+                        entityType: 'quiz',
+                        entityId: id,
+                        action: 'updated',
+                        summary: `Quiz ${id} ${target === 'active' ? 'approved (bulk)' : 'moved to draft (bulk)'}`,
+                        actorId: this.getActorId(actor),
+                        before: quiz,
+                        after: snapshot,
+                    });
+                }
+                await connection.commit();
+            }
+            catch (error) {
+                await connection.rollback();
+                throw error;
+            }
+            finally {
+                connection.release();
+            }
+            if (target === 'active') {
+                const [first] = changes;
+                void this.pushNotificationsService.notifyStudentsOfNewContent(changes.length === 1
+                    ? { title: 'New quiz — test yourself', body: `${this.resolveStudentTitle(first.quiz)} added to the Q-Bank. Put your knowledge to the test.` }
+                    : { title: 'New quizzes — test yourself', body: `${changes.length} new quizzes added to the Q-Bank. Put your knowledge to the test.` });
+            }
+        }
+        return { ok: true, status: target, changed: changes.length, skipped };
+    }
     async bulkDelete(dto, actor) {
         const plan = await this.planBulkDelete(dto.quizIds);
         const deleteQuestions = dto.deleteQuestions === true;

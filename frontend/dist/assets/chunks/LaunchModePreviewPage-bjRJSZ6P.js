@@ -1,1 +1,0 @@
-import{Lo as e,Vo as t,ko as n}from"./app-shared-BvSFhXvh.js";/* empty css                        */import{c as r}from"./main-VSdkH0Sn.js";var i=t();function a(){let{mode:t}=e();return t!==`maintenance`&&t!==`coming-soon`?(0,i.jsx)(n,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:t,preview:!0})}export{a as LaunchModePreviewPage};

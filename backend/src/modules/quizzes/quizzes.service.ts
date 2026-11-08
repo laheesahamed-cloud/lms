@@ -27,6 +27,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
+import { BulkQuizStatusDto } from './dto/bulk-quiz-status.dto';
 
 type QuizRow = RowDataPacket & {
   id: number;
@@ -753,6 +754,83 @@ export class QuizzesService {
       questionsShared: plan.sharedIds.length,
       attempts: plan.attempts,
     };
+  }
+
+  /// Approve many drafts at once (status 'active') or move them back to draft ('inactive').
+  /// Same rules as saving one quiz: publishing needs review permission, and a quiz that
+  /// could not be published on its own (no title, no questions ...) is skipped with the
+  /// reason instead of failing the whole batch.
+  async bulkSetStatus(dto: BulkQuizStatusDto, actor?: ContentActorInput) {
+    const ids = Array.from(new Set((dto.quizIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0)));
+    if (!ids.length) throw new BadRequestException('Select at least one assessment');
+    const target = dto.status;
+    this.assertCanSaveStatus(actor, target);
+
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, status FROM quizzes WHERE id IN (${sqlPlaceholders(ids)})`,
+      ids
+    );
+    const current = new Map(rows.map((row) => [Number(row.id), String(row.status)]));
+
+    const skipped: Array<{ id: number; reason: string }> = [];
+    const changes: Array<{ id: number; quiz: any }> = [];
+    for (const id of ids) {
+      const status = current.get(id);
+      if (!status) { skipped.push({ id, reason: 'Not found' }); continue; }
+      if (status === target) { skipped.push({ id, reason: target === 'active' ? 'Already active' : 'Already a draft' }); continue; }
+      this.assertCanModifyExistingStatus(actor, status);
+      const quiz = await this.findOne(id);
+      if (target === 'active') {
+        try {
+          this.validateQuiz(quiz as unknown as CreateQuizDto);
+        } catch (error) {
+          skipped.push({ id, reason: error instanceof Error ? error.message : 'Cannot be published' });
+          continue;
+        }
+      }
+      changes.push({ id, quiz });
+    }
+
+    if (changes.length) {
+      const changedIds = changes.map((change) => change.id);
+      const connection = await this.db.getConnection();
+      try {
+        await connection.beginTransaction();
+        await connection.execute(`UPDATE quizzes SET status = ? WHERE id IN (${sqlPlaceholders(changedIds)})`, [target, ...changedIds]);
+        for (const { id, quiz } of changes) {
+          const snapshot = this.buildQuizSnapshot({ ...quiz, status: target });
+          await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
+          await this.setWorkflowState(connection, 'quiz', id, target === 'active' ? 'published' : 'draft', this.getActorId(actor));
+          await this.recordContentAudit(connection, {
+            entityType: 'quiz',
+            entityId: id,
+            action: 'updated',
+            summary: `Quiz ${id} ${target === 'active' ? 'approved (bulk)' : 'moved to draft (bulk)'}`,
+            actorId: this.getActorId(actor),
+            before: quiz,
+            after: snapshot,
+          });
+        }
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+
+      // ONE notice for the whole batch, so approving fifty quizzes is not fifty pushes.
+      if (target === 'active') {
+        const [first] = changes;
+        void this.pushNotificationsService.notifyStudentsOfNewContent(
+          changes.length === 1
+            ? { title: 'New quiz — test yourself', body: `${this.resolveStudentTitle(first.quiz)} added to the Q-Bank. Put your knowledge to the test.` }
+            : { title: 'New quizzes — test yourself', body: `${changes.length} new quizzes added to the Q-Bank. Put your knowledge to the test.` },
+        );
+      }
+    }
+
+    return { ok: true, status: target, changed: changes.length, skipped };
   }
 
   async bulkDelete(dto: BulkDeleteQuizzesDto, actor?: ContentActorInput) {

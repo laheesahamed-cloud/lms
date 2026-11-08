@@ -1,10 +1,32 @@
+import { useEffect, useState } from 'react';
+
 // Fixed number (country code + digits, no "+"). The landing page is fully static
 // and never calls the backend, so changing this means rebuilding the frontend.
 const WHATSAPP_NUMBER = '375257489987';
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
 
-/** Floating "chat on WhatsApp" button for the landing page. */
+// How far the visitor has to scroll before the button appears.
+const SHOW_AFTER_SCROLL_PX = 40;
+
+// The official WhatsApp glyph (24x24 viewBox).
+const WHATSAPP_PATH = 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z';
+
+/**
+ * Floating "chat on WhatsApp" button for the landing page. It stays out of the way of the
+ * hero and only fades in once the visitor starts scrolling.
+ */
 export function WhatsAppButton({ visible = true }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const update = () => setScrolled((window.scrollY || document.documentElement.scrollTop || 0) > SHOW_AFTER_SCROLL_PX);
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    return () => window.removeEventListener('scroll', update);
+  }, []);
+
+  const shown = visible && scrolled;
+
   return (
     <a
       href={WHATSAPP_URL}
@@ -12,10 +34,12 @@ export function WhatsAppButton({ visible = true }) {
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"
       title="Chat with us on WhatsApp"
-      className={`fixed bottom-[max(20px,env(safe-area-inset-bottom))] right-5 z-40 inline-flex size-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_8px_24px_rgba(37,211,102,0.45)] transition duration-300 hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/40 max-[640px]:right-4 max-[640px]:size-12 ${visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
+      tabIndex={shown ? 0 : -1}
+      aria-hidden={shown ? undefined : true}
+      className={`fixed bottom-[max(20px,env(safe-area-inset-bottom))] right-5 z-40 inline-flex size-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_8px_24px_rgba(37,211,102,0.45)] transition duration-300 hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/40 max-[640px]:right-4 max-[640px]:size-12 ${shown ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
     >
-      <svg viewBox="0 0 32 32" className="size-7 max-[640px]:size-6" fill="currentColor" aria-hidden="true">
-        <path d="M16.04 3C9.4 3 4 8.4 4 15.04c0 2.12.55 4.19 1.6 6.01L4 29l8.12-1.57a12.03 12.03 0 0 0 3.92.66C22.68 28.09 28 22.69 28 16.04 28 9.4 22.68 3 16.04 3Zm0 22.03c-1.2 0-2.38-.32-3.4-.93l-.24-.15-4.82.93.97-4.7-.16-.25a9.97 9.97 0 0 1-1.54-5.33c0-5.5 4.48-9.98 9.99-9.98 5.5 0 9.98 4.48 9.98 9.98 0 5.5-4.47 10.43-9.78 10.43Zm5.47-7.45c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.14-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.22 3.08.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.2 1.88.12.57-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z" />
+      <svg viewBox="0 0 24 24" className="size-8 max-[640px]:size-7" fill="currentColor" aria-hidden="true" focusable="false">
+        <path d={WHATSAPP_PATH} />
       </svg>
     </a>
   );

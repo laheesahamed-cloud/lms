@@ -3,6 +3,7 @@ import { QuizzesService } from './quizzes.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
+import { BulkQuizStatusDto } from './dto/bulk-quiz-status.dto';
 export declare class QuizzesController {
     private readonly quizzesService;
     private readonly authService;
@@ -220,6 +221,15 @@ export declare class QuizzesController {
         deletedQuizzes: number;
         deletedQuestions: number;
         keptQuestions: number;
+    }>;
+    bulkSetStatus(authorization: string | undefined, dto: BulkQuizStatusDto): Promise<{
+        ok: boolean;
+        status: "active" | "inactive";
+        changed: number;
+        skipped: {
+            id: number;
+            reason: string;
+        }[];
     }>;
     remove(authorization: string | undefined, id: number): Promise<{
         ok: boolean;

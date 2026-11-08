@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { bulkDeleteQuizzes, fetchQuizzes, fetchQuizzesMeta, fetchQuizzesSummary, previewBulkDeleteQuizzes } from '../../../../shared/api/quizzes.api.js';
+import { bulkDeleteQuizzes, bulkSetQuizStatus, fetchQuizzes, fetchQuizzesMeta, fetchQuizzesSummary, previewBulkDeleteQuizzes } from '../../../../shared/api/quizzes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
@@ -176,7 +176,7 @@ function FolderCard({ name, total, active, onOpen }) {
  */
 function QuizMap({
   groups, loading, course, subject, folder, searching, searchResults,
-  selected, onToggle, onToggleAll, onClearSelection, onDeleteSelected,
+  selected, onToggle, onToggleAll, onClearSelection, onDeleteSelected, onSetStatus, statusBusy,
   onGoRoot, onOpenCourse, onOpenSubject, onBack, onLoadMore, onEdit, onDelete, deletingId,
 }) {
   const crumbs = [{ label: 'All courses', onClick: onGoRoot }];
@@ -224,6 +224,12 @@ function QuizMap({
           <strong className="text-[13.5px] text-ink-strong">{selected.size} selected</strong>
           <div className="flex items-center gap-2">
             <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} onClick={onClearSelection}>Clear</button>
+            <button type="button" disabled={statusBusy} className={cx(ui.secondaryAction, '!min-h-9 !px-3')} onClick={() => onSetStatus('inactive')}>
+              Move to draft
+            </button>
+            <button type="button" disabled={statusBusy} className={cx(ui.primaryAction, '!min-h-9 !px-3')} onClick={() => onSetStatus('active')}>
+              {statusBusy ? 'Working…' : 'Approve (draft → active)'}
+            </button>
             <button type="button" className={cx(ui.dangerAction || ui.secondaryAction, '!min-h-9 !px-3 !border-red-500/40 !bg-red-500/10 !text-red-600 dark:!text-red-300')} onClick={onDeleteSelected}>
               Delete selected
             </button>
@@ -406,6 +412,7 @@ export function QuizzesPage() {
   const [selected, setSelected] = useState(() => new Set());
   // The open delete question: which ids, the server's preview, and the choice.
   const [deleteState, setDeleteState] = useState(null);
+  const [statusBusy, setStatusBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   // The filters the current summary/folders were loaded with, so opening a
@@ -601,6 +608,33 @@ export function QuizzesPage() {
     }
   }
 
+  /** Approve (draft → active) or move back to draft for everything selected. */
+  async function changeSelectedStatus(status) {
+    const ids = [...selected];
+    if (!ids.length || statusBusy) return;
+    const approving = status === 'active';
+    const question = approving
+      ? `Approve ${ids.length} assessment${ids.length === 1 ? '' : 's'}? Students will see them in the Q-Bank and get one notification.`
+      : `Move ${ids.length} assessment${ids.length === 1 ? '' : 's'} back to draft? Students will no longer see them.`;
+    if (!window.confirm(question)) return;
+    setError('');
+    setSuccess('');
+    setStatusBusy(true);
+    try {
+      const result = await bulkSetQuizStatus(ids, status);
+      const done = `${result.changed} assessment${result.changed === 1 ? '' : 's'} ${approving ? 'approved' : 'moved to draft'}`;
+      const skipped = Array.isArray(result.skipped) ? result.skipped : [];
+      const reasons = [...new Set(skipped.map((item) => item.reason))].slice(0, 3).join('; ');
+      setSuccess(skipped.length ? `${done}. ${skipped.length} skipped (${reasons}).` : `${done}.`);
+      setSelected(new Set());
+      await loadQuizzes(appliedFilters.current);
+    } catch (statusError) {
+      setError(getErrorMessage(statusError, 'Unable to change the status'));
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
   function handleDelete(quiz) {
     openDelete([quiz.id]);
   }
@@ -718,6 +752,8 @@ export function QuizzesPage() {
           onToggleAll={toggleAll}
           onClearSelection={() => setSelected(new Set())}
           onDeleteSelected={() => openDelete([...selected])}
+          onSetStatus={changeSelectedStatus}
+          statusBusy={statusBusy}
           onGoRoot={() => go()}
           onOpenCourse={(group) => go(group.courseId)}
           onOpenSubject={(row) => go(row.courseId, row.isGeneral ? 'general' : String(row.topicId))}

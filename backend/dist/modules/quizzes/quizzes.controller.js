@@ -21,6 +21,7 @@ const quizzes_service_1 = require("./quizzes.service");
 const create_quiz_dto_1 = require("./dto/create-quiz.dto");
 const update_quiz_dto_1 = require("./dto/update-quiz.dto");
 const bulk_delete_quizzes_dto_1 = require("./dto/bulk-delete-quizzes.dto");
+const bulk_quiz_status_dto_1 = require("./dto/bulk-quiz-status.dto");
 let QuizzesController = class QuizzesController {
     constructor(quizzesService, authService) {
         this.quizzesService = quizzesService;
@@ -87,6 +88,10 @@ let QuizzesController = class QuizzesController {
     async bulkDelete(authorization, dto) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.quizzesService.bulkDelete(dto, actor);
+    }
+    async bulkSetStatus(authorization, dto) {
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.quizzesService.bulkSetStatus(dto, actor);
     }
     async remove(authorization, id) {
         const actor = await this.authService.requireAdmin(authorization);
@@ -244,6 +249,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, bulk_delete_quizzes_dto_1.BulkDeleteQuizzesDto]),
     __metadata("design:returntype", Promise)
 ], QuizzesController.prototype, "bulkDelete", null);
+__decorate([
+    (0, common_1.Post)('bulk-status'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('quizzes.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, bulk_quiz_status_dto_1.BulkQuizStatusDto]),
+    __metadata("design:returntype", Promise)
+], QuizzesController.prototype, "bulkSetStatus", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),

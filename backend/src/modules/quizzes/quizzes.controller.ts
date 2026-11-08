@@ -6,6 +6,7 @@ import { QuizzesService } from './quizzes.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
+import { BulkQuizStatusDto } from './dto/bulk-quiz-status.dto';
 
 @Controller('quizzes')
 export class QuizzesController {
@@ -148,6 +149,14 @@ export class QuizzesController {
   async bulkDelete(@Headers('authorization') authorization: string | undefined, @Body() dto: BulkDeleteQuizzesDto) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.quizzesService.bulkDelete(dto, actor);
+  }
+
+  @Post('bulk-status')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('quizzes.manage')
+  async bulkSetStatus(@Headers('authorization') authorization: string | undefined, @Body() dto: BulkQuizStatusDto) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.quizzesService.bulkSetStatus(dto, actor);
   }
 
   @Delete(':id')

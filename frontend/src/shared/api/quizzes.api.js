@@ -17,6 +17,12 @@ export async function bulkDeleteQuizzes(quizIds, deleteQuestions) {
   return response.data;
 }
 
+/** Approve many drafts at once ('active') or move them back to draft ('inactive'). */
+export async function bulkSetQuizStatus(quizIds, status) {
+  const response = await apiClient.post('/admin/quizzes/bulk-status', { quizIds, status }, { timeout: 120000 });
+  return response.data;
+}
+
 export async function fetchQuizzesSummary(params) {
   const response = await apiClient.get('/admin/quizzes/summary', { params: params || {} });
   return response.data;

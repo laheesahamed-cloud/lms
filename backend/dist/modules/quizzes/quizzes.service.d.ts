@@ -12,6 +12,7 @@ type ContentWorkflowState = 'draft' | 'in_review' | 'published' | 'archived';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
+import { BulkQuizStatusDto } from './dto/bulk-quiz-status.dto';
 export declare class QuizzesService {
     private readonly db;
     private readonly authService;
@@ -212,6 +213,15 @@ export declare class QuizzesService {
         questionsOnlyHere: number;
         questionsShared: number;
         attempts: number;
+    }>;
+    bulkSetStatus(dto: BulkQuizStatusDto, actor?: ContentActorInput): Promise<{
+        ok: boolean;
+        status: "active" | "inactive";
+        changed: number;
+        skipped: {
+            id: number;
+            reason: string;
+        }[];
     }>;
     bulkDelete(dto: BulkDeleteQuizzesDto, actor?: ContentActorInput): Promise<{
         ok: boolean;
