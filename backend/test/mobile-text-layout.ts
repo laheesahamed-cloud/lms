@@ -38,4 +38,27 @@ for (const section of out.slice(0, -1)) {
 }
 assert.equal(out.slice(0, -1).flatMap((s: any) => s.bullets).length, bullets.length, 'no line lost or added by the split');
 assert.equal(calmTextForPhone(null), null);
+
+// Plain-text fields never keep a marker; text that IS parsed (bullets, callouts) keeps its own.
+const marked = {
+  title: '**Pathology** of hypertension', subtitle: '==Cardiology==',
+  pages: [{ title: 'Page **one**', sections: [
+    { heading: '**Pathology**', bullets: ['Keeps **bold** here'], callout: 'A **callout**', caption: 'Fig. **1**', sectionImage: { src: 'x', caption: '==cap==' }, embeddedLabel: '**Compare**' },
+    { type: 'branch', heading: 'Types', branches: [{ label: '**Primary**', detail: 'Detail with **bold**' }] },
+  ] }],
+};
+const clean = calmTextForPhone(marked) as any;
+assert.equal(clean.title, 'Pathology of hypertension');
+assert.equal(clean.subtitle, 'Cardiology');
+assert.equal(clean.pages[0].title, 'Page one');
+const [first, second] = clean.pages[0].sections;
+assert.equal(first.heading, 'Pathology');
+assert.equal(first.caption, 'Fig. 1');
+assert.equal(first.sectionImage.caption, 'cap');
+assert.equal(first.embeddedLabel, 'Compare');
+assert.deepEqual(first.bullets, ['Keeps **bold** here']);
+assert.equal(first.callout, 'A **callout**');
+assert.equal(second.branches[0].label, 'Primary');
+assert.equal(second.branches[0].detail, 'Detail with **bold**');
+assert.equal(marked.pages[0].sections[0].heading, '**Pathology**', 'input must not be mutated');
 console.log('mobile text layout checks passed');

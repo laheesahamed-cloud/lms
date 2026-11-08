@@ -80,6 +80,53 @@ function calmSections(sections: unknown): unknown {
   return Array.isArray(sections) ? sections.flatMap(calmSection) : sections;
 }
 
+// The app draws these fields as plain text (no **bold** / ==highlight== parsing), so a marker
+// left in one shows up literally on the phone — e.g. a heading written as "**Pathology**".
+const stripMarkers = (value: string) => value.replace(/\*\*|==/g, '').replace(/\s{2,}/g, ' ').trim();
+
+function scrubString(target: Json, key: string) {
+  if (typeof target[key] === 'string' && /\*\*|==/.test(target[key] as string)) {
+    target[key] = stripMarkers(target[key] as string);
+  }
+}
+
+function scrubSection(section: unknown): unknown {
+  if (!section || typeof section !== 'object') return section;
+  const next: Json = { ...(section as Json) };
+  ['heading', 'caption', 'embeddedLabel'].forEach((key) => scrubString(next, key));
+  if (next.sectionImage && typeof next.sectionImage === 'object') {
+    const image: Json = { ...(next.sectionImage as Json) };
+    scrubString(image, 'caption');
+    next.sectionImage = image;
+  }
+  if (Array.isArray(next.branches)) {
+    next.branches = next.branches.map((branch) => {
+      if (!branch || typeof branch !== 'object') return branch;
+      const copy: Json = { ...(branch as Json) };
+      scrubString(copy, 'label');
+      return copy;
+    });
+  }
+  return next;
+}
+
+function scrubPage(page: Json): Json {
+  const next: Json = { ...page };
+  ['title', 'subtitle', 'subject', 'summary_box'].forEach((key) => scrubString(next, key));
+  if (Array.isArray(next.sections)) next.sections = next.sections.map(scrubSection);
+  return next;
+}
+
+export function scrubPlainTextFieldsForPhone(noteData: unknown): unknown {
+  if (!noteData || typeof noteData !== 'object') return noteData;
+  const data = noteData as Json;
+  const next = scrubPage(data);
+  if (Array.isArray(data.pages)) {
+    next.pages = data.pages.map((page) => (page && typeof page === 'object' ? scrubPage(page as Json) : page));
+  }
+  return next;
+}
+
 export function calmTextForPhone(noteData: unknown): unknown {
   if (!noteData || typeof noteData !== 'object') return noteData;
   const data = noteData as Json;
@@ -90,5 +137,5 @@ export function calmTextForPhone(noteData: unknown): unknown {
     ));
   }
   if (Array.isArray(data.sections)) next.sections = calmSections(data.sections);
-  return next;
+  return scrubPlainTextFieldsForPhone(next);
 }

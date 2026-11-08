@@ -1,1 +1,0 @@
-import{Ao as e,Ho as t,Ro as n}from"./app-shared-Drc1As97.js";/* empty css                        */import{c as r}from"./main-CJvnFdIV.js";var i=t();function a(){let{mode:t}=n();return t!==`maintenance`&&t!==`coming-soon`?(0,i.jsx)(e,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:t,preview:!0})}export{a as LaunchModePreviewPage};

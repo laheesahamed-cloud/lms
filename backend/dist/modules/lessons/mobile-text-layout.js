@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.splitLongBullet = splitLongBullet;
+exports.scrubPlainTextFieldsForPhone = scrubPlainTextFieldsForPhone;
 exports.calmTextForPhone = calmTextForPhone;
 const mobile_table_layout_1 = require("./mobile-table-layout");
 const LONG_BULLET = 110;
@@ -70,6 +71,50 @@ function calmSection(section) {
 function calmSections(sections) {
     return Array.isArray(sections) ? sections.flatMap(calmSection) : sections;
 }
+const stripMarkers = (value) => value.replace(/\*\*|==/g, '').replace(/\s{2,}/g, ' ').trim();
+function scrubString(target, key) {
+    if (typeof target[key] === 'string' && /\*\*|==/.test(target[key])) {
+        target[key] = stripMarkers(target[key]);
+    }
+}
+function scrubSection(section) {
+    if (!section || typeof section !== 'object')
+        return section;
+    const next = { ...section };
+    ['heading', 'caption', 'embeddedLabel'].forEach((key) => scrubString(next, key));
+    if (next.sectionImage && typeof next.sectionImage === 'object') {
+        const image = { ...next.sectionImage };
+        scrubString(image, 'caption');
+        next.sectionImage = image;
+    }
+    if (Array.isArray(next.branches)) {
+        next.branches = next.branches.map((branch) => {
+            if (!branch || typeof branch !== 'object')
+                return branch;
+            const copy = { ...branch };
+            scrubString(copy, 'label');
+            return copy;
+        });
+    }
+    return next;
+}
+function scrubPage(page) {
+    const next = { ...page };
+    ['title', 'subtitle', 'subject', 'summary_box'].forEach((key) => scrubString(next, key));
+    if (Array.isArray(next.sections))
+        next.sections = next.sections.map(scrubSection);
+    return next;
+}
+function scrubPlainTextFieldsForPhone(noteData) {
+    if (!noteData || typeof noteData !== 'object')
+        return noteData;
+    const data = noteData;
+    const next = scrubPage(data);
+    if (Array.isArray(data.pages)) {
+        next.pages = data.pages.map((page) => (page && typeof page === 'object' ? scrubPage(page) : page));
+    }
+    return next;
+}
 function calmTextForPhone(noteData) {
     if (!noteData || typeof noteData !== 'object')
         return noteData;
@@ -80,6 +125,6 @@ function calmTextForPhone(noteData) {
     }
     if (Array.isArray(data.sections))
         next.sections = calmSections(data.sections);
-    return next;
+    return scrubPlainTextFieldsForPhone(next);
 }
 //# sourceMappingURL=mobile-text-layout.js.map
