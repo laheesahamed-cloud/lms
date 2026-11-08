@@ -226,7 +226,7 @@ const noteCanvasUi = {
   footer:
     'border-t border-black/[0.06] px-[22px] py-2.5 text-right text-[11px] tracking-[0.3px] text-slate-500/55 dark:border-t-white/[0.06] dark:text-white/20',
   toolbar:
-    'absolute right-3 top-3 z-[60] flex max-w-[760px] flex-wrap items-center gap-1.5 rounded-xl border border-line-soft bg-white/78 px-3 py-2 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-[14px] dark:border-[rgba(145,170,255,0.16)] dark:bg-[rgba(8,12,24,0.82)] dark:shadow-[0_16px_36px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] max-[820px]:left-3',
+    'sticky top-2 z-[60] mx-3 mb-2 mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 rounded-xl border border-line-soft bg-white/92 px-3 py-2 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-[14px] dark:border-[rgba(145,170,255,0.16)] dark:bg-[rgba(8,12,24,0.82)] dark:shadow-[0_16px_36px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] ',
   toolbarLabel: 'whitespace-nowrap text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted dark:text-sky-100/58',
   toolbarDivider: 'h-[18px] w-px shrink-0 bg-line-soft dark:bg-white/10',
   toolbarButton: '!flex !items-center !gap-[5px] !whitespace-nowrap !px-2.5 !py-1 !text-xs dark:!border-[rgba(145,170,255,0.16)] dark:!bg-white/[0.06] dark:!text-slate-200 dark:hover:!border-sky-300/28 dark:hover:!bg-sky-300/12 dark:hover:!text-white',
@@ -256,14 +256,14 @@ const noteCanvasUi = {
   stickerControlButton:
     'flex size-[26px] cursor-pointer items-center justify-center rounded-[7px] border border-black/10 bg-surface-2 p-0 text-xs font-bold text-ink-medium transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))] active:scale-[0.98]',
   stickerDeleteButton: '!border-red-500/20 !bg-red-50 !text-red-500 hover:!bg-red-100',
-  tableWrap: 'overflow-x-auto rounded-b-[10px] px-3.5 pb-3.5 pt-1 max-[520px]:px-2.5',
+  tableWrap: 'overflow-x-auto overscroll-x-contain rounded-b-[10px] px-3.5 pb-3.5 pt-1 [-webkit-overflow-scrolling:touch] max-[520px]:px-2.5',
   table: 'w-full min-w-0 border-collapse text-left',
   thead: '',
-  th: 'border-b border-black/[0.08] px-2.5 py-1.5 font-[var(--type-font-body)] text-[11.5px] font-extrabold uppercase tracking-[0.06em] dark:border-white/[0.12]',
+  th: 'max-[700px]:min-w-[92px] max-[700px]:[overflow-wrap:normal] max-[700px]:[word-break:normal] max-[700px]:hyphens-none border-b border-black/[0.08] px-2.5 py-1.5 font-[var(--type-font-body)] text-[11.5px] font-extrabold uppercase tracking-[0.06em] dark:border-white/[0.12]',
   tbody: '',
   tr: 'border-b border-black/[0.04] last:border-0 transition-colors dark:border-white/[0.06]',
   trHover: 'hover:bg-black/[0.025] dark:hover:bg-white/[0.03]',
-  td: 'px-2.5 py-1.5 font-[var(--type-font-body)] text-[15px] leading-[1.5] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[15.5px]',
+  td: 'max-[700px]:min-w-[92px] max-[700px]:[overflow-wrap:normal] max-[700px]:[word-break:normal] max-[700px]:hyphens-none px-2.5 py-1.5 font-[var(--type-font-body)] text-[15px] leading-[1.5] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[15.5px]',
   tableEditRow: 'flex items-center gap-1.5 mt-1',
   tableEditCell: 'min-w-0 flex-1',
   tableAddRowBtn: 'mx-3.5 mb-2.5 mt-1 flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-black/15 bg-transparent px-2.5 py-1 font-sans text-[11.5px] font-semibold text-ink-muted transition-[background] duration-100 hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/[0.04]',
@@ -272,8 +272,6 @@ const noteCanvasUi = {
   compressToast:
     'my-1.5 flex items-center gap-[7px] self-start rounded-full border border-line-soft bg-surface-glass px-3.5 py-1.5 font-sans text-xs text-ink-muted',
   compressSpin: 'animate-[spin_0.9s_linear_infinite]',
-  smartArrangeFab:
-    'absolute bottom-4 right-4 z-[55] inline-flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-white/90 px-3.5 py-2 font-sans text-[11px] font-extrabold text-violet-700 shadow-[0_10px_28px_rgba(88,28,135,0.14)] backdrop-blur-md transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:bg-violet-50 active:scale-[0.98] dark:border-violet-300/20 dark:bg-slate-950/85 dark:text-violet-100 dark:hover:bg-violet-500/15',
   focusBtn:
     "inline-flex items-center gap-1.5 rounded-lg border border-slate-300/60 bg-surface-card/60 px-2.5 py-1 font-[var(--type-font-body)] text-[11px] font-semibold text-slate-600 backdrop-blur-sm transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-card hover:text-slate-700 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
   focusBtnOn:
@@ -1421,199 +1419,6 @@ const PALETTE = [
   '#FFCC80','#F48FB1','#80DEEA','#A5D6A7','#FFE0B2',
 ];
 
-const LAYOUT_PATTERNS = [
-  {
-    id: 'two-cards',
-    label: '2 Cards',
-    title: 'Two equal cards on each row',
-    columns: '2col',
-    spans: ['half', 'half'],
-  },
-  {
-    id: 'big-small',
-    label: 'Big + Small',
-    title: 'One big card across two columns and one small card beside it',
-    columns: '3col',
-    spans: ['wide', 'half'],
-  },
-  {
-    id: 'three-small',
-    label: '3 Small',
-    title: 'Three small cards on each row',
-    columns: '3col',
-    spans: ['half', 'half', 'half'],
-  },
-  {
-    id: 'mixed-combo',
-    label: 'Mixed',
-    title: 'Mix rows using Big + Small, 2 Cards, and 3 Small combinations',
-    columns: '3col',
-    spans: ['wide', 'half', 'half', 'half', 'half', 'half', 'wide', 'half'],
-  },
-];
-
-function estimateSectionWeight(section) {
-  if (section.type === 'image-explained') return 9;
-  if (section.type === 'image') return section.src ? 7 : 4;
-  if (section.type === 'table') return 8;
-  if (section.type === 'flow') return 8;
-  if (section.type === 'branch') return 8;
-  if (section.type === 'note') return 3;
-
-  const heading = String(section.heading || '').toLowerCase();
-  const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
-  const textLength = bullets.join(' ').length + String(section.callout || '').length + String(section.sticky_note || '').length;
-
-  let score = Math.min(8, Math.ceil(textLength / 110));
-  if (/main|content|overview|definition|pathway|mechanism|diagram|visual/.test(heading)) score += 3;
-  if (/summary|review|recap|key point|takeaway|example|case|tip/.test(heading)) score -= 1;
-  if (section.sectionImage?.src) score += 2;
-  if (bullets.length >= 6) score += 2;
-  if (section.callout || section.mnemonic || section.sticky_note) score += 1;
-  return Math.max(1, Math.min(10, score));
-}
-
-function estimateSectionHeight(section) {
-  if (section.type === 'image-explained') {
-    return (section.height || 220) + Math.ceil(String(section.explanation || '').length / 55) * 18 + 72;
-  }
-  if (section.type === 'image') return (section.height || 200) + (section.caption ? 32 : 12);
-  if (section.type === 'table') {
-    const rows = Array.isArray(section.rows) ? section.rows.length : 0;
-    return 58 + rows * 30;
-  }
-  if (section.type === 'branch') {
-    const branches = Array.isArray(section.branches) ? section.branches : [];
-    return 62 + branches.length * 42;
-  }
-  if (section.type === 'flow') {
-    const steps = Array.isArray(section.steps) ? section.steps.filter(Boolean) : [];
-    const stepLines = steps.reduce((sum, s) => sum + Math.max(1, Math.ceil(String(s).length / 46)), 0);
-    return 58 + stepLines * 26 + steps.length * 30;
-  }
-  if (section.type === 'note') {
-    const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
-    const bulletLines = bullets.reduce((sum, line) => sum + Math.max(1, Math.ceil(String(line).length / 42)), 0);
-    return 44 + bulletLines * 22;
-  }
-
-  const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
-  const bulletLines = bullets.reduce((sum, line) => sum + Math.max(1, Math.ceil(String(line).length / 42)), 0);
-  let height = 58 + bulletLines * 24;
-  if (section.sectionImage?.src) height += (section.sectionImage.height || 180) + 18;
-  if (section.callout) height += 46;
-  if (section.mnemonic) height += 58;
-  if (section.sticky_note) height += 64;
-  return height;
-}
-
-function spanUnits(span) {
-  if (span === 'full') return 3;
-  if (span === 'wide') return 2;
-  return 1;
-}
-
-function normalizeSmartRow(row) {
-  const total = row.reduce((sum, item) => sum + spanUnits(item.span), 0);
-  if (total === 3) return row;
-
-  const byWeight = [...row].sort((a, b) => b.weight - a.weight);
-
-  if (row.length === 1) {
-    return [{ ...row[0], span: 'full' }];
-  }
-
-  if (row.length === 2) {
-    const wideIndex = row.findIndex(item => item === byWeight[0]);
-    return row.map((item, index) => ({
-      ...item,
-      span: index === wideIndex ? 'wide' : 'half',
-    }));
-  }
-
-  return row.map(item => ({ ...item, span: 'half' }));
-}
-
-function packSmartRows(items) {
-  const rows = [];
-  let row = [];
-  let used = 0;
-
-  function flush() {
-    if (!row.length) return;
-    rows.push(normalizeSmartRow(row));
-    row = [];
-    used = 0;
-  }
-
-  for (const item of items) {
-    const units = spanUnits(item.span);
-
-    if (item.span === 'full') {
-      flush();
-      rows.push([{ ...item, span: 'full' }]);
-      continue;
-    }
-
-    if (used + units > 3) flush();
-
-    row.push(item);
-    used += units;
-
-    if (used === 3) flush();
-  }
-
-  flush();
-  return rows.flat();
-}
-
-function smartArrangeSections(sections) {
-  const decorated = sections.map((section, index) => ({
-    section,
-    index,
-    weight: estimateSectionWeight(section),
-    height: estimateSectionHeight(section),
-  }));
-
-  const hero = decorated.find(item => item.section.type === 'image-explained' && item.height > 340)
-    || decorated.find(item => item.weight >= 9 && item.height > 320);
-  const pool = decorated.filter(item => item !== hero);
-  const wide = pool
-    .filter(item => item.weight >= 7 || item.height > 245 || item.section.type === 'image')
-    .sort((a, b) => b.height - a.height);
-  const small = pool
-    .filter(item => !wide.includes(item))
-    .sort((a, b) => a.height - b.height);
-
-  const arranged = [];
-  if (hero) arranged.push({ ...hero, span: 'full' });
-
-  while (wide.length) {
-    const main = wide.shift();
-    arranged.push({ ...main, span: 'wide' });
-
-    if (small.length) {
-      arranged.push({ ...small.shift(), span: 'half' });
-    } else if (wide.length) {
-      const fallback = wide.shift();
-      arranged.push({ ...fallback, span: 'half' });
-    }
-  }
-
-  while (small.length) {
-    const batch = small.splice(0, 3);
-    if (batch.length === 1) arranged.push({ ...batch[0], span: 'full' });
-    else if (batch.length === 2) {
-      const [taller, shorter] = [...batch].sort((a, b) => b.height - a.height);
-      arranged.push({ ...taller, span: 'wide' }, { ...shorter, span: 'half' });
-    } else {
-      arranged.push(...batch.map(item => ({ ...item, span: 'half' })));
-    }
-  }
-
-  return packSmartRows(arranged).map(item => ({ ...item.section, span: item.span }));
-}
-
 /* ══════════════════════════════════════════════════════════════
    IMAGE COMPRESSION  (browser Canvas API — no extra deps)
    Resizes to max 2000px, converts to WebP @ 0.94 quality.
@@ -2245,7 +2050,7 @@ function SectionInlineImage({ image, editable, onChange, onAddRequest, onOpenIma
   );
 }
 
-function MasonryItem({ children, span = 'half', columns = 2, editable = false, dragEnabled = editable, index, draggingIndex, onDragStart, onDragOver, onDrop, onDragEnd }) {
+function MasonryItem({ children, span = 'half', columns = 2, editable = false, dragEnabled = false, index, draggingIndex, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const ref = useRef(null);
   const [rowSpan, setRowSpan] = useState(null);
 
@@ -2281,6 +2086,7 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, d
     <div
       ref={ref}
       className="ncv-item"
+      data-section-index={index}
       draggable={dragEnabled}
       onDragStart={dragEnabled ? e => onDragStart?.(e, index) : undefined}
       onDragOver={dragEnabled ? e => onDragOver?.(e, index) : undefined}
@@ -2708,7 +2514,7 @@ function SupplementaryBullets({ section, accentColor, editable, onSectionChange,
 /* ══════════════════════════════════════════════════════════════
    TABLE SECTION CARD
 ══════════════════════════════════════════════════════════════ */
-function TableSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme, pageIndex, pageCount, onMoveToPage }) {
+function TableSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onAddImageRequest, onOpenImage, theme, pageIndex, pageCount, onMoveToPage }) {
   const baseColor   = colors[colorIndex % colors.length] || '#A7D8FF';
   const accentColor = section.accentColor || baseColor;
   const span        = section.span === 'single' ? 'full' : section.span || 'full';
@@ -2733,13 +2539,11 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
     patchRows(rows.filter((_, i) => i !== ri));
   }
   function addCol() {
-    patchHeaders([...headers, `Col ${headers.length + 1}`]);
-    patchRows(rows.map(r => [...r, '']));
+    onSectionChange({ headers: [...headers, `Col ${headers.length + 1}`], rows: rows.map(r => [...r, '']) });
   }
   function removeCol(ci) {
     if (headers.length <= 1) return;
-    patchHeaders(headers.filter((_, i) => i !== ci));
-    patchRows(rows.map(r => r.filter((_, i) => i !== ci)));
+    onSectionChange({ headers: headers.filter((_, i) => i !== ci), rows: rows.map(r => r.filter((_, i) => i !== ci)) });
   }
 
   return (
@@ -2760,6 +2564,11 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
               style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'full')} title="Full width">⬛</button>
             <button className={cx(noteCanvasUi.sectionButton, span === 'wide' && noteCanvasUi.sectionButtonOn)}
               style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'wide')} title="Wide card">⅔</button>
+            <button className={cx(noteCanvasUi.sectionButton, section.sectionImage?.src && noteCanvasUi.sectionButtonOn)}
+              onClick={onAddImageRequest}
+              title={section.sectionImage?.src ? 'Replace table image' : 'Add image to this table'}
+              style={{ fontSize:13 }}
+            >📷</button>
             <MovePageMenu pageIndex={pageIndex} pageCount={pageCount} onMove={onMoveToPage} />
             <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
           </div>
@@ -2776,6 +2585,17 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
               {section.heading}
             </h3>}
       </div>
+
+      {section.sectionImage?.src && section.sectionImage?.position === 'top' && (
+        <SectionInlineImage
+          image={section.sectionImage}
+          editable={editable}
+          onChange={img => onSectionChange('sectionImage', img)}
+          onAddRequest={onAddImageRequest}
+          onOpenImage={onOpenImage}
+          theme={theme}
+        />
+      )}
 
       <div className={noteCanvasUi.tableWrap}>
         {editable ? (
@@ -2844,6 +2664,16 @@ function TableSectionCard({ section, colorIndex, colors, editable, onSectionChan
           </table>
         )}
       </div>
+      {section.sectionImage?.src && section.sectionImage?.position !== 'top' && (
+        <SectionInlineImage
+          image={section.sectionImage}
+          editable={editable}
+          onChange={img => onSectionChange('sectionImage', img)}
+          onAddRequest={onAddImageRequest}
+          onOpenImage={onOpenImage}
+          theme={theme}
+        />
+      )}
       <SupplementaryBullets section={section} accentColor={accentColor} editable={editable} onSectionChange={onSectionChange} colors={colors} colorIndex={colorIndex} theme={theme}/>
     </div>
   );
@@ -3027,7 +2857,7 @@ function StickerPicker({ onAdd, onClose }) {
 /* ══════════════════════════════════════════════════════════════
    CANVAS TOOLBAR
 ══════════════════════════════════════════════════════════════ */
-function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onAddImageSection, onAddImageExplained, onBgChange, onLayoutChange, onApplyLayoutPattern, onSmartArrange }) {
+function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onAddImageSection, onAddImageExplained, onBgChange, onLayoutChange }) {
   const [stickerOpen,  setStickerOpen]  = useState(false);
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const ref = useRef(null);
@@ -3089,10 +2919,6 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onA
         Image + Note
       </button>
 
-      <button className={cx(ui.primaryButton, noteCanvasUi.toolbarButton)} onClick={onSmartArrange} title="AI-style layout based on card type and content">
-        ✨ Smart Arrange
-      </button>
-
       <div style={{ position:'relative' }}>
         <button className={cx(ui.secondaryButton, noteCanvasUi.toolbarButton)} onClick={() => setStickerOpen(v => !v)}>
           ✨ Sticker
@@ -3150,19 +2976,6 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onA
         </button>
       </div>
 
-      <div className={noteCanvasUi.toolbarDivider}/>
-
-      <div className={noteCanvasUi.layoutToggle}>
-        {LAYOUT_PATTERNS.map(pattern => (
-          <button className={cx(noteCanvasUi.layoutButton, data.layoutPattern === pattern.id && noteCanvasUi.layoutButtonOn)}
-            key={pattern.id}
-            onClick={() => onApplyLayoutPattern(pattern.id)}
-            title={pattern.title}
-          >
-            {pattern.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -3187,6 +3000,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   const [draggingIndex,   setDraggingIndex]   = useState(null);
   const [focusMode]       = useState(false);
   const [lightboxImage,   setLightboxImage]   = useState(null);
+  const [textMenu,        setTextMenu]        = useState(null); // right-click menu on editable text
 
   /* Hidden file inputs */
   const addImgRef      = useRef(null);
@@ -3219,8 +3033,11 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   /* ── patch helpers ─────────────────────────────────────── */
   function patch(updates) { onDataChange?.({ ...data, ...updates }); }
 
+  // `field` may be an object of several fields — they must land in ONE update, because two
+  // back-to-back calls each start from the same stale `sections` and the second wipes the first.
   function patchSection(idx, field, value) {
-    patch({ sections: sections.map((s, i) => i === idx ? { ...s, [field]: value } : s) });
+    const changes = field && typeof field === 'object' ? field : { [field]: value };
+    patch({ sections: sections.map((s, i) => i === idx ? { ...s, ...changes } : s) });
   }
 
   function patchKeyPoint(idx, value) {
@@ -3276,43 +3093,6 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   function moveSectionToPage(idx, targetPageIndex) {
     if (targetPageIndex == null || targetPageIndex === pageIndex) return;
     onMoveSectionToPage?.(pageIndex, idx, targetPageIndex);
-  }
-
-  function applyLayoutPattern(patternId) {
-    const pattern = LAYOUT_PATTERNS.find(item => item.id === patternId);
-    if (!pattern) return;
-    let nextSections = sections.map((section, index) => ({
-      ...section,
-      span: pattern.spans[index % pattern.spans.length],
-    }));
-
-    if (pattern.columns === '2col' && nextSections.length % 2 === 1) {
-      nextSections = nextSections.map((section, index) => (
-        index === nextSections.length - 1 ? { ...section, span: 'wide' } : section
-      ));
-    }
-
-    if (pattern.columns === '3col') {
-      nextSections = packSmartRows(nextSections.map(section => ({
-        section,
-        span: section.span,
-        weight: estimateSectionWeight(section),
-      }))).map(item => ({ ...item.section, span: item.span }));
-    }
-
-    patch({
-      layout: pattern.columns,
-      layoutPattern: pattern.id,
-      sections: nextSections,
-    });
-  }
-
-  function smartArrangeCanvas() {
-    patch({
-      layout: '3col',
-      layoutPattern: 'smart',
-      sections: smartArrangeSections(sections),
-    });
   }
 
   function handleCardDragStart(e, idx) {
@@ -3421,6 +3201,85 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
     }
   }
 
+  /* ── right-click text menu: highlight / bold / add image ─────── */
+  useEffect(() => {
+    if (!textMenu) return undefined;
+    const close = () => setTextMenu(null);
+    const onKey = (event) => { if (event.key === 'Escape') close(); };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [textMenu]);
+
+  function handleTextContextMenu(event) {
+    if (!editable) return;
+    const field = event.target?.closest?.('[contenteditable="true"]');
+    if (!field) return; // outside editable text: keep the browser's own menu
+    event.preventDefault();
+    const selection = window.getSelection();
+    // Nothing selected: grab the word under the pointer so a right-click alone can highlight it.
+    if (selection && (!selection.rangeCount || selection.isCollapsed) && document.caretRangeFromPoint) {
+      const caret = document.caretRangeFromPoint(event.clientX, event.clientY);
+      if (caret && field.contains(caret.startContainer)) {
+        selection.removeAllRanges();
+        selection.addRange(caret);
+        selection.modify?.('move', 'backward', 'word');
+        selection.modify?.('extend', 'forward', 'word');
+      }
+    }
+    const range = selection && selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    const inField = !!range && field.contains(range.commonAncestorContainer);
+    const hasText = inField && !range.collapsed && !!range.toString().trim();
+    const anchor = inField ? (range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement) : null;
+    const section = field.closest('[data-section-index]');
+    setTextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      field,
+      range: inField ? range : null,
+      hasText,
+      highlighted: !!anchor?.closest?.('mark'),
+      sectionIndex: section ? Number(section.dataset.sectionIndex) : null,
+    });
+  }
+
+  function runTextCommand(action) {
+    const menu = textMenu;
+    setTextMenu(null);
+    if (!menu) return;
+    if (action === 'image') {
+      if (menu.sectionIndex != null && !Number.isNaN(menu.sectionIndex)) requestSectionImage(menu.sectionIndex);
+      return;
+    }
+    if (!menu.range) return;
+    menu.field.focus();
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(menu.range);
+    const text = menu.range.toString();
+    const escapeHtml = (value) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    if (action === 'highlight') {
+      document.execCommand('insertHTML', false, `<mark class="${noteCanvasUi.highlight}">${escapeHtml(text)}</mark>`);
+    } else if (action === 'unhighlight') {
+      const anchor = menu.range.commonAncestorContainer.nodeType === 1 ? menu.range.commonAncestorContainer : menu.range.commonAncestorContainer.parentElement;
+      const mark = anchor?.closest?.('mark');
+      if (mark) {
+        // Swap the <mark> for plain text and tell the field its content changed.
+        mark.replaceWith(document.createTextNode(mark.textContent || ''));
+        menu.field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+      }
+    } else if (action === 'bold') {
+      document.execCommand('bold');
+    }
+  }
+
   function requestSectionImage(idx) {
     sectImgIdxRef.current = idx;
     sectImgRef.current?.click();
@@ -3444,7 +3303,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   } : {};
 
   return (
-    <div className={cx(noteCanvasUi.wrapOuter, 'lms-ai-canvas-editor', editable && 'is-editable')}>
+    <div className={cx(noteCanvasUi.wrapOuter, 'lms-ai-canvas-editor', editable && 'is-editable')} onContextMenu={editable ? handleTextContextMenu : undefined}>
 
       <input className="shrink-0" ref={addImgRef}     type="file" accept="image/png,image/jpeg,image/webp" style={{ display:'none' }} onChange={handleAddImage} aria-label="Add canvas image"/>
       <input className="shrink-0" ref={replaceImgRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display:'none' }} onChange={handleReplaceImage} aria-label="Replace canvas image"/>
@@ -3460,9 +3319,34 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
           onAddImageExplained={() => addImageExplainedSection('')}
           onBgChange={c => patch({ canvasBg: c })}
           onLayoutChange={col => patch({ layout: col })}
-          onApplyLayoutPattern={applyLayoutPattern}
-          onSmartArrange={smartArrangeCanvas}
         />
+      )}
+
+      {textMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          role="menu"
+          aria-label="Text options"
+          className="fixed z-[2000] grid min-w-[190px] gap-0.5 rounded-xl border border-line-soft bg-surface-card p-1.5 text-[13px] font-semibold text-ink-strong shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
+          style={{ left: Math.min(textMenu.x, window.innerWidth - 210), top: Math.min(textMenu.y, window.innerHeight - 190) }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          {textMenu.hasText ? (
+            textMenu.highlighted ? (
+              <button type="button" role="menuitem" className="rounded-lg !border-0 px-3 py-2 text-left !shadow-none !bg-transparent hover:!bg-surface-2" onMouseDown={(event) => event.preventDefault()} onClick={() => runTextCommand('unhighlight')}>Remove highlight</button>
+            ) : (
+              <button type="button" role="menuitem" className="rounded-lg !border-0 px-3 py-2 text-left !shadow-none !bg-transparent hover:!bg-surface-2" onMouseDown={(event) => event.preventDefault()} onClick={() => runTextCommand('highlight')}>Highlight</button>
+            )
+          ) : null}
+          {textMenu.hasText ? (
+            <button type="button" role="menuitem" className="rounded-lg !border-0 px-3 py-2 text-left !shadow-none !bg-transparent hover:!bg-surface-2" onMouseDown={(event) => event.preventDefault()} onClick={() => runTextCommand('bold')}>Bold</button>
+          ) : null}
+          {textMenu.sectionIndex != null ? (
+            <button type="button" role="menuitem" className="rounded-lg !border-0 px-3 py-2 text-left !shadow-none !bg-transparent hover:!bg-surface-2" onMouseDown={(event) => event.preventDefault()} onClick={() => runTextCommand('image')}>Add image to this card</button>
+          ) : null}
+          {!textMenu.hasText && textMenu.sectionIndex == null ? <span className="px-3 py-2 text-ink-soft">Select some text first</span> : null}
+        </div>,
+        document.body
       )}
 
       {compressing && (
@@ -3498,12 +3382,6 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
             canvasRef={canvasRef}
           />
         ))}
-
-        {editable && (
-          <button className={noteCanvasUi.smartArrangeFab} type="button" onClick={smartArrangeCanvas} title="Re-arrange cards after adding text or images">
-            ✨ Smart Arrange
-          </button>
-        )}
 
         <div className={noteCanvasUi.header}>
           <div className={noteCanvasUi.headerInner}>
@@ -3561,7 +3439,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'half'}
                     columns={columnCount}
                     editable={editable}
-                    dragEnabled={editable && !isMobileCanvas}
+                    dragEnabled={false}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -3595,7 +3473,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'full'}
                     columns={columnCount}
                     editable={editable}
-                    dragEnabled={editable && !isMobileCanvas}
+                    dragEnabled={false}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -3629,7 +3507,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'full'}
                     columns={columnCount}
                     editable={editable}
-                    dragEnabled={editable && !isMobileCanvas}
+                    dragEnabled={false}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -3646,6 +3524,8 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       onMoveUp={() => moveSection(i, -1)}
                       onMoveDown={() => moveSection(i, 1)}
                       onDelete={() => deleteSection(i)}
+                      onAddImageRequest={() => requestSectionImage(i)}
+                      onOpenImage={openImageLightbox}
                       theme={theme}
                       pageIndex={pageIndex}
                       pageCount={pageCount}
@@ -3661,7 +3541,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'full'}
                     columns={columnCount}
                     editable={editable}
-                    dragEnabled={editable && !isMobileCanvas}
+                    dragEnabled={false}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -3693,7 +3573,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'full'}
                     columns={columnCount}
                     editable={editable}
-                    dragEnabled={editable && !isMobileCanvas}
+                    dragEnabled={false}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -3725,7 +3605,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'half'}
                     columns={columnCount}
                     editable={editable}
-                    dragEnabled={editable && !isMobileCanvas}
+                    dragEnabled={false}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -3754,7 +3634,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                   span={!editable && i === firstTextSectionIndex ? 'full' : section.span || 'half'}
                   columns={columnCount}
                   editable={editable}
-                  dragEnabled={editable && !isMobileCanvas}
+                  dragEnabled={false}
                   index={i}
                   draggingIndex={draggingIndex}
                   onDragStart={handleCardDragStart}

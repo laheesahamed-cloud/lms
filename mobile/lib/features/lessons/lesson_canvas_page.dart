@@ -5160,7 +5160,32 @@ class _SectionCard extends StatelessWidget {
     // boundaries. A smaller cell font (smaller still for 4+ columns) keeps words
     // from breaking mid-word.
     final wide = headers.length >= 4;
-    final cellSize = wide ? 10.5 : 12.5;
+    final cellSize = wide ? 11.5 : 13.0;
+
+    // Column widths follow the CONTENT instead of being equal: a column of short
+    // numbers stays narrow and a column of sentences gets the room, and no column
+    // is narrower than its longest word — that is what stopped words snapping
+    // mid-word ("SYSTOLI/C") and cells collapsing to a few letters per line.
+    final weights = List<int>.generate(headers.length, (ci) {
+      var longestWord = 0;
+      var total = 0;
+      var count = 0;
+      void scan(String raw) {
+        final plain = plainInline(raw);
+        total += plain.length;
+        count++;
+        for (final word in plain.split(RegExp(r'\s+'))) {
+          if (word.length > longestWord) longestWord = word.length;
+        }
+      }
+      scan(headers[ci]);
+      for (final r in rows) {
+        scan(ci < r.length ? r[ci] : '');
+      }
+      final average = count == 0 ? 0 : (total / count).round();
+      final floor = longestWord < 4 ? 4 : (longestWord > 14 ? 14 : longestWord);
+      return average < floor ? floor : (average > 30 ? 30 : average);
+    });
 
     Widget buildRow(List<String> cells, {bool isHeader = false}) {
       return Row(
@@ -5168,6 +5193,7 @@ class _SectionCard extends StatelessWidget {
         children: List.generate(headers.length, (ci) {
           final text = ci < cells.length ? cells[ci] : '';
           return Expanded(
+            flex: weights[ci],
             child: Padding(
               padding: const EdgeInsets.fromLTRB(5, 6, 5, 6),
               child: isHeader
@@ -5178,7 +5204,7 @@ class _SectionCard extends StatelessWidget {
                   ? Text(plainInline(text).toUpperCase(),
                       style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
-                          fontSize: wide ? 9.0 : 10.0,
+                          fontSize: wide ? 9.5 : 10.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.2,
                           height: 1.3,

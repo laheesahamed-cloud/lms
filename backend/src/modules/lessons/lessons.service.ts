@@ -19,6 +19,7 @@ import {
 } from '../../common/utils/ai-provider.utils';
 import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
 import { isMobileAppClient } from '../../common/utils/mobile-client.util';
+import { reshapeTablesForPhone } from './mobile-table-layout';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 
 type LessonRow = RowDataPacket & {
@@ -2758,7 +2759,11 @@ export class LessonsService {
       }
       throw new NotFoundException('Lesson not found');
     }
-    return this.mapCanvasStudentNote(rows[0], accessProfile, true);
+    const mapped = this.mapCanvasStudentNote(rows[0], accessProfile, true);
+    // Phone app only: wide tables are reshaped so they read cleanly (see mobile-table-layout.ts).
+    return isMobileAppClient(appClient) && mapped.noteData
+      ? { ...mapped, noteData: reshapeTablesForPhone(mapped.noteData) }
+      : mapped;
   }
 
   async canvasStudentFlashcards(id: number, token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {

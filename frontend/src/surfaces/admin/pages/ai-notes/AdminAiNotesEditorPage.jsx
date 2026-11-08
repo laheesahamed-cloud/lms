@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { NoteCanvas } from '../../../app/student/ai-notes/NoteCanvas.jsx';
 import { optimizeImageFile, IMAGE_OPTIMIZER_MAX_BYTES } from '../../../../shared/utils/imageOptimizer.js';
 import {
@@ -22,6 +23,9 @@ import { createLesson, updateLesson, uploadLessonPdf, removeLessonPdf, uploadLes
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { BreadcrumbTrail } from '../../../../shared/ui/BreadcrumbTrail.jsx';
+import { fixUnsupportedColors } from '../../../../shared/utils/html2canvasColors.js';
+import { useThemeStore } from '../../../../shared/stores/themeStore.js';
+import './lesson-print.css';
 
 function BackIcon()    { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function SparkleIcon() { return <svg width="15" height="15" viewBox="0 0 14 14" fill="none"><path d="M7 1L8.5 5H13L9.5 7.5L11 12L7 9.5L3 12L4.5 7.5L1 5H5.5L7 1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none"/></svg>; }
@@ -123,14 +127,14 @@ const editorUi = {
   charCount: 'text-[11px] text-ink-muted',
   editorShell: 'flex h-full flex-col',
   topBar:
-    'z-20 flex shrink-0 flex-wrap items-center gap-2.5 border-b border-line-soft bg-surface-glass-strong px-5 py-2.5 backdrop-blur-[12px]',
+    'z-20 flex shrink-0 flex-wrap items-center gap-2.5 border-b border-line-soft bg-surface-glass-strong px-5 py-2.5 backdrop-blur-[12px] max-[700px]:gap-2 max-[700px]:px-3',
   titleInput:
-    'min-w-[140px] flex-1 border-0 border-b border-line-soft bg-transparent px-0 py-1.5 text-[15px] font-semibold text-ink-strong shadow-none outline-none focus:border-brand-primary focus:bg-transparent focus:shadow-none',
+    'min-w-[140px] flex-1 max-[700px]:basis-full max-[700px]:order-2 border-0 border-b border-line-soft bg-transparent px-0 py-1.5 text-[15px] font-semibold text-ink-strong shadow-none outline-none focus:border-brand-primary focus:bg-transparent focus:shadow-none',
   smallAction:
-    'gap-[5px] px-[11px] py-[5px] text-xs',
+    'shrink-0 !w-auto gap-[5px] whitespace-nowrap px-[11px] py-[5px] text-xs',
   publishAction:
-    'gap-[5px] px-[13px] py-[5px] text-xs',
-  toolbarActions: 'flex items-center gap-1.5',
+    'shrink-0 !w-auto gap-[5px] whitespace-nowrap px-[13px] py-[5px] text-xs',
+  toolbarActions: 'flex flex-wrap items-center gap-1.5 max-[700px]:order-3 max-[700px]:w-full',
   statusText: 'max-w-[320px] text-xs',
   unsavedText: 'text-xs text-ink-muted opacity-60',
   exportText: 'self-center text-xs text-ink-muted',
@@ -223,6 +227,7 @@ export function AdminAiNotesEditorPage({
   // Set when the lesson was opened from the Courses page, so Back returns to that folder.
   const returnTo  = useLocation().state?.returnTo || null;
   const bookRef   = useRef(null);
+  const [printing, setPrinting] = useState(false);
   const saveTimer = useRef(null);
   const saveStatusTimer = useRef(null);
   const exportMsgTimer = useRef(null);
@@ -249,6 +254,7 @@ export function AdminAiNotesEditorPage({
   const [nowTs, setNowTs] = useState(Date.now());
   const [videoUrl,   setVideoUrl]   = useState('');
   const [noteData,   setNoteData]   = useState(null);
+  const [showSource, setShowSource] = useState(false);
   const [savedData,  setSavedData]  = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -906,12 +912,43 @@ export function AdminAiNotesEditorPage({
     }
   }
 
+  // PDF: print a clean copy of just the lesson (not the editor around it) laid out as a
+  // spiral-bound notebook — see lesson-print.css. The copy is drawn off-screen first so cards
+  // and images have their real size, then the browser's print dialog opens.
+  async function handlePrintPdf() {
+    if (printing || !hasCanvas) return;
+    const themeApi = useThemeStore.getState();
+    const previousTheme = themeApi.theme;
+    if (previousTheme === 'dark') themeApi.setThemeInstant('light');
+    setPrinting(true);
+    setExportMsg('Preparing PDF…');
+    // let React render the print copy and the cards measure themselves
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    const images = Array.from(document.querySelectorAll('#lesson-print-root img'));
+    await Promise.all(images.map((img) => (img.complete ? null : new Promise((resolve) => {
+      img.addEventListener('load', resolve, { once: true });
+      img.addEventListener('error', resolve, { once: true });
+    }))));
+    document.body.classList.add('printing-lesson');
+    const finish = () => {
+      window.removeEventListener('afterprint', finish);
+      document.body.classList.remove('printing-lesson');
+      if (previousTheme === 'dark') useThemeStore.getState().setThemeInstant('dark');
+      setPrinting(false);
+      setExportMsg('');
+    };
+    window.addEventListener('afterprint', finish);
+    window.print();
+    // some browsers never fire afterprint when the dialog is cancelled
+    window.setTimeout(() => { if (document.body.classList.contains('printing-lesson')) finish(); }, 60000);
+  }
+
   async function handleExportPng() {
     if (!bookRef.current) return;
     setExportMsg('Capturing…');
     try {
       const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(bookRef.current, { scale: 2, useCORS: true, backgroundColor: '#0d0f1a', logging: false });
+      const canvas = await html2canvas(bookRef.current, { scale: 2, useCORS: true, backgroundColor: '#0d0f1a', logging: false, onclone: (clonedDocument) => fixUnsupportedColors(clonedDocument) });
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       a.download = `${(title || 'canvas').replace(/\s+/g, '-').toLowerCase()}.png`;
@@ -986,6 +1023,9 @@ export function AdminAiNotesEditorPage({
   const hasCanvas = pages.length > 0;
   const approvedFlashcardCount = flashcards.filter((card) => card.status === 'approved').length;
   const draftFlashcardCount = flashcards.filter((card) => card.status === 'draft').length;
+  // Once the lesson has generated content the pasted source is just clutter, so it folds away
+  // (with a toggle) and the category/status and rewrite controls stay in view.
+  const lessonCreated = (noteData?.pages || []).some((pg) => (pg.sections || []).length > 0);
 
   if (loading) return <div className={editorUi.loadingFallback}>Loading…</div>;
   if (!note)   return <div className={editorUi.notFoundFallback}>Not found. <button className={ui.secondaryAction} onClick={() => navigate(returnTo || routeBase)}>Back</button></div>;
@@ -995,10 +1035,10 @@ export function AdminAiNotesEditorPage({
 
       {/* top bar */}
       <div className={editorUi.topBar}>
-        <button className={cx(ui.secondaryAction, 'px-3 py-1.5 text-[13px]')}
+        <button className={cx(ui.secondaryAction, 'shrink-0 !w-auto px-3 py-1.5 text-[13px]')}
                 onClick={() => navigate(returnTo || routeBase)}><BackIcon/> {returnTo ? 'Back' : listLabel}</button>
         <BreadcrumbTrail
-          className="lms-editor-breadcrumb"
+          className="lms-editor-breadcrumb max-[700px]:hidden"
           items={[
             { label: listLabel, to: routeBase },
             { label: title || note?.title || 'Lesson' },
@@ -1067,7 +1107,7 @@ export function AdminAiNotesEditorPage({
             <button className={cx(ui.secondaryAction, editorUi.smallAction)}
                     onClick={handleExportPng}><DownloadIcon/> PNG</button>
             <button className={cx(ui.secondaryAction, editorUi.smallAction)}
-                    onClick={() => window.print()}><PrintIcon/> PDF</button>
+                    onClick={handlePrintPdf} disabled={printing}><PrintIcon/> PDF</button>
             {exportMsg && <span className={editorUi.exportText}>{exportMsg}</span>}
           </div>
         )}
@@ -1085,72 +1125,94 @@ export function AdminAiNotesEditorPage({
 
         {/* input panel */}
         <div className={editorUi.inputPanel}>
-          <div className="flex items-center justify-between gap-3">
-            <div className={editorUi.inputTitle}>Source</div>
-            <div className="flex items-center gap-1.5">
-              {[['text', 'Text'], ['html', 'HTML']].map(([value, label]) => (
-                <button key={value} type="button"
-                  onClick={() => setSourceFormat(value)}
-                  aria-pressed={sourceFormat === value}
-                  className={cx(
-                    'rounded-full px-3 py-1 text-[12px] font-extrabold transition',
-                    sourceFormat === value
-                      ? 'bg-primary text-white'
-                      : 'bg-surface-2 text-ink-soft hover:text-ink-strong',
-                  )}>{label}</button>
-              ))}
+          {lessonCreated && !showSource ? (
+            <div className="flex items-center justify-between gap-3 border-b border-line-soft px-[18px] py-3">
+              <span className="text-[12.5px] font-semibold text-ink-soft">Source is hidden</span>
+              <button type="button"
+                onClick={() => setShowSource(true)}
+                className="text-[12px] font-extrabold text-primary hover:underline">
+                Show source
+              </button>
             </div>
-          </div>
-          <textarea className={editorUi.textarea}
-            aria-label="Source text for generated lesson"
-            placeholder={sourceFormat === 'html'
-              ? `Paste the lesson's HTML here…\n\nHeadings, lists and tables are kept; styles, classes and scripts are stripped before the AI sees it.`
-              : `Paste the topic text here…\n\ne.g. Lecture notes, textbook content, clinical guidelines…`}
-            value={rawText} onChange={handleRawChange}
-          />
-          {sourceInfo?.completenessCapped && (
-            <div className="mt-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[12px] leading-relaxed text-amber-200">
-              <b>Past {sourceInfo.completenessLimit.toLocaleString()} characters.</b>{' '}
-              The completeness pass — the check that catches anything the AI dropped —
-              only re-reads the first {sourceInfo.completenessLimit.toLocaleString()}.
-              Content beyond that still gets written, but nothing verifies it was kept.
-              Consider splitting this into two lessons.
+          ) : (
+            <>
+            <div className="flex items-center justify-between gap-3">
+              <div className={editorUi.inputTitle}>Source</div>
+              <div className="flex items-center gap-1.5">
+                {[['text', 'Text'], ['html', 'HTML']].map(([value, label]) => (
+                  <button key={value} type="button"
+                    onClick={() => setSourceFormat(value)}
+                    aria-pressed={sourceFormat === value}
+                    className={cx(
+                      'rounded-full px-3 py-1 text-[12px] font-extrabold transition',
+                      sourceFormat === value
+                        ? 'bg-primary text-white'
+                        : 'bg-surface-2 text-ink-soft hover:text-ink-strong',
+                    )}>{label}</button>
+                ))}
+              </div>
             </div>
+            <textarea className={editorUi.textarea}
+              aria-label="Source text for generated lesson"
+              placeholder={sourceFormat === 'html'
+                ? `Paste the lesson's HTML here…\n\nHeadings, lists and tables are kept; styles, classes and scripts are stripped before the AI sees it.`
+                : `Paste the topic text here…\n\ne.g. Lecture notes, textbook content, clinical guidelines…`}
+              value={rawText} onChange={handleRawChange}
+            />
+            {sourceInfo?.completenessCapped && (
+              <div className="mt-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[12px] leading-relaxed text-amber-200">
+                <b>Past {sourceInfo.completenessLimit.toLocaleString()} characters.</b>{' '}
+                The completeness pass — the check that catches anything the AI dropped —
+                only re-reads the first {sourceInfo.completenessLimit.toLocaleString()}.
+                Content beyond that still gets written, but nothing verifies it was kept.
+                Consider splitting this into two lessons.
+              </div>
+            )}
+            {sourceInfo?.wasHtml && (
+              <button type="button"
+                onClick={() => setSourcePreviewOpen((v) => !v)}
+                className="mt-2 self-start text-[12px] font-bold text-primary hover:underline">
+                {sourcePreviewOpen ? 'Hide' : 'See'} what the AI will read
+              </button>
+            )}
+            {sourcePreviewOpen && sourceInfo?.preview && (
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-[11.5px] leading-relaxed text-ink-soft">
+                {sourceInfo.preview}
+                {sourceInfo.truncatedPreview ? '\n\n… (preview truncated)' : ''}
+              </pre>
+            )}
+            <div className={editorUi.inputFooter}>
+              <span className={editorUi.charCount}>
+                {(sourceInfo?.cleanedLength ?? rawText.length).toLocaleString()} characters
+                {sourceInfo?.wasHtml && rawText.length !== sourceInfo.cleanedLength
+                  ? ` (from ${rawText.length.toLocaleString()} of HTML)`
+                  : ''}
+                {sourceInfo?.chunks > 1 ? ` · ${sourceInfo.chunks} AI passes` : ''}
+                {sourceInfo?.chunks > 1 && sourceInfo?.budgetMinutes ? ` · up to ${sourceInfo.budgetMinutes} min` : ''}
+              </span>
+              <button className={cx(ui.primaryAction, 'gap-[7px]')} onClick={handleGenerate} disabled={processing}>
+                {processing
+                  ? <span className={editorUi.spinner}>{processMsg || 'Working…'}</span>
+                  : <><SparkleIcon/> Generate Lesson</>}
+              </button>
+            </div>
+              {lessonCreated ? (
+                <div className="border-t border-line-soft px-[18px] py-2">
+                  <button type="button"
+                    onClick={() => setShowSource(false)}
+                    className="text-[12px] font-extrabold text-primary hover:underline">
+                    Hide source
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
-          {sourceInfo?.wasHtml && (
-            <button type="button"
-              onClick={() => setSourcePreviewOpen((v) => !v)}
-              className="mt-2 self-start text-[12px] font-bold text-primary hover:underline">
-              {sourcePreviewOpen ? 'Hide' : 'See'} what the AI will read
-            </button>
-          )}
-          {sourcePreviewOpen && sourceInfo?.preview && (
-            <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-[11.5px] leading-relaxed text-ink-soft">
-              {sourceInfo.preview}
-              {sourceInfo.truncatedPreview ? '\n\n… (preview truncated)' : ''}
-            </pre>
-          )}
-          <div className={editorUi.inputFooter}>
-            <span className={editorUi.charCount}>
-              {(sourceInfo?.cleanedLength ?? rawText.length).toLocaleString()} characters
-              {sourceInfo?.wasHtml && rawText.length !== sourceInfo.cleanedLength
-                ? ` (from ${rawText.length.toLocaleString()} of HTML)`
-                : ''}
-              {sourceInfo?.chunks > 1 ? ` · ${sourceInfo.chunks} AI passes` : ''}
-              {sourceInfo?.chunks > 1 && sourceInfo?.budgetMinutes ? ` · up to ${sourceInfo.budgetMinutes} min` : ''}
-            </span>
-            <button className={cx(ui.primaryAction, 'gap-[7px]')} onClick={handleGenerate} disabled={processing}>
-              {processing
-                ? <span className={editorUi.spinner}>{processMsg || 'Working…'}</span>
-                : <><SparkleIcon/> Generate Lesson</>}
-            </button>
-          </div>
 
           {/* Rewrite one card — cheaper than regenerating the whole lesson */}
           {(noteData?.pages || []).some((pg) => (pg.sections || []).length > 0) && (
             <div className="mt-3 flex items-center gap-2 border-t border-line-soft pt-3">
               <select
-                className={cx(ui.input, 'flex-1 text-[12.5px]')}
+                className={cx(ui.input, 'min-w-0 flex-1 text-[12.5px]')}
                 value={rewriteHeading}
                 onChange={(e) => setRewriteHeading(e.target.value)}>
                 <option value="">Rewrite one card…</option>
@@ -1160,7 +1222,7 @@ export function AdminAiNotesEditorPage({
                   .filter(Boolean)
                   .map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
-              <button className={ui.secondaryAction}
+              <button className={cx(ui.secondaryAction, 'shrink-0 !w-auto')}
                 onClick={handleRewriteSection}
                 disabled={!rewriteHeading || rewriting}>
                 {rewriting ? 'Rewriting…' : 'Rewrite'}
@@ -1703,6 +1765,33 @@ export function AdminAiNotesEditorPage({
         </div>
 
       </div>
+      {printing && hasCanvas && typeof document !== 'undefined' && createPortal(
+        <div id="lesson-print-root" aria-hidden="true">
+          <div className="lesson-print-spiral" />
+          <table className="lesson-print-sheet">
+            <thead><tr><td><div className="lesson-print-gap" /></td></tr></thead>
+            <tfoot><tr><td><div className="lesson-print-gap" /></td></tr></tfoot>
+            <tbody>
+              <tr>
+                <td className="lesson-print-body">
+                  {pages.map((pageData, i) => (
+                    <section key={i} className="lesson-print-page">
+                      <NoteCanvas
+                        data={{ ...pageData, layout: '1col' }}
+                        editable={false}
+                        lessonId={id}
+                        pageIndex={i}
+                        pageCount={pages.length}
+                      />
+                    </section>
+                  ))}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
