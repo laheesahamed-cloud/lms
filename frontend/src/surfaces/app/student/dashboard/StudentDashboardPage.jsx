@@ -264,8 +264,11 @@ function getStudyMood({ attempts, readinessScore, streak }) {
 
 function buildDashboardLevelProgress(dashboard) {
   const explicitXp = Number(dashboard.totalXp ?? dashboard.xp ?? dashboard.experiencePoints ?? 0);
-  const earnedXp = explicitXp > 0
-    ? explicitXp
+  // The server now saves XP and sends it as a number (even 0). Use it whenever
+  // it is there; the old working-out below is only for a server that predates it.
+  const hasSavedXp = typeof dashboard.totalXp === 'number';
+  const earnedXp = (hasSavedXp || explicitXp > 0)
+    ? Math.max(0, explicitXp)
     : Math.max(0, Math.round(
         (Number(dashboard.totalAttempts || 0) * 70) +
         (Number(dashboard.totalPassed || 0) * 110) +
