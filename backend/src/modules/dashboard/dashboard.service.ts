@@ -6,6 +6,8 @@ import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { AuthService } from '../auth/auth.service';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { CoursesService } from '../courses/courses.service';
+import { computeStreak } from '../xp/streak';
+import { XpService } from '../xp/xp.service';
 import { RecordStudyActivityDto } from './dto/record-study-activity.dto';
 
 type StudentCourseProgress = Awaited<ReturnType<CoursesService['findStudentCourses']>>[number];
@@ -133,6 +135,7 @@ export class DashboardService {
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly authService: AuthService,
     private readonly coursesService: CoursesService,
+    private readonly xpService: XpService,
   ) {}
 
   async getAdminDashboard(authorization?: string) {
@@ -354,7 +357,7 @@ export class DashboardService {
     for (let offset = totalDays - 1; offset >= 0; offset -= 1) {
       const current = new Date(anchor);
       current.setDate(anchor.getDate() - offset);
-      const key = current.toISOString().slice(0, 10);
+      const key = this.localDateKey(current);
       result.push({
         date: key,
         value: Number(valueMap.get(key) || 0),
@@ -586,6 +589,7 @@ export class DashboardService {
       todayResultViewRowsResult,
       questionOfDay,
       courseProgress,
+      xpSummary,
     ] = await Promise.all([
       this.db.execute<CountRow[]>(
         `SELECT
@@ -754,6 +758,7 @@ export class DashboardService {
       ),
       this.getRandomDashboardQuestion(student.id, appClient),
       this.coursesService.findStudentCourses(authorization),
+      this.xpService.getSummary(student.id),
     ]);
 
     const [summaryRows] = summaryResult;
@@ -773,19 +778,21 @@ export class DashboardService {
     const totalPassed = Number(summary?.total_passed || 0);
     const averagePercentage = Number(summary?.average_percentage || 0);
     const passRate = totalAttempts > 0 ? (totalPassed / totalAttempts) * 100 : 0;
-    const quizDayStreak = this.calculateQuizDayStreak(attemptDays.map((row) => row.attempt_day));
+    const { streak: quizDayStreak, graceActive: streakGraceActive } = this.calculateQuizDayStreak(
+      attemptDays.map((row) => row.attempt_day)
+    );
 
     // Build the set of active day keys from all attempt days for heatmap use
     const activityDaySet = new Set(attemptDays.map((row) => {
       const d = row.attempt_day;
-      return (d as unknown) instanceof Date ? (d as unknown as Date).toISOString().slice(0, 10) : String(d).slice(0, 10);
+      return this.normalizeDateKey(d as unknown as string | Date);
     }));
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
     const recentActiveDays: string[] = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(todayMidnight);
       d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().slice(0, 10);
+      return this.localDateKey(d);
     }).filter((day) => activityDaySet.has(day));
 
     const insights = topicRows
@@ -897,6 +904,13 @@ export class DashboardService {
       // fire a "your streak ends tonight" local reminder: only when the
       // streak is active but NOT yet extended today.
       quizDoneToday: todayQuizRows.length >= 1,
+      streakGraceActive,
+      // Saved XP: only ever goes up. The apps show this instead of working XP
+      // out from the stats.
+      totalXp: xpSummary.totalXp,
+      xpToday: xpSummary.xpToday,
+      xpDailyCap: xpSummary.xpDailyCap,
+      level: xpSummary.level,
       recentActiveDays,
       avgScore: Number(averagePercentage.toFixed(2)),
       totalPassed,
@@ -1294,60 +1308,35 @@ export class DashboardService {
     return user;
   }
 
-  private calculateQuizDayStreak(days: Array<string | Date>) {
-    if (!days.length) {
-      return 0;
-    }
+  /**
+   * The student's daily streak (with its grace day). The rules live in
+   * ../xp/streak.ts so the XP service uses exactly the same ones.
+   */
+  private calculateQuizDayStreak(days: Array<string | Date>, todayKey?: string) {
+    const keys = days
+      .filter(Boolean)
+      .map((day) => this.normalizeDateKey(day))
+      .filter(Boolean);
+    return computeStreak(keys, todayKey || this.localDateKey(new Date()));
+  }
 
-    const normalizedDays = [
-      ...new Set(
-        days
-          .filter(Boolean)
-          .map((day) => this.normalizeDateKey(day))
-          .filter(Boolean)
-      ),
-    ].sort((a, b) => b.localeCompare(a));
-
-    if (!normalizedDays.length) {
-      return 0;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const latestAttemptDay = new Date(`${normalizedDays[0]}T00:00:00`);
-    latestAttemptDay.setHours(0, 0, 0, 0);
-
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const gapFromToday = Math.floor((today.getTime() - latestAttemptDay.getTime()) / msPerDay);
-
-    if (gapFromToday > 1) {
-      return 0;
-    }
-
-    let streak = 1;
-    let previousDay = latestAttemptDay;
-
-    for (let index = 1; index < normalizedDays.length; index += 1) {
-      const currentDay = new Date(`${normalizedDays[index]}T00:00:00`);
-      currentDay.setHours(0, 0, 0, 0);
-      const diff = Math.floor((previousDay.getTime() - currentDay.getTime()) / msPerDay);
-
-      if (diff === 1) {
-        streak += 1;
-        previousDay = currentDay;
-        continue;
-      }
-
-      break;
-    }
-
-    return streak;
+  /**
+   * YYYY-MM-DD for the date as the server's own calendar shows it.
+   *
+   * toISOString() converts to UTC first. On a server whose clock is ahead of
+   * UTC, local midnight is still "yesterday" in UTC, so every day key came out
+   * one day early: a quiz done on Wednesday was ticked on Tuesday's circle, and
+   * the streak could reset a day too soon.
+   */
+  private localDateKey(d: Date) {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
   private normalizeDateKey(day: string | Date) {
     if (day instanceof Date) {
-      return day.toISOString().slice(0, 10);
+      return this.localDateKey(day);
     }
 
     return String(day).slice(0, 10);

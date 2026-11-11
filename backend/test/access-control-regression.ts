@@ -17,6 +17,15 @@ import { TheoryRecapService } from '../src/modules/theory-recap/theory-recap.ser
 import { StudyBookmarksService } from '../src/modules/study-bookmarks/study-bookmarks.service';
 import { AppOnlyContentException } from '../src/common/exceptions/app-only-content.exception';
 
+// XP is saved by its own service; these checks are about access, so it is
+// stood in for here and never pays anything.
+const xpStub = {
+  onExamSubmitted: async () => ({ awarded: 0, capped: false }),
+  onLessonCompleted: async () => ({ awarded: 0, capped: false }),
+  markLessonOpened: async () => undefined,
+  getSummary: async () => ({ totalXp: 0, xpToday: 0, xpDailyCap: 100, level: 1 }),
+};
+
 // The student-facing "open this quiz" path used to be QuizzesService.getCards;
 // it now lives in QuizAttemptsService.loadQuiz, which resolves the student
 // itself instead of taking an injected AuthService.
@@ -430,7 +439,7 @@ const STUDENT_ID = 112;
 
 async function testQuizContentDeniedWithoutCourseAccess() {
   const db = new QuizAccessMockPool({});
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT),
     BadRequestException
@@ -447,7 +456,7 @@ async function testQuizContentAllowedForOwnedCourse() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   const result = await service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT);
   assert.equal(result.questions.length, 1);
   assert.equal(db.questionQueryCount, 1);
@@ -463,7 +472,7 @@ async function testQuizContentDeniedForCourseOutsideSubscriptionScope() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT),
     BadRequestException
@@ -483,7 +492,7 @@ async function testPremiumQuizContentDeniedWithoutMobileHeaderEvenWithFullAccess
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice'),
     AppOnlyContentException
@@ -518,7 +527,7 @@ async function testFreeQuizContentAllowedWithoutMobileHeader() {
       status: 'active',
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   const result = await service.loadQuiz('Bearer student-token', 99, 'practice');
   assert.equal(result.questions.length, 1, 'free content stays reachable from the website with no header at all');
 }
@@ -553,7 +562,7 @@ function premiumReviewAttemptRow(overrides: Record<string, unknown> = {}) {
 
 async function testPremiumQuizReviewDeniedWithoutMobileHeader() {
   const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow() });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   await assert.rejects(
     () => service.review('Bearer student-token', 501),
     AppOnlyContentException
@@ -563,14 +572,14 @@ async function testPremiumQuizReviewDeniedWithoutMobileHeader() {
 
 async function testPremiumQuizReviewAllowedWithMobileHeader() {
   const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow() });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   const result = await service.review('Bearer student-token', 501, MOBILE_CLIENT);
   assert.equal(result.questions.length, 1);
 }
 
 async function testFreeQuizReviewAllowedWithoutMobileHeader() {
   const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow({ is_free: 1 }) });
-  const service = new QuizAttemptsService(db as any, plansService as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
   const result = await service.review('Bearer student-token', 501);
   assert.equal(result.questions.length, 1, 'free quiz reviews stay reachable from the website with no header at all');
 }
@@ -637,14 +646,14 @@ async function testBookmarkedFreeLinkedQuestionTextShownWithoutMobileHeader() {
 
 async function testDashboardQuestionOfDayExcludesPremiumOnlyPoolWithoutMobileHeader() {
   const db = new DashboardQuestionMockPool({ freeEligibleCount: 0, allEligibleCount: 5 });
-  const service = new DashboardService(db as any, {} as any, {} as any);
+  const service = new DashboardService(db as any, {} as any, {} as any, xpStub as any);
   const question = await (service as any).getRandomDashboardQuestion(112);
   assert.equal(question, null, 'website must not surface a "question of the day" drawn only from premium quizzes');
 }
 
 async function testDashboardQuestionOfDayUsesFullPoolWithMobileHeader() {
   const db = new DashboardQuestionMockPool({ freeEligibleCount: 0, allEligibleCount: 5 });
-  const service = new DashboardService(db as any, {} as any, {} as any);
+  const service = new DashboardService(db as any, {} as any, {} as any, xpStub as any);
   const question = await (service as any).getRandomDashboardQuestion(112, MOBILE_CLIENT);
   assert.equal(question?.id, 49);
 }
@@ -809,7 +818,7 @@ async function testContentEditorCannotCreatePublishedQuiz() {
 }
 
 async function testContentEditorCannotCreatePublishedCourse() {
-  const service = new CoursesService({} as any, {} as any, {} as any);
+  const service = new CoursesService({} as any, {} as any, {} as any, xpStub as any);
   await assert.rejects(
     () => service.create(publishReadyCoursePayload, { id: 304, role: 'content_editor', permissions: ['content.manage'] }),
     ForbiddenException
@@ -899,7 +908,7 @@ function testQuestionImportDetectsInFileDuplicates() {
 }
 
 function testDashboardFeedRedactsLearnerPiiWithoutStudentPermission() {
-  const service = new DashboardService({} as any, {} as any, {} as any);
+  const service = new DashboardService({} as any, {} as any, {} as any, xpStub as any);
   const feed = (service as any).buildAdminActivityFeed([
     {
       item_type: 'user',

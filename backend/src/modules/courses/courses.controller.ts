@@ -41,6 +41,14 @@ export class CoursesController {
     return this.coursesService.updateStudentLessonProgress(lessonId, dto, authorization);
   }
 
+  @Post('student/lessons/:lessonId/opened')
+  markStudentLessonOpened(
+    @Param('lessonId', ParseIntPipe) lessonId: number,
+    @Headers('authorization') authorization?: string
+  ) {
+    return this.coursesService.markLessonOpened(lessonId, authorization);
+  }
+
   @Get()
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')

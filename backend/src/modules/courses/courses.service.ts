@@ -4,6 +4,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
+import { XpService } from '../xp/xp.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UpdateStudentLessonProgressDto } from './dto/update-student-lesson-progress.dto';
@@ -88,6 +89,7 @@ export class CoursesService {
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly authService: AuthService,
     private readonly plansService: PlansService,
+    private readonly xpService: XpService,
   ) {}
 
   async getLandingSummary() {
@@ -458,13 +460,29 @@ export class CoursesService {
       ]
     );
 
+    // XP is paid only for a real completion, and never lets the completion fail.
+    const xp = normalized.status === 'completed'
+      ? await this.xpService.onLessonCompleted(student.id, lesson.id)
+      : undefined;
+
     return {
       ok: true,
       lessonId: lesson.id,
       status: normalized.status,
       progressPercent: normalized.progressPercent,
       actionLabel: this.getLessonActionLabel(normalized.status),
+      xp,
     };
+  }
+
+  /**
+   * The lesson screen has opened. Starts the clock the 60 second check reads
+   * when the lesson is later marked complete. Does not touch progress.
+   */
+  async markLessonOpened(lessonId: number, authorization?: string) {
+    const student = await this.authService.requireStudent(authorization);
+    await this.xpService.markLessonOpened(student.id, lessonId);
+    return { ok: true };
   }
 
   private async transitionWorkflow(

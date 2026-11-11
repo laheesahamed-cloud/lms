@@ -1,12 +1,14 @@
 import { Pool } from 'mysql2/promise';
 import { AuthService } from '../auth/auth.service';
 import { CoursesService } from '../courses/courses.service';
+import { XpService } from '../xp/xp.service';
 import { RecordStudyActivityDto } from './dto/record-study-activity.dto';
 export declare class DashboardService {
     private readonly db;
     private readonly authService;
     private readonly coursesService;
-    constructor(db: Pool, authService: AuthService, coursesService: CoursesService);
+    private readonly xpService;
+    constructor(db: Pool, authService: AuthService, coursesService: CoursesService, xpService: XpService);
     getAdminDashboard(authorization?: string): Promise<{
         totalUsers: number;
         totalCourses: number;
@@ -97,6 +99,11 @@ export declare class DashboardService {
         totalAttempts: number;
         quizDayStreak: number;
         quizDoneToday: boolean;
+        streakGraceActive: boolean;
+        totalXp: number;
+        xpToday: number;
+        xpDailyCap: 100;
+        level: number;
         recentActiveDays: string[];
         avgScore: number;
         totalPassed: number;
@@ -234,6 +241,7 @@ export declare class DashboardService {
     private extractToken;
     private findActiveStudentByToken;
     private calculateQuizDayStreak;
+    private localDateKey;
     private normalizeDateKey;
     private classifyTopicMastery;
     private getMasteryRank;

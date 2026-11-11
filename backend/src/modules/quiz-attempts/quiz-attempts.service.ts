@@ -4,6 +4,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
+import { XpService } from '../xp/xp.service';
 import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
 import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
@@ -192,7 +193,8 @@ export class QuizAttemptsService {
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
-    private readonly plansService: PlansService
+    private readonly plansService: PlansService,
+    private readonly xpService: XpService
   ) {}
 
   async listQuizzes(authorization?: string) {
@@ -585,7 +587,9 @@ export class QuizAttemptsService {
       }
 
       await connection.commit();
-      return { success: true, attemptId };
+      // Paid after the attempt is safely saved, and never allowed to fail it.
+      const xp = await this.xpService.onExamSubmitted(user.id, attemptId);
+      return { success: true, attemptId, xp };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -1605,6 +1609,7 @@ export class QuizAttemptsService {
         [attemptId, sessionId, userId, quizId]
       );
       await connection.commit();
+      await this.xpService.onExamSubmitted(userId, attemptId);
       return attemptId;
     } catch (error) {
       await connection.rollback();

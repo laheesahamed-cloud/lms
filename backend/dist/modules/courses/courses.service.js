@@ -18,11 +18,13 @@ const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const plans_service_1 = require("../plans/plans.service");
+const xp_service_1 = require("../xp/xp.service");
 let CoursesService = class CoursesService {
-    constructor(db, authService, plansService) {
+    constructor(db, authService, plansService, xpService) {
         this.db = db;
         this.authService = authService;
         this.plansService = plansService;
+        this.xpService = xpService;
     }
     async getLandingSummary() {
         const [topics] = await this.db.execute(`SELECT t.id, t.topic_name, COUNT(q.id) AS question_count
@@ -335,13 +337,22 @@ let CoursesService = class CoursesService {
             normalized.startedAt,
             normalized.completedAt,
         ]);
+        const xp = normalized.status === 'completed'
+            ? await this.xpService.onLessonCompleted(student.id, lesson.id)
+            : undefined;
         return {
             ok: true,
             lessonId: lesson.id,
             status: normalized.status,
             progressPercent: normalized.progressPercent,
             actionLabel: this.getLessonActionLabel(normalized.status),
+            xp,
         };
+    }
+    async markLessonOpened(lessonId, authorization) {
+        const student = await this.authService.requireStudent(authorization);
+        await this.xpService.markLessonOpened(student.id, lessonId);
+        return { ok: true };
     }
     async transitionWorkflow(id, input) {
         const existing = await this.findById(id);
@@ -777,6 +788,7 @@ exports.CoursesService = CoursesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,
-        plans_service_1.PlansService])
+        plans_service_1.PlansService,
+        xp_service_1.XpService])
 ], CoursesService);
 //# sourceMappingURL=courses.service.js.map

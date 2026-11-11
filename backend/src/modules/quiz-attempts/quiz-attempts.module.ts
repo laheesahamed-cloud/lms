@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { PlansModule } from '../plans/plans.module';
+import { XpModule } from '../xp/xp.module';
 import { QuizAttemptsController } from './quiz-attempts.controller';
 import { QuizAttemptsService } from './quiz-attempts.service';
 
 @Module({
-  imports: [PlansModule],
+  imports: [PlansModule, XpModule],
   controllers: [QuizAttemptsController],
   providers: [QuizAttemptsService],
   exports: [QuizAttemptsService],

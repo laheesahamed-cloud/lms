@@ -840,6 +840,9 @@ export class SchemaSyncService implements OnModuleInit {
       // students write checklist progress — so it can't sit behind the full sync
       // either (prod runs SCHEMA_SYNC=0).
       await step('osce tables', () => this.ensureOsceTables(conn));
+      // Written on every exam submit and lesson completion, so they must exist
+      // whether or not SCHEMA_SYNC runs.
+      await step('xp tables', () => this.ensureXpTables(conn));
       // Clearing a notification is a student write path, and prod runs
       // SCHEMA_SYNC=0, so this cannot sit behind the full sync.
       await step('notification dismissals', () =>
@@ -1511,6 +1514,42 @@ export class SchemaSyncService implements OnModuleInit {
   /// be read back into a list of addresses. That is what makes it safe to keep,
   /// and it is the standard way to support abuse prevention and subscription
   /// recovery after erasure.
+  private async ensureXpTables(connection: PoolConnection) {
+    // One row per reward. The unique key is what stops a reward being paid
+    // twice; `day` is the calendar day it was earned, for the daily limit.
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS xp_events (
+        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        event_type VARCHAR(32) NOT NULL,
+        ref_id BIGINT NOT NULL DEFAULT 0,
+        xp INT NOT NULL,
+        day DATE NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_xp_event (user_id, event_type, ref_id),
+        KEY idx_xp_user_day (user_id, day)
+      )
+    `);
+    // The running total, so the dashboard reads one row instead of adding up.
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS student_xp (
+        user_id INT NOT NULL PRIMARY KEY,
+        total_xp INT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    // When a student last opened each lesson: the start of the 60 second
+    // check before completing it pays XP.
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_opens (
+        user_id INT NOT NULL,
+        lesson_id INT NOT NULL,
+        last_opened_at DATETIME NOT NULL,
+        PRIMARY KEY (user_id, lesson_id)
+      )
+    `);
+  }
+
   private async ensureAccountDeletionAuditTable(connection: PoolConnection) {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS account_deletion_audit (

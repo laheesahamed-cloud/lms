@@ -725,6 +725,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
                     await this.backfillSortOrder(conn, 'subtopics', 'subtopic_name', 'topic_id');
             });
             await step('osce tables', () => this.ensureOsceTables(conn));
+            await step('xp tables', () => this.ensureXpTables(conn));
             await step('notification dismissals', () => this.ensureNotificationDismissalsTable(conn));
             await step('users.needs_profile_setup', () => this.ensureColumn(conn, 'users', 'needs_profile_setup', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_key'));
         }
@@ -1236,6 +1237,36 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         INDEX idx_subscription_audit_user (user_id),
         INDEX idx_subscription_audit_actor (actor_id),
         INDEX idx_subscription_audit_created (created_at)
+      )
+    `);
+    }
+    async ensureXpTables(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS xp_events (
+        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        event_type VARCHAR(32) NOT NULL,
+        ref_id BIGINT NOT NULL DEFAULT 0,
+        xp INT NOT NULL,
+        day DATE NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_xp_event (user_id, event_type, ref_id),
+        KEY idx_xp_user_day (user_id, day)
+      )
+    `);
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS student_xp (
+        user_id INT NOT NULL PRIMARY KEY,
+        total_xp INT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_opens (
+        user_id INT NOT NULL,
+        lesson_id INT NOT NULL,
+        last_opened_at DATETIME NOT NULL,
+        PRIMARY KEY (user_id, lesson_id)
       )
     `);
     }

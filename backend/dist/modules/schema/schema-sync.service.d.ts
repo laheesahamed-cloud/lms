@@ -47,6 +47,7 @@ export declare class SchemaSyncService implements OnModuleInit {
     private ensureQuestionKeywordsTables;
     private ensureSubscriptionFeaturesTables;
     private ensureSubscriptionRequestTables;
+    private ensureXpTables;
     private ensureAccountDeletionAuditTable;
     private backfillAccessExpiresAt;
     private backfillPlanSubscriptionColumns;

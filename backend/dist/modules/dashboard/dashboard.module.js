@@ -11,13 +11,14 @@ const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
 const courses_module_1 = require("../courses/courses.module");
 const dashboard_controller_1 = require("./dashboard.controller");
+const xp_module_1 = require("../xp/xp.module");
 const dashboard_service_1 = require("./dashboard.service");
 let DashboardModule = class DashboardModule {
 };
 exports.DashboardModule = DashboardModule;
 exports.DashboardModule = DashboardModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, courses_module_1.CoursesModule],
+        imports: [auth_module_1.AuthModule, courses_module_1.CoursesModule, xp_module_1.XpModule],
         controllers: [dashboard_controller_1.DashboardController],
         providers: [dashboard_service_1.DashboardService],
         exports: [dashboard_service_1.DashboardService],

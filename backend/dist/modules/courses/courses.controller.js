@@ -38,6 +38,9 @@ let CoursesController = class CoursesController {
     updateStudentLessonProgress(lessonId, dto, authorization) {
         return this.coursesService.updateStudentLessonProgress(lessonId, dto, authorization);
     }
+    markStudentLessonOpened(lessonId, authorization) {
+        return this.coursesService.markLessonOpened(lessonId, authorization);
+    }
     findAll() {
         return this.coursesService.findAll();
     }
@@ -104,6 +107,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, update_student_lesson_progress_dto_1.UpdateStudentLessonProgressDto, String]),
     __metadata("design:returntype", void 0)
 ], CoursesController.prototype, "updateStudentLessonProgress", null);
+__decorate([
+    (0, common_1.Post)('student/lessons/:lessonId/opened'),
+    __param(0, (0, common_1.Param)('lessonId', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:returntype", void 0)
+], CoursesController.prototype, "markStudentLessonOpened", null);
 __decorate([
     (0, common_1.Get)(),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),

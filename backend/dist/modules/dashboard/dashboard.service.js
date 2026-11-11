@@ -20,11 +20,14 @@ const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const auth_service_1 = require("../auth/auth.service");
 const auth_token_util_1 = require("../auth/auth-token.util");
 const courses_service_1 = require("../courses/courses.service");
+const streak_1 = require("../xp/streak");
+const xp_service_1 = require("../xp/xp.service");
 let DashboardService = class DashboardService {
-    constructor(db, authService, coursesService) {
+    constructor(db, authService, coursesService, xpService) {
         this.db = db;
         this.authService = authService;
         this.coursesService = coursesService;
+        this.xpService = xpService;
     }
     async getAdminDashboard(authorization) {
         const admin = await this.authService.requireAdmin(authorization);
@@ -202,7 +205,7 @@ let DashboardService = class DashboardService {
         for (let offset = totalDays - 1; offset >= 0; offset -= 1) {
             const current = new Date(anchor);
             current.setDate(anchor.getDate() - offset);
-            const key = current.toISOString().slice(0, 10);
+            const key = this.localDateKey(current);
             result.push({
                 date: key,
                 value: Number(valueMap.get(key) || 0),
@@ -374,7 +377,7 @@ let DashboardService = class DashboardService {
         const student = await this.findActiveStudentByToken(this.extractToken(authorization));
         const serverNow = new Date();
         const serverClock = this.buildServerClock(serverNow);
-        const [summaryResult, recentAttemptsResult, topicRowsResult, smartNotesResult, attemptDaysResult, performanceWindowsResult, missedPatternsResult, todayQuizRowsResult, todayNoteRowsResult, todayResultViewRowsResult, questionOfDay, courseProgress,] = await Promise.all([
+        const [summaryResult, recentAttemptsResult, topicRowsResult, smartNotesResult, attemptDaysResult, performanceWindowsResult, missedPatternsResult, todayQuizRowsResult, todayNoteRowsResult, todayResultViewRowsResult, questionOfDay, courseProgress, xpSummary,] = await Promise.all([
             this.db.execute(`SELECT
           (SELECT COUNT(*) FROM quizzes WHERE status = 'active') AS total_quizzes,
           (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ?) AS total_attempts,
@@ -509,6 +512,7 @@ let DashboardService = class DashboardService {
          LIMIT 1`, [student.id]),
             this.getRandomDashboardQuestion(student.id, appClient),
             this.coursesService.findStudentCourses(authorization),
+            this.xpService.getSummary(student.id),
         ]);
         const [summaryRows] = summaryResult;
         const [recentAttempts] = recentAttemptsResult;
@@ -526,17 +530,17 @@ let DashboardService = class DashboardService {
         const totalPassed = Number(summary?.total_passed || 0);
         const averagePercentage = Number(summary?.average_percentage || 0);
         const passRate = totalAttempts > 0 ? (totalPassed / totalAttempts) * 100 : 0;
-        const quizDayStreak = this.calculateQuizDayStreak(attemptDays.map((row) => row.attempt_day));
+        const { streak: quizDayStreak, graceActive: streakGraceActive } = this.calculateQuizDayStreak(attemptDays.map((row) => row.attempt_day));
         const activityDaySet = new Set(attemptDays.map((row) => {
             const d = row.attempt_day;
-            return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+            return this.normalizeDateKey(d);
         }));
         const todayMidnight = new Date();
         todayMidnight.setHours(0, 0, 0, 0);
         const recentActiveDays = Array.from({ length: 7 }, (_, i) => {
             const d = new Date(todayMidnight);
             d.setDate(d.getDate() - (6 - i));
-            return d.toISOString().slice(0, 10);
+            return this.localDateKey(d);
         }).filter((day) => activityDaySet.has(day));
         const insights = topicRows
             .filter((row) => row.topic_name)
@@ -631,6 +635,11 @@ let DashboardService = class DashboardService {
             totalAttempts,
             quizDayStreak,
             quizDoneToday: todayQuizRows.length >= 1,
+            streakGraceActive,
+            totalXp: xpSummary.totalXp,
+            xpToday: xpSummary.xpToday,
+            xpDailyCap: xpSummary.xpDailyCap,
+            level: xpSummary.level,
             recentActiveDays,
             avgScore: Number(averagePercentage.toFixed(2)),
             totalPassed,
@@ -934,46 +943,21 @@ let DashboardService = class DashboardService {
         }
         return user;
     }
-    calculateQuizDayStreak(days) {
-        if (!days.length) {
-            return 0;
-        }
-        const normalizedDays = [
-            ...new Set(days
-                .filter(Boolean)
-                .map((day) => this.normalizeDateKey(day))
-                .filter(Boolean)),
-        ].sort((a, b) => b.localeCompare(a));
-        if (!normalizedDays.length) {
-            return 0;
-        }
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const latestAttemptDay = new Date(`${normalizedDays[0]}T00:00:00`);
-        latestAttemptDay.setHours(0, 0, 0, 0);
-        const msPerDay = 24 * 60 * 60 * 1000;
-        const gapFromToday = Math.floor((today.getTime() - latestAttemptDay.getTime()) / msPerDay);
-        if (gapFromToday > 1) {
-            return 0;
-        }
-        let streak = 1;
-        let previousDay = latestAttemptDay;
-        for (let index = 1; index < normalizedDays.length; index += 1) {
-            const currentDay = new Date(`${normalizedDays[index]}T00:00:00`);
-            currentDay.setHours(0, 0, 0, 0);
-            const diff = Math.floor((previousDay.getTime() - currentDay.getTime()) / msPerDay);
-            if (diff === 1) {
-                streak += 1;
-                previousDay = currentDay;
-                continue;
-            }
-            break;
-        }
-        return streak;
+    calculateQuizDayStreak(days, todayKey) {
+        const keys = days
+            .filter(Boolean)
+            .map((day) => this.normalizeDateKey(day))
+            .filter(Boolean);
+        return (0, streak_1.computeStreak)(keys, todayKey || this.localDateKey(new Date()));
+    }
+    localDateKey(d) {
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}-${mm}-${dd}`;
     }
     normalizeDateKey(day) {
         if (day instanceof Date) {
-            return day.toISOString().slice(0, 10);
+            return this.localDateKey(day);
         }
         return String(day).slice(0, 10);
     }
@@ -1014,6 +998,7 @@ exports.DashboardService = DashboardService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,
-        courses_service_1.CoursesService])
+        courses_service_1.CoursesService,
+        xp_service_1.XpService])
 ], DashboardService);
 //# sourceMappingURL=dashboard.service.js.map

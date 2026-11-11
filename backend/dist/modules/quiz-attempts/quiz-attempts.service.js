@@ -18,6 +18,7 @@ const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_token_util_1 = require("../auth/auth-token.util");
 const plans_service_1 = require("../plans/plans.service");
+const xp_service_1 = require("../xp/xp.service");
 const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const SBA_QUESTION_MARKS = 2;
@@ -30,9 +31,10 @@ const DYNAMIC_QUESTION_POOL_CACHE_MS = 60000;
 const DYNAMIC_QUESTION_POOL_CACHE_MAX = 300;
 const DYNAMIC_RANDOMIZATION_FEATURE = 'dynamic_quiz_randomization';
 let QuizAttemptsService = class QuizAttemptsService {
-    constructor(db, plansService) {
+    constructor(db, plansService, xpService) {
         this.db = db;
         this.plansService = plansService;
+        this.xpService = xpService;
         this.activeQuizCache = new Map();
         this.quizQuestionCache = new Map();
         this.dynamicQuestionPoolCache = new Map();
@@ -356,7 +358,8 @@ let QuizAttemptsService = class QuizAttemptsService {
           `, [canAcceptIncomingAnswers ? 'submitted' : 'expired', attemptId, session.id, user.id, quizId]);
             }
             await connection.commit();
-            return { success: true, attemptId };
+            const xp = await this.xpService.onExamSubmitted(user.id, attemptId);
+            return { success: true, attemptId, xp };
         }
         catch (error) {
             await connection.rollback();
@@ -1202,6 +1205,7 @@ let QuizAttemptsService = class QuizAttemptsService {
           WHERE id = ? AND user_id = ? AND quiz_id = ?
         `, [attemptId, sessionId, userId, quizId]);
             await connection.commit();
+            await this.xpService.onExamSubmitted(userId, attemptId);
             return attemptId;
         }
         catch (error) {
@@ -1515,6 +1519,7 @@ exports.QuizAttemptsService = QuizAttemptsService;
 exports.QuizAttemptsService = QuizAttemptsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object, plans_service_1.PlansService])
+    __metadata("design:paramtypes", [Object, plans_service_1.PlansService,
+        xp_service_1.XpService])
 ], QuizAttemptsService);
 //# sourceMappingURL=quiz-attempts.service.js.map

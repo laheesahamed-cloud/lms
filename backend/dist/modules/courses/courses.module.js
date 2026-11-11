@@ -10,6 +10,7 @@ exports.CoursesModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
 const plans_module_1 = require("../plans/plans.module");
+const xp_module_1 = require("../xp/xp.module");
 const courses_controller_1 = require("./courses.controller");
 const courses_service_1 = require("./courses.service");
 let CoursesModule = class CoursesModule {
@@ -17,7 +18,7 @@ let CoursesModule = class CoursesModule {
 exports.CoursesModule = CoursesModule;
 exports.CoursesModule = CoursesModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, plans_module_1.PlansModule],
+        imports: [auth_module_1.AuthModule, plans_module_1.PlansModule, xp_module_1.XpModule],
         controllers: [courses_controller_1.CoursesController],
         providers: [courses_service_1.CoursesService],
         exports: [courses_service_1.CoursesService],

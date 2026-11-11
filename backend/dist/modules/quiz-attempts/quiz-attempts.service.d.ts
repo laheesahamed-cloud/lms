@@ -1,5 +1,6 @@
 import { Pool } from 'mysql2/promise';
 import { PlansService } from '../plans/plans.service';
+import { XpService } from '../xp/xp.service';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 type TheoryRecapData = {
@@ -21,10 +22,11 @@ type TheoryRecapData = {
 export declare class QuizAttemptsService {
     private readonly db;
     private readonly plansService;
+    private readonly xpService;
     private readonly activeQuizCache;
     private readonly quizQuestionCache;
     private readonly dynamicQuestionPoolCache;
-    constructor(db: Pool, plansService: PlansService);
+    constructor(db: Pool, plansService: PlansService, xpService: XpService);
     listQuizzes(authorization?: string): Promise<{
         id: number;
         courseId: number;
@@ -230,6 +232,11 @@ export declare class QuizAttemptsService {
     submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto, appClient?: string): Promise<{
         success: boolean;
         attemptId: number;
+        xp?: undefined;
+    } | {
+        success: boolean;
+        attemptId: number;
+        xp: import("../xp/xp.service").XpResult;
     }>;
     result(authorization: string | undefined, attemptId: number): Promise<{
         attemptId: number;

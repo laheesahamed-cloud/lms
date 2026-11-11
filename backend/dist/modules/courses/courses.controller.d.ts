@@ -55,6 +55,10 @@ export declare class CoursesController {
         status: "not_started" | "in_progress" | "completed";
         progressPercent: number;
         actionLabel: string;
+        xp: import("../xp/xp.service").XpResult | undefined;
+    }>;
+    markStudentLessonOpened(lessonId: number, authorization?: string): Promise<{
+        ok: boolean;
     }>;
     findAll(): Promise<{
         id: number;

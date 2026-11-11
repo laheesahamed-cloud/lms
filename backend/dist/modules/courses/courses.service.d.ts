@@ -1,6 +1,7 @@
 import { Pool } from 'mysql2/promise';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
+import { XpService } from '../xp/xp.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UpdateStudentLessonProgressDto } from './dto/update-student-lesson-progress.dto';
@@ -15,7 +16,8 @@ export declare class CoursesService {
     private readonly db;
     private readonly authService;
     private readonly plansService;
-    constructor(db: Pool, authService: AuthService, plansService: PlansService);
+    private readonly xpService;
+    constructor(db: Pool, authService: AuthService, plansService: PlansService, xpService: XpService);
     getLandingSummary(): Promise<{
         topics: {
             id: number;
@@ -117,6 +119,10 @@ export declare class CoursesService {
         status: "not_started" | "in_progress" | "completed";
         progressPercent: number;
         actionLabel: string;
+        xp: import("../xp/xp.service").XpResult | undefined;
+    }>;
+    markLessonOpened(lessonId: number, authorization?: string): Promise<{
+        ok: boolean;
     }>;
     private transitionWorkflow;
     private buildCourseSnapshot;
