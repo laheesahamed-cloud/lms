@@ -7,6 +7,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/score_ring.dart';
 import 'quizzes_repository.dart';
+import '../../services/xp_gain.dart';
 import '../../data/app_error.dart';
 
 /// Shown after an exam is submitted to the backend — the real, server-graded
@@ -92,6 +93,10 @@ class ExamCompletePage extends ConsumerWidget {
         Text(r.quizTitle,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: c.inkSoft)),
+        if (XpGains.exams[r.attemptId] != null) ...[
+          const SizedBox(height: 12),
+          Center(child: _XpChip(gain: XpGains.exams[r.attemptId]!, c: c)),
+        ],
         const SizedBox(height: 20),
         Center(
           child: ScoreRing(
@@ -193,6 +198,39 @@ class _Stat extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6,
                   color: c.inkSoft)),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// "+16 XP" under the title after an exam, or the daily limit message.
+class _XpChip extends StatelessWidget {
+  final XpGain gain;
+  final AppColors c;
+  const _XpChip({required this.gain, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = gain.awarded > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: (earned ? c.primary : c.inkSoft).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(earned ? Icons.bolt_rounded : Icons.hourglass_bottom_rounded,
+              size: 16, color: earned ? c.primary : c.inkSoft),
+          const SizedBox(width: 6),
+          Text(gain.label,
+              style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: earned ? c.primary : c.inkSoft)),
         ],
       ),
     );

@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
+import '../../services/xp_gain.dart';
 import 'lesson_models.dart';
 
 /// Fetches the AI note for a lesson via GET /lessons/:id/note.
@@ -28,11 +30,23 @@ final lessonDocProvider =
 });
 
 /// Marks a lesson as completed via PATCH /courses/student/lessons/:id/progress.
-Future<void> markLessonComplete(ApiClient api, String lessonId) async {
-  await api.dio.patch(
+Future<XpGain?> markLessonComplete(ApiClient api, String lessonId) async {
+  final res = await api.dio.patch(
     '/courses/student/lessons/$lessonId/progress',
     data: {'status': 'completed', 'progressPercent': 100},
   );
+  // What the completion paid in XP. The server decides it; this only shows it.
+  final data = res.data;
+  return data is Map ? XpGain.fromJson(data['xp']) : null;
+}
+
+/// Tells the server the lesson screen has opened. Starts the clock its
+/// "at least 60 seconds" XP check reads. Fire-and-forget: if it never lands,
+/// the lesson still completes, it just does not pay XP.
+void markLessonOpened(ApiClient api, String lessonId) {
+  api.dio
+      .post('/courses/student/lessons/$lessonId/opened')
+      .catchError((_) => Response<dynamic>(requestOptions: RequestOptions()));
 }
 
 /// The student's lessons notes list — GET /lessons/canvas/student/notes.

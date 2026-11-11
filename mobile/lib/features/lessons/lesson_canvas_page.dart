@@ -620,6 +620,11 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // ── Lesson completion ────────────────────────────────────────────────────────
   bool _lessonCompleted = false;
   bool _completionBusy = false;
+  // When this lesson screen opened. Marking it complete earlier than this plus
+  // 60 seconds shows a "not so fast" message and does nothing. The student
+  // never sees a countdown; the server runs the same check on its own clock.
+  DateTime? _openedAt;
+  static const _minLessonTime = Duration(seconds: 60);
 
   // The note body is the most expensive subtree and never changes while drawing.
   // Cache the built widget instance so a pen-down/up setState (which only flips
@@ -672,13 +677,52 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     return _noteCache!;
   }
 
+  Future<void> _showTooSoonDialog() {
+    final c = context.c;
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.cardElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        icon: Icon(Icons.schedule_rounded, size: 34, color: c.warning),
+        title: Text('Not so fast',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w800, color: c.inkStrong)),
+        content: Text(
+            'Spend at least 60 seconds on this lesson before marking it complete.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, height: 1.4, color: c.inkSoft)),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Okay'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _markComplete() async {
     if (_completionBusy || _lessonCompleted) return;
+    final opened = _openedAt;
+    if (opened != null && DateTime.now().difference(opened) < _minLessonTime) {
+      await _showTooSoonDialog();
+      return;
+    }
     setState(() => _completionBusy = true);
     try {
-      await markLessonComplete(ref.read(apiClientProvider), widget.lessonId);
+      final gain = await markLessonComplete(ref.read(apiClientProvider), widget.lessonId);
       if (mounted) {
         setState(() { _lessonCompleted = true; _completionBusy = false; });
+        if (gain != null && gain.worthShowing) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lesson complete  ${gain.label}'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
         // Record lesson completion as activity so it counts toward streak + active days.
         ref.read(apiClientProvider).dio.post(
           '/dashboard/student/activity',
@@ -711,6 +755,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       ..resizePage = _resizePage;
     _loadTools();
     _pencilChannel.setMethodCallHandler(_onPencilEvent);
+    if (!widget.isPersonal && widget.lessonId.isNotEmpty) {
+      _openedAt = DateTime.now();
+      markLessonOpened(ref.read(apiClientProvider), widget.lessonId);
+    }
   }
 
   // TEMPORARY: catches EVERY setState call (from any of the ~25 call sites

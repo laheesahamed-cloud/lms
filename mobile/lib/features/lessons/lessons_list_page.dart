@@ -11,6 +11,7 @@ import 'lessons_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
 import '../courses/subject_icons.dart';
+import '../search/global_search_page.dart';
 import '../../data/app_error.dart';
 
 class LessonsListPage extends ConsumerStatefulWidget {
@@ -76,6 +77,7 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
           }
 
           return ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: [
               PageHeader(
@@ -90,6 +92,8 @@ class _LessonsListPageState extends ConsumerState<LessonsListPage> {
                 ],
               ),
               const SizedBox(height: 12),
+              const GlobalSearch(lessonsOnly: true),
+              const SizedBox(height: 14),
               if (items.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 40),

@@ -299,6 +299,14 @@ class StudentDashboard {
   // Whether today's quiz has already been submitted — used to decide
   // whether to fire the "streak ends tonight" local reminder.
   final bool quizDoneToday;
+  // Yesterday was missed and a grace day is covering it, so tonight is the
+  // last chance to keep the streak.
+  final bool streakGraceActive;
+  // Saved XP from the server (only ever goes up). Null from a server that
+  // predates it, in which case XP is worked out from the stats as before.
+  final int? savedXp;
+  final int xpToday;
+  final int xpDailyCap;
   final List<String> recentActiveDays; // YYYY-MM-DD strings for last 7 days
   final num avgScore; // 0–100
   final num passRate; // 0–100
@@ -322,6 +330,10 @@ class StudentDashboard {
     required this.fullName,
     required this.quizDayStreak,
     required this.quizDoneToday,
+    this.streakGraceActive = false,
+    this.savedXp,
+    this.xpToday = 0,
+    this.xpDailyCap = 100,
     required this.recentActiveDays,
     required this.avgScore,
     required this.passRate,
@@ -350,7 +362,8 @@ class StudentDashboard {
       performanceSnapshot.readinessScore > 0 ? performanceSnapshot.readinessScore : avgScore);
 
   /// Mirrors the web's `buildDashboardLevelProgress` XP/level maths.
-  int get earnedXp => (totalAttempts * 70 +
+  int get earnedXp => savedXp ??
+      (totalAttempts * 70 +
           totalPassed * 110 +
           dailyGoalsCompleted * 55 +
           quizDayStreak * 35)
@@ -373,6 +386,10 @@ class StudentDashboard {
       fullName: _s(user['fullName']),
       quizDayStreak: _i(m['quizDayStreak']),
       quizDoneToday: m['quizDoneToday'] == true,
+      streakGraceActive: m['streakGraceActive'] == true,
+      savedXp: m['totalXp'] is num ? (m['totalXp'] as num).toInt() : null,
+      xpToday: _i(m['xpToday']),
+      xpDailyCap: m['xpDailyCap'] is num ? (m['xpDailyCap'] as num).toInt() : 100,
       recentActiveDays: (m['recentActiveDays'] is List)
           ? List<String>.from(m['recentActiveDays'])
           : <String>[],

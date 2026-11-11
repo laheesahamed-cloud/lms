@@ -18,6 +18,8 @@ import '../flashcards/flashcards_repository.dart';
 import '../lessons/lessons_repository.dart';
 import '../lessons/lesson_models.dart';
 import 'dashboard_repository.dart';
+import 'first_streak_popup.dart';
+import '../search/global_search_page.dart';
 import '../../services/streak_reminders.dart';
 import '../../widgets/shell_insets.dart';
 import '../../widgets/profile_avatar.dart';
@@ -113,7 +115,11 @@ class DashboardPage extends ConsumerWidget {
     ref.listen(studentDashboardProvider, (previous, next) {
       final d = next.maybeWhen(data: (d) => d, orElse: () => null);
       if (d != null) {
-        StreakReminders.reconcile(streak: d.quizDayStreak, doneToday: d.quizDoneToday);
+        StreakReminders.reconcile(
+          streak: d.quizDayStreak,
+          doneToday: d.quizDoneToday,
+          graceActive: d.streakGraceActive,
+        );
       }
     });
     final c = context.c;
@@ -140,6 +146,7 @@ class DashboardPage extends ConsumerWidget {
       // Top bar: notifications + profile
       Row(
         children: [
+          const FirstStreakWatcher(),
           const Spacer(),
           Stack(
             clipBehavior: Clip.none,
@@ -206,6 +213,8 @@ class DashboardPage extends ConsumerWidget {
               letterSpacing: -0.5)),
       const SizedBox(height: 4),
       Text(goalLine, style: TextStyle(fontSize: 14, color: c.inkSoft)),
+      const SizedBox(height: 14),
+      const GlobalSearch(),
       const SizedBox(height: 14),
       // Phone portrait: hero full-width, mood card hidden.
       // iPad portrait + landscape: side by side.
@@ -289,6 +298,7 @@ class DashboardPage extends ConsumerWidget {
     }
 
     final list = ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.fromLTRB(16, safeTop + 14, 16, 28 + shellNavInset(context)),
       children: reduced
           ? kids

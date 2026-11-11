@@ -1,3 +1,4 @@
+import '../../services/xp_gain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
@@ -562,7 +563,11 @@ Future<int> submitExam(
     data: {'answers': answers},
   );
   final m = (res.data is Map) ? Map<String, dynamic>.from(res.data) : {};
-  return _i(m['attemptId']);
+  final attemptId = _i(m['attemptId']);
+  // The result screen shows what this attempt paid. The server decides it.
+  final gain = XpGain.fromJson(m['xp']);
+  if (gain != null && gain.worthShowing) XpGains.exams[attemptId] = gain;
+  return attemptId;
 }
 
 /// Record that the student finished a practice quiz. This writes an isolated
