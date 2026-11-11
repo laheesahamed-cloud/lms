@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/tokens.dart';
+import '../../widgets/shell_insets.dart';
 
 /// Shared chrome for the Planner's two full-screen forms — "New task" and
 /// "Generate plan". Both were bottom sheets, which left no room for the work
@@ -41,12 +42,16 @@ class PlannerFormPage extends StatelessWidget {
     final c = context.c;
     return Scaffold(
       backgroundColor: c.page,
-      // SafeArea rather than a fixed inset: inside the shell the tab bar has
-      // already taken the bottom padding, so this adds nothing there and still
-      // clears the home indicator when the page is opened on its own.
+      // Not SafeArea(bottom: true). The shell's floating tab bar makes the page
+      // reserve the bar's whole height at the bottom, so a bottom SafeArea left
+      // an empty dark band under the form (the "black stripe" on Create plan).
+      // The shell's rule (see shell_insets.dart): the page runs the full height,
+      // and the scroll view's own bottom padding keeps the last item clear of
+      // the bar. SafeArea still guards the top.
       body: SafeArea(
+        bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 28 + shellNavInset(context)),
           children: [
             _Hero(
               titleTop: titleTop,

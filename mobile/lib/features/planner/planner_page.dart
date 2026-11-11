@@ -87,12 +87,16 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   // ── Layout: a central progress hub branching into day (or subject) groups,
   // each branching into swipe-to-complete, shape-identified task cards. ──
   Widget _mindMap(AppColors c, List<PlannerTask> tasks) {
-    // Watched, not stored: billingProvider is kept alive across pages, so it is
-    // usually already resolved and needs no loading state of its own. While it
-    // is still unknown the PRO marker stays hidden, rather than flashing at a
-    // subscriber who simply has not been read back yet.
-    final subscribed =
-        ref.watch(billingProvider).asData?.value.current?.isPaid == true;
+    // Watched, not stored: billingProvider is kept alive across pages. The PRO
+    // marker shows only once billing is KNOWN and the student is not paid.
+    // While it is still loading (or failed with nothing cached) the marker stays
+    // hidden: reading "unknown" as "not paid" made it flash for every
+    // subscriber on each open, then vanish when the answer arrived. `.value`
+    // also keeps the last answer during a refresh, so a refresh after the app
+    // resumes does not bring the flash back. The real gate is _ensureSubscribed.
+    final billing = ref.watch(billingProvider);
+    final showPro =
+        billing.hasValue && billing.value?.current?.isPaid != true;
     final total = tasks.length;
     final doneCount = tasks.where((t) => t.done).length;
 
@@ -183,7 +187,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                 // Says it is paid BEFORE the tap. A feature that looks free
                 // and then opens a paywall reads as a trick; a marker on the
                 // card is the honest version of the same gate.
-                if (!subscribed)
+                if (showPro)
                   Container(
                     margin: const EdgeInsets.only(right: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
