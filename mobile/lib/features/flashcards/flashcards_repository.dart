@@ -71,6 +71,9 @@ class QueueCard {
   }
 }
 
+/// Cards in one study session. The rest wait for the next tap on Study.
+const int kFlashSessionSize = 20;
+
 class QueueResult {
   final List<QueueCard> cards;
   final int newCount;
@@ -88,7 +91,7 @@ class QueueResult {
         (m['counts'] is Map) ? Map<String, dynamic>.from(m['counts']) : <String, dynamic>{};
     return QueueResult(
       cards: (m['cards'] is List)
-          ? (m['cards'] as List).map(QueueCard.fromJson).toList()
+          ? (m['cards'] as List).take(kFlashSessionSize).map(QueueCard.fromJson).toList()
           : <QueueCard>[],
       newCount: _i(counts['new']),
       learning: _i(counts['learning']),

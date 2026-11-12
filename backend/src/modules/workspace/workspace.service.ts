@@ -53,6 +53,9 @@ type PlannerTaskPriority = 'low' | 'medium' | 'high';
 
 const PLANNER_TASK_CATEGORIES = ['general', 'lesson', 'quiz', 'exam', 'review', 'flashcards'] as const;
 const PLANNER_TASK_PRIORITIES = ['low', 'medium', 'high'] as const;
+// What a generated task can stand for. The app works out "done" for these from
+// the lesson, Q-bank and flashcard data it already holds.
+const PLANNER_ITEM_TYPES: readonly string[] = ['lesson', 'quiz', 'flashcards'];
 
 type PlannerQuizAccessScopeRow = RowDataPacket & {
   feature_key: string | null;
@@ -320,7 +323,7 @@ export class WorkspaceService {
   async listPlannerTasks(authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, title, description, due_date, status, category, priority, estimated_minutes, created_at, updated_at
+      `SELECT id, title, description, due_date, status, category, item_type, item_id, rule_json, priority, estimated_minutes, created_at, updated_at
        FROM study_planner_tasks
        WHERE user_id = ?
        ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`,
@@ -338,7 +341,7 @@ export class WorkspaceService {
       this.db.execute<RowDataPacket[]>(
         `SELECT id, title, description, due_date, status, category, priority, estimated_minutes, created_at, updated_at
          FROM study_planner_tasks
-         WHERE user_id = ?
+         WHERE user_id = ? AND rule_json IS NULL
          ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC
          LIMIT 80`,
         [student.id]
@@ -452,11 +455,12 @@ export class WorkspaceService {
     const category = this.normalizePlannerTaskCategory(input?.category);
     const priority = this.normalizePlannerTaskPriority(input?.priority);
     const estimatedMinutes = this.optionalPlannerEstimatedMinutes(input?.estimatedMinutes);
+    const link = this.normalizePlannerItemLink(input);
     const [result] = await this.db.execute<ResultSetHeader>(
       `INSERT INTO study_planner_tasks
-         (user_id, title, description, due_date, status, category, priority, estimated_minutes)
-       VALUES (?, ?, ?, ?, 'todo', ?, ?, ?)`,
-      [student.id, title, description, dueDate, category, priority, estimatedMinutes]
+         (user_id, title, description, due_date, status, category, item_type, item_id, priority, estimated_minutes)
+       VALUES (?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?)`,
+      [student.id, title, description, dueDate, category, link.type, link.id, priority, estimatedMinutes]
     );
     return { ok: true, id: result.insertId };
   }
@@ -496,15 +500,26 @@ export class WorkspaceService {
 
     // Validated BEFORE the insert, every row, so a bad item fails the request
     // rather than writing the rows before it and stopping half way.
-    const rows = raw.map((task: any) => [
-      student.id,
-      this.requiredString(task?.title, 'Task title'),
-      this.optionalString(task?.description),
-      this.optionalDate(task?.dueDate),
-      this.normalizePlannerTaskCategory(task?.category),
-      this.normalizePlannerTaskPriority(task?.priority),
-      this.optionalPlannerEstimatedMinutes(task?.estimatedMinutes),
-    ]);
+    //
+    // sort_order is the task's position in the plan. The list orders by due
+    // date, then sort_order, then id DESC; without a position the newest id
+    // came first, which turned every day's course order upside down.
+    const rows = raw.map((task: any, index: number) => {
+      const link = this.normalizePlannerItemLink(task);
+      return [
+        student.id,
+        this.requiredString(task?.title, 'Task title'),
+        this.optionalString(task?.description),
+        this.optionalDate(task?.dueDate),
+        this.normalizePlannerTaskCategory(task?.category),
+        link.type,
+        link.id,
+        this.normalizePlannerTaskPriority(task?.priority),
+        this.optionalPlannerEstimatedMinutes(task?.estimatedMinutes),
+        index + 1,
+        this.normalizePlannerRule(task?.rule),
+      ];
+    });
 
     const connection = await this.db.getConnection();
     try {
@@ -512,10 +527,10 @@ export class WorkspaceService {
       // status is written explicitly, as the single-task insert does, rather
       // than left to the column default — the two paths should not diverge if
       // that default ever changes.
-      const placeholders = rows.map(() => "(?, ?, ?, ?, 'todo', ?, ?, ?)").join(', ');
+      const placeholders = rows.map(() => "(?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?, ?)").join(', ');
       const [result] = await connection.query<ResultSetHeader>(
         `INSERT INTO study_planner_tasks
-           (user_id, title, description, due_date, status, category, priority, estimated_minutes)
+           (user_id, title, description, due_date, status, category, item_type, item_id, priority, estimated_minutes, sort_order, rule_json)
          VALUES ${placeholders}`,
         rows.flat()
       );
@@ -526,6 +541,7 @@ export class WorkspaceService {
       const firstId = Number(result.insertId);
       return {
         ok: true,
+        rules: true,
         ids: Array.from({ length: rows.length }, (_, i) => firstId + i),
       };
     } catch (error) {
@@ -581,6 +597,17 @@ export class WorkspaceService {
       values
     );
     return { ok: true, id };
+  }
+
+  /// Deletes every planner task of the signed-in student, in one statement.
+  /// Only their own rows: the WHERE is the student's id and nothing else.
+  async clearPlannerTasks(authorization?: string) {
+    const student = await this.authService.requireStudent(authorization);
+    const [result] = await this.db.execute<ResultSetHeader>(
+      'DELETE FROM study_planner_tasks WHERE user_id = ?',
+      [student.id]
+    );
+    return { ok: true, deleted: result.affectedRows };
   }
 
   async deletePlannerTask(authorization: string | undefined, id: number) {
@@ -1339,6 +1366,54 @@ export class WorkspaceService {
     };
   }
 
+  /**
+   * The lesson or quiz a task stands for. Both parts or neither: a type with
+   * no id (or an id with no type) is dropped rather than half-saved.
+   */
+  private normalizePlannerItemLink(input: any): { type: string | null; id: number | null } {
+    const type = PLANNER_ITEM_TYPES.includes(input?.itemType) ? String(input.itemType) : null;
+    const id = Number(input?.itemId);
+    if (!type || !Number.isInteger(id) || id <= 0) return { type: null, id: null };
+    return { type, id };
+  }
+
+  /// A plan saved as ONE rule row ("Medicine, all lessons, 3 a day from
+  /// 12 Nov") instead of a row per lesson. The phone already holds every lesson,
+  /// quiz and deck, so it works the days out itself; the server only keeps the
+  /// rule. Returns the JSON to store, or null for an ordinary task.
+  private normalizePlannerRule(raw: any): string | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const kind = String(raw.kind || '');
+    if (!PLANNER_ITEM_TYPES.includes(kind)) {
+      throw new BadRequestException('Unknown plan type');
+    }
+    const courseId = String(raw.courseId ?? '').trim().slice(0, 40);
+    if (!courseId) throw new BadRequestException('A plan needs a course');
+    const hours = Number(raw.hours);
+    const until = this.optionalDate(raw.until);
+    return JSON.stringify({
+      kind,
+      courseId,
+      hours: Number.isFinite(hours) && hours > 0 && hours <= 24 ? hours : 2,
+      byDay: raw.byDay === false ? false : true,
+      ...(until ? { until } : {}),
+      // Ids already finished when the plan was made, so its days stay put.
+      ...(Array.isArray(raw.skip)
+        ? { skip: raw.skip.map((v: unknown) => Number(v)).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 5000) }
+        : {}),
+    });
+  }
+
+  private parsePlannerRule(value: unknown) {
+    if (!value) return null;
+    try {
+      const parsed = JSON.parse(String(value));
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
   private mapPlannerTask(row: RowDataPacket) {
     return {
       id: Number(row.id),
@@ -1347,6 +1422,12 @@ export class WorkspaceService {
       dueDate: this.dateKey(row.due_date) || '',
       status: String(row.status || 'todo'),
       category: this.normalizePlannerTaskCategory(row.category),
+      // The real lesson or quiz this task stands for, when it was generated
+      // from one. The app works out "done" from the lesson/quiz data it already
+      // holds, so a linked task is finished by finishing the thing itself.
+      itemType: PLANNER_ITEM_TYPES.includes(row.item_type) ? String(row.item_type) : null,
+      itemId: row.item_id ? Number(row.item_id) : null,
+      rule: this.parsePlannerRule(row.rule_json),
       priority: this.normalizePlannerTaskPriority(row.priority),
       estimatedMinutes: this.optionalPlannerEstimatedMinutes(row.estimated_minutes),
       createdAt: row.created_at || null,

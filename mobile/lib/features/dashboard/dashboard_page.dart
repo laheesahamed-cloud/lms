@@ -646,7 +646,11 @@ class _ContinueCard extends ConsumerWidget {
     String crumb(String course, String subject) {
       final parts = <String>[];
       if (course.trim().isNotEmpty) parts.add(course.trim());
-      if (subject.trim().isNotEmpty && subject.trim() != course.trim()) {
+      // "General" / "Full course" only says the quiz covers the whole course,
+      // which the course name already does.
+      final sub = subject.trim().toLowerCase();
+      final whole = sub == 'general' || sub.contains('full course');
+      if (subject.trim().isNotEmpty && subject.trim() != course.trim() && !whole) {
         parts.add(subject.trim());
       }
       return parts.join(' / ');
@@ -804,13 +808,18 @@ class _ContinueCard extends ConsumerWidget {
                           style: TextStyle(fontSize: 12, color: c.inkSoft)),
                     ],
                     const SizedBox(height: 4),
-                    Text(quizTitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: c.inkStrong)),
+                    // One line: a long name shrinks to fit instead of wrapping.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(quizTitle,
+                          maxLines: 1,
+                          softWrap: false,
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: c.inkStrong)),
+                    ),
                   ],
                 ),
               ),
@@ -1491,7 +1500,10 @@ class _PlanRow extends StatelessWidget {
     final c = context.c;
     final done = item.done;
     final isNext = !done;
-    final badgeColor = done ? c.success : c.primary;
+    // A finished step wears the same tick as a finished quiz or planner task:
+    // a soft green disc with a green check, not a solid green one.
+    const tickGreen = Color(0xFF16A34A);
+    final badgeColor = done ? tickGreen.withValues(alpha: 0.16) : c.primary;
 
     return InkWell(
       onTap: onTap,
@@ -1509,7 +1521,7 @@ class _PlanRow extends StatelessWidget {
               decoration:
                   BoxDecoration(color: badgeColor, shape: BoxShape.circle),
               child: done
-                  ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
+                  ? const Icon(Icons.check_rounded, size: 17, color: tickGreen)
                   : Text('${index + 1}',
                       style: const TextStyle(
                           fontSize: 13,

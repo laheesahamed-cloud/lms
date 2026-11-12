@@ -16,6 +16,7 @@ import 'quizzes_repository.dart';
 import 'quiz_dialogs.dart';
 import 'submit_transition_overlay.dart';
 import '../../data/app_error.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 TextStyle _stemTextStyle(AppColors c) => TextStyle(
     fontSize: 17, height: 1.45, fontWeight: FontWeight.w600, color: c.inkStrong);
@@ -258,7 +259,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
   /// make. Said once on a long-press rather than nagged about.
   void _explainVoice() {
     final c = context.c;
-    showModalBottomSheet<void>(
+    showAdaptiveSheet<void>(
       useRootNavigator: true,
       context: context,
       backgroundColor: c.surface1,
@@ -904,7 +905,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
   // Tap the "X / N" counter to jump to any question (answered = green).
   void _openQuestionNav(List<PracticeQuestion> questions) {
     final c = context.c;
-    showModalBottomSheet(
+    showAdaptiveSheet(
       useRootNavigator: true,
       context: context,
       backgroundColor: c.card,

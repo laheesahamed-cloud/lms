@@ -274,23 +274,37 @@ class PersonalFlashcardsStore {
 
   static Future<DeckStats> deckStats(String deckId) async {
     final cards = await loadCards(deckId);
-    int newCount = 0, dueCount = 0;
+    int newCount = 0, learningCount = 0, dueCount = 0;
     for (final c in cards) {
       if (c.reviewCount == 0) {
         newCount++;
       } else if (c.isDue) {
-        dueCount++;
+        // These cards have no learning steps; the nearest thing is a card still
+        // on its first one-day step (you pressed Again). Counted apart from Due
+        // so New + Learn + Due is still everything you can study now.
+        if (c.intervalDays <= 1.0) {
+          learningCount++;
+        } else {
+          dueCount++;
+        }
       }
     }
     return DeckStats(
-        total: cards.length, newCount: newCount, dueCount: dueCount);
+        total: cards.length,
+        newCount: newCount,
+        learningCount: learningCount,
+        dueCount: dueCount);
   }
 }
 
 class DeckStats {
   final int total;
   final int newCount;
+  final int learningCount;
   final int dueCount;
   const DeckStats(
-      {required this.total, required this.newCount, required this.dueCount});
+      {required this.total,
+      required this.newCount,
+      this.learningCount = 0,
+      required this.dueCount});
 }

@@ -374,6 +374,7 @@ export declare class QuizAttemptsService {
     private scaleScoreToHundred;
     private buildAnswerBulkInsert;
     private createExamAttempt;
+    private pruneOldAttempts;
     private buildExamQuestionAnswerRows;
     private mapQuizForStudent;
     private mapQuestion;

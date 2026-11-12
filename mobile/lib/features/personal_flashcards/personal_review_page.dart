@@ -9,6 +9,9 @@ import 'personal_flashcards_store.dart';
 /// Flip-card review session for a personal deck.
 /// Cards are shown front-first; tap to reveal back.
 /// Grade with Again / Hard / Good / Easy — SM-2 lite scheduling.
+/// Cards studied per session.
+const int kPersonalSessionSize = 20;
+
 class PersonalReviewPage extends StatefulWidget {
   final String deckId;
   final String title;
@@ -26,6 +29,7 @@ class PersonalReviewPage extends StatefulWidget {
 class _PersonalReviewPageState extends State<PersonalReviewPage>
     with SingleTickerProviderStateMixin {
   List<PersonalCard> _queue = [];
+  final Map<PersonalCard, String> _owner = Map.identity();
   int _index = 0;
   bool _revealed = false;
   bool _loading = true;
@@ -63,8 +67,24 @@ class _PersonalReviewPageState extends State<PersonalReviewPage>
   }
 
   Future<void> _load() async {
-    final allCards = await PersonalFlashcardsStore.loadCards(widget.deckId);
-    final due = allCards.where((c) => c.isDue).toList()..shuffle(Random());
+    // deckId 'all' studies every deck of mine together; remember which deck
+    // each card came from so its grade is saved back to the right one.
+    final allCards = <PersonalCard>[];
+    if (widget.deckId == 'all') {
+      for (final d in await PersonalFlashcardsStore.loadDecks()) {
+        for (final card in await PersonalFlashcardsStore.loadCards(d.id)) {
+          allCards.add(card);
+          _owner[card] = d.id;
+        }
+      }
+    } else {
+      allCards.addAll(await PersonalFlashcardsStore.loadCards(widget.deckId));
+    }
+    // A session is one batch of 20, not the whole backlog. The rest wait for
+    // the next tap on Study.
+    final due = (allCards.where((c) => c.isDue).toList()..shuffle(Random()))
+        .take(kPersonalSessionSize)
+        .toList();
     if (mounted) {
       setState(() {
         _queue = due;
@@ -104,7 +124,7 @@ class _PersonalReviewPageState extends State<PersonalReviewPage>
     HapticFeedback.selectionClick();
     final card = _queue[_index];
     final updated = card.graded(rating);
-    await PersonalFlashcardsStore.saveCardReview(widget.deckId, updated);
+    await PersonalFlashcardsStore.saveCardReview(_owner[card] ?? widget.deckId, updated);
 
     if (_index + 1 >= _queue.length) {
       // Session done
@@ -131,62 +151,41 @@ class _PersonalReviewPageState extends State<PersonalReviewPage>
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  // ── Header ──
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => context.pop(),
-                          color: c.inkStrong,
-                        ),
-                        Expanded(
-                          child: Text(widget.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  color: c.inkStrong)),
-                        ),
-                        if (_queue.isNotEmpty)
-                          Text(
-                            '${min(_index + 1, _total)}/$_total',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: c.inkSoft),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // ── Progress bar ──
-                  if (_queue.isNotEmpty)
+                  // ── Header (same bar as the course flashcards review) ──
+                  if (_queue.isNotEmpty && _index < _queue.length)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: _total == 0
-                              ? 1
-                              : min(_index, _total) / _total,
-                          minHeight: 4,
-                          backgroundColor: c.inkMuted.withValues(alpha: 0.2),
-                          color: c.primary,
-                        ),
+                      padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => context.pop(),
+                            icon: Icon(Icons.close_rounded,
+                                size: 22, color: c.inkMedium),
+                          ),
+                          Expanded(
+                            child: Text(widget.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: c.inkStrong)),
+                          ),
+                          Text('${_index + 1} / $_total',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.inkSoft)),
+                        ],
                       ),
                     ),
 
-                  const SizedBox(height: 16),
-
                   // ── Card or done ──
                   Expanded(
-                    child: _index >= _queue.length
-                        ? _Done(total: _total, onClose: () => context.pop())
-                        : _queue.isEmpty
-                            ? _NothingDue(onClose: () => context.pop())
+                    child: _queue.isEmpty
+                        ? _NothingDue(onClose: () => context.pop())
+                        : _index >= _queue.length
+                            ? _Done(total: _total, onClose: () => context.pop())
                             : _cardArea(c, _queue[_index]),
                   ),
 
@@ -194,17 +193,22 @@ class _PersonalReviewPageState extends State<PersonalReviewPage>
                   if (_index < _queue.length && _revealed)
                     _gradeBar(c, _queue[_index]),
 
-                  // ── Tap hint ──
+                  // ── Show answer (same bar as the course flashcards review) ──
                   if (_index < _queue.length && !_revealed)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Text('Tap card to reveal answer',
-                          style: TextStyle(
-                              fontSize: 13, color: c.inkMuted)),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                      decoration: BoxDecoration(
+                          border: Border(top: BorderSide(color: c.line))),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: FilledButton(
+                          onPressed: _toggleFlip,
+                          child: const Text('Show answer',
+                              style: TextStyle(fontWeight: FontWeight.w800)),
+                        ),
+                      ),
                     ),
-
-                  if (_index < _queue.length && _revealed)
-                    const SizedBox(height: 16),
                 ],
               ),
       ),
@@ -325,6 +329,7 @@ class _PersonalReviewPageState extends State<PersonalReviewPage>
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: back
             ? [
                 Text('ANSWER',
@@ -336,7 +341,6 @@ class _PersonalReviewPageState extends State<PersonalReviewPage>
                         color: c.accent)),
                 const SizedBox(height: 14),
                 Text(card.back,
-                    textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 16,
                         height: 1.5,
@@ -408,8 +412,9 @@ class _PersonalReviewPageState extends State<PersonalReviewPage>
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(13, 0, 13, 0),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 8, 13, 12),
+      decoration: BoxDecoration(border: Border(top: BorderSide(color: c.line))),
       child: Row(
         children: [
           btn('Again', 1, _again),
@@ -432,29 +437,25 @@ class _Done extends StatelessWidget {
     final c = context.c;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle_rounded,
-                size: 72, color: Color(0xFF16A34A)),
-            const SizedBox(height: 20),
-            Text('Session Complete!',
+            Icon(Icons.celebration_rounded, size: 48, color: c.inkStrong),
+            const SizedBox(height: 14),
+            Text('Session complete',
                 style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: c.inkStrong)),
-            const SizedBox(height: 8),
-            Text('You reviewed $total card${total == 1 ? '' : 's'}.',
-                style: TextStyle(fontSize: 15, color: c.inkSoft)),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onClose,
-                child: const Text('Done'),
-              ),
+            const SizedBox(height: 6),
+            Text(
+              'You reviewed $total card${total == 1 ? '' : 's'}. Come back when more are due.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15.5, height: 1.45, color: c.inkSoft),
             ),
+            const SizedBox(height: 22),
+            FilledButton(onPressed: onClose, child: const Text('Back to decks')),
           ],
         ),
       ),
@@ -471,22 +472,23 @@ class _NothingDue extends StatelessWidget {
     final c = context.c;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.done_all_rounded, size: 60, color: c.inkMuted),
-            const SizedBox(height: 16),
-            Text('Nothing due right now',
+            Icon(Icons.check_circle_rounded, size: 48, color: c.inkStrong),
+            const SizedBox(height: 14),
+            Text('Nothing due here',
                 style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: c.inkStrong)),
-            const SizedBox(height: 8),
-            Text('Check back later for more reviews.',
-                style: TextStyle(fontSize: 14, color: c.inkSoft)),
-            const SizedBox(height: 28),
-            FilledButton(onPressed: onClose, child: const Text('Back')),
+            const SizedBox(height: 6),
+            Text('No cards are due in this deck right now.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15.5, height: 1.45, color: c.inkSoft)),
+            const SizedBox(height: 22),
+            FilledButton(onPressed: onClose, child: const Text('Back to decks')),
           ],
         ),
       ),

@@ -843,6 +843,14 @@ export class SchemaSyncService implements OnModuleInit {
       // Written on every exam submit and lesson completion, so they must exist
       // whether or not SCHEMA_SYNC runs.
       await step('xp tables', () => this.ensureXpTables(conn));
+      // Which lesson or quiz a generated planner task is. Read and written by
+      // every planner request, so it must not wait for SCHEMA_SYNC.
+      await step('study_planner_tasks item link', async () => {
+        await this.ensureColumn(conn, 'study_planner_tasks', 'item_type', 'VARCHAR(16) NULL');
+        await this.ensureColumn(conn, 'study_planner_tasks', 'item_id', 'INT NULL');
+        // A whole plan saved as one rule row; the phone works out the days.
+        await this.ensureColumn(conn, 'study_planner_tasks', 'rule_json', 'TEXT NULL');
+      });
       // Clearing a notification is a student write path, and prod runs
       // SCHEMA_SYNC=0, so this cannot sit behind the full sync.
       await step('notification dismissals', () =>

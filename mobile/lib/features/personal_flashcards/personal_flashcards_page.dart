@@ -1,24 +1,41 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import 'personal_flashcards_store.dart';
+import 'personal_review_page.dart' show kPersonalSessionSize;
+import '../../widgets/adaptive_sheet.dart';
 
 /// My Flashcards — an Anki-style deck browser. Decks are still stored flat
 /// (one PersonalDeck per id/title), but a title containing "::" — e.g.
 /// "Cardiology::1" — is treated as a nested deck the same way real Anki
 /// parses deck names, so the list renders as an expandable/collapsible tree
 /// instead of one row per deck.
-class PersonalFlashcardsPage extends StatefulWidget {
-  const PersonalFlashcardsPage({super.key});
+///
+/// This is the BODY of the Flashcards page's "My Flashcards" side: the pills,
+/// Study button, "Decks" row and table. The page around it (title, +, switch)
+/// is shared with the course decks in flashcards_page.dart, so the two never
+/// drift apart.
+class PersonalDecksBody extends StatefulWidget {
+  /// Draws the "Decks" row, shared with the course side.
+  final Widget Function(AppColors c,
+      {required bool canToggle,
+      required bool allOpen,
+      required VoidCallback onToggleAll}) decksRow;
+  const PersonalDecksBody({super.key, required this.decksRow});
 
   @override
-  State<PersonalFlashcardsPage> createState() =>
-      _PersonalFlashcardsPageState();
+  State<PersonalDecksBody> createState() => PersonalDecksBodyState();
 }
 
-class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
+class PersonalDecksBodyState extends State<PersonalDecksBody> {
+  /// Opens the new-deck sheet (the page's + calls this).
+  Future<void> createDeck() => _createDeck();
+
+  Future<void> reload() => _load();
+
   List<_DeckNode> _tree = [];
   final Set<String> _expanded = {};
   bool _loading = true;
@@ -44,19 +61,103 @@ class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
     });
   }
 
-  Future<void> _createDeck() async {
-    final title = await _promptTitle(context, 'New Deck', '',
-        helperText: 'Use "::" to nest, e.g. "Cardiology::1"');
-    if (title == null) return;
+  static List<String> _parts(String title) => title
+      .split('::')
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+
+  /// Every place a deck can go, as the "Inside" picker lists them: each path in
+  /// the tree, indented by depth. [exclude] drops a path and everything under
+  /// it (a deck cannot be moved into itself).
+  List<_ParentOption> _parentOptions({String? exclude}) {
+    final out = <_ParentOption>[];
+    void walk(List<_DeckNode> nodes, int depth) {
+      for (final n in nodes) {
+        final skip = exclude != null && (n.key == exclude || n.key.startsWith('$exclude::'));
+        if (skip) continue;
+        out.add(_ParentOption(n.key, n.label, depth));
+        walk(n.children, depth + 1);
+      }
+    }
+
+    walk(_tree, 0);
+    return out;
+  }
+
+  /// Opens every level above [path] so a new or moved deck is visible.
+  void _reveal(String path) {
+    final parts = path.split('::');
+    for (var i = 1; i <= parts.length; i++) {
+      _expanded.add(parts.sublist(0, i).join('::'));
+    }
+  }
+
+  /// Every deck whose name starts with [oldPrefix] gets [newPrefix] in its
+  /// place, so renaming or moving a folder takes everything inside it along.
+  Future<void> _applyPrefix(List<String> oldPrefix, List<String> newPrefix) async {
+    final decks = await PersonalFlashcardsStore.loadDecks();
+    for (final d in decks) {
+      final parts = _parts(d.title);
+      if (parts.length >= oldPrefix.length &&
+          listEquals(parts.sublist(0, oldPrefix.length), oldPrefix)) {
+        final next = [...newPrefix, ...parts.sublist(oldPrefix.length)];
+        await PersonalFlashcardsStore.renameDeck(d.id, next.join('::'));
+      }
+    }
+  }
+
+  Future<void> _createDeck({String parent = ''}) async {
+    final r = await _showDeckSheet(
+      context,
+      heading: parent.isEmpty ? 'New deck' : 'New sub-deck',
+      actionLabel: 'Create deck',
+      parents: _parentOptions(),
+      initialParent: parent,
+      initialName: '',
+    );
+    if (r == null) return;
     HapticFeedback.mediumImpact();
-    await PersonalFlashcardsStore.createDeck(title);
+    // Still saved as "Parent::Name", so every existing deck keeps working; the
+    // sheet just writes the "::" so the student does not have to.
+    await PersonalFlashcardsStore.createDeck(
+        r.parent.isEmpty ? r.name : '${r.parent}::${r.name}');
+    if (r.parent.isNotEmpty) _reveal(r.parent);
     _load();
   }
 
-  Future<void> _renameDeck(_DeckEntry e) async {
-    final title = await _promptTitle(context, 'Rename Deck', e.deck.title);
-    if (title == null) return;
-    await PersonalFlashcardsStore.renameDeck(e.deck.id, title);
+  Future<void> _renameNode(_DeckNode node) async {
+    final oldParts = node.key.split('::');
+    final parentPath = oldParts.sublist(0, oldParts.length - 1).join('::');
+    final r = await _showDeckSheet(
+      context,
+      heading: 'Rename',
+      actionLabel: 'Save',
+      parents: const [],
+      initialParent: parentPath,
+      initialName: node.label,
+      allowParent: false,
+    );
+    if (r == null) return;
+    final newParts = [...oldParts.sublist(0, oldParts.length - 1), ..._parts(r.name)];
+    if (listEquals(oldParts, newParts)) return;
+    await _applyPrefix(oldParts, newParts);
+    _load();
+  }
+
+  Future<void> _moveNode(_DeckNode node) async {
+    final oldParts = node.key.split('::');
+    final parentPath = oldParts.sublist(0, oldParts.length - 1).join('::');
+    final r = await _showDeckSheet(
+      context,
+      heading: 'Move "${node.label}"',
+      actionLabel: 'Move here',
+      parents: _parentOptions(exclude: node.key),
+      initialParent: parentPath,
+    );
+    if (r == null || r.parent == parentPath) return;
+    await _applyPrefix(oldParts, [..._parts(r.parent), node.label]);
+    if (r.parent.isNotEmpty) _reveal(r.parent);
     _load();
   }
 
@@ -104,94 +205,137 @@ class _PersonalFlashcardsPageState extends State<PersonalFlashcardsPage> {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    return SafeArea(
-      child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('MY FLASHCARDS',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.4,
-                                    color: c.accent)),
-                            const SizedBox(height: 4),
-                            Text('My Decks',
-                                style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    color: c.inkStrong,
-                                    letterSpacing: -0.5)),
-                          ],
-                        ),
-                      ),
-                      _AddButton(onTap: _createDeck),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  if (_tree.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 40),
-                      child: Column(
-                        children: [
-                          Icon(Icons.style_outlined,
-                              size: 52, color: c.inkMuted),
-                          const SizedBox(height: 12),
-                          Text('No decks yet',
-                              style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  color: c.inkStrong)),
-                          const SizedBox(height: 6),
-                          Text('Tap + to create your first deck',
-                              style:
-                                  TextStyle(fontSize: 14, color: c.inkSoft)),
-                        ],
-                      ),
-                    )
-                  else ...[
-                    _DeckTableHead(c: c),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: c.card,
-                        borderRadius: BorderRadius.circular(AppRadius.inner),
-                        border: Border.all(color: c.line),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: _renderNodes(_tree, depth: 0),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+    var tNew = 0, tLearn = 0, tDue = 0;
+    for (final n in _tree) {
+      final st = _aggregateStats(n);
+      tNew += st.newCount;
+      tLearn += st.learningCount;
+      tDue += st.dueCount;
+    }
+    final folderKeys = <String>[];
+    void collect(List<_DeckNode> nodes) {
+      for (final n in nodes) {
+        if (n.children.isNotEmpty) {
+          folderKeys.add(n.key);
+          collect(n.children);
+        }
+      }
+    }
+    collect(_tree);
+    final allOpen = folderKeys.isNotEmpty && folderKeys.every(_expanded.contains);
+    final all = tNew + tLearn + tDue;
+
+    Widget pill(String label, int n, Color color) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
             ),
+            child: Column(
+              children: [
+                Text('$n',
+                    style: TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w800, color: color)),
+                const SizedBox(height: 2),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700, color: c.inkSoft)),
+              ],
+            ),
+          ),
+        );
+
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 60),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            pill('New', tNew, const Color(0xFF2563EB)),
+            const SizedBox(width: 10),
+            pill('Learning', tLearn, const Color(0xFFD97706)),
+            const SizedBox(width: 10),
+            pill('Due', tDue, const Color(0xFFDC2626)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_tree.isNotEmpty)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: all == 0
+                  ? null
+                  : () => context.push(
+                      '/app/my-flashcards/all/review?title=${Uri.encodeComponent('All my decks')}'),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(() {
+                if (all == 0) return 'Nothing due today';
+                final n = all < kPersonalSessionSize ? all : kPersonalSessionSize;
+                return 'Study $n card${n == 1 ? '' : 's'}'
+                    '${all > n ? '  \u00B7  ${all - n} more' : ''}';
+              }()),
+            ),
+          ),
+        const SizedBox(height: 18),
+        widget.decksRow(c,
+            canToggle: folderKeys.isNotEmpty,
+            allOpen: allOpen,
+            onToggleAll: () => setState(() {
+                  if (allOpen) {
+                    _expanded.clear();
+                  } else {
+                    _expanded.addAll(folderKeys);
+                  }
+                })),
+        const SizedBox(height: 4),
+        if (_tree.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text('No decks yet. Tap + to create your first deck.',
+                style: TextStyle(color: c.inkSoft)),
+          )
+        else ...[
+          _DeckTableHead(c: c),
+          Container(
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(AppRadius.inner),
+              border: Border.all(color: c.line),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(children: _renderNodes(_tree, depth: 0)),
+          ),
+        ],
+      ],
     );
   }
 
-  List<Widget> _renderNodes(List<_DeckNode> nodes, {required int depth}) {
+  List<Widget> _renderNodes(List<_DeckNode> nodes, {required int depth, bool first = true}) {
     final widgets = <Widget>[];
     for (final node in nodes) {
+      final isFirst = first && widgets.isEmpty;
       widgets.add(_DeckRow(
+        divider: !isFirst,
         node: node,
         depth: depth,
         open: _expanded.contains(node.key),
         onToggle: () => _toggle(node.key),
         onOpen: node.entry != null ? () => _openDeck(node.entry!) : null,
-        onRename: node.entry != null ? () => _renameDeck(node.entry!) : null,
+        onAddSub: () => _createDeck(parent: node.key),
+        onRename: () => _renameNode(node),
+        onMove: () => _moveNode(node),
         onDelete: node.entry != null ? () => _deleteDeck(node.entry!) : null,
       ));
       if (node.children.isNotEmpty && _expanded.contains(node.key)) {
-        widgets.addAll(_renderNodes(node.children, depth: depth + 1));
+        widgets.addAll(_renderNodes(node.children, depth: depth + 1, first: false));
       }
     }
     return widgets;
@@ -242,15 +386,16 @@ List<_DeckNode> _buildTree(List<_DeckEntry> entries) {
   return roots;
 }
 
-/// Aggregated new/due/total across a node and every descendant — so a
+/// Aggregated new/learning/due/total across a node and every descendant — so a
 /// collapsed "Cardiology" branch shows the combined counts of "1", "4", "5".
 DeckStats _aggregateStats(_DeckNode node) {
-  var total = 0, newCount = 0, dueCount = 0;
+  var total = 0, newCount = 0, learningCount = 0, dueCount = 0;
   void visit(_DeckNode n) {
     final entry = n.entry;
     if (entry != null) {
       total += entry.stats.total;
       newCount += entry.stats.newCount;
+      learningCount += entry.stats.learningCount;
       dueCount += entry.stats.dueCount;
     }
     for (final child in n.children) {
@@ -259,39 +404,11 @@ DeckStats _aggregateStats(_DeckNode node) {
   }
 
   visit(node);
-  return DeckStats(total: total, newCount: newCount, dueCount: dueCount);
-}
-
-Future<String?> _promptTitle(
-    BuildContext context, String dialogTitle, String initial,
-    {String? helperText}) async {
-  final ctrl = TextEditingController(text: initial);
-  return showDialog<String>(
-    useRootNavigator: true,
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(dialogTitle),
-      content: TextField(
-        controller: ctrl,
-        autofocus: true,
-        decoration: InputDecoration(
-            hintText: 'Deck name', helperText: helperText),
-        textCapitalization: TextCapitalization.sentences,
-        // Dismiss the keyboard when tapping anywhere outside the field —
-        // inside a dialog the app-level tap-to-unfocus never fires.
-        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-        onSubmitted: (v) => Navigator.pop(ctx, v),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel')),
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            child: const Text('Save')),
-      ],
-    ),
-  );
+  return DeckStats(
+      total: total,
+      newCount: newCount,
+      learningCount: learningCount,
+      dueCount: dueCount);
 }
 
 class _DeckEntry {
@@ -311,44 +428,8 @@ class _DeckNode {
   _DeckNode({required this.key, required this.label});
 }
 
-class _AddButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _AddButton({required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    // Same foreground-on-primary logic as AppButton's primary kind — c.primary
-    // is bright enough in dark mode to need a dark (not white) foreground for
-    // real contrast; this was hardcoding white unconditionally.
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final fg = dark ? const Color(0xFF04121F) : Colors.white;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: c.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_rounded, size: 16, color: fg),
-            const SizedBox(width: 4),
-            Text('New Deck',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: fg)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Column header above the deck table (Deck / New / Due), matching a real
+/// Column header above the deck table (Deck / New / Learn / Due), matching a real
 /// Anki deck browser's column layout.
 class _DeckTableHead extends StatelessWidget {
   final AppColors c;
@@ -362,15 +443,18 @@ class _DeckTableHead extends StatelessWidget {
         letterSpacing: 0.4,
         color: c.inkMuted);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 10, 6),
+      padding: const EdgeInsets.fromLTRB(12, 0, 6, 6),
       child: Row(
         children: [
-          Expanded(child: Text('DECK', style: headStyle)),
+          const Expanded(child: SizedBox.shrink()),
           SizedBox(
-              width: 44,
+              width: 40,
               child: Text('NEW', textAlign: TextAlign.center, style: headStyle)),
           SizedBox(
-              width: 44,
+              width: 40,
+              child: Text('LEARN', textAlign: TextAlign.center, style: headStyle)),
+          SizedBox(
+              width: 40,
               child: Text('DUE', textAlign: TextAlign.center, style: headStyle)),
           const SizedBox(width: 30),
         ],
@@ -385,16 +469,22 @@ class _DeckRow extends StatelessWidget {
   final bool open;
   final VoidCallback onToggle;
   final VoidCallback? onOpen;
-  final VoidCallback? onRename;
+  final VoidCallback onAddSub;
+  final VoidCallback onRename;
+  final VoidCallback onMove;
   final VoidCallback? onDelete;
+  final bool divider;
 
   const _DeckRow({
+    this.divider = true,
     required this.node,
     required this.depth,
     required this.open,
     required this.onToggle,
     this.onOpen,
-    this.onRename,
+    required this.onAddSub,
+    required this.onRename,
+    required this.onMove,
     this.onDelete,
   });
 
@@ -407,7 +497,7 @@ class _DeckRow extends StatelessWidget {
 
     return Column(
       children: [
-        if (depth > 0)
+        if (divider)
           Divider(height: 1, thickness: 1, color: c.line, indent: 12),
         Material(
           color: Colors.transparent,
@@ -419,13 +509,13 @@ class _DeckRow extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(
-                    width: 18,
+                    width: 26,
                     child: hasChildren
                         ? Icon(
                             open
                                 ? Icons.keyboard_arrow_down_rounded
                                 : Icons.keyboard_arrow_right_rounded,
-                            size: 18,
+                            size: 20,
                             color: c.inkMuted,
                           )
                         : null,
@@ -433,7 +523,7 @@ class _DeckRow extends StatelessWidget {
                   Expanded(
                     child: Text(
                       node.label,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 14.5,
@@ -443,39 +533,55 @@ class _DeckRow extends StatelessWidget {
                     ),
                   ),
                   SizedBox(
-                    width: 44,
+                    width: 40,
                     child: _CountBadge(
                         value: stats.newCount, color: const Color(0xFF2563EB)),
                   ),
                   SizedBox(
-                    width: 44,
+                    width: 40,
+                    child: _CountBadge(
+                        value: stats.learningCount, color: const Color(0xFFD97706)),
+                  ),
+                  SizedBox(
+                    width: 40,
                     child: _CountBadge(
                         value: stats.dueCount, color: const Color(0xFFDC2626)),
                   ),
                   SizedBox(
                     width: 30,
-                    child: onOpen == null
-                        ? null
-                        : PopupMenuButton<String>(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(Icons.more_vert_rounded,
-                                size: 18, color: c.inkMuted),
-                            onSelected: (v) {
-                              if (v == 'study') onOpen?.call();
-                              if (v == 'rename') onRename?.call();
-                              if (v == 'delete') onDelete?.call();
-                            },
-                            itemBuilder: (_) => [
-                              const PopupMenuItem(
-                                  value: 'study', child: Text('Study')),
-                              const PopupMenuItem(
-                                  value: 'rename', child: Text('Rename')),
-                              const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete',
-                                      style: TextStyle(color: Colors.red))),
-                            ],
-                          ),
+                    child: PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      // A child, not an icon: the icon form wraps itself in a
+                      // 48px-tall button, which made every row taller than the
+                      // Flashcards table's.
+                      child: SizedBox(
+                        width: 30,
+                        height: 20,
+                        child: Icon(Icons.more_vert_rounded,
+                            size: 18, color: c.inkMuted),
+                      ),
+                      onSelected: (v) {
+                        if (v == 'study') onOpen?.call();
+                        if (v == 'sub') onAddSub();
+                        if (v == 'rename') onRename();
+                        if (v == 'move') onMove();
+                        if (v == 'delete') onDelete?.call();
+                      },
+                      itemBuilder: (_) => [
+                        // A grouping row with no deck of its own cannot be
+                        // studied or deleted here; everything else works.
+                        if (onOpen != null)
+                          const PopupMenuItem(value: 'study', child: Text('Study')),
+                        const PopupMenuItem(value: 'sub', child: Text('Add sub-deck')),
+                        const PopupMenuItem(value: 'rename', child: Text('Rename')),
+                        const PopupMenuItem(value: 'move', child: Text('Move to...')),
+                        if (onDelete != null)
+                          const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete',
+                                  style: TextStyle(color: Colors.red))),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -499,7 +605,7 @@ class _CountBadge extends StatelessWidget {
       return Center(
         child: Text('0',
             style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w700,
                 color: c.inkMuted.withValues(alpha: 0.55))),
       );
@@ -507,7 +613,293 @@ class _CountBadge extends StatelessWidget {
     return Center(
       child: Text('$value',
           style: TextStyle(
-              fontSize: 12.5, fontWeight: FontWeight.w800, color: color)),
+              fontSize: 13.5, fontWeight: FontWeight.w800, color: color)),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The deck sheet: create, create inside another deck, rename, or move.
+//
+// Nesting used to mean typing "Parent::Child" into a name box. The sheet lets
+// the student pick where a deck goes from a list instead; underneath it still
+// saves the same "Parent::Child" name, so no existing deck changes.
+// ---------------------------------------------------------------------------
+
+/// One place a deck can go in the "Inside" list.
+class _ParentOption {
+  final String path; // "Cardiology::Valves"
+  final String label; // "Valves"
+  final int depth;
+  const _ParentOption(this.path, this.label, this.depth);
+}
+
+class _DeckSheetResult {
+  /// "" = top level, otherwise a path like "Cardiology::Valves".
+  final String parent;
+  final String name;
+  const _DeckSheetResult(this.parent, this.name);
+}
+
+String _pathLabel(String path) =>
+    path.isEmpty ? 'None (top level)' : path.split('::').join(' › ');
+
+/// [initialName] null means there is no name box (moving a deck).
+/// [allowParent] false shows where the deck sits but does not let it change
+/// (renaming).
+Future<_DeckSheetResult?> _showDeckSheet(
+  BuildContext context, {
+  required String heading,
+  required String actionLabel,
+  required List<_ParentOption> parents,
+  required String initialParent,
+  String? initialName,
+  bool allowParent = true,
+}) {
+  return showAdaptiveSheet<_DeckSheetResult>(
+    context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    backgroundColor: context.c.page,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+    builder: (_) => _DeckSheet(
+      heading: heading,
+      actionLabel: actionLabel,
+      parents: parents,
+      initialParent: initialParent,
+      initialName: initialName,
+      allowParent: allowParent,
+    ),
+  );
+}
+
+class _DeckSheet extends StatefulWidget {
+  final String heading;
+  final String actionLabel;
+  final List<_ParentOption> parents;
+  final String initialParent;
+  final String? initialName;
+  final bool allowParent;
+  const _DeckSheet({
+    required this.heading,
+    required this.actionLabel,
+    required this.parents,
+    required this.initialParent,
+    required this.initialName,
+    required this.allowParent,
+  });
+
+  @override
+  State<_DeckSheet> createState() => _DeckSheetState();
+}
+
+class _DeckSheetState extends State<_DeckSheet> {
+  late final TextEditingController _name =
+      TextEditingController(text: widget.initialName ?? '');
+  late String _parent = widget.initialParent;
+  bool _open = false;
+  bool _error = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _name.text.trim();
+    if (widget.initialName != null && name.isEmpty) {
+      setState(() => _error = true);
+      return;
+    }
+    Navigator.of(context).pop(_DeckSheetResult(_parent, name));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final hasName = widget.initialName != null;
+    final name = _name.text.trim();
+    final preview = [if (_parent.isNotEmpty) ..._parent.split('::'), if (name.isNotEmpty) name]
+        .join(' › ');
+
+    Widget label(String t) => Padding(
+          padding: const EdgeInsets.only(top: 14, bottom: 6),
+          child: Text(t,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: c.inkSoft)),
+        );
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: c.lineStrong,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(widget.heading,
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: c.inkStrong)),
+              if (hasName) ...[
+                label('Name'),
+                TextField(
+                  controller: _name,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    hintText: 'Deck name',
+                    errorText: _error ? 'Enter a name' : null,
+                    isDense: true,
+                    filled: true,
+                    fillColor: c.surface2,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: c.line),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: c.line),
+                    ),
+                  ),
+                  onChanged: (_) => setState(() => _error = false),
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                  onSubmitted: (_) => _save(),
+                ),
+              ],
+              label('Inside'),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.allowParent
+                    ? () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        setState(() => _open = !_open);
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: c.surface2,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: c.line),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(_pathLabel(_parent),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 14.5,
+                                color: widget.allowParent ? c.inkStrong : c.inkSoft)),
+                      ),
+                      if (widget.allowParent)
+                        Icon(
+                            _open
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: c.inkMuted),
+                    ],
+                  ),
+                ),
+              ),
+              if (_open)
+                Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  decoration: BoxDecoration(
+                    color: c.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: c.line),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _option('', 'None (top level)', 0),
+                      for (final p in widget.parents) _option(p.path, p.label, p.depth + 1),
+                    ],
+                  ),
+                ),
+              if (hasName && preview.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text.rich(TextSpan(
+                  style: TextStyle(fontSize: 12.5, color: c.inkSoft),
+                  children: [
+                    const TextSpan(text: 'Will be saved as '),
+                    TextSpan(
+                        text: preview,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, color: c.inkStrong)),
+                  ],
+                )),
+              ],
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: c.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: _save,
+                  child: Text(widget.actionLabel,
+                      style: const TextStyle(
+                          fontSize: 15.5, fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _option(String path, String text, int depth) {
+    final c = context.c;
+    final on = path == _parent;
+    return InkWell(
+      onTap: () => setState(() {
+        _parent = path;
+        _open = false;
+      }),
+      child: Container(
+        color: on ? c.primary.withValues(alpha: 0.10) : null,
+        padding: EdgeInsets.fromLTRB(12 + depth * 16.0, 11, 12, 11),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(text,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                      color: on ? c.primary : c.inkStrong)),
+            ),
+            if (on) Icon(Icons.check_rounded, size: 18, color: c.primary),
+          ],
+        ),
+      ),
     );
   }
 }

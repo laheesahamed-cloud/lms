@@ -62,6 +62,9 @@ let WorkspaceController = class WorkspaceController {
     updatePlannerTask(authorization, id, body) {
         return this.workspaceService.updatePlannerTask(authorization, id, body);
     }
+    clearPlannerTasks(authorization) {
+        return this.workspaceService.clearPlannerTasks(authorization);
+    }
     deletePlannerTask(authorization, id) {
         return this.workspaceService.deletePlannerTask(authorization, id);
     }
@@ -200,6 +203,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, Object]),
     __metadata("design:returntype", void 0)
 ], WorkspaceController.prototype, "updatePlannerTask", null);
+__decorate([
+    (0, common_1.Delete)('study-planner'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], WorkspaceController.prototype, "clearPlannerTasks", null);
 __decorate([
     (0, common_1.Delete)('study-planner/:id'),
     __param(0, (0, common_1.Headers)('authorization')),

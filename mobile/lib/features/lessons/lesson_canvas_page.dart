@@ -28,6 +28,8 @@ import 'topic_icons.dart';
 import 'watch_video_modal.dart';
 import '../personal_notes/personal_notes_store.dart';
 import '../../data/app_error.dart';
+import '../../services/xp_gain.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 // TEMPORARY: file-based tracing for diagnosing a writing-time jump/flicker
 // that's specific to My Notes. Live device logging (both `flutter run
@@ -677,6 +679,29 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     return _noteCache!;
   }
 
+  /// The "+6 XP" moment: a small green chip that rises from the Done button
+  /// and fades out in about a second. It sits in the overlay, so it never
+  /// covers the lesson or needs a tap to dismiss.
+  final GlobalKey _completeKey = GlobalKey();
+
+  void _flyXp(XpGain gain) {
+    if (!mounted) return;
+    final box = _completeKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached) return;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _XpFly(
+        buttonRect: rect,
+        label: gain.awarded > 0 ? '+${gain.awarded} XP' : 'Daily XP limit reached',
+        earned: gain.awarded > 0,
+        onDone: () => entry.remove(),
+      ),
+    );
+    overlay.insert(entry);
+  }
+
   Future<void> _showTooSoonDialog() {
     final c = context.c;
     return showDialog<void>(
@@ -715,14 +740,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       final gain = await markLessonComplete(ref.read(apiClientProvider), widget.lessonId);
       if (mounted) {
         setState(() { _lessonCompleted = true; _completionBusy = false; });
-        if (gain != null && gain.worthShowing) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Lesson complete  ${gain.label}'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        if (gain != null && gain.worthShowing) _flyXp(gain);
         // Record lesson completion as activity so it counts toward streak + active days.
         ref.read(apiClientProvider).dio.post(
           '/dashboard/student/activity',
@@ -2676,6 +2694,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
               _VideoButton(videoUrl: note.videoUrl, c: c),
             if (!widget.isPersonal && note != null && !note.locked && widget.lessonId.isNotEmpty)
               _CompleteButton(
+                key: _completeKey,
                 completed: _lessonCompleted,
                 busy: _completionBusy,
                 onTap: _markComplete,
@@ -2907,7 +2926,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _openColorPicker(AppColors c) {
     final isHl = _tool == _Tool.highlighter;
     final palette = isHl ? _hlPalette : _penPalette;
-    showModalBottomSheet(
+    showAdaptiveSheet(
       useRootNavigator: true,
       context: context,
       backgroundColor: c.card,
@@ -2967,7 +2986,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // Change the selected size preset's value.
   void _openSizePicker(AppColors c) {
     final isHl = _tool == _Tool.highlighter;
-    showModalBottomSheet(
+    showAdaptiveSheet(
       useRootNavigator: true,
       context: context,
       backgroundColor: c.card,
@@ -3862,47 +3881,104 @@ class _VideoButton extends StatelessWidget {
 }
 
 /// Compact "Mark Complete" / "Done" pill button for the note header.
-class _CompleteButton extends StatelessWidget {
+///
+/// Turning into Done is animated: the colour fades from blue to green, the
+/// label and tick cross-fade, the pill grows to its new width, and the whole
+/// button gives one small pop. It used to swap in a single frame.
+class _CompleteButton extends StatefulWidget {
   final bool completed;
   final bool busy;
   final VoidCallback onTap;
   final AppColors c;
-  const _CompleteButton({required this.completed, required this.busy, required this.onTap, required this.c});
+  const _CompleteButton({super.key, required this.completed, required this.busy, required this.onTap, required this.c});
+
+  @override
+  State<_CompleteButton> createState() => _CompleteButtonState();
+}
+
+class _CompleteButtonState extends State<_CompleteButton> with SingleTickerProviderStateMixin {
+  late final AnimationController _pop =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
+
+  @override
+  void didUpdateWidget(covariant _CompleteButton old) {
+    super.didUpdateWidget(old);
+    if (!old.completed && widget.completed) _pop.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _pop.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final color = completed ? const Color(0xFF10B981) : c.primary;
-    return GestureDetector(
-      onTap: (completed || busy) ? null : onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.13),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (busy)
-              SizedBox(
-                width: 13, height: 13,
-                child: CircularProgressIndicator(strokeWidth: 1.8, color: color),
-              )
-            else
-              Icon(
-                completed ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded,
-                size: 15, color: color,
+    final c = widget.c;
+    final completed = widget.completed;
+    final target = completed ? const Color(0xFF10B981) : c.primary;
+    return TweenAnimationBuilder<Color?>(
+      tween: ColorTween(end: target),
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOut,
+      builder: (_, color, __) {
+        final col = color ?? target;
+        return ScaleTransition(
+          // 1 -> 1.14 -> 1, one soft bounce when the lesson is completed.
+          scale: TweenSequence<double>([
+            TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.14).chain(CurveTween(curve: Curves.easeOut)), weight: 35),
+            TweenSequenceItem(tween: Tween(begin: 1.14, end: 1.0).chain(CurveTween(curve: Curves.elasticOut)), weight: 65),
+          ]).animate(_pop),
+          child: GestureDetector(
+            onTap: (completed || widget.busy) ? null : widget.onTap,
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: col.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: col.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 260),
+                      switchInCurve: Curves.easeOutBack,
+                      transitionBuilder: (child, anim) =>
+                          ScaleTransition(scale: anim, child: FadeTransition(opacity: anim, child: child)),
+                      child: widget.busy
+                          ? SizedBox(
+                              key: const ValueKey('busy'),
+                              width: 13, height: 13,
+                              child: CircularProgressIndicator(strokeWidth: 1.8, color: col),
+                            )
+                          : Icon(
+                              completed ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded,
+                              key: ValueKey(completed),
+                              size: 15, color: col,
+                            ),
+                    ),
+                    const SizedBox(width: 5),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 260),
+                      transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                      child: Text(
+                        completed ? 'Done' : 'Mark Complete',
+                        key: ValueKey(completed),
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: col),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            const SizedBox(width: 5),
-            Text(
-              completed ? 'Done' : 'Mark Complete',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: color),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -3936,7 +4012,6 @@ class _NoteContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: paper,
           borderRadius: BorderRadius.circular(_kNoteCardRadius),
-          border: Border.all(color: dark ? Colors.white12 : const Color(0xFFECDFC6)),
         ),
         margin: const EdgeInsets.all(_kNoteCardMargin),
         child: Stack(
@@ -3945,7 +4020,7 @@ class _NoteContent extends StatelessWidget {
             // carries the same subtle dot texture — it used to be a flat fill.
             Positioned.fill(child: CustomPaint(painter: _DotGridPainter(dot))),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 28),
+              padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -4159,8 +4234,11 @@ const _kPageGap = 14.0;
 /// the full box. Shared here so the writable-area check can match it exactly
 /// instead of letting a stroke land in the margin gutter or a clipped corner
 /// around the card, which reads as ink drawn "outside" the page.
-const _kNoteCardMargin = 10.0;
-const _kNoteCardRadius = 18.0;
+// The paper runs edge to edge: it used to sit 10pt in from each side, which
+// spent 20pt of a phone's width on a frame. The section cards inside it now
+// take the width the paper used to have.
+const _kNoteCardMargin = 0.0;
+const _kNoteCardRadius = 0.0;
 
 /// Section accent palette (web NoteCanvas `PALETTE`) — cycled by section index
 /// so each card gets a distinct colour, exactly like the web note.
@@ -5646,4 +5724,80 @@ class _PersonalPaperPainter extends CustomPainter {
       old.gapColor != gapColor ||
       old.pdfImageGen != pdfImageGen ||
       !listEquals(old.paper, paper);
+}
+
+
+/// The "+6 XP" chip: starts just under the Done button, rises about 34 points
+/// over it, and fades out. Removes itself from the overlay when finished.
+class _XpFly extends StatefulWidget {
+  final Rect buttonRect;
+  final String label;
+  final bool earned;
+  final VoidCallback onDone;
+  const _XpFly({
+    required this.buttonRect,
+    required this.label,
+    required this.earned,
+    required this.onDone,
+  });
+
+  @override
+  State<_XpFly> createState() => _XpFlyState();
+}
+
+class _XpFlyState extends State<_XpFly> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1250))
+        ..forward().whenComplete(widget.onDone);
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    // The same gold as the dashboard's XP card.
+    final color = widget.earned ? kXpGold : c.inkSoft;
+    // Positioned needs a Stack directly around it; the overlay's own Stack is
+    // not it once IgnorePointer is in between.
+    return IgnorePointer(
+      child: Stack(children: [AnimatedBuilder(
+        animation: _ctl,
+        builder: (_, child) {
+          final rise = Curves.easeOutCubic.transform(_ctl.value) * 34;
+          // Fully visible for the first part, then gone by the end.
+          final fade = _ctl.value < 0.45 ? 1.0 : 1 - ((_ctl.value - 0.45) / 0.55);
+          // A touch of pop-in so it reads as arriving, not just appearing.
+          final pop = 0.85 + 0.15 * Curves.easeOutBack.transform((_ctl.value * 4).clamp(0.0, 1.0));
+          return Positioned(
+            left: widget.buttonRect.center.dx - 90,
+            width: 180,
+            top: widget.buttonRect.bottom + 4 - rise,
+            child: Opacity(
+              opacity: fade.clamp(0.0, 1.0),
+              child: Transform.scale(scale: pop, child: child),
+            ),
+          );
+        },
+        child: Center(
+          child: Material(
+            color: Colors.transparent,
+            // Plain gold lettering, no pill. A soft shadow keeps it readable on
+            // the light page.
+            child: Text(widget.label,
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    shadows: [
+                      Shadow(color: Colors.black.withValues(alpha: 0.22), blurRadius: 6, offset: const Offset(0, 1)),
+                    ])),
+          ),
+        ),
+      )]),
+    );
+  }
 }

@@ -12,6 +12,7 @@ import '../../theme/tokens.dart';
 import 'pdf_import.dart';
 import 'personal_notes_store.dart';
 import '../../data/app_error.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 /// Remembered on-device, not scoped per-user: it's a display preference, not
 /// content, so there's no reason a second account on the same phone shouldn't
@@ -349,7 +350,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
   }
 
   Future<void> _pickFolderFor(PersonalNote note) async {
-    final target = await showModalBottomSheet<Object?>(
+    final target = await showAdaptiveSheet<Object?>(
       useRootNavigator: true,
       context: context,
       builder: (sheetCtx) => SafeArea(
@@ -451,7 +452,7 @@ class _PersonalNotesPageState extends State<PersonalNotesPage> {
 
   Future<void> _bulkMove() async {
     if (_selectedNotes.isEmpty) return;
-    final target = await showModalBottomSheet<Object?>(
+    final target = await showAdaptiveSheet<Object?>(
       useRootNavigator: true,
       context: context,
       builder: (sheetCtx) => SafeArea(

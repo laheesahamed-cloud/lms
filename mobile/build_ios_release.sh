@@ -5,7 +5,9 @@
 set -e
 
 FLUTTER="$HOME/development/flutter/bin/flutter"
-API="https://xyndrome.lk/api"
+# Set API_BASE_URL to build against another server (for example a local one);
+# otherwise the app is built for the live server.
+API="${API_BASE_URL:-https://xyndrome.lk/api}"
 BUNDLE="app.xyndrome.lk"
 cd "$(dirname "$0")"          # -> mobile/
 

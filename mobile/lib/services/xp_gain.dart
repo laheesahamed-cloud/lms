@@ -1,3 +1,8 @@
+import 'package:flutter/painting.dart';
+
+/// The one colour XP is always shown in (the dashboard's XP card gold).
+const Color kXpGold = Color(0xFFF4B740);
+
 /// What a quiz or lesson just paid in XP, so the screen that follows can say
 /// so. The server decides the amount; this only carries it for display.
 class XpGain {

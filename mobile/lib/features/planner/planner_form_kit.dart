@@ -51,7 +51,7 @@ class PlannerFormPage extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 28 + shellNavInset(context)),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, shellScrollEnd(context)),
           children: [
             _Hero(
               titleTop: titleTop,

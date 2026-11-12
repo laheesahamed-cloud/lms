@@ -72,7 +72,10 @@ class _AppButtonState extends State<AppButton> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (widget.leading != null) ...[
-                widget.leading!,
+                // An icon with no colour of its own follows the label's, not the
+                // theme's (which is the opposite of the button in light/dark).
+                IconTheme.merge(
+                    data: IconThemeData(color: fg), child: widget.leading!),
                 const SizedBox(width: 9),
               ],
               Flexible(

@@ -13,6 +13,17 @@ const double kShellPillHeight = 64;
 /// the bar sits low, close to the screen's edge.
 const double kShellPillMargin = 4;
 
+/// How far above the pill the tab bar's blur begins to come in. The bar's glass
+/// is this much taller than the pill itself.
+const double kShellBlurRunUp = 46;
+
+/// Bottom padding for a scroll view that runs behind the glass tab bar, so its
+/// LAST item comes to rest fully clear of the pill AND of the blur above it.
+/// [shellNavInset] alone only clears the pill, which left the end of a page
+/// (a button, the last card) sitting in the blurred band.
+double shellScrollEnd(BuildContext context) =>
+    shellNavInset(context) + kShellBlurRunUp + 20;
+
 double shellNavInset(BuildContext context) =>
     kShellPillHeight +
     kShellPillMargin +

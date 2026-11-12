@@ -10,6 +10,7 @@ import 'widgets/lottery_spinner.dart';
 import 'widgets/drug_mcq_card.dart';
 import 'widgets/drug_info_card.dart';
 import '../../widgets/shell_insets.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 enum _Phase { idle, spinning, mcq, card }
 
@@ -53,7 +54,7 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
   void _showLimitSheet() {
     final c = context.c;
     final limit = ref.read(drugQueueProvider).freeLimit;
-    showModalBottomSheet(
+    showAdaptiveSheet(
       useRootNavigator: true,
       context: context,
       backgroundColor: Colors.transparent,

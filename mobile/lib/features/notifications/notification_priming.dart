@@ -7,6 +7,7 @@ import '../../services/push.dart';
 import '../../state/notification_priming.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 /// Wraps the authenticated shell. On first mount after login it shows the
 /// notification priming sheet exactly once, then never again. This replaces the
@@ -43,7 +44,7 @@ class _NotificationPrimingGateState
 }
 
 Future<void> _showNotificationPrimingSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showAdaptiveSheet<void>(
     useRootNavigator: true,
     context: context,
     backgroundColor: context.c.card,

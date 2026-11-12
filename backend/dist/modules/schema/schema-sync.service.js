@@ -726,6 +726,11 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             });
             await step('osce tables', () => this.ensureOsceTables(conn));
             await step('xp tables', () => this.ensureXpTables(conn));
+            await step('study_planner_tasks item link', async () => {
+                await this.ensureColumn(conn, 'study_planner_tasks', 'item_type', 'VARCHAR(16) NULL');
+                await this.ensureColumn(conn, 'study_planner_tasks', 'item_id', 'INT NULL');
+                await this.ensureColumn(conn, 'study_planner_tasks', 'rule_json', 'TEXT NULL');
+            });
             await step('notification dismissals', () => this.ensureNotificationDismissalsTable(conn));
             await step('users.needs_profile_setup', () => this.ensureColumn(conn, 'users', 'needs_profile_setup', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_key'));
         }

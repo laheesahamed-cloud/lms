@@ -111,6 +111,9 @@ export declare class WorkspaceService {
         dueDate: string;
         status: string;
         category: PlannerTaskCategory;
+        itemType: string | null;
+        itemId: number | null;
+        rule: any;
         priority: PlannerTaskPriority;
         estimatedMinutes: number | null;
         createdAt: any;
@@ -139,11 +142,16 @@ export declare class WorkspaceService {
     }>;
     createPlannerTasksBulk(authorization: string | undefined, input: any): Promise<{
         ok: boolean;
+        rules: boolean;
         ids: number[];
     }>;
     updatePlannerTask(authorization: string | undefined, id: number, input: any): Promise<{
         ok: boolean;
         id: number;
+    }>;
+    clearPlannerTasks(authorization?: string): Promise<{
+        ok: boolean;
+        deleted: number;
     }>;
     deletePlannerTask(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
@@ -279,6 +287,9 @@ export declare class WorkspaceService {
     private normalizePlannerTaskPriority;
     private optionalPlannerEstimatedMinutes;
     private mapAnnouncement;
+    private normalizePlannerItemLink;
+    private normalizePlannerRule;
+    private parsePlannerRule;
     private mapPlannerTask;
     private mapQuestionReport;
 }

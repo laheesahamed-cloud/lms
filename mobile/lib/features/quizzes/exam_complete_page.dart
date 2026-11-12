@@ -205,7 +205,8 @@ class _Stat extends StatelessWidget {
 }
 
 
-/// "+16 XP" under the title after an exam, or the daily limit message.
+/// "+16 XP" under the title after an exam, or the daily limit message. Plain
+/// gold lettering like the lesson's, popping in once.
 class _XpChip extends StatelessWidget {
   final XpGain gain;
   final AppColors c;
@@ -214,25 +215,26 @@ class _XpChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final earned = gain.awarded > 0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: (earned ? c.primary : c.inkSoft).withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(99),
+    final color = earned ? kXpGold : c.inkSoft;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeOutBack,
+      builder: (_, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 10),
+          child: Transform.scale(scale: 0.8 + 0.2 * t, child: child),
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(earned ? Icons.bolt_rounded : Icons.hourglass_bottom_rounded,
-              size: 16, color: earned ? c.primary : c.inkSoft),
-          const SizedBox(width: 6),
-          Text(gain.label,
-              style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: earned ? c.primary : c.inkSoft)),
-        ],
-      ),
+      child: Text(gain.label,
+          style: TextStyle(
+              fontSize: earned ? 22 : 14,
+              fontWeight: FontWeight.w900,
+              color: color,
+              shadows: earned
+                  ? [Shadow(color: Colors.black.withValues(alpha: 0.22), blurRadius: 6, offset: const Offset(0, 1))]
+                  : null)),
     );
   }
 }

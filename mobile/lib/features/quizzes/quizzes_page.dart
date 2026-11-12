@@ -80,8 +80,8 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
               const SizedBox(height: 8),
               Text(
                 _exam
-                    ? 'Pick a course, then a subject set, and sit it timed.'
-                    : 'Pick a course, then a subject set to practise with answers.',
+                    ? 'Timed papers, marked when you finish.'
+                    : 'Practise with instant answers.',
                 style: TextStyle(fontSize: 14, color: c.inkSoft),
               ),
               if (examTypes.length > 1) ...[

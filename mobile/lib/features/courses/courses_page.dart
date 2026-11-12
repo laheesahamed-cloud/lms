@@ -85,7 +85,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
                   ),
               ]),
               const SizedBox(height: AppSpace.x2),
-              Text('Pick a course, then a subject, then a lesson to open its notes.',
+              Text('Your lessons, in course order.',
                   style: TextStyle(fontSize: 15.5, height: 1.4, color: c.inkSoft)),
               const SizedBox(height: AppSpace.x4),
               if (items.isEmpty)

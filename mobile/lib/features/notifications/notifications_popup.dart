@@ -4,11 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import 'notifications_repository.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 /// Opens the notifications popup (bottom sheet). Shows UNREAD items; tapping
 /// one marks it read and it disappears from the popup.
 void showNotificationsPopup(BuildContext context) {
-  showModalBottomSheet<void>(
+  showAdaptiveSheet<void>(
     useRootNavigator: true,
     context: context,
     isScrollControlled: true,

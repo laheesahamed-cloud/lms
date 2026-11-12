@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
+import '../../widgets/subject_pills.dart';
 import 'lesson_models.dart';
 import 'lessons_repository.dart';
 import '../../data/app_error.dart';
@@ -70,8 +71,6 @@ class _NotesCourseDetailPageState
           final groups = _subject == null
               ? allGroups
               : allGroups.where((g) => g.subjectName == _subject).toList();
-          final visibleLessons =
-              groups.fold<int>(0, (sum, g) => sum + g.lessons.length);
 
           // Each row's numbered badge counts across every visible subject —
           // not reset back to 1 at the top of each subject section — so
@@ -84,73 +83,85 @@ class _NotesCourseDetailPageState
             runningIndex += g.lessons.length;
           }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 20),
-                    color: c.inkMedium,
-                    onPressed: () => context.pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text('LESSONS',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      color: c.accent)),
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(courseTitle,
-                        style: TextStyle(
-                            fontSize: 25,
-                            fontWeight: FontWeight.w800,
-                            color: c.inkStrong,
-                            letterSpacing: -0.5,
-                            height: 1.15)),
-                  ),
-                  if (subjects.length > 1)
-                    _SubjectDropdown(
-                      value: _subject,
-                      subjects: subjects,
-                      onChanged: (v) => setState(() => _subject = v),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${groups.length} subject${groups.length == 1 ? '' : 's'} · $visibleLessons lesson${visibleLessons == 1 ? '' : 's'}',
-                style: TextStyle(fontSize: 14, color: c.inkSoft),
-              ),
-              const SizedBox(height: 20),
-              if (lessons.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 30),
-                  child: Text('No lessons available yet.',
-                      style: TextStyle(color: c.inkSoft)),
-                )
-              else
-                AnimationLimiter(
+          // The subject pills are a pinned sliver, as on the Q-bank, so a
+          // student deep in a long course can switch subject without
+          // scrolling back up.
+          final showPills = subjects.length > 1;
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: AnimationConfiguration.toStaggeredList(
-                      duration: const Duration(milliseconds: 320),
-                      childAnimationBuilder: (w) => SlideAnimation(
-                        verticalOffset: 20,
-                        child: FadeInAnimation(child: w),
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                                size: 20),
+                            color: c.inkMedium,
+                            onPressed: () => context.pop(),
+                          ),
+                        ],
                       ),
-                      children: sectionWidgets,
+                      const SizedBox(height: 4),
+                      Text('LESSONS',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.4,
+                              color: c.accent)),
+                      const SizedBox(height: 6),
+                      Text(courseTitle,
+                          style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w800,
+                              color: c.inkStrong,
+                              letterSpacing: -0.5,
+                              height: 1.15)),
+                    ],
+                  ),
+                ),
+              ),
+              if (showPills)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: PinnedPillsDelegate(
+                    child: SubjectPills(
+                      allLabel: 'All subjects',
+                      labels: subjects,
+                      selected: _subject,
+                      // Tapping the chosen pill again goes back to all.
+                      onTap: (s) =>
+                          setState(() => _subject = (s == _subject) ? null : s),
                     ),
                   ),
                 ),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16, showPills ? 6 : 0, 16, 28),
+                sliver: SliverToBoxAdapter(
+                  child: lessons.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 30),
+                          child: Text('No lessons available yet.',
+                              style: TextStyle(color: c.inkSoft)),
+                        )
+                      : AnimationLimiter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: AnimationConfiguration.toStaggeredList(
+                              duration: const Duration(milliseconds: 320),
+                              childAnimationBuilder: (w) => SlideAnimation(
+                                verticalOffset: 20,
+                                child: FadeInAnimation(child: w),
+                              ),
+                              children: sectionWidgets,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
             ],
           );
         },
@@ -394,83 +405,6 @@ class _CompletedTick extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: const Icon(Icons.check_rounded, size: 15, color: _green),
-    );
-  }
-}
-
-class _SubjectDropdown extends StatelessWidget {
-  final String? value;
-  final List<String> subjects;
-  final ValueChanged<String?> onChanged;
-  const _SubjectDropdown(
-      {required this.value, required this.subjects, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return GestureDetector(
-      onTapDown: (details) async {
-        final result = await showMenu<String?>(
-          context: context,
-          position: RelativeRect.fromLTRB(
-            details.globalPosition.dx - 200,
-            details.globalPosition.dy + 4,
-            details.globalPosition.dx,
-            0,
-          ),
-          color: c.surface1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          items: [
-            _item(context, c, null, value),
-            for (final s in subjects) _item(context, c, s, value),
-          ],
-        );
-        if (result != null || value != null) onChanged(result);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: c.surface2,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: c.line, width: 1),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(
-            value != null
-                ? (value!.length > 14 ? '${value!.substring(0, 13)}…' : value!)
-                : 'All',
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: value != null ? c.primary : c.inkMedium),
-          ),
-          const SizedBox(width: 4),
-          Icon(Icons.keyboard_arrow_down_rounded,
-              size: 18, color: value != null ? c.primary : c.inkMuted),
-        ]),
-      ),
-    );
-  }
-
-  PopupMenuItem<String?> _item(
-      BuildContext context, AppColors c, String? subject, String? selected) {
-    final isSelected = subject == selected;
-    final label = subject ?? 'All';
-    return PopupMenuItem<String?>(
-      value: subject,
-      child: Row(children: [
-        Icon(isSelected ? Icons.check_rounded : Icons.circle_outlined,
-            size: 16, color: isSelected ? c.primary : c.inkMuted),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(label,
-              maxLines: 2,
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? c.primary : c.inkStrong)),
-        ),
-      ]),
     );
   }
 }

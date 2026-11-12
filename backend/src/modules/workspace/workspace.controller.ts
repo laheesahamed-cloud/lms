@@ -101,6 +101,13 @@ export class WorkspaceController {
     return this.workspaceService.updatePlannerTask(authorization, id, body);
   }
 
+  // Clears the whole planner in ONE request. The app used to send one delete
+  // per task, all at once. Declared before ':id' so it is never read as an id.
+  @Delete('study-planner')
+  clearPlannerTasks(@Headers('authorization') authorization: string | undefined) {
+    return this.workspaceService.clearPlannerTasks(authorization);
+  }
+
   @Delete('study-planner/:id')
   deletePlannerTask(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
     return this.workspaceService.deletePlannerTask(authorization, id);

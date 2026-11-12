@@ -3,21 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
-import '../../widgets/glass_card.dart';
 import '../../services/flashcard_reminders.dart';
 import 'flashcards_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/flashcards_switch.dart';
+import '../personal_flashcards/personal_flashcards_page.dart';
 import '../../widgets/shell_insets.dart';
 import '../../data/app_error.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 /// Anki-style flashcards: a deck list with New / Learning / Due counts.
 /// Tap a deck to start an FSRS review session.
 class FlashcardsPage extends ConsumerStatefulWidget {
-  const FlashcardsPage({super.key});
+  /// Open on My Flashcards instead of the course decks.
+  final bool initialMine;
+  const FlashcardsPage({super.key, this.initialMine = false});
 
+  // Same colours as My Flashcards: New blue, Due red, Learning amber.
   static const _new = Color(0xFF2563EB);
-  static const _learning = Color(0xFFDC2626);
-  static const _due = Color(0xFF16A34A);
+  static const _learning = Color(0xFFD97706);
+  static const _due = Color(0xFFDC2626);
 
   @override
   ConsumerState<FlashcardsPage> createState() => _FlashcardsPageState();
@@ -25,6 +30,8 @@ class FlashcardsPage extends ConsumerStatefulWidget {
 
 class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
   int? _lastDueNow;
+  late bool _mine = widget.initialMine;
+  final GlobalKey<PersonalDecksBodyState> _personalKey = GlobalKey();
 
   // Folder keys (deck nodes with children) that are currently collapsed.
   // Seeded once, the first time deck data arrives, so every folder starts
@@ -63,208 +70,216 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
     });
   }
 
+  /// The course decks' pills, Study button, "Decks" row and table, as plain
+  /// children: the host scroll view supplies the skeleton around them.
+  Widget _courseBody(AppColors c, DecksResult result) {
+    if (!_collapseSeeded) {
+      _seedCollapsed(result.decks);
+      _collapseSeeded = true;
+    }
+    final rows = <_FlatDeck>[];
+    for (final d in result.decks) {
+      _flatten(d, rows);
+    }
+    final allNotes = <int>{};
+    for (final d in result.decks) {
+      allNotes.addAll(d.noteIds);
+    }
+    final dueNow = result.totalLearning + result.totalDue;
+    _maybeReconcile(dueNow);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _summary(c, result),
+        const SizedBox(height: 12),
+        if (allNotes.isNotEmpty)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: dueNow + result.totalNew == 0
+                  ? null
+                  : () => _study(context, allNotes.join(','), 'All decks'),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(() {
+                final all = dueNow + result.totalNew;
+                if (all == 0) return 'Nothing due today';
+                final n = all < kFlashSessionSize ? all : kFlashSessionSize;
+                return 'Study $n card${n == 1 ? '' : 's'}'
+                    '${all > n ? '  \u00B7  ${all - n} more' : ''}';
+              }()),
+            ),
+          ),
+        const SizedBox(height: 18),
+        _decksRow(
+          c,
+          canToggle: rows.any((r) => r.node.children.isNotEmpty),
+          allOpen: _collapsed.isEmpty,
+          onToggleAll: () => setState(() {
+            if (_collapsed.isEmpty) {
+              _seedCollapsed(result.decks);
+            } else {
+              _collapsed.clear();
+            }
+          }),
+        ),
+        const SizedBox(height: 4),
+        if (rows.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text('No flashcard decks yet.', style: TextStyle(color: c.inkSoft)),
+          )
+        else ...[
+          const _DeckTableHead(),
+          Container(
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(AppRadius.inner),
+              border: Border.all(color: c.line),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < rows.length; i++) ...[
+                  if (i > 0)
+                    Divider(height: 1, thickness: 1, color: c.line, indent: 12),
+                  _DeckRow(
+                    deck: rows[i],
+                    expanded: !_collapsed.contains(rows[i].node.key),
+                    onToggleExpand: rows[i].node.children.isNotEmpty
+                        ? () => _toggleCollapsed(rows[i].node.key)
+                        : null,
+                    onTap: () {
+                      final r = rows[i];
+                      if (r.node.locked) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('This deck is included with a subscription.')),
+                        );
+                        return;
+                      }
+                      _study(context, r.node.noteIds.join(','), r.node.label);
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// "Decks" with Collapse all / Expand all, and the reminders bell. One
+  /// widget so both sections draw it the same.
+  Widget _decksRow(AppColors c,
+      {required bool canToggle, required bool allOpen, required VoidCallback onToggleAll}) {
+    return Row(
+      children: [
+        Text('Decks',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
+        const Spacer(),
+        if (canToggle)
+          TextButton(
+            onPressed: onToggleAll,
+            child: Text(allOpen ? 'Collapse all' : 'Expand all',
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        IconButton(
+          tooltip: 'Reminders',
+          visualDensity: VisualDensity.compact,
+          onPressed: _showReminderSettings,
+          icon: Icon(Icons.notifications_outlined, size: 20, color: c.inkMedium),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final decksAsync = ref.watch(flashDecksProvider);
+    final decksAsync = _mine ? null : ref.watch(flashDecksProvider);
 
+    Widget body;
+    if (_mine) {
+      body = PersonalDecksBody(
+        key: _personalKey,
+        decksRow: _decksRow,
+      );
+    } else {
+      body = decksAsync!.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.only(top: 60),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('Could not load flashcards.\n${appError(e).display}',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: c.inkSoft, fontSize: 14)),
+        ),
+        data: (result) => _courseBody(c, result),
+      );
+    }
+
+    // One skeleton for both sections: the title and + stay fixed, the switch
+    // sits in the same place, and only the body under it changes.
     return SafeArea(
       bottom: false,
-      child: decksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text('Could not load flashcards.\n${appError(e).display}',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: c.inkSoft, fontSize: 14)),
-          ),
-        ),
-        data: (result) {
-          if (!_collapseSeeded) {
-            _seedCollapsed(result.decks);
-            _collapseSeeded = true;
-          }
-          final rows = <_FlatDeck>[];
-          for (final d in result.decks) {
-            _flatten(d, rows);
-          }
-          final allNotes = <int>{};
-          for (final d in result.decks) {
-            allNotes.addAll(d.noteIds);
-          }
-          final dueNow = result.totalLearning + result.totalDue;
-          _maybeReconcile(dueNow);
-
-          return RefreshIndicator(
-            onRefresh: () async => ref.refresh(flashDecksProvider.future),
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
-                  sliver: SliverMainAxisGroup(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            PageHeader(
-                              title: 'Flashcards',
-                              actions: [
-                                IconButton(
-                                  tooltip: 'Reminders',
-                                  onPressed: _showReminderSettings,
-                                  icon: Icon(Icons.notifications_outlined,
-                                      color: c.inkMedium),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            _summary(c, result),
-                            const SizedBox(height: 12),
-                            if (allNotes.isNotEmpty)
-                              SizedBox(
-                                width: double.infinity,
-                                child: FilledButton.icon(
-                                  onPressed: dueNow + result.totalNew == 0
-                                      ? null
-                                      : () => _study(context,
-                                          allNotes.join(','), 'All decks'),
-                                  icon: const Icon(Icons.play_arrow_rounded),
-                                  label: Text(dueNow + result.totalNew == 0
-                                      ? 'Nothing due today'
-                                      : 'Study ${dueNow + result.totalNew} card${dueNow + result.totalNew == 1 ? '' : 's'}'),
-                                ),
-                              ),
-                            const SizedBox(height: 18),
-                            Row(
-                              children: [
-                                Text('Decks',
-                                    style: TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w800,
-                                        color: c.inkStrong)),
-                                const Spacer(),
-                                if (rows.any((r) => r.node.children.isNotEmpty))
-                                  TextButton(
-                                    onPressed: () => setState(() {
-                                      final allExpanded = _collapsed.isEmpty;
-                                      if (allExpanded) {
-                                        _seedCollapsed(result.decks);
-                                      } else {
-                                        _collapsed.clear();
-                                      }
-                                    }),
-                                    child: Text(
-                                        _collapsed.isEmpty
-                                            ? 'Collapse all'
-                                            : 'Expand all',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700)),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            if (rows.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: Text('No flashcard decks yet.',
-                                    style: TextStyle(color: c.inkSoft)),
-                              ),
-                          ],
-                        ),
-                      ),
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final r = rows[index];
-                            final isFolder = r.node.children.isNotEmpty;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _DeckRow(
-                                deck: r,
-                                expanded: !_collapsed.contains(r.node.key),
-                                onToggleExpand: isFolder
-                                    ? () => _toggleCollapsed(r.node.key)
-                                    : null,
-                                onTap: () {
-                                  if (r.node.locked) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'This deck is included with a subscription.')),
-                                    );
-                                    return;
-                                  }
-                                  _study(context, r.node.noteIds.join(','),
-                                      r.node.label);
-                                },
-                              ),
-                            );
-                          },
-                          childCount: rows.length,
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 16),
-                            const Divider(),
-                            const SizedBox(height: 14),
-                            GlassCard(
-                              onTap: () =>
-                                  context.push('/app/my-flashcards'),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          c.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Icon(Icons.edit_note_rounded,
-                                        size: 22, color: c.primary),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text('My Flashcards',
-                                            style: TextStyle(
-                                                fontSize: 15.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: c.inkStrong)),
-                                        Text('Create your own personal decks',
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: c.inkSoft)),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(Icons.chevron_right_rounded,
-                                      color: c.inkMuted, size: 22),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            child: PageHeader(
+              title: 'Flashcards',
+              actions: [
+                IconButton(
+                  tooltip: 'New deck',
+                  onPressed: _addDeck,
+                  icon: Icon(Icons.add_rounded, color: c.primary),
                 ),
               ],
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                if (_mine) {
+                  await _personalKey.currentState?.reload();
+                } else {
+                  ref.invalidate(flashDecksProvider);
+                  await ref.read(flashDecksProvider.future);
+                }
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 28 + shellNavInset(context)),
+                children: [
+                  FlashcardsSwitch(
+                    mine: _mine,
+                    onChanged: (m) => setState(() => _mine = m),
+                  ),
+                  const SizedBox(height: 12),
+                  body,
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  /// + creates a deck of your own, from either section.
+  void _addDeck() {
+    if (!_mine) {
+      setState(() => _mine = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _personalKey.currentState?.createDeck();
+      });
+    } else {
+      _personalKey.currentState?.createDeck();
+    }
   }
 
   void _study(BuildContext context, String notesCsv, String title) {
@@ -274,7 +289,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
   }
 
   Future<void> _showReminderSettings() async {
-    await showModalBottomSheet<void>(
+    await showAdaptiveSheet<void>(
       useRootNavigator: true,
       context: context,
       isScrollControlled: true,
@@ -341,6 +356,40 @@ class _FlatDeck {
   _FlatDeck(this.node);
 }
 
+/// Column header above the deck table: DECK / NEW / LEARN / DUE.
+class _DeckTableHead extends StatelessWidget {
+  const _DeckTableHead();
+
+  static const double col = 40;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final head = TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.4,
+        color: c.inkMuted);
+    Widget cell(String t) => SizedBox(
+        width: col, child: Text(t, textAlign: TextAlign.center, style: head));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 6, 6),
+      child: Row(
+        children: [
+          const Expanded(child: SizedBox.shrink()),
+          cell('NEW'),
+          cell('LEARN'),
+          cell('DUE'),
+          // Same width as the ⋮ menu on My Flashcards rows, so the columns line up.
+          const SizedBox(width: 30),
+        ],
+      ),
+    );
+  }
+}
+
+/// One deck as a row of the table: arrow for folders, the name, then the New,
+/// Learning and Due counts. Nested decks are indented.
 class _DeckRow extends StatelessWidget {
   final _FlatDeck deck;
   final VoidCallback onTap;
@@ -357,73 +406,77 @@ class _DeckRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.c;
     final n = deck.node;
-    final isFolder = n.children.isNotEmpty;
-    final indent = (n.depth.clamp(0, 4)) * 14.0;
-    return GlassCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          SizedBox(width: indent),
-          if (onToggleExpand != null)
-            GestureDetector(
-              onTap: onToggleExpand,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  expanded
-                      ? Icons.expand_more_rounded
-                      : Icons.chevron_right_rounded,
-                  size: 20,
-                  color: c.inkSoft,
-                ),
+    final depth = n.depth.clamp(0, 4);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(12 + depth * 18.0, 11, 6, 11),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 26,
+                child: onToggleExpand == null
+                    ? null
+                    : GestureDetector(
+                        onTap: onToggleExpand,
+                        behavior: HitTestBehavior.opaque,
+                        child: Icon(
+                          expanded
+                              ? Icons.keyboard_arrow_down_rounded
+                              : Icons.keyboard_arrow_right_rounded,
+                          size: 20,
+                          color: c.inkMuted,
+                        ),
+                      ),
               ),
-            )
-          else
-            const SizedBox(width: 20),
-          const SizedBox(width: 2),
-          Icon(
-            isFolder ? Icons.folder_rounded : Icons.style_outlined,
-            size: 18,
-            color: n.locked ? c.inkMuted : c.primary,
+              Expanded(
+                child: Text(n.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: depth == 0 ? FontWeight.w800 : FontWeight.w600,
+                        color: n.locked ? c.inkSoft : c.inkStrong)),
+              ),
+              if (n.locked)
+                SizedBox(
+                  width: _DeckTableHead.col * 3,
+                  child: Icon(Icons.lock_outline_rounded,
+                      size: 18, color: c.inkMuted),
+                )
+              else ...[
+                _CountCell(value: n.newCount, color: FlashcardsPage._new),
+                _CountCell(value: n.learningCount, color: FlashcardsPage._learning),
+                _CountCell(value: n.dueCount, color: FlashcardsPage._due),
+              ],
+              const SizedBox(width: 30),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(n.label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w700,
-                    color: n.locked ? c.inkSoft : c.inkStrong)),
-          ),
-          const SizedBox(width: 8),
-          if (n.locked)
-            Icon(Icons.lock_outline_rounded, size: 18, color: c.inkMuted)
-          else
-            _counts(n),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _counts(DeckNode n) {
-    Widget num(int v, Color color) => Padding(
-          padding: const EdgeInsets.only(left: 6),
-          child: Text('$v',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: v == 0 ? color.withValues(alpha: 0.35) : color)),
-        );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        num(n.newCount, FlashcardsPage._new),
-        num(n.learningCount, FlashcardsPage._learning),
-        num(n.dueCount, FlashcardsPage._due),
-      ],
+class _CountCell extends StatelessWidget {
+  final int value;
+  final Color color;
+  const _CountCell({required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return SizedBox(
+      width: _DeckTableHead.col,
+      child: Center(
+        child: Text('$value',
+            style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: value > 0 ? FontWeight.w800 : FontWeight.w700,
+                color: value > 0 ? color : c.inkMuted.withValues(alpha: 0.55))),
+      ),
     );
   }
 }

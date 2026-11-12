@@ -51,7 +51,6 @@ import '../features/auscultation/auscultation_topic_page.dart';
 import '../features/auscultation/auscultation_quiz_page.dart';
 import '../features/personal_notes/personal_notes_page.dart';
 import '../features/personal_notes/personal_note_canvas_page.dart';
-import '../features/personal_flashcards/personal_flashcards_page.dart';
 import '../features/personal_flashcards/personal_deck_page.dart';
 import '../features/personal_flashcards/personal_review_page.dart';
 import '../config/launch_flags.dart';
@@ -514,7 +513,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/app/my-flashcards',
             pageBuilder: (c, s) => studyToolPage(c,
-                key: s.pageKey, child: const PersonalFlashcardsPage()),
+                key: s.pageKey, chrome: false, child: const FlashcardsPage(initialMine: true)),
           ),
         ],
       ),

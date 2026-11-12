@@ -169,6 +169,8 @@ const TRUE_FALSE_STATEMENT_MARKS = 0.4;
 const QUIZ_TOTAL_MARKS = 100;
 const QUIZ_PASS_MARK = 45;
 const TRUE_FALSE_STATEMENTS_PER_QUESTION = 5;
+// Newest attempts of one exam a student keeps; older ones are deleted on submit.
+const MAX_ATTEMPTS_PER_QUIZ = 10;
 const QUIZ_CONTENT_CACHE_MS = 30000;
 const DYNAMIC_QUESTION_POOL_CACHE_MS = 60000;
 const DYNAMIC_QUESTION_POOL_CACHE_MAX = 300;
@@ -1803,7 +1805,36 @@ export class QuizAttemptsService {
       [correctAnswers, wrongAnswers, unansweredQuestions, score, percentage, passStatus, attemptId]
     );
 
+    await this.pruneOldAttempts(connection, userId, quizId);
+
     return attemptId;
+  }
+
+  /**
+   * Keeps a student's newest MAX_ATTEMPTS_PER_QUIZ attempts of one exam and
+   * deletes the older ones (with their saved answers), so a student who retakes
+   * an exam many times cannot grow the table or their Results list without end.
+   * Runs inside the submit's own transaction. XP does not read these rows (it
+   * counts xp_events), so deleting them cannot hand out XP twice.
+   */
+  private async pruneOldAttempts(connection: PoolConnection, userId: number, quizId: number) {
+    const keep = MAX_ATTEMPTS_PER_QUIZ;
+    const [old] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM quiz_attempts
+        WHERE user_id = ? AND quiz_id = ? AND status = 'submitted'
+        ORDER BY id DESC
+        LIMIT 1000 OFFSET ${keep}`,
+      [userId, quizId]
+    );
+    if (!old.length) return;
+    const ids = old.map((row) => Number(row.id));
+    const marks = ids.map(() => '?').join(', ');
+    await connection.execute(`DELETE FROM student_answers WHERE attempt_id IN (${marks})`, ids);
+    await connection.execute(
+      `UPDATE exam_sessions SET submitted_attempt_id = NULL WHERE submitted_attempt_id IN (${marks})`,
+      ids
+    );
+    await connection.execute(`DELETE FROM quiz_attempts WHERE id IN (${marks})`, ids);
   }
 
   private buildExamQuestionAnswerRows(

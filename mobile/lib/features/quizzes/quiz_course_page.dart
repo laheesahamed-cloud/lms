@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import '../bookmarks/bookmark_button.dart';
 import 'quizzes_repository.dart';
 import '../../widgets/page_header.dart';
+import '../../widgets/subject_pills.dart';
 import '../../data/app_error.dart';
 
 /// One course's quiz sets — `/app/qbank/course/:courseId`.
@@ -157,7 +158,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
               if (showChips)
                 SliverPersistentHeader(
                   pinned: true,
-                  delegate: _PinnedChipsDelegate(
+                  delegate: PinnedPillsDelegate(
                     child: _filterChips(c, groups, scope),
                   ),
                 ),
@@ -562,37 +563,14 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     );
   }
 
-  /// Horizontal "All {noun}s" + per-group filter chips.
+  /// Horizontal "All {noun}s" + per-group filter pills (the shared pill row,
+  /// also used by the Lessons course screen).
   Widget _filterChips(AppColors c, List<QuizScopeGroup> groups, QuizScope scope) {
-    Widget chip(String label, bool active, VoidCallback onTap) => GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: AppDur.hover,
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: active ? c.primary : c.surface2,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(color: active ? c.primary : c.line),
-            ),
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: active ? Colors.white : c.inkMedium)),
-          ),
-        );
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          chip('All ${scope.groupingNoun}s', _activeGroup == null,
-              () => _onChipTap(null)),
-          for (final g in groups)
-            chip(g.label, _activeGroup == g.label, () => _onChipTap(g.label)),
-        ],
-      ),
+    return SubjectPills(
+      allLabel: 'All ${scope.groupingNoun}s',
+      labels: [for (final g in groups) g.label],
+      selected: _activeGroup,
+      onTap: _onChipTap,
     );
   }
 
@@ -762,8 +740,7 @@ class _QuizRow extends StatelessWidget {
     final label = quiz.rowLabel(index);
     final meta = '${quiz.totalQuestions} questions'
         '${exam && quiz.timeLimit > 0 ? ' · ${quiz.timeLimit} min' : ''}'
-        '${quiz.isFree ? ' · Free' : ''}'
-        '${quiz.isCompleted ? ' · Attempted' : ''}';
+        '${quiz.isFree ? ' · Free' : ''}';
 
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -850,45 +827,6 @@ class _CompletedTick extends StatelessWidget {
       child: const Icon(Icons.check_rounded, size: 15, color: _green),
     );
   }
-}
-
-/// Holds the subject filter chips at the top of the screen while the sets
-/// scroll beneath. Painted on the page colour, with a hairline that appears
-/// once content is actually sliding under it.
-class _PinnedChipsDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-  const _PinnedChipsDelegate({required this.child});
-
-  static const double _height = 56;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final c = context.c;
-    return Container(
-      height: _height,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: c.page,
-        border: Border(
-          bottom: BorderSide(
-            color: overlapsContent ? c.line : Colors.transparent,
-          ),
-        ),
-      ),
-      child: child,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _PinnedChipsDelegate oldDelegate) => true;
 }
 
 

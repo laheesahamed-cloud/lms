@@ -50,6 +50,20 @@ class _GlobalSearchState extends ConsumerState<GlobalSearch> {
     return true;
   }
 
+  /// Best matches first: the title starts with what was typed, then the title
+  /// has every word, then only the subject, topic or course matched. Ties keep
+  /// their course order (the sort below is stable).
+  static List<T> _ranked<T>(List<T> items, List<String> words, String Function(T) title) {
+    int score(T item) {
+      final t = title(item).toLowerCase();
+      if (words.every(t.contains)) return t.startsWith(words.first) ? 0 : 1;
+      return 2;
+    }
+    final indexed = [for (var i = 0; i < items.length; i++) (i, items[i], score(items[i]))];
+    indexed.sort((a, b) => a.$3 != b.$3 ? a.$3.compareTo(b.$3) : a.$1.compareTo(b.$1));
+    return [for (final e in indexed) e.$2];
+  }
+
   void _clear() {
     _controller.clear();
     setState(() {
@@ -166,6 +180,7 @@ class _GlobalSearchState extends ConsumerState<GlobalSearch> {
         .where((l) => _matches(
             words, [l.title, l.subjectName, l.topicName, l.courseTitle]))
         .toList();
+    final rankedLessons = _ranked(lessons, words, (l) => l.title);
 
     var quizzes = const <QuizListItem>[];
     var loading = lessonsAsync.isLoading && lessonsAsync.value == null;
@@ -182,10 +197,11 @@ class _GlobalSearchState extends ConsumerState<GlobalSearch> {
                 q.courseTitle,
               ]))
           .toList();
+      quizzes = _ranked(quizzes, words, (q) => q.title);
     }
 
     final shownLessons =
-        _allLessons ? lessons : lessons.take(_preview).toList();
+        _allLessons ? rankedLessons : rankedLessons.take(_preview).toList();
     final shownQuizzes =
         _allQuizzes ? quizzes : quizzes.take(_preview).toList();
 

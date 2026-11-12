@@ -411,17 +411,28 @@ class _LessonRow extends StatelessWidget {
                       color: lesson.locked ? c.inkSoft : c.inkStrong)),
             ),
             const SizedBox(width: 8),
-            Icon(
-              lesson.locked
-                  ? Icons.lock_outline_rounded
-                  : (lesson.done
-                      ? Icons.check_circle
-                      : Icons.chevron_right_rounded),
-              size: lesson.done ? 20 : 18,
-              color: lesson.locked
-                  ? c.inkMuted
-                  : (lesson.done ? c.success : c.accent),
-            ),
+            // A finished lesson wears the app's one tick: a soft green disc with
+            // a green check, as on a finished quiz or planner task.
+            if (!lesson.locked && lesson.done)
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_rounded,
+                    size: 15, color: Color(0xFF16A34A)),
+              )
+            else
+              Icon(
+                lesson.locked
+                    ? Icons.lock_outline_rounded
+                    : Icons.chevron_right_rounded,
+                size: 18,
+                color: lesson.locked ? c.inkMuted : c.accent,
+              ),
           ],
         ),
       ),

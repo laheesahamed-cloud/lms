@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import 'personal_review_page.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import 'personal_flashcards_store.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 /// Cards inside one personal deck. Add / edit / delete cards, start review.
 class PersonalDeckPage extends StatefulWidget {
@@ -134,7 +136,14 @@ class _PersonalDeckPageState extends State<PersonalDeckPage> {
                   child: FilledButton.icon(
                     onPressed: _startReview,
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text('Study $dueCount card${dueCount == 1 ? '' : 's'}'),
+                    label: Text(() {
+                      final n = dueCount < kPersonalSessionSize
+                          ? dueCount
+                          : kPersonalSessionSize;
+                      final rest = dueCount - n;
+                      return 'Study $n card${n == 1 ? '' : 's'}'
+                          '${rest > 0 ? '  \u00B7  $rest more due' : ''}';
+                    }()),
                   ),
                 ),
               ),
@@ -194,7 +203,7 @@ Future<(String, String)?> _showCardEditor(
   final frontCtrl = TextEditingController(text: initFront);
   final backCtrl = TextEditingController(text: initBack);
 
-  return showModalBottomSheet<(String, String)>(
+  return showAdaptiveSheet<(String, String)>(
     useRootNavigator: true,
     context: context,
     isScrollControlled: true,

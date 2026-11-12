@@ -2,8 +2,11 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart' show DioException;
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
@@ -11,11 +14,16 @@ import '../../services/study_reminders.dart';
 import 'add_task_page.dart';
 import 'generate_plan_page.dart';
 import 'planner_repository.dart';
+import '../flashcards/flashcards_repository.dart';
+import '../lessons/lessons_repository.dart';
+import '../quizzes/quizzes_repository.dart';
 import '../subscriptions/paywall_sheet.dart';
 import '../subscriptions/subscriptions_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
+import '../../data/api_client.dart';
 import '../../data/app_error.dart';
+import '../../widgets/adaptive_sheet.dart';
 
 class PlannerPage extends ConsumerStatefulWidget {
   const PlannerPage({super.key});
@@ -47,6 +55,11 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
 
   /// Re-schedule reminders only when the task set actually changed (web-style
   /// reconcile: cancel our prior batch, reschedule from prefs + tasks).
+  // True from the end of the fold until the server has really finished
+  // clearing: the planner shows its empty state at once instead of waiting on
+  // every delete.
+  bool _clearedLocally = false;
+
   void _maybeReconcile(List<PlannerTask> tasks) {
     final sig = tasks.map((t) => '${t.id}:${t.status}:${t.dueDate}').join('|');
     if (sig == _lastSig) return;
@@ -54,6 +67,106 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       StudyReminders.reconcile(tasks);
     });
+  }
+
+  /// A task tied to a real lesson or quiz is done when THAT is done, read from
+  /// the lessons and Q-bank lists the app already holds. They are loaded once,
+  /// kept for every screen, and refreshed whenever a lesson is completed or an
+  /// exam submitted, so the planner asks the server for nothing extra and can
+  /// never disagree with the Lessons or Q-bank screens.
+  ///
+  /// A list is only read when the planner actually has a task of that kind, and
+  /// while one is still loading the server's own status stands in.
+  List<PlannerTask> _withRealStatus(List<PlannerTask> raw) {
+    final lessons = raw.any((t) => t.itemType == 'lesson')
+        ? ref.watch(lessonsListProvider).value
+        : null;
+    final quizzes = raw.any((t) => t.itemType == 'quiz')
+        ? ref.watch(quizListProvider).value
+        : null;
+    final doneLessons = lessons == null
+        ? null
+        : {for (final l in lessons) if (l.lessonCompleted && l.lessonId.isNotEmpty) l.lessonId};
+    final doneQuizzes = quizzes == null
+        ? null
+        : {for (final q in quizzes) if (q.isCompleted) q.id};
+    // A deck is done when nothing in it is new, learning or due.
+    final decks = raw.any((t) => t.itemType == 'flashcards')
+        ? ref.watch(flashDecksProvider).value
+        : null;
+    final deckLeft = decks == null ? null : _cardsLeftByNote(decks.decks);
+
+    return [
+      for (final t in raw)
+        if (t.itemType == 'lesson' && doneLessons != null)
+          t.withStatus(doneLessons.contains('${t.itemId}') ? 'done' : 'todo')
+        else if (t.itemType == 'quiz' && doneQuizzes != null)
+          t.withStatus(doneQuizzes.contains('${t.itemId}') ? 'done' : 'todo')
+        else if (t.itemType == 'flashcards' && deckLeft != null && deckLeft.containsKey(t.itemId))
+          t.withStatus(deckLeft[t.itemId] == 0 ? 'done' : 'todo')
+        else
+          t,
+    ];
+  }
+
+  /// For each note, how many cards are still new, learning or due in the
+  /// lesson-level deck that holds it.
+  Map<int, int> _cardsLeftByNote(List<DeckNode> roots) {
+    final left = <int, int>{};
+    void walk(DeckNode n) {
+      if (n.type == 'lesson') {
+        final remaining = n.newCount + n.learningCount + n.dueCount;
+        for (final id in n.noteIds) {
+          left[id] = remaining;
+        }
+      }
+      for (final child in n.children) {
+        walk(child);
+      }
+    }
+
+    for (final root in roots) {
+      walk(root);
+    }
+    return left;
+  }
+
+  DeckNode? _deckForNote(int noteId) {
+    DeckNode? found;
+    void walk(DeckNode n) {
+      if (found != null) return;
+      if (n.type == 'lesson' && n.noteIds.contains(noteId)) {
+        found = n;
+        return;
+      }
+      for (final child in n.children) {
+        walk(child);
+      }
+    }
+
+    for (final root in ref.read(flashDecksProvider).value?.decks ?? const <DeckNode>[]) {
+      walk(root);
+    }
+    return found;
+  }
+
+  /// Opens the lesson, quiz or flashcard deck a linked task stands for.
+  void _openLinked(PlannerTask t) {
+    if (!t.isLinked) return;
+    switch (t.itemType) {
+      case 'lesson':
+        context.push('/app/study/lesson/${t.itemId}');
+      case 'quiz':
+        context.push('/app/quizzes/${t.itemId}');
+      case 'flashcards':
+        final deck = _deckForNote(t.itemId!);
+        if (deck == null) {
+          context.push('/app/flashcards'); // the decks list, if the deck is gone
+        } else {
+          context.push(
+              '/app/flashcards/review?notes=${deck.noteIds.join(',')}&title=${Uri.encodeComponent(deck.label)}');
+        }
+    }
   }
 
   @override
@@ -66,6 +179,11 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       body: SafeArea(
         bottom: false,
         child: tasksAsync.when(
+          // Every change invalidates this list (a task added, a plan made, the
+          // planner cleared). Without this each one swapped the whole planner
+          // for a full-screen spinner until the reload landed; the old list now
+          // stays up and updates in place.
+          skipLoadingOnReload: true,
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
             child: Padding(
@@ -75,7 +193,8 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                   style: TextStyle(color: c.inkSoft, fontSize: 14)),
             ),
           ),
-          data: (tasks) {
+          data: (rawTasks) {
+            final tasks = _clearedLocally ? const <PlannerTask>[] : _withRealStatus(rawTasks);
             _maybeReconcile(tasks);
             return _mindMap(c, tasks);
           },
@@ -117,13 +236,26 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
         bySubject.putIfAbsent(key, () => []).add(t);
       }
     }
+    // Oldest first inside every branch. A plan saves its tasks in lesson order,
+    // so id order IS that order. The server returns a day newest-first, which
+    // put the first lesson of the day last.
+    for (final list in byDate.values) {
+      list.sort((a, b) => a.id.compareTo(b.id));
+    }
+    for (final list in bySubject.values) {
+      list.sort((a, b) => a.id.compareTo(b.id));
+    }
+    final foldStep = _foldStepMs(total);
     final sortedDates = byDate.keys.toList()..sort();
     final sortedSubjects = bySubject.keys.toList()..sort();
 
     return RefreshIndicator(
       onRefresh: () async => ref.refresh(plannerTasksProvider.future),
       child: ListView(
-        padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
+        // While clearing, build every row (not just those near the screen) so
+        // every day folds, not only the one in view.
+        scrollCacheExtent: _resetting ? const ScrollCacheExtent.pixels(100000) : null,
+        padding: EdgeInsets.fromLTRB(16, 14, 16, shellScrollEnd(context)),
         children: [
           PageHeader(
             title: 'Planner',
@@ -135,7 +267,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
               ),
               if (tasks.isNotEmpty)
                 IconButton(
-                  tooltip: 'Reset — clear all tasks',
+                  tooltip: 'Clear all tasks',
                   onPressed: _resetting ? null : _confirmReset,
                   icon: _resetting
                       ? const SizedBox(
@@ -143,7 +275,9 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2.4, color: Color(0xFFDC2626)),
                         )
-                      : const Icon(Icons.refresh_rounded, color: Color(0xFFDC2626)),
+                      // A bin, not a refresh arrow: a red reload icon read as
+                      // "reload" and sat one tap from deleting everything.
+                      : const Icon(Icons.delete_sweep_rounded, color: Color(0xFFDC2626)),
                 ),
               // Was a FloatingActionButton, which the glass tab bar now sits
               // under — and the page's own primary action belongs with its
@@ -210,9 +344,14 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
           if (tasks.isEmpty)
             _emptyState(c)
           else ...[
-            _hub(c, total, doneCount),
-            _stem(c),
-            ..._buildBranches(c, sortedDates, byDate, sortedSubjects, bySubject),
+            // The ring and its percentage fold away with everything else, last,
+            // once the tasks below it have gone.
+            _FoldUp(
+              exiting: _resetting,
+              delayMs: (total + 1) * foldStep,
+              child: Column(children: [_hub(c, total, doneCount), _stem(c)]),
+            ),
+            ..._buildBranches(c, sortedDates, byDate, sortedSubjects, bySubject, total, foldStep),
           ],
         ],
       ),
@@ -228,17 +367,19 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     Map<DateTime, List<PlannerTask>> byDate,
     List<String> sortedSubjects,
     Map<String, List<PlannerTask>> bySubject,
+    int total,
+    int foldStep,
   ) {
     final branches = <Widget>[];
     var index = 0;
     for (final d in sortedDates) {
       final tasks = byDate[d]!;
-      branches.add(_branch(c, _dayLabel(d), tasks, startIndex: index));
+      branches.add(_branch(c, _dayLabel(d), tasks, startIndex: index, total: total, foldStep: foldStep));
       index += tasks.length;
     }
     for (final s in sortedSubjects) {
       final tasks = bySubject[s]!;
-      branches.add(_branch(c, s, tasks, startIndex: index));
+      branches.add(_branch(c, s, tasks, startIndex: index, total: total, foldStep: foldStep));
       index += tasks.length;
     }
     return branches;
@@ -315,14 +456,20 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
         child: Container(width: 2, height: 16, color: c.line),
       );
 
-  Widget _branch(AppColors c, String label, List<PlannerTask> tasks, {required int startIndex}) {
+  Widget _branch(AppColors c, String label, List<PlannerTask> tasks,
+      {required int startIndex, required int total, required int foldStep}) {
     final done = tasks.where((t) => t.done).length;
+    // Folds after its own tasks have gone (they go bottom-first).
+    final headerDelay = (total - startIndex) * foldStep;
     final collapsed = _collapsedBranches.contains(label);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
-          InkWell(
+          _FoldUp(
+            exiting: _resetting,
+            delayMs: headerDelay,
+            child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () => setState(() {
               if (collapsed) {
@@ -360,7 +507,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                 ],
               ),
             ),
-          ),
+          )),
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
@@ -369,7 +516,11 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                 ? const SizedBox(width: double.infinity)
                 : Column(
                     children: [
-                      Container(width: 2, height: 12, color: c.line),
+                      _FoldUp(
+                        exiting: _resetting,
+                        delayMs: headerDelay,
+                        child: Container(width: 2, height: 12, color: c.line),
+                      ),
                       // No leading connector tick here — it used to sit before
                       // the card as a sibling in a Row, which ate 18px of
                       // width from the LEFT only (nothing matching on the
@@ -377,16 +528,21 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                       // center. The card now takes the full row width,
                       // symmetric with the branch pill above it.
                       for (var i = 0; i < tasks.length; i++)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 9),
-                          child: _StaggeredExit(
-                            index: startIndex + i,
-                            exiting: _resetting,
+                        _FoldUp(
+                          exiting: _resetting,
+                          delayMs: (total - 1 - (startIndex + i)) * foldStep,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 9),
                             child: _SwipeIdentityCard(
                               key: ValueKey(tasks[i].id),
                               task: tasks[i],
-                              isNew: _newTaskIds.contains(tasks[i].id),
+                              isNew: _newTaskIds.contains(tasks[i].id) ||
+                                  (tasks[i].ruleId != null && _newTaskIds.contains(tasks[i].ruleId)),
                               onComplete: () => _complete(tasks[i]),
+                              // Lessons and Q-bank sets finish by being done,
+                              // not by a swipe: tapping opens them.
+                              canSwipe: !tasks[i].isLinked,
+                              onOpen: tasks[i].isLinked ? () => _openLinked(tasks[i]) : null,
                             ),
                           ),
                         ),
@@ -491,7 +647,8 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Clear your planner?'),
         content: Text(
-            'This permanently deletes all ${tasks.length} task${tasks.length == 1 ? '' : 's'}. This cannot be undone.'),
+            'This permanently deletes all ${tasks.length} task${tasks.length == 1 ? '' : 's'} from your planner. '
+            'Your lesson and Q-bank progress is not affected. This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
@@ -503,29 +660,80 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     );
     if (ok != true || !mounted) return;
 
-    // Let every card play its staggered swipe-away exit first (see
-    // _StaggeredExit) so clearing the planner feels like watching each task
-    // get swept away, not an instant swap to the empty state. The spinner on
+    // Let the page fold up first (see _FoldUp): the tasks close from the
+    // bottom up, then the day heading, then the ring and its percentage. The spinner on
     // the reset button (driven by _resetting) gives immediate feedback that
     // the tap registered, before the wave even starts.
     setState(() => _resetting = true);
-    final waveMs = 260 + (tasks.length.clamp(0, 24) * 45) + 260;
+    final api = ref.read(plannerApiProvider);
+    // The request starts straight away and the page folds alongside it.
+    final request = _clearOnServer(api, tasks);
+    final waveMs = (tasks.length + 2) * _foldStepMs(tasks.length) + 420;
     await Future.delayed(Duration(milliseconds: waveMs));
     if (!mounted) return;
 
-    final api = ref.read(plannerApiProvider);
+    // The fold is done. Show the empty planner NOW; the server may still be
+    // working through the deletes (on a server without the one-request clear it
+    // is hundreds of them), and the student should not sit watching that.
+    setState(() {
+      _newTaskIds.clear();
+      _resetting = false;
+      _clearedLocally = true;
+    });
+
+    Object? failure;
     try {
-      await Future.wait(tasks.map((t) => deletePlannerTask(api, t.id)));
-      if (!mounted) return;
-      setState(() {
-        _newTaskIds.clear();
-        _resetting = false;
-      });
-      ref.invalidate(plannerTasksProvider);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _resetting = false);
-      _toast('Could not clear the planner.');
+      await request;
+    } catch (e) {
+      failure = e;
+    }
+    if (mounted) setState(() => _clearedLocally = false);
+    // Always re-read the list, success or not. After a failure some tasks may
+    // already be gone, and showing the old list would show tasks that no longer
+    // exist.
+    ref.invalidate(plannerTasksProvider);
+    if (failure != null) _toast('Could not clear every task. Pull down to refresh.');
+  }
+
+  /// One request on an up-to-date server. On an older one, the deletes run ten
+  /// at a time, and one failing does not stop the rest (it used to abort the
+  /// whole clear, leaving everything after it behind).
+  Future<void> _clearOnServer(ApiClient api, List<PlannerTask> tasks) async {
+    try {
+      await clearPlannerTasks(api);
+      return;
+    } on PlannerClearUnsupported {
+      // fall through to the per-task path
+    }
+
+    Future<bool> deleteOne(PlannerTask t) async {
+      try {
+        await deletePlannerTask(api, t.id);
+        return true;
+      } on DioException catch (e) {
+        return e.response?.statusCode == 404; // already gone counts as cleared
+      } catch (_) {
+        return false;
+      }
+    }
+
+    final queue = List<PlannerTask>.of(tasks);
+    final failed = <PlannerTask>[];
+    Future<void> worker() async {
+      while (queue.isNotEmpty) {
+        final t = queue.removeLast();
+        if (!await deleteOne(t)) failed.add(t);
+      }
+    }
+
+    await Future.wait(List.generate(10, (_) => worker()));
+    // One more try for any that failed, a few at a time.
+    final stillFailed = <PlannerTask>[];
+    for (final t in failed) {
+      if (!await deleteOne(t)) stillFailed.add(t);
+    }
+    if (stillFailed.isNotEmpty) {
+      throw StateError('${stillFailed.length} tasks could not be deleted');
     }
   }
 
@@ -604,7 +812,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 
   Future<void> _showReminderSettings(List<PlannerTask> tasks) async {
-    await showModalBottomSheet<void>(
+    await showAdaptiveSheet<void>(
       useRootNavigator: true,
       context: context,
       isScrollControlled: true,
@@ -616,12 +824,6 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 }
 
-/// Wraps a task card so a Reset can sweep every card off-screen with the
-/// same slide + fade language as swiping one away by hand, staggered by
-/// [index] so the whole page clears as one wave instead of all at once.
-/// Purely a start-delay + implicit-animation combo (AnimatedSlide/Opacity
-/// flipping once the delay elapses) — no AnimationController needed since
-/// nothing here ever plays in reverse.
 /// A green check that pops in with a bounce — used wherever the app tells
 /// the student "done", instead of an emoji.
 class _AnimatedCheckBadge extends StatelessWidget {
@@ -648,69 +850,65 @@ class _AnimatedCheckBadge extends StatelessWidget {
   }
 }
 
-class _StaggeredExit extends StatefulWidget {
-  final int index;
+/// How long to wait between one row folding and the next, so the whole page
+/// folds up in about a second however long the plan is (110 ms apart for a
+/// short one, down to 3 ms for hundreds of tasks).
+int _foldStepMs(int taskCount) =>
+    (1000 / (taskCount < 1 ? 1 : taskCount)).clamp(3, 110).round();
+
+/// Folds its child up when the planner is cleared: the height closes to zero
+/// while it fades, after [delayMs]. Rows are given later delays the nearer the
+/// top they are, so the page closes from the bottom up like rows being deleted.
+/// If the clear fails and [exiting] goes false again, it opens back out.
+class _FoldUp extends StatefulWidget {
   final bool exiting;
+  final int delayMs;
   final Widget child;
-  const _StaggeredExit({required this.index, required this.exiting, required this.child});
+  const _FoldUp({required this.exiting, required this.delayMs, required this.child});
 
   @override
-  State<_StaggeredExit> createState() => _StaggeredExitState();
+  State<_FoldUp> createState() => _FoldUpState();
 }
 
-class _StaggeredExitState extends State<_StaggeredExit> {
-  bool _gone = false;
+class _FoldUpState extends State<_FoldUp> {
+  bool _folded = false;
 
   @override
-  void didUpdateWidget(covariant _StaggeredExit old) {
+  void initState() {
+    super.initState();
+    // Built after the clear already began (it was off-screen): fold it too.
+    if (widget.exiting) _scheduleFold();
+  }
+
+  void _scheduleFold() {
+    Future.delayed(Duration(milliseconds: widget.delayMs), () {
+      if (mounted && widget.exiting) setState(() => _folded = true);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _FoldUp old) {
     super.didUpdateWidget(old);
     if (widget.exiting && !old.exiting) {
-      Future.delayed(Duration(milliseconds: (widget.index.clamp(0, 24)) * 45), () {
-        if (mounted) setState(() => _gone = true);
-      });
+      _scheduleFold();
+    } else if (!widget.exiting && old.exiting) {
+      setState(() => _folded = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // No clipping wrapper here, matching the existing swipe-to-complete
-    // gesture on the card itself — that also lets the card translate past
-    // its own bounds while flying off, uninterrupted.
-    return AnimatedSlide(
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeInCubic,
-      offset: _gone ? const Offset(1.35, 0) : Offset.zero,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeIn,
-        opacity: _gone ? 0 : 1,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            widget.child,
-            if (_gone)
-              Positioned(
-                top: -8,
-                right: 12,
-                child: Transform.rotate(
-                  angle: 0.18,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(color: const Color(0xFFDC2626), width: 2),
-                      color: const Color(0xFFDC2626).withValues(alpha: 0.14),
-                    ),
-                    child: const Text('REMOVED',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
-                            color: Color(0xFFDC2626))),
-                  ),
-                ),
-              ),
-          ],
+    return ClipRect(
+      child: AnimatedAlign(
+        alignment: Alignment.topCenter,
+        heightFactor: _folded ? 0 : 1,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeInCubic,
+        child: AnimatedOpacity(
+          opacity: _folded ? 0 : 1,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeIn,
+          child: widget.child,
         ),
       ),
     );
@@ -725,11 +923,17 @@ class _SwipeIdentityCard extends StatefulWidget {
   final PlannerTask task;
   final bool isNew;
   final VoidCallback onComplete;
+  // False for a task tied to a real lesson or quiz: it cannot be swiped done.
+  final bool canSwipe;
+  // Called when a linked task is tapped (opens the lesson or quiz).
+  final VoidCallback? onOpen;
   const _SwipeIdentityCard({
     super.key,
     required this.task,
     this.isNew = false,
     required this.onComplete,
+    this.canSwipe = true,
+    this.onOpen,
   });
 
   @override
@@ -777,6 +981,13 @@ class _SwipeIdentityCardState extends State<_SwipeIdentityCard>
   @override
   Widget build(BuildContext context) {
     final task = widget.task;
+    if (!widget.canSwipe) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onOpen,
+        child: _card(context, dx: 0, interactive: false),
+      );
+    }
     if (task.done) {
       return _card(context, dx: 0, interactive: false);
     }
@@ -963,6 +1174,11 @@ class _SwipeIdentityCardState extends State<_SwipeIdentityCard>
                     padding: const EdgeInsets.only(right: 10),
                     child: Icon(Icons.check_circle_rounded,
                         size: 18, color: const Color(0xFF16A34A).withValues(alpha: 0.45)),
+                  )
+                else if (widget.onOpen != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(Icons.chevron_right_rounded, size: 20, color: c.inkMuted),
                   ),
                 ],
               ),

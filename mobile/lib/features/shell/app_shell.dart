@@ -199,7 +199,7 @@ class _AppShellState extends ConsumerState<AppShell> with RouteAware {
 
 
 /// How far above the pill the blur begins to come in.
-const double _kBlurRunUp = 46;
+const double _kBlurRunUp = kShellBlurRunUp;
 
 /// Floating, curved tab bar (detached pill) — mirrors the LMS student nav:
 /// rounded surface + soft shadow, active tab in a tinted pill that shows its

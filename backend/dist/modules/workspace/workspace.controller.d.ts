@@ -72,8 +72,11 @@ export declare class WorkspaceController {
         description: string;
         dueDate: string;
         status: string;
-        category: "lesson" | "general" | "quiz" | "exam" | "review" | "flashcards";
-        priority: "high" | "medium" | "low";
+        category: "general" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+        itemType: string | null;
+        itemId: number | null;
+        rule: any;
+        priority: "low" | "medium" | "high";
         estimatedMinutes: number | null;
         createdAt: any;
         updatedAt: any;
@@ -121,11 +124,16 @@ export declare class WorkspaceController {
     }>;
     createPlannerTasksBulk(authorization: string | undefined, body: any): Promise<{
         ok: boolean;
+        rules: boolean;
         ids: number[];
     }>;
     updatePlannerTask(authorization: string | undefined, id: number, body: any): Promise<{
         ok: boolean;
         id: number;
+    }>;
+    clearPlannerTasks(authorization: string | undefined): Promise<{
+        ok: boolean;
+        deleted: number;
     }>;
     deletePlannerTask(authorization: string | undefined, id: number): Promise<{
         ok: boolean;

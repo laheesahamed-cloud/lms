@@ -23,6 +23,7 @@ const push_notifications_service_1 = require("../push-notifications/push-notific
 const MAX_BULK_PLANNER_TASKS = 600;
 const PLANNER_TASK_CATEGORIES = ['general', 'lesson', 'quiz', 'exam', 'review', 'flashcards'];
 const PLANNER_TASK_PRIORITIES = ['low', 'medium', 'high'];
+const PLANNER_ITEM_TYPES = ['lesson', 'quiz', 'flashcards'];
 const ADMIN_REPORT_FILTER_COLUMNS = [
     'COALESCE(qa.submitted_at, qa.created_at)',
     'qa.user_id',
@@ -217,7 +218,7 @@ let WorkspaceService = class WorkspaceService {
     }
     async listPlannerTasks(authorization) {
         const student = await this.authService.requireStudent(authorization);
-        const [rows] = await this.db.execute(`SELECT id, title, description, due_date, status, category, priority, estimated_minutes, created_at, updated_at
+        const [rows] = await this.db.execute(`SELECT id, title, description, due_date, status, category, item_type, item_id, rule_json, priority, estimated_minutes, created_at, updated_at
        FROM study_planner_tasks
        WHERE user_id = ?
        ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`, [student.id]);
@@ -230,7 +231,7 @@ let WorkspaceService = class WorkspaceService {
         const [taskRows, lessonRows, quizRows, reviewRows] = await Promise.all([
             this.db.execute(`SELECT id, title, description, due_date, status, category, priority, estimated_minutes, created_at, updated_at
          FROM study_planner_tasks
-         WHERE user_id = ?
+         WHERE user_id = ? AND rule_json IS NULL
          ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC
          LIMIT 80`, [student.id]),
             this.db.execute(`SELECT
@@ -330,9 +331,10 @@ let WorkspaceService = class WorkspaceService {
         const category = this.normalizePlannerTaskCategory(input?.category);
         const priority = this.normalizePlannerTaskPriority(input?.priority);
         const estimatedMinutes = this.optionalPlannerEstimatedMinutes(input?.estimatedMinutes);
+        const link = this.normalizePlannerItemLink(input);
         const [result] = await this.db.execute(`INSERT INTO study_planner_tasks
-         (user_id, title, description, due_date, status, category, priority, estimated_minutes)
-       VALUES (?, ?, ?, ?, 'todo', ?, ?, ?)`, [student.id, title, description, dueDate, category, priority, estimatedMinutes]);
+         (user_id, title, description, due_date, status, category, item_type, item_id, priority, estimated_minutes)
+       VALUES (?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?)`, [student.id, title, description, dueDate, category, link.type, link.id, priority, estimatedMinutes]);
         return { ok: true, id: result.insertId };
     }
     async createPlannerTasksBulk(authorization, input) {
@@ -346,26 +348,34 @@ let WorkspaceService = class WorkspaceService {
         if (raw.length > MAX_BULK_PLANNER_TASKS) {
             throw new common_1.BadRequestException(`A plan can create at most ${MAX_BULK_PLANNER_TASKS} tasks at once.`);
         }
-        const rows = raw.map((task) => [
-            student.id,
-            this.requiredString(task?.title, 'Task title'),
-            this.optionalString(task?.description),
-            this.optionalDate(task?.dueDate),
-            this.normalizePlannerTaskCategory(task?.category),
-            this.normalizePlannerTaskPriority(task?.priority),
-            this.optionalPlannerEstimatedMinutes(task?.estimatedMinutes),
-        ]);
+        const rows = raw.map((task, index) => {
+            const link = this.normalizePlannerItemLink(task);
+            return [
+                student.id,
+                this.requiredString(task?.title, 'Task title'),
+                this.optionalString(task?.description),
+                this.optionalDate(task?.dueDate),
+                this.normalizePlannerTaskCategory(task?.category),
+                link.type,
+                link.id,
+                this.normalizePlannerTaskPriority(task?.priority),
+                this.optionalPlannerEstimatedMinutes(task?.estimatedMinutes),
+                index + 1,
+                this.normalizePlannerRule(task?.rule),
+            ];
+        });
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            const placeholders = rows.map(() => "(?, ?, ?, ?, 'todo', ?, ?, ?)").join(', ');
+            const placeholders = rows.map(() => "(?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?, ?)").join(', ');
             const [result] = await connection.query(`INSERT INTO study_planner_tasks
-           (user_id, title, description, due_date, status, category, priority, estimated_minutes)
+           (user_id, title, description, due_date, status, category, item_type, item_id, priority, estimated_minutes, sort_order, rule_json)
          VALUES ${placeholders}`, rows.flat());
             await connection.commit();
             const firstId = Number(result.insertId);
             return {
                 ok: true,
+                rules: true,
                 ids: Array.from({ length: rows.length }, (_, i) => firstId + i),
             };
         }
@@ -421,6 +431,11 @@ let WorkspaceService = class WorkspaceService {
         values.push(id, student.id);
         await this.db.execute(`UPDATE study_planner_tasks SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`, values);
         return { ok: true, id };
+    }
+    async clearPlannerTasks(authorization) {
+        const student = await this.authService.requireStudent(authorization);
+        const [result] = await this.db.execute('DELETE FROM study_planner_tasks WHERE user_id = ?', [student.id]);
+        return { ok: true, deleted: result.affectedRows };
     }
     async deletePlannerTask(authorization, id) {
         const student = await this.authService.requireStudent(authorization);
@@ -1106,6 +1121,47 @@ let WorkspaceService = class WorkspaceService {
             updatedAt: row.updated_at || null,
         };
     }
+    normalizePlannerItemLink(input) {
+        const type = PLANNER_ITEM_TYPES.includes(input?.itemType) ? String(input.itemType) : null;
+        const id = Number(input?.itemId);
+        if (!type || !Number.isInteger(id) || id <= 0)
+            return { type: null, id: null };
+        return { type, id };
+    }
+    normalizePlannerRule(raw) {
+        if (!raw || typeof raw !== 'object')
+            return null;
+        const kind = String(raw.kind || '');
+        if (!PLANNER_ITEM_TYPES.includes(kind)) {
+            throw new common_1.BadRequestException('Unknown plan type');
+        }
+        const courseId = String(raw.courseId ?? '').trim().slice(0, 40);
+        if (!courseId)
+            throw new common_1.BadRequestException('A plan needs a course');
+        const hours = Number(raw.hours);
+        const until = this.optionalDate(raw.until);
+        return JSON.stringify({
+            kind,
+            courseId,
+            hours: Number.isFinite(hours) && hours > 0 && hours <= 24 ? hours : 2,
+            byDay: raw.byDay === false ? false : true,
+            ...(until ? { until } : {}),
+            ...(Array.isArray(raw.skip)
+                ? { skip: raw.skip.map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0).slice(0, 5000) }
+                : {}),
+        });
+    }
+    parsePlannerRule(value) {
+        if (!value)
+            return null;
+        try {
+            const parsed = JSON.parse(String(value));
+            return parsed && typeof parsed === 'object' ? parsed : null;
+        }
+        catch {
+            return null;
+        }
+    }
     mapPlannerTask(row) {
         return {
             id: Number(row.id),
@@ -1114,6 +1170,9 @@ let WorkspaceService = class WorkspaceService {
             dueDate: this.dateKey(row.due_date) || '',
             status: String(row.status || 'todo'),
             category: this.normalizePlannerTaskCategory(row.category),
+            itemType: PLANNER_ITEM_TYPES.includes(row.item_type) ? String(row.item_type) : null,
+            itemId: row.item_id ? Number(row.item_id) : null,
+            rule: this.parsePlannerRule(row.rule_json),
             priority: this.normalizePlannerTaskPriority(row.priority),
             estimatedMinutes: this.optionalPlannerEstimatedMinutes(row.estimated_minutes),
             createdAt: row.created_at || null,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/tokens.dart';
+import '../../../widgets/adaptive_sheet.dart';
 
 /// Shared chrome for the drill-down screens, so course, subject and station
 /// lists are visibly the same kind of page rather than three different designs.
@@ -138,7 +139,7 @@ class OsceRow extends StatelessWidget {
 /// letting a student tap through to an error told them nothing.
 void showLockedNote(BuildContext context) {
   final c = context.c;
-  showModalBottomSheet<void>(
+  showAdaptiveSheet<void>(
     useRootNavigator: true,
     context: context,
     backgroundColor: c.surface1,
