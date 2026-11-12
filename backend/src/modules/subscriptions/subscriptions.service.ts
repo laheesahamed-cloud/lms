@@ -1932,7 +1932,7 @@ export class SubscriptionsService {
 
     const search = String(params.search || '').trim();
     if (search) {
-      filters.push('(u.name LIKE ? OR u.email LIKE ? OR t.product_id LIKE ? OR t.original_transaction_id LIKE ?)');
+      filters.push('(u.full_name LIKE ? OR u.email LIKE ? OR t.product_id LIKE ? OR t.original_transaction_id LIKE ?)');
       const like = `%${search}%`;
       values.push(like, like, like, like);
     }
@@ -1942,7 +1942,7 @@ export class SubscriptionsService {
          t.id, t.user_id, t.subscription_id, t.product_id, t.transaction_id,
          t.original_transaction_id, t.environment, t.purchase_date, t.expires_date,
          t.revocation_date, t.created_at,
-         u.name AS user_name, u.email AS user_email,
+         u.full_name AS user_name, u.email AS user_email,
          p.name AS plan_name,
          s.status AS subscription_status, s.end_date AS subscription_end_date
        FROM iap_transactions t

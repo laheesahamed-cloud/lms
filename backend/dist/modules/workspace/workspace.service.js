@@ -1145,6 +1145,7 @@ let WorkspaceService = class WorkspaceService {
             courseId,
             hours: Number.isFinite(hours) && hours > 0 && hours <= 24 ? hours : 2,
             byDay: raw.byDay === false ? false : true,
+            order: raw.order === 'subject' ? 'subject' : 'lesson',
             ...(until ? { until } : {}),
             ...(Array.isArray(raw.skip)
                 ? { skip: raw.skip.map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0).slice(0, 5000) }

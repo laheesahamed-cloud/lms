@@ -1396,6 +1396,8 @@ export class WorkspaceService {
       courseId,
       hours: Number.isFinite(hours) && hours > 0 && hours <= 24 ? hours : 2,
       byDay: raw.byDay === false ? false : true,
+      // How the plan is ordered: lesson by lesson (default) or subject by subject.
+      order: raw.order === 'subject' ? 'subject' : 'lesson',
       ...(until ? { until } : {}),
       // Ids already finished when the plan was made, so its days stay put.
       ...(Array.isArray(raw.skip)
