@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
+const session_cache_1 = require("../auth/session-cache");
 const common_1 = require("@nestjs/common");
 const bcrypt = require("bcryptjs");
 const pagination_1 = require("../../common/utils/pagination");
@@ -288,6 +289,7 @@ let UsersService = class UsersService {
         }
         params.push(id);
         await this.db.execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+        (0, session_cache_1.forgetUserSessions)(id);
         await this.logAdminAuditEvent({
             eventType: updateUserDto.role && updateUserDto.role !== user.role ? 'user.role_changed' : 'user.updated',
             actorId: actor.id,
@@ -336,9 +338,11 @@ let UsersService = class UsersService {
         }
         if (status === 'active') {
             await this.db.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+            (0, session_cache_1.forgetUserSessions)(id);
         }
         else {
             await this.db.execute('UPDATE users SET status = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?', [status, id]);
+            (0, session_cache_1.forgetUserSessions)(id);
         }
         await this.logAdminAuditEvent({
             eventType: 'user.status_changed',

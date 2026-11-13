@@ -1,3 +1,4 @@
+import { runInBatches } from '../../common/utils/run-in-batches';
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
@@ -705,22 +706,22 @@ export class WorkspaceService {
       courseFunnel,
       subscriptionStatus,
       paymentStatus,
-    ] = await Promise.all([
-      this.db.execute<RowDataPacket[]>(`SELECT COUNT(*) total, SUM(role='student') students, SUM(status='inactive') pending FROM users`),
-      this.db.execute<RowDataPacket[]>(
+    ] = await runInBatches([
+      () => this.db.execute<RowDataPacket[]>(`SELECT COUNT(*) total, SUM(role='student') students, SUM(status='inactive') pending FROM users`),
+      () => this.db.execute<RowDataPacket[]>(
         `SELECT COUNT(*) attempts, AVG(qa.percentage) avg_score, SUM(qa.pass_status='pass') passes
          FROM quiz_attempts qa
          INNER JOIN quizzes q ON q.id = qa.quiz_id
          WHERE ${attemptWhere.join(' AND ')}`,
         attemptParams
       ),
-      this.db.execute<RowDataPacket[]>(
+      () => this.db.execute<RowDataPacket[]>(
         `SELECT COUNT(*) total, SUM(slp.status='completed') completed
          FROM student_lesson_progress slp
          WHERE ${lessonWhere.join(' AND ')}`,
         lessonParams
       ),
-      this.db.execute<RowDataPacket[]>(`
+      () => this.db.execute<RowDataPacket[]>(`
         SELECT q.id, LEFT(q.question_text, 120) AS question_text, COUNT(sa.id) AS wrong_count
         FROM student_answers sa
         INNER JOIN question_options qo ON qo.id = sa.option_id
@@ -732,21 +733,26 @@ export class WorkspaceService {
         ORDER BY wrong_count DESC
         LIMIT 8
       `, hardQuestionParams),
-      this.db.execute<RowDataPacket[]>(`
-        SELECT inactive.id, inactive.full_name, inactive.email, inactive.last_activity
-        FROM (
-          SELECT u.id, u.full_name, u.email, MAX(COALESCE(qa.submitted_at, sae.created_at, slp.updated_at)) AS last_activity
-          FROM users u
-          LEFT JOIN quiz_attempts qa ON qa.user_id = u.id
-          LEFT JOIN study_activity_events sae ON sae.user_id = u.id
-          LEFT JOIN student_lesson_progress slp ON slp.user_id = u.id
-          WHERE ${inactiveWhere.join(' AND ')}
-          GROUP BY u.id, u.full_name, u.email
-        ) inactive
-        ORDER BY inactive.last_activity IS NULL DESC, inactive.last_activity ASC
+      () => this.db.execute<RowDataPacket[]>(`
+        -- Each student's latest quiz, study event and lesson progress, worked
+        -- out per table first. Joining all three raw tables at once multiplied
+        -- the rows (attempts x events x lessons for every student) before
+        -- grouping, which made this the heaviest query on the Reports page.
+        SELECT u.id, u.full_name, u.email,
+          CAST(NULLIF(GREATEST(
+            COALESCE(qa.last_at, '1000-01-01 00:00:00'),
+            COALESCE(sae.last_at, '1000-01-01 00:00:00'),
+            COALESCE(slp.last_at, '1000-01-01 00:00:00')
+          ), '1000-01-01 00:00:00') AS DATETIME) AS last_activity
+        FROM users u
+        LEFT JOIN (SELECT user_id, MAX(submitted_at) AS last_at FROM quiz_attempts GROUP BY user_id) qa ON qa.user_id = u.id
+        LEFT JOIN (SELECT user_id, MAX(created_at) AS last_at FROM study_activity_events GROUP BY user_id) sae ON sae.user_id = u.id
+        LEFT JOIN (SELECT user_id, MAX(updated_at) AS last_at FROM student_lesson_progress GROUP BY user_id) slp ON slp.user_id = u.id
+        WHERE ${inactiveWhere.join(' AND ')}
+        ORDER BY last_activity IS NULL DESC, last_activity ASC
         LIMIT 10
       `, inactiveParams),
-      this.db.execute<RowDataPacket[]>(`
+      () => this.db.execute<RowDataPacket[]>(`
         SELECT
           day_key,
           COUNT(DISTINCT user_id) AS active_students,
@@ -765,7 +771,7 @@ export class WorkspaceService {
         GROUP BY day_key
         ORDER BY day_key ASC
       `, activityParams),
-      this.db.execute<RowDataPacket[]>(`
+      () => this.db.execute<RowDataPacket[]>(`
         SELECT
           q.id,
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
@@ -782,7 +788,7 @@ export class WorkspaceService {
         ORDER BY attempts DESC, average_percentage ASC
         LIMIT 10
       `, quizPerformanceParams),
-      this.db.execute<RowDataPacket[]>(`
+      () => this.db.execute<RowDataPacket[]>(`
         SELECT
           c.id,
           c.course_title,
@@ -798,19 +804,19 @@ export class WorkspaceService {
         ORDER BY students_started DESC, c.course_title ASC
         LIMIT 8
       `, [...courseFunnelJoinParams, ...courseFunnelParams]),
-      this.db.execute<RowDataPacket[]>(`
+      () => this.db.execute<RowDataPacket[]>(`
         SELECT status, COUNT(*) AS count_value
         FROM user_subscriptions us
         WHERE ${subscriptionStatusWhere.join(' AND ')}
         GROUP BY status
       `, subscriptionStatusParams),
-      this.db.execute<RowDataPacket[]>(`
+      () => this.db.execute<RowDataPacket[]>(`
         SELECT status, 'LKR' AS currency, COUNT(*) AS count_value, SUM(amount) AS amount_total
         FROM payment_transactions pt
         WHERE ${paymentStatusWhere.join(' AND ')}
         GROUP BY status
       `, paymentStatusParams),
-    ]);
+    ], 3);
     const userRow = users[0] || {};
     const attemptRow = attempts[0] || {};
     const lessonRow = lessons[0] || {};

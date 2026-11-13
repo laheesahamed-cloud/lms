@@ -8,6 +8,7 @@ import '../../widgets/app_button.dart';
 import '../courses/courses_repository.dart';
 import 'plan_generator.dart';
 import 'planner_form_kit.dart';
+import '../../widgets/time_wheel.dart';
 
 /// "Generate Plan" wizard: ask study-hours/date-range/content details, run a
 /// short generating animation while [generateStudyPlan] actually does the
@@ -34,6 +35,7 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
   bool _includeQuizzes = true;
   bool _includeFlashcards = true;
   bool _organizeByDay = true;
+  String _order = 'lesson'; // 'lesson' | 'subject'
   double _hoursPerDay = 2;
   DateTime? _until;
   String _reminderTime = '18:00';
@@ -79,6 +81,7 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
       hoursPerDay: _hoursPerDay,
       untilDate: _until,
       organizeByDay: _organizeByDay,
+      order: _order,
       onProgress: (done, total) {
         if (!mounted) return;
         setState(() { _saved = done; _toSave = total; });
@@ -207,10 +210,39 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
             ],
           ),
         ),
+        // Only a choice when the plan mixes more than one kind of content.
+        if ([_includeLessons, _includeQuizzes, _includeFlashcards].where((b) => b).length > 1)
+          PlannerSection(
+            icon: Icons.swap_vert_rounded,
+            label: 'Study order',
+            child: IntrinsicHeight(child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _toggleTile(c,
+                      icon: Icons.format_list_numbered_rounded,
+                      label: 'Lesson by lesson',
+                      sub: 'Lesson, its Q-bank, its cards',
+                      selected: _order == 'lesson',
+                      onTap: () => setState(() => _order = 'lesson')),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _toggleTile(c,
+                      icon: Icons.folder_copy_outlined,
+                      label: 'Subject by subject',
+                      sub: 'All lessons, then Q-bank',
+                      selected: _order == 'subject',
+                      onTap: () => setState(() => _order = 'subject')),
+                ),
+              ],
+            )),
+          ),
         PlannerSection(
           icon: Icons.tune_rounded,
           label: 'Organize',
-          child: Row(
+          child: IntrinsicHeight(child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
                 child: _toggleTile(c,
@@ -230,7 +262,7 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
                     onTap: () => setState(() => _organizeByDay = false)),
               ),
             ],
-          ),
+          )),
         ),
         // Both of these only mean anything when the plan is actually being
         // spread across days — hidden entirely for "By subject", where nothing
@@ -455,7 +487,7 @@ class _GeneratePlanPageState extends ConsumerState<GeneratePlanPage>
     final init = TimeOfDay(
         hour: int.tryParse(parts[0]) ?? 18,
         minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
-    final picked = await showTimePicker(context: context, initialTime: init);
+    final picked = await pickTimeWheel(context, initial: init);
     if (picked != null) {
       final hh = picked.hour.toString().padLeft(2, '0');
       final mm = picked.minute.toString().padLeft(2, '0');

@@ -43,7 +43,7 @@ class DatabaseWarmupService implements OnApplicationBootstrap {
           password: configService.get<string>('database.password'),
           database: configService.get<string>('database.name'),
           waitForConnections: true,
-          connectionLimit: configService.get<number>('database.connectionLimit') || 8,
+          connectionLimit: configService.get<number>('database.connectionLimit') || 4,
           maxIdle: configService.get<number>('database.maxIdle') || 4,
           idleTimeout: configService.get<number>('database.idleTimeout') || 60000,
           connectTimeout: configService.get<number>('database.connectTimeout') || 10000,

@@ -85,6 +85,11 @@ export declare class DashboardController {
         totalAttempts: number;
         quizDayStreak: number;
         quizDoneToday: boolean;
+        streakGraceActive: boolean;
+        totalXp: number;
+        xpToday: number;
+        xpDailyCap: 100;
+        level: number;
         recentActiveDays: string[];
         avgScore: number;
         totalPassed: number;

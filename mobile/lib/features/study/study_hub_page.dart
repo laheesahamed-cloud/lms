@@ -96,16 +96,6 @@ class StudyHubPage extends ConsumerWidget {
         padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
         children: [
           Text(
-            'TOOLS',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
-              color: c.accent,
-            ),
-          ),
-          const SizedBox(height: AppSpace.x2),
-          Text(
             'Study',
             style: TextStyle(
               fontSize: 28,
@@ -113,6 +103,12 @@ class StudyHubPage extends ConsumerWidget {
               letterSpacing: -0.5,
               color: c.inkStrong,
             ),
+          ),
+          const SizedBox(height: AppSpace.x2),
+          Text(
+            'Everything you need to learn.',
+            style: TextStyle(
+                fontSize: 15.5, fontWeight: FontWeight.w500, color: c.inkSoft),
           ),
           const SizedBox(height: AppSpace.x5),
           AnimationLimiter(
@@ -138,8 +134,6 @@ class StudyHubPage extends ConsumerWidget {
                     const _MyNotesTile(),
                     const SizedBox(height: AppSpace.x3),
                   ],
-                  const SizedBox(height: AppSpace.x2),
-
                   SizedBox(
                     width: double.infinity,
                     child: Text(

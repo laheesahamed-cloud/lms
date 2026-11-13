@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
+import '../../state/saved_first.dart';
 import 'plan_generator.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
@@ -38,7 +39,12 @@ class PlannerTask {
     this.itemId,
     this.rule,
     this.ruleId,
+    this.retry = false,
   });
+
+  /// A Q-bank set that was attempted but not passed: still open, shown with a
+  /// retry mark instead of staying blank.
+  final bool retry;
 
   bool get done => status == 'done';
 
@@ -47,7 +53,13 @@ class PlannerTask {
   bool get isLinked =>
       (itemType == 'lesson' || itemType == 'quiz' || itemType == 'flashcards') && itemId != null;
 
-  PlannerTask withStatus(String newStatus) => PlannerTask(
+  /// Came from "Generate plan" (a rule's days, or a linked row), as opposed to
+  /// a task the student typed. These are finished by doing the lesson, set or
+  /// deck, never by a swipe — also when the link itself is missing (a deck with
+  /// no notes, a set whose id did not parse).
+  bool get fromPlan => isLinked || ruleId != null || id < 0;
+
+  PlannerTask withStatus(String newStatus, {bool retry = false}) => PlannerTask(
         id: id,
         title: title,
         description: description,
@@ -59,6 +71,7 @@ class PlannerTask {
         itemId: itemId,
         rule: rule,
         ruleId: ruleId,
+        retry: retry,
       );
 
   /// Parsed due date (local, date-only) or null.
@@ -90,24 +103,33 @@ class PlannerTask {
   }
 }
 
-final plannerTasksProvider = FutureProvider.autoDispose<List<PlannerTask>>((ref) async {
+/// The planner's rows. Kept alive and saved on the phone: the Planner opens on
+/// the last plan at once, and the server is asked quietly behind it. Anything
+/// that changes the plan (generate, add, clear, a swipe) calls
+/// `freshNext('planner')` first so the next read waits for the real answer.
+final plannerTasksProvider = FutureProvider<List<PlannerTask>>((ref) async {
   ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/student/planner');
-  final data = res.data;
-  final rows = (data is List)
-      ? data
-      : (data is Map ? (data['tasks'] ?? data['items'] ?? data['data'] ?? const []) : const []);
-  final all = (rows as List).map(PlannerTask.fromJson).toList();
-  final rules = all.where((t) => t.rule != null).toList();
-  if (rules.isEmpty) return all;
-  // A saved plan is one row; the days are worked out here from the lesson,
-  // quiz and deck lists the app already holds.
-  List<PlannerTask> expanded = const [];
-  try {
-    expanded = await expandPlanRules(ref.read, rules);
-  } catch (_) {}
-  return [...all.where((t) => t.rule == null), ...expanded];
+  return savedFirst(
+    ref,
+    name: 'planner',
+    fetch: () async => (await api.dio.get('/student/planner')).data,
+    parse: (data) async {
+      final rows = (data is List)
+          ? data
+          : (data is Map ? (data['tasks'] ?? data['items'] ?? data['data'] ?? const []) : const []);
+      final all = (rows as List).map(PlannerTask.fromJson).toList();
+      final rules = all.where((t) => t.rule != null).toList();
+      if (rules.isEmpty) return all;
+      // A saved plan is one row; the days are worked out here from the lesson,
+      // quiz and deck lists the app already holds.
+      List<PlannerTask> expanded = const [];
+      try {
+        expanded = await expandPlanRules(ref.read, rules);
+      } catch (_) {}
+      return [...all.where((t) => t.rule == null), ...expanded];
+    },
+  );
 });
 
 final plannerApiProvider = Provider((ref) => ref.read(apiClientProvider));

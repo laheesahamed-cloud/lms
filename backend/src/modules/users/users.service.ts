@@ -1,3 +1,4 @@
+import { forgetUserSessions } from '../auth/session-cache';
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as bcrypt from 'bcryptjs';
@@ -379,6 +380,8 @@ export class UsersService {
 
     params.push(id);
     await this.db.execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    // Role, permissions or status may have changed: drop the remembered session.
+    forgetUserSessions(id);
     await this.logAdminAuditEvent({
       eventType: updateUserDto.role && updateUserDto.role !== user.role ? 'user.role_changed' : 'user.updated',
       actorId: actor.id,
@@ -437,11 +440,13 @@ export class UsersService {
     // account kept working on those until the token expired on its own.
     if (status === 'active') {
       await this.db.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+      forgetUserSessions(id);
     } else {
       await this.db.execute(
         'UPDATE users SET status = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?',
         [status, id]
       );
+      forgetUserSessions(id);
     }
     await this.logAdminAuditEvent({
       eventType: 'user.status_changed',

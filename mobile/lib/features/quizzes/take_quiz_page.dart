@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../state/saved_first.dart';
 import '../../widgets/quiz_loading_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -508,6 +509,11 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
         }
       }
     }
+    // The in-place mark above only reaches screens that happen to rebuild; the
+    // planner and the saved copy need a real refresh.
+    freshNext('quizzes');
+    freshNext('dashboard');
+    ref.invalidate(quizListProvider);
     ref.invalidate(studentDashboardProvider);
     // Practice has nothing to wait on, so just hold the "submitting" phase for
     // the minimum, pop the badge, hold, then leave — same beats as the exam.
@@ -558,6 +564,9 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       if (!mounted) return;
       // Refresh the list (completed tick), the results history, and the
       // dashboard so the "Continue where you left off" CTA advances at once.
+      freshNext('quizzes');
+      freshNext('results');
+      freshNext('dashboard');
       ref.invalidate(quizListProvider);
       ref.invalidate(resultsListProvider);
       ref.invalidate(studentDashboardProvider);

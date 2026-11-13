@@ -543,6 +543,18 @@ export class QuizAttemptsService {
     const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId, appClient);
     const examState = await this.ensureExamSession(user.id, quizId, quiz);
 
+    // Load the questions BEFORE taking the transaction connection. Loading them
+    // inside it needed a second pool connection while the first was held, so a
+    // handful of simultaneous submits could each hold one and wait forever for
+    // another. The session's question set is frozen, so reading it first is safe;
+    // the locked re-read below only falls back if the session changed meanwhile.
+    const preSession = await this.getLatestExamSession(user.id, quizId)
+      || await this.getExamSessionById(Number(examState.session.id));
+    const preQuestions = preSession && preSession.status === 'in_progress'
+      ? await this.loadQuestionsForExamSession(quiz, preSession)
+      : null;
+
+    let attemptId = 0;
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
@@ -556,7 +568,11 @@ export class QuizAttemptsService {
         throw new NotFoundException('Exam session not found');
       }
 
-      const questions = await this.loadQuestionsForExamSession(quiz, session);
+      const sameSession = preQuestions
+        && preSession
+        && Number(preSession.id) === Number(session.id)
+        && (preSession.question_ids_json || null) === (session.question_ids_json || null);
+      const questions = sameSession ? preQuestions : await this.loadQuestionsForExamSession(quiz, session);
       const incomingAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
 
       const sessionAnswers = session ? this.parseAnswerJson(session.answers_json) : {};
@@ -575,7 +591,7 @@ export class QuizAttemptsService {
         );
       }
 
-      const attemptId = await this.createExamAttempt(connection, user.id, quizId, quiz, questions, submittedAnswers);
+      attemptId = await this.createExamAttempt(connection, user.id, quizId, quiz, questions, submittedAnswers);
 
       if (session) {
         await connection.execute(
@@ -589,15 +605,16 @@ export class QuizAttemptsService {
       }
 
       await connection.commit();
-      // Paid after the attempt is safely saved, and never allowed to fail it.
-      const xp = await this.xpService.onExamSubmitted(user.id, attemptId);
-      return { success: true, attemptId, xp };
     } catch (error) {
       await connection.rollback();
       throw error;
     } finally {
       connection.release();
     }
+    // Paid after the attempt is safely saved and its connection is back in the
+    // pool (XP takes its own), and never allowed to fail the submit.
+    const xp = await this.xpService.onExamSubmitted(user.id, attemptId);
+    return { success: true, attemptId, xp };
   }
 
   async result(authorization: string | undefined, attemptId: number) {
@@ -1572,6 +1589,7 @@ export class QuizAttemptsService {
 
   private async finalizeExpiredExamSession(userId: number, quizId: number, sessionId: number, questions: LoadedQuestion[]) {
     const quiz = await this.loadActiveQuiz(quizId);
+    let newAttemptId = 0;
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
@@ -1611,14 +1629,16 @@ export class QuizAttemptsService {
         [attemptId, sessionId, userId, quizId]
       );
       await connection.commit();
-      await this.xpService.onExamSubmitted(userId, attemptId);
-      return attemptId;
+      newAttemptId = attemptId;
     } catch (error) {
       await connection.rollback();
       throw error;
     } finally {
       connection.release();
     }
+    // XP takes its own connection, so only after this one is released.
+    await this.xpService.onExamSubmitted(userId, newAttemptId);
+    return newAttemptId;
   }
 
   private groupAnswerRows(rows: RowDataPacket[]) {

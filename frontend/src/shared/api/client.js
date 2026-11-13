@@ -308,7 +308,9 @@ apiClient.interceptors.response.use(
     const serverRecoveryRetryCount = Number(requestConfig?.__serverRecoveryRetryCount || 0);
 
     if (isServerRecoveryResponse && serverRecoveryRetryCount < SERVER_RECOVERY_MAX_RETRIES) {
-      const delay = SERVER_RECOVERY_BASE_DELAY_MS * Math.pow(2, serverRecoveryRetryCount);
+      // A little randomness so many open tabs don't all retry on the same tick.
+      const delay = SERVER_RECOVERY_BASE_DELAY_MS * Math.pow(2, serverRecoveryRetryCount) +
+        Math.floor(Math.random() * 1000);
       await wait(delay);
       return apiClient.request({
         ...requestConfig,
@@ -368,8 +370,15 @@ apiClient.interceptors.response.use(
     const isRoleScopeMismatch =
       status === 401 &&
       /(?:admin|student) access is required/i.test(normalizedMessage);
+    // An older server answered a refused database connection with 401 and the
+    // MySQL message as the text. That is "busy", not "signed out": never throw
+    // the login away for it.
+    const isDatabaseBusy401 =
+      status === 401 &&
+      (isDatabaseUnavailable ||
+        /max_user_connections|queue limit reached|too many connections/i.test(normalizedMessage));
 
-    if (status === 401 && !isAuthPageRequest && !isRoleScopeMismatch) {
+    if (status === 401 && !isAuthPageRequest && !isRoleScopeMismatch && !isDatabaseBusy401) {
       clearStoredAuth();
       const handledUnauthorized = !requestConfig?.__suppressUnauthorizedSessionNotice && unauthorizedHandler?.() === true;
       if (!handledUnauthorized) {

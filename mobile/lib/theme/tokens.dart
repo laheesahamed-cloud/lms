@@ -130,6 +130,8 @@ class DashAccents {
       Color(0xFF38BDF8), [Color(0xFF38BDF8), Color(0xFF0EA5E9)]);
   static const amber = SectionAccent(
       Color(0xFFFBBF24), [Color(0xFFFBBF24), Color(0xFFF59E0B)]);
+  static const peach = SectionAccent(
+      Color(0xFFFDBA74), [Color(0xFFFDBA74), Color(0xFFFB923C)]);
   static const rose = SectionAccent(
       Color(0xFFFB7185), [Color(0xFFFB7185), Color(0xFFF43F5E)]);
   static const green = SectionAccent(

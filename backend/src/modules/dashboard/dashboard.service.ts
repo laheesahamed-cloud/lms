@@ -1,4 +1,5 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { runInBatches } from '../../common/utils/run-in-batches';
 import { createHash } from 'node:crypto';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
@@ -153,8 +154,8 @@ export class DashboardService {
       recentCoursesResult,
       recentLessonsResult,
       recentAttemptsResult,
-    ] = await Promise.all([
-      this.db.query<CountRow[]>(
+    ] = await runInBatches([
+      () => this.db.query<CountRow[]>(
         `SELECT
           (SELECT COUNT(*) FROM users) AS users_count,
           (SELECT COUNT(*) FROM courses) AS courses_count,
@@ -163,49 +164,49 @@ export class DashboardService {
           (SELECT COUNT(*) FROM questions) AS questions_count,
           (SELECT COUNT(*) FROM lessons) AS lessons_count`
       ),
-      this.db.query<DailyCountRow[]>(
+      () => this.db.query<DailyCountRow[]>(
         `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM users
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`
       ),
-      this.db.query<DailyCountRow[]>(
+      () => this.db.query<DailyCountRow[]>(
         `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM courses
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`
       ),
-      this.db.query<DailyCountRow[]>(
+      () => this.db.query<DailyCountRow[]>(
         `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM lessons
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`
       ),
-      this.db.query<DailyCountRow[]>(
+      () => this.db.query<DailyCountRow[]>(
         `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM quizzes
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`
       ),
-      this.db.query<DailyCountRow[]>(
+      () => this.db.query<DailyCountRow[]>(
         `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM questions
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`
       ),
-      this.db.query<DailyCountRow[]>(
+      () => this.db.query<DailyCountRow[]>(
         `SELECT DATE(COALESCE(submitted_at, created_at)) AS day_key, COUNT(*) AS count_value
          FROM quiz_attempts
          WHERE COALESCE(submitted_at, created_at) >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(COALESCE(submitted_at, created_at))
          ORDER BY DATE(COALESCE(submitted_at, created_at)) ASC`
       ),
-      this.db.query<ActivityFeedRow[]>(
+      () => this.db.query<ActivityFeedRow[]>(
         `SELECT
            'user' AS item_type,
            id AS item_id,
@@ -217,7 +218,7 @@ export class DashboardService {
          ORDER BY created_at DESC, id DESC
          LIMIT 4`
       ),
-      this.db.query<ActivityFeedRow[]>(
+      () => this.db.query<ActivityFeedRow[]>(
         `SELECT
            'course' AS item_type,
            id AS item_id,
@@ -229,7 +230,7 @@ export class DashboardService {
          ORDER BY created_at DESC, id DESC
          LIMIT 4`
       ),
-      this.db.query<ActivityFeedRow[]>(
+      () => this.db.query<ActivityFeedRow[]>(
         `SELECT
            'lesson' AS item_type,
            l.id AS item_id,
@@ -244,7 +245,7 @@ export class DashboardService {
          ORDER BY l.created_at DESC, l.id DESC
          LIMIT 4`
       ),
-      this.db.query<ActivityFeedRow[]>(
+      () => this.db.query<ActivityFeedRow[]>(
         `SELECT
            'attempt' AS item_type,
            qa.id AS item_id,
@@ -257,7 +258,7 @@ export class DashboardService {
          ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
          LIMIT 6`
       ),
-    ]);
+    ], 3);
 
     const [summaryRows] = summaryResult;
     const [userGrowthRows] = userGrowthResult;
@@ -590,8 +591,8 @@ export class DashboardService {
       questionOfDay,
       courseProgress,
       xpSummary,
-    ] = await Promise.all([
-      this.db.execute<CountRow[]>(
+    ] = await runInBatches([
+      () => this.db.execute<CountRow[]>(
         `SELECT
           (SELECT COUNT(*) FROM quizzes WHERE status = 'active') AS total_quizzes,
           (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ?) AS total_attempts,
@@ -601,7 +602,7 @@ export class DashboardService {
           (SELECT COUNT(*) FROM smart_notes WHERE user_id = ? AND (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL)) AS generated_smart_notes`,
         [student.id, student.id, student.id, student.id, student.id]
       ),
-      this.db.execute<RecentAttemptRow[]>(
+      () => this.db.execute<RecentAttemptRow[]>(
         `SELECT
           qa.id,
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
@@ -623,7 +624,7 @@ export class DashboardService {
         LIMIT 5`,
         [student.id]
       ),
-      this.db.execute<TopicInsightRow[]>(
+      () => this.db.execute<TopicInsightRow[]>(
         `SELECT
           t.topic_name,
           c.course_title,
@@ -639,7 +640,7 @@ export class DashboardService {
         ORDER BY average_percentage ASC, attempts_count DESC`,
         [student.id]
       ),
-      this.db.execute<SmartNoteInsightRow[]>(
+      () => this.db.execute<SmartNoteInsightRow[]>(
         `SELECT
           id,
           title,
@@ -654,7 +655,7 @@ export class DashboardService {
         LIMIT 3`,
         [student.id]
       ),
-      this.db.execute<AttemptDayRow[]>(
+      () => this.db.execute<AttemptDayRow[]>(
         // Streak counts both submitted exam attempts and completed practice
         // sessions. Practice days come from study_activity_events so they only
         // affect the streak — never avg score, results, or weak topics.
@@ -670,7 +671,7 @@ export class DashboardService {
          ORDER BY attempt_day DESC`,
         [student.id, student.id]
       ),
-      this.db.execute<PerformanceWindowRow[]>(
+      () => this.db.execute<PerformanceWindowRow[]>(
         `SELECT
            CASE
              WHEN DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 'last_7'
@@ -685,7 +686,7 @@ export class DashboardService {
          GROUP BY window_key`,
         [student.id]
       ),
-      this.db.execute<MissedPatternRow[]>(
+      () => this.db.execute<MissedPatternRow[]>(
         `SELECT
            c.course_title,
            subj.topic_name AS subject_name,
@@ -714,7 +715,7 @@ export class DashboardService {
          LIMIT 5`,
         [student.id]
       ),
-      this.db.execute<RowDataPacket[]>(
+      () => this.db.execute<RowDataPacket[]>(
         `SELECT q.id, c.course_title, t.topic_name
          FROM quiz_attempts qa
          INNER JOIN quizzes q ON q.id = qa.quiz_id
@@ -735,7 +736,7 @@ export class DashboardService {
          ORDER BY id DESC`,
         [student.id, student.id]
       ),
-      this.db.execute<NoteReviewRow[]>(
+      () => this.db.execute<NoteReviewRow[]>(
         `SELECT DISTINCT
            n.id,
            c.course_title,
@@ -750,16 +751,16 @@ export class DashboardService {
          ORDER BY n.id DESC`,
         [student.id]
       ),
-      this.db.execute<RowDataPacket[]>(
+      () => this.db.execute<RowDataPacket[]>(
         `SELECT 1 FROM study_activity_events
          WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE()
          LIMIT 1`,
         [student.id]
       ),
-      this.getRandomDashboardQuestion(student.id, appClient),
-      this.coursesService.findStudentCourses(authorization),
-      this.xpService.getSummary(student.id),
-    ]);
+      () => this.getRandomDashboardQuestion(student.id, appClient),
+      () => this.coursesService.findStudentCourses(authorization),
+      () => this.xpService.getSummary(student.id),
+    ], 3);
 
     const [summaryRows] = summaryResult;
     const [recentAttempts] = recentAttemptsResult;
@@ -1184,7 +1185,46 @@ export class DashboardService {
     ];
   }
 
+  // Question of the day is the same for a student all day (it is picked from a
+  // hash of the date and the student id), but working it out scans the whole
+  // question bank twice. Keep each student's answer, and the shared count of
+  // eligible questions, for an hour instead of recomputing on every dashboard.
+  private readonly questionOfDayCache = new Map<string, { value: unknown; expiresAt: number }>();
+  private readonly questionOfDayInflight = new Map<string, Promise<unknown>>();
+  private readonly eligibleQuestionCountCache = new Map<string, { total: number; expiresAt: number }>();
+  private static readonly QUESTION_OF_DAY_TTL_MS = 60 * 60 * 1000;
+
   private async getRandomDashboardQuestion(studentId: number, appClient?: string) {
+    const client = isMobileAppClient(appClient) ? 'app' : 'web';
+    const today = new Date();
+    const dayKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    const key = `${dayKey}:${studentId}:${client}`;
+    const now = Date.now();
+    const cached = this.questionOfDayCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return cached.value as Awaited<ReturnType<DashboardService['computeRandomDashboardQuestion']>>;
+    }
+    // Two dashboard loads at once share one computation instead of two.
+    const running = this.questionOfDayInflight.get(key);
+    if (running) {
+      return running as ReturnType<DashboardService['computeRandomDashboardQuestion']>;
+    }
+    const task = this.computeRandomDashboardQuestion(studentId, appClient)
+      .then((value) => {
+        if (this.questionOfDayCache.size > 5000) {
+          for (const [k, entry] of this.questionOfDayCache) {
+            if (entry.expiresAt <= Date.now()) this.questionOfDayCache.delete(k);
+          }
+        }
+        this.questionOfDayCache.set(key, { value, expiresAt: Date.now() + DashboardService.QUESTION_OF_DAY_TTL_MS });
+        return value;
+      })
+      .finally(() => this.questionOfDayInflight.delete(key));
+    this.questionOfDayInflight.set(key, task);
+    return task;
+  }
+
+  private async computeRandomDashboardQuestion(studentId: number, appClient?: string) {
     // This "question of the day" widget had no premium check at all — any
     // question in the entire bank (full text, all options, correct answer
     // marked) could be picked, dashboard-wide, for every student. Restrict
@@ -1212,12 +1252,23 @@ export class DashboardService {
            WHERE qqf.question_id = q.id
          )`}`;
 
-    const [[countRow]] = await this.db.execute<(RowDataPacket & { total_questions: number })[]>(
-      `SELECT COUNT(*) AS total_questions
-       FROM questions q
-       WHERE ${eligibleQuestionWhere}`
-    );
-    const totalQuestions = Number(countRow?.total_questions || 0);
+    const countKey = isMobileClient ? 'app' : 'web';
+    const cachedCount = this.eligibleQuestionCountCache.get(countKey);
+    let totalQuestions: number;
+    if (cachedCount && cachedCount.expiresAt > Date.now()) {
+      totalQuestions = cachedCount.total;
+    } else {
+      const [[countRow]] = await this.db.execute<(RowDataPacket & { total_questions: number })[]>(
+        `SELECT COUNT(*) AS total_questions
+         FROM questions q
+         WHERE ${eligibleQuestionWhere}`
+      );
+      totalQuestions = Number(countRow?.total_questions || 0);
+      this.eligibleQuestionCountCache.set(countKey, {
+        total: totalQuestions,
+        expiresAt: Date.now() + DashboardService.QUESTION_OF_DAY_TTL_MS,
+      });
+    }
     if (totalQuestions <= 0) {
       return null;
     }

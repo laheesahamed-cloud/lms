@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../state/saved_first.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/brand_logo.dart';
 import '../../state/auth_controller.dart';
@@ -15,7 +16,6 @@ import '../quizzes/quizzes_repository.dart';
 import '../flashcards/flashcards_repository.dart';
 import '../dashboard/dashboard_repository.dart';
 import '../bookmarks/bookmarks_repository.dart';
-import '../planner/planner_repository.dart';
 import '../../widgets/shell_insets.dart';
 import '../../config/launch_flags.dart';
 
@@ -161,9 +161,17 @@ class _AppShellState extends ConsumerState<AppShell> with RouteAware {
     } else if (location.startsWith('/app/results')) {
       ref.invalidate(resultsListProvider);
     } else if (location.startsWith('/app/flashcards')) {
+      freshNext('decks');
       ref.invalidate(flashDecksProvider);
     } else if (location.startsWith('/app/planner')) {
-      ref.invalidate(plannerTasksProvider);
+      // Back from a lesson, Q-bank set or deck opened from a task: re-read what
+      // the planner's ticks are drawn from, waiting for the real answer.
+      freshNext('lessons');
+      freshNext('quizzes');
+      freshNext('decks');
+      ref.invalidate(lessonsListProvider);
+      ref.invalidate(quizListProvider);
+      ref.invalidate(flashDecksProvider);
     } else if (location.startsWith('/app/bookmarks')) {
       ref.invalidate(bookmarksProvider);
     }

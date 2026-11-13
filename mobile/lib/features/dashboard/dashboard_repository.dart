@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
+import '../../state/saved_first.dart';
 
 int _i(dynamic v) =>
     v is int ? v : (v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 0);
@@ -501,5 +502,11 @@ final studentDashboardProvider = FutureProvider<StudentDashboard>((ref) async {
   ref.watch(userScopeProvider);
   final warm = DashboardPrefetch.take();
   if (warm != null) return warm;
-  return fetchStudentDashboard(ref.read(apiClientProvider));
+  final api = ref.read(apiClientProvider);
+  return savedFirst(
+    ref,
+    name: 'dashboard',
+    fetch: () async => (await api.dio.get('/student/dashboard')).data,
+    parse: (raw) => compute(_parseDashboard, raw),
+  );
 });

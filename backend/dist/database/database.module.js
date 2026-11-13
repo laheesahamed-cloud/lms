@@ -64,7 +64,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                         password: configService.get('database.password'),
                         database: configService.get('database.name'),
                         waitForConnections: true,
-                        connectionLimit: configService.get('database.connectionLimit') || 8,
+                        connectionLimit: configService.get('database.connectionLimit') || 4,
                         maxIdle: configService.get('database.maxIdle') || 4,
                         idleTimeout: configService.get('database.idleTimeout') || 60000,
                         connectTimeout: configService.get('database.connectTimeout') || 10000,

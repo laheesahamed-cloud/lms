@@ -196,14 +196,28 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
     super.dispose();
   }
 
+  /// When the app last went to the background, to skip re-checks after short trips.
+  DateTime? _backgroundedAt;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Coming back from the background: re-check the session so an expired
     // token sends us to login automatically (no close-and-reopen needed).
+    if (state == AppLifecycleState.paused) {
+      _backgroundedAt = DateTime.now();
+    }
     if (state == AppLifecycleState.resumed) {
-      ref.read(authControllerProvider.notifier).revalidateSession();
-      // Also catches a renewal that happened while we were backgrounded.
-      ref.read(iapReconcilerProvider).sync();
+      // A quick trip away (a notification, the app switcher) doesn't need a
+      // session and purchase re-check: each one is a request to the server.
+      final away = _backgroundedAt == null
+          ? const Duration(days: 1)
+          : DateTime.now().difference(_backgroundedAt!);
+      _backgroundedAt = null;
+      if (away >= const Duration(minutes: 1)) {
+        ref.read(authControllerProvider.notifier).revalidateSession();
+        // Also catches a renewal that happened while we were backgrounded.
+        ref.read(iapReconcilerProvider).sync();
+      }
       // Capture protection does not survive the trip — see handleResume().
       ScreenProtection.handleResume();
     }

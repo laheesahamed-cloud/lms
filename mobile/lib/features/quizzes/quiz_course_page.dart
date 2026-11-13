@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/status_tick.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
@@ -727,20 +728,30 @@ class _TopicDivider extends StatelessWidget {
   }
 }
 
-class _QuizRow extends StatelessWidget {
+class _QuizRow extends ConsumerWidget {
   final QuizListItem quiz;
   final int index;
   final bool exam;
   const _QuizRow({required this.quiz, required this.index, required this.exam});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
     final locked = quiz.locked;
     final label = quiz.rowLabel(index);
-    final meta = '${quiz.totalQuestions} questions'
+    // Completed only by PASSING an exam. An attempt that fell short reads "Give
+    // it another go"; practice alone is just noted.
+    final outcome = ref.watch(quizOutcomesProvider)[int.tryParse(quiz.id)];
+    final passed = outcome?.passed ?? false;
+    final retry = outcome != null && !passed;
+    final base = '${quiz.totalQuestions} questions'
         '${exam && quiz.timeLimit > 0 ? ' · ${quiz.timeLimit} min' : ''}'
         '${quiz.isFree ? ' · Free' : ''}';
+    final meta = passed
+        ? 'Completed'
+        : retry
+            ? 'Give it another go'
+            : (quiz.isCompleted ? '$base · Practised' : base);
 
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -790,8 +801,14 @@ class _QuizRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          if (quiz.isCompleted && !locked) ...[
-            const _CompletedTick(),
+          if (outcome != null && !locked) ...[
+            Text('${outcome.best}%',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: passed ? StatusTick.green : StatusTick.amber)),
+            const SizedBox(width: 8),
+            passed ? const StatusTick.done() : const StatusTick.retry(),
             const SizedBox(width: 6),
           ],
           // Locked rows show only the lock; otherwise: save button, then the
@@ -808,27 +825,6 @@ class _QuizRow extends StatelessWidget {
     );
   }
 }
-
-/// Small green check badge marking a completed (attempted) quiz.
-class _CompletedTick extends StatelessWidget {
-  const _CompletedTick();
-  static const _green = Color(0xFF16A34A);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: _green.withValues(alpha: 0.16),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.check_rounded, size: 15, color: _green),
-    );
-  }
-}
-
 
 // ---------------------------------------------------------------------------
 // Full-course series.

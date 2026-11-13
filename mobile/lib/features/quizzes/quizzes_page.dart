@@ -62,13 +62,6 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
           return ListView(
             padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: [
-              Text(_exam ? 'TIMED ASSESSMENTS' : 'PRACTICE MODE',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      color: c.accent)),
-              const SizedBox(height: 5),
               Text(_exam ? 'Exams' : 'Q-Bank',
                   style: TextStyle(
                       fontSize: 28,

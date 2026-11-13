@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart' show DioException;
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
@@ -23,7 +24,10 @@ import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
 import '../../data/api_client.dart';
 import '../../data/app_error.dart';
+import '../../state/saved_first.dart';
 import '../../widgets/adaptive_sheet.dart';
+import '../../widgets/status_tick.dart';
+import '../../widgets/time_wheel.dart';
 
 class PlannerPage extends ConsumerStatefulWidget {
   const PlannerPage({super.key});
@@ -41,17 +45,16 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
 
   // Branch labels (day or subject) the student has collapsed — session-only.
   final Set<String> _collapsedBranches = {};
+  // Set once a big plan has had its far-off days folded (see _buildBranches).
+  bool _branchesSeeded = false;
 
   // True while a confirmed "Reset" is playing its staggered exit animation
   // and clearing tasks server-side — drives the reset button's spinner.
   bool _resetting = false;
+  // True while the server is still deleting after the page has folded away.
+  bool _clearing = false;
+  int _clearDone = 0, _clearTotal = 0;
 
-  static const _celebrations = [
-    'Nice work!',
-    'Great job — one step closer!',
-    'Boom! Keep the streak going.',
-    'Well done! On to the next one.',
-  ];
 
   /// Re-schedule reminders only when the task set actually changed (web-style
   /// reconcile: cancel our prior batch, reschedule from prefs + tasks).
@@ -77,22 +80,24 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   ///
   /// A list is only read when the planner actually has a task of that kind, and
   /// while one is still loading the server's own status stands in.
-  List<PlannerTask> _withRealStatus(List<PlannerTask> raw) {
+  List<PlannerTask> _withRealStatus(List<PlannerTask> raw, {bool watch = true}) {
+    // From build the lists are watched; from a tap handler they are only read.
+    T pick<T>(ProviderListenable<T> p) => watch ? ref.watch(p) : ref.read(p);
     final lessons = raw.any((t) => t.itemType == 'lesson')
-        ? ref.watch(lessonsListProvider).value
+        ? pick(lessonsListProvider).value
         : null;
-    final quizzes = raw.any((t) => t.itemType == 'quiz')
-        ? ref.watch(quizListProvider).value
+    // A Q-bank set is done only once it has been PASSED as an exam. Practice
+    // runs, and exams that were not passed, leave the task open.
+    final outcomes = raw.any((t) => t.itemType == 'quiz')
+        ? pick(quizOutcomesProvider)
         : null;
     final doneLessons = lessons == null
         ? null
         : {for (final l in lessons) if (l.lessonCompleted && l.lessonId.isNotEmpty) l.lessonId};
-    final doneQuizzes = quizzes == null
-        ? null
-        : {for (final q in quizzes) if (q.isCompleted) q.id};
+
     // A deck is done when nothing in it is new, learning or due.
     final decks = raw.any((t) => t.itemType == 'flashcards')
-        ? ref.watch(flashDecksProvider).value
+        ? pick(flashDecksProvider).value
         : null;
     final deckLeft = decks == null ? null : _cardsLeftByNote(decks.decks);
 
@@ -100,8 +105,12 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       for (final t in raw)
         if (t.itemType == 'lesson' && doneLessons != null)
           t.withStatus(doneLessons.contains('${t.itemId}') ? 'done' : 'todo')
-        else if (t.itemType == 'quiz' && doneQuizzes != null)
-          t.withStatus(doneQuizzes.contains('${t.itemId}') ? 'done' : 'todo')
+        else if (t.itemType == 'quiz' && outcomes != null)
+          // Passed = done (green tick). Attempted but not passed = still open,
+          // marked for a retry (amber). Never attempted = open, no mark.
+          (outcomes[t.itemId]?.passed ?? false)
+              ? t.withStatus('done')
+              : t.withStatus('todo', retry: outcomes.containsKey(t.itemId))
         else if (t.itemType == 'flashcards' && deckLeft != null && deckLeft.containsKey(t.itemId))
           t.withStatus(deckLeft[t.itemId] == 0 ? 'done' : 'todo')
         else
@@ -150,6 +159,91 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     return found;
   }
 
+  /// A Q-bank task asks how to take the set. Only PASSING it as an exam
+  /// completes the task; practice is for learning and counts for nothing here.
+  Future<void> _openQuiz(PlannerTask t) async {
+    QuizListItem? quiz;
+    for (final q in ref.read(quizListProvider).value ?? const <QuizListItem>[]) {
+      if (q.id == '${t.itemId}') quiz = q;
+    }
+    final canPractice = quiz?.canPractice ?? true;
+    final mode = await showAdaptiveSheet<String>(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: context.c.page,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        final c = ctx.c;
+        Widget option(String value, IconData icon, String title, String sub) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => Navigator.of(ctx).pop(value),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: c.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: c.line),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(icon, color: c.primary, size: 26),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title,
+                                style: TextStyle(
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: c.inkStrong)),
+                            const SizedBox(height: 2),
+                            Text(sub,
+                                style: TextStyle(fontSize: 13, color: c.inkSoft)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: c.inkMuted),
+                    ],
+                  ),
+                ),
+              ),
+            );
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(t.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800, color: c.inkStrong)),
+                const SizedBox(height: 4),
+                Text('How do you want to take it?',
+                    style: TextStyle(fontSize: 13, color: c.inkSoft)),
+                const SizedBox(height: 14),
+                if (canPractice)
+                  option('practice', Icons.menu_book_rounded, 'Practice',
+                      'See answers as you go. Does not complete this task.'),
+                option('exam', Icons.timer_outlined, 'Exam',
+                    'Timed and marked. Pass it to complete this task.'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (mode == null || !mounted) return;
+    context.push('/app/quizzes/${t.itemId}${mode == 'exam' ? '?exam=1' : ''}');
+  }
+
   /// Opens the lesson, quiz or flashcard deck a linked task stands for.
   void _openLinked(PlannerTask t) {
     if (!t.isLinked) return;
@@ -157,7 +251,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       case 'lesson':
         context.push('/app/study/lesson/${t.itemId}');
       case 'quiz':
-        context.push('/app/quizzes/${t.itemId}');
+        _openQuiz(t);
       case 'flashcards':
         final deck = _deckForNote(t.itemId!);
         if (deck == null) {
@@ -195,8 +289,24 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
           ),
           data: (rawTasks) {
             final tasks = _clearedLocally ? const <PlannerTask>[] : _withRealStatus(rawTasks);
+            if (tasks.isEmpty) _branchesSeeded = false; // a new plan folds afresh
             _maybeReconcile(tasks);
-            return _mindMap(c, tasks);
+            return Stack(
+              children: [
+                _mindMap(c, tasks),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: !_clearing,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: _clearing
+                          ? _clearOverlay(c)
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ],
+            );
           },
         ),
       ),
@@ -250,11 +360,16 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     final sortedSubjects = bySubject.keys.toList()..sort();
 
     return RefreshIndicator(
-      onRefresh: () async => ref.refresh(plannerTasksProvider.future),
+      onRefresh: () async {
+        freshNext('planner');
+        freshNext('lessons');
+        freshNext('quizzes');
+        ref.invalidate(lessonsListProvider);
+        ref.invalidate(quizListProvider);
+        ref.invalidate(plannerTasksProvider);
+        await ref.read(plannerTasksProvider.future);
+      },
       child: ListView(
-        // While clearing, build every row (not just those near the screen) so
-        // every day folds, not only the one in view.
-        scrollCacheExtent: _resetting ? const ScrollCacheExtent.pixels(100000) : null,
         padding: EdgeInsets.fromLTRB(16, 14, 16, shellScrollEnd(context)),
         children: [
           PageHeader(
@@ -371,6 +486,30 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     int foldStep,
   ) {
     final branches = <Widget>[];
+    // A plan over a whole course is thousands of cards; building them all at
+    // once is what made the planner slow to open. Show the days that matter
+    // (anything overdue and not finished, then the next few) and leave the rest
+    // folded until tapped. A small plan is left fully open.
+    if (!_branchesSeeded && total > 40) {
+      _branchesSeeded = true;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      var openAhead = 0;
+      for (final d in sortedDates) {
+        final tasks = byDate[d]!;
+        final bool keepOpen;
+        if (d.isBefore(today)) {
+          keepOpen = tasks.any((t) => !t.done);
+        } else {
+          keepOpen = openAhead < 4;
+          if (keepOpen) openAhead++;
+        }
+        if (!keepOpen) _collapsedBranches.add(_dayLabel(d));
+      }
+      for (var i = 2; i < sortedSubjects.length; i++) {
+        _collapsedBranches.add(sortedSubjects[i]);
+      }
+    }
     var index = 0;
     for (final d in sortedDates) {
       final tasks = byDate[d]!;
@@ -541,7 +680,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                               onComplete: () => _complete(tasks[i]),
                               // Lessons and Q-bank sets finish by being done,
                               // not by a swipe: tapping opens them.
-                              canSwipe: !tasks[i].isLinked,
+                              canSwipe: !tasks[i].fromPlan,
                               onOpen: tasks[i].isLinked ? () => _openLinked(tasks[i]) : null,
                             ),
                           ),
@@ -583,59 +722,17 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 
   Future<void> _complete(PlannerTask t) async {
+    if (t.fromPlan) return; // done by doing it, not by a swipe
     HapticFeedback.mediumImpact();
     final api = ref.read(plannerApiProvider);
     try {
       await setPlannerTaskDone(api, t.id, true);
       setState(() => _newTaskIds.remove(t.id));
+      freshNext('planner');
       ref.invalidate(plannerTasksProvider); // reconcile runs on rebuild
-      _celebrate(t);
     } catch (_) {
       _toast('Could not update the task.');
     }
-  }
-
-  Future<void> _celebrate(PlannerTask t) async {
-    if (!mounted) return;
-    final msg = (List.of(_celebrations)..shuffle()).first;
-    await showDialog<void>(
-      useRootNavigator: true,
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.45),
-      builder: (ctx) => Dialog(
-        backgroundColor: context.c.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(26, 28, 26, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _AnimatedCheckBadge(size: 56),
-              const SizedBox(height: 8),
-              Text(msg,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w800, color: context.c.inkStrong)),
-              const SizedBox(height: 4),
-              Text(t.title,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12.5, color: context.c.inkSoft)),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Keep going', style: TextStyle(fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _confirmReset() async {
@@ -667,8 +764,21 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     setState(() => _resetting = true);
     final api = ref.read(plannerApiProvider);
     // The request starts straight away and the page folds alongside it.
-    final request = _clearOnServer(api, tasks);
-    final waveMs = (tasks.length + 2) * _foldStepMs(tasks.length) + 420;
+    _clearDone = 0;
+    _clearTotal = 0;
+    final request = _clearOnServer(api, tasks, onProgress: (done, total) {
+      if (!mounted) return;
+      setState(() {
+        _clearDone = done;
+        _clearTotal = total;
+      });
+    });
+    // Whether the server has already finished: if it has by the time the fold
+    // ends, there is nothing left to show progress for.
+    var requestDone = false;
+    request.then((_) => requestDone = true, onError: (_) => requestDone = true);
+    // Only the rows on screen fold, so the wave stays short however big the plan.
+    final waveMs = ((tasks.length + 2) * _foldStepMs(tasks.length) + 420).clamp(0, 1200);
     await Future.delayed(Duration(milliseconds: waveMs));
     if (!mounted) return;
 
@@ -679,6 +789,9 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       _newTaskIds.clear();
       _resetting = false;
       _clearedLocally = true;
+      // Progress only if the server is still working once the fold is over, so
+      // the fold, the progress and the empty planner follow one after another.
+      _clearing = !requestDone;
     });
 
     Object? failure;
@@ -687,20 +800,29 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     } catch (e) {
       failure = e;
     }
-    if (mounted) setState(() => _clearedLocally = false);
+    if (mounted) {
+      setState(() {
+        _clearedLocally = false;
+        _clearing = false;
+      });
+    }
     // Always re-read the list, success or not. After a failure some tasks may
     // already be gone, and showing the old list would show tasks that no longer
     // exist.
-    ref.invalidate(plannerTasksProvider);
+    freshNext('planner');
+      ref.invalidate(plannerTasksProvider);
     if (failure != null) _toast('Could not clear every task. Pull down to refresh.');
   }
 
   /// One request on an up-to-date server. On an older one, the deletes run ten
   /// at a time, and one failing does not stop the rest (it used to abort the
   /// whole clear, leaving everything after it behind).
-  Future<void> _clearOnServer(ApiClient api, List<PlannerTask> tasks) async {
+  Future<void> _clearOnServer(ApiClient api, List<PlannerTask> tasks,
+      {void Function(int done, int total)? onProgress}) async {
     try {
+      onProgress?.call(0, 1);
       await clearPlannerTasks(api);
+      onProgress?.call(1, 1); // one request: it is 0%, then done
       return;
     } on PlannerClearUnsupported {
       // fall through to the per-task path
@@ -717,12 +839,18 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       }
     }
 
-    final queue = List<PlannerTask>.of(tasks);
+    // Only saved rows can be deleted; a plan's days drawn from a rule are not rows.
+    final queue = tasks.where((t) => t.id > 0).toList();
+    final total = queue.length;
+    var finished = 0;
+    onProgress?.call(0, total);
     final failed = <PlannerTask>[];
     Future<void> worker() async {
       while (queue.isNotEmpty) {
         final t = queue.removeLast();
         if (!await deleteOne(t)) failed.add(t);
+        finished++;
+        if (finished % 10 == 0 || finished == total) onProgress?.call(finished, total);
       }
     }
 
@@ -737,6 +865,66 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     }
   }
 
+  /// Shown over the emptied planner while the server finishes deleting.
+  Widget _clearOverlay(AppColors c) {
+    final total = _clearTotal < 1 ? 1 : _clearTotal;
+    final value = (_clearDone / total).clamp(0.0, 1.0);
+    final pct = (value * 100).round();
+    return Container(
+      color: c.page.withValues(alpha: 0.88),
+      alignment: Alignment.center,
+      child: Container(
+        width: 240,
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: c.line),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 84,
+              height: 84,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 84,
+                    height: 84,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: value),
+                      duration: const Duration(milliseconds: 250),
+                      builder: (_, v, __) => CircularProgressIndicator(
+                        value: v,
+                        strokeWidth: 6,
+                        backgroundColor: c.inkMuted.withValues(alpha: 0.2),
+                        color: const Color(0xFFDC2626),
+                      ),
+                    ),
+                  ),
+                  Text('$pct%',
+                      style: TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w800, color: c.inkStrong)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('Clearing your planner',
+                style: TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w800, color: c.inkStrong)),
+            if (_clearTotal > 1) ...[
+              const SizedBox(height: 4),
+              Text('$_clearDone of $_clearTotal tasks',
+                  style: TextStyle(fontSize: 12.5, color: c.inkSoft)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   void _toast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -747,15 +935,45 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     // free — what is being paid for is having the whole course laid out for
     // you, not the planner itself.
     if (!await _ensureSubscribed()) return;
+    // One plan at a time. A plan is active while any task it made is still
+    // open; tasks the student typed do not count. Finish it, or clear the
+    // planner, to make a new one.
+    final open = (ref.read(plannerTasksProvider).value ?? const <PlannerTask>[])
+        .where((t) => t.fromPlan)
+        .toList();
+    final live = _withRealStatus(open, watch: false).where((t) => !t.done).length;
+    if (live > 0) {
+      if (!mounted) return;
+      final clear = await showDialog<bool>(
+        useRootNavigator: true,
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('You already have a plan'),
+          content: Text(
+              'Your current plan still has $live task${live == 1 ? '' : 's'} to do. '
+              'Finish it, or clear the planner, before making a new one.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('OK')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Clear planner', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      if (clear == true && mounted) _confirmReset();
+      return;
+    }
     final created = await Navigator.of(context).push<List<int>>(
       CupertinoPageRoute(builder: (_) => const GeneratePlanPage()),
     );
     if (created == null) return; // cancelled
     setState(() => _newTaskIds.addAll(created));
-    ref.invalidate(plannerTasksProvider); // reconcile runs on rebuild
-    _toast(created.isEmpty
-        ? 'Nothing left to schedule for that selection.'
-        : 'Added ${created.length} task${created.length == 1 ? '' : 's'} to your planner.');
+    freshNext('planner');
+      ref.invalidate(plannerTasksProvider); // reconcile runs on rebuild
+    // No "Added N tasks" popup on success: the new plan appearing is the
+    // confirmation. Only the empty case needs a word.
+    if (created.isEmpty) _toast('Nothing left to schedule for that selection.');
   }
 
   /// True if the student may generate — already subscribed, or subscribed
@@ -805,6 +1023,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
         category: result.category,
         priority: result.priority,
       );
+      freshNext('planner');
       ref.invalidate(plannerTasksProvider); // reconcile runs on rebuild
     } catch (_) {
       _toast('Could not create the task.');
@@ -820,32 +1039,6 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _ReminderSettingsSheet(tasks: tasks),
-    );
-  }
-}
-
-/// A green check that pops in with a bounce — used wherever the app tells
-/// the student "done", instead of an emoji.
-class _AnimatedCheckBadge extends StatelessWidget {
-  final double size;
-  const _AnimatedCheckBadge({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 480),
-      curve: Curves.elasticOut,
-      builder: (_, v, child) => Transform.scale(scale: v, child: child),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: const Color(0xFF16A34A).withValues(alpha: 0.14),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(Icons.check_rounded, size: size * 0.6, color: const Color(0xFF16A34A)),
-      ),
     );
   }
 }
@@ -1170,10 +1363,14 @@ class _SwipeIdentityCardState extends State<_SwipeIdentityCard>
                   ),
                 ),
                 if (task.done)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: Icon(Icons.check_circle_rounded,
-                        size: 18, color: const Color(0xFF16A34A).withValues(alpha: 0.45)),
+                  const Padding(
+                    padding: EdgeInsets.only(right: 10),
+                    child: StatusTick.done(),
+                  )
+                else if (task.retry)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 10),
+                    child: StatusTick.retry(),
                   )
                 else if (widget.onOpen != null)
                   Padding(
@@ -1371,6 +1568,25 @@ class _ReminderSettingsSheetState extends State<_ReminderSettingsSheet> {
     await StudyReminders.reconcile(widget.tasks);
   }
 
+  Timer? _wheelDebounce;
+
+  @override
+  void dispose() {
+    _wheelDebounce?.cancel();
+    super.dispose();
+  }
+
+  Widget _card(AppColors c, {required Widget child}) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: c.line),
+        ),
+        child: child,
+      );
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
@@ -1378,7 +1594,11 @@ class _ReminderSettingsSheetState extends State<_ReminderSettingsSheet> {
       return const SizedBox(
           height: 200, child: Center(child: CircularProgressIndicator()));
     }
-    return Padding(
+    final parts = _prefs.customTime.split(':');
+    final wheelTime = TimeOfDay(
+        hour: int.tryParse(parts[0]) ?? 18,
+        minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1389,94 +1609,85 @@ class _ReminderSettingsSheetState extends State<_ReminderSettingsSheet> {
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.w800, color: c.inkStrong)),
           const SizedBox(height: 4),
-          Text('On-device reminders, scheduled locally.',
+          Text('Reminders are set on your phone.',
               style: TextStyle(fontSize: 13, color: c.inkSoft)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Planner reminders
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _prefs.plannerEnabled,
-            onChanged: (v) => _apply(_prefs.copyWith(plannerEnabled: v)),
-            title: Text('Task reminders',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, color: c.inkStrong)),
-            subtitle: Text('Remind me before each task is due',
-                style: TextStyle(fontSize: 13, color: c.inkSoft)),
-          ),
-          if (_prefs.plannerEnabled) ...[
-            const SizedBox(height: 4),
-            Text('REMIND ME',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                    color: c.inkSoft)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 7,
+          // Task reminders
+          _card(
+            c,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final h in _leadOptions)
-                  _chip(c, h >= 24 ? '${h ~/ 24}d before' : '${h}h before',
-                      _prefs.plannerLeadHours == h,
-                      () => _apply(_prefs.copyWith(plannerLeadHours: h))),
-              ],
-            ),
-          ],
-          const Divider(height: 28),
-
-          // Daily reminder
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _prefs.customEnabled,
-            onChanged: (v) => _apply(_prefs.copyWith(customEnabled: v)),
-            title: Text('Daily reminder',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, color: c.inkStrong)),
-            subtitle: Text('A nudge to study at the same time each day',
-                style: TextStyle(fontSize: 13, color: c.inkSoft)),
-          ),
-          if (_prefs.customEnabled)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: _pickCustomTime,
-                child: Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                      color: c.surface2,
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: _prefs.plannerEnabled,
+                  onChanged: (v) => _apply(_prefs.copyWith(plannerEnabled: v)),
+                  title: Text('Task reminders',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: c.inkStrong)),
+                  subtitle: Text("Before a day's tasks are due",
+                      style: TextStyle(fontSize: 13, color: c.inkSoft)),
+                ),
+                if (_prefs.plannerEnabled) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
                     children: [
-                      Icon(Icons.alarm_outlined, size: 17, color: c.primary),
-                      const SizedBox(width: 8),
-                      Text('At ${_prefs.customTime}',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700, color: c.inkStrong)),
+                      for (final h in _leadOptions)
+                        _chip(c, h >= 24 ? '${h ~/ 24} day' : '${h}h',
+                            _prefs.plannerLeadHours == h,
+                            () => _apply(_prefs.copyWith(plannerLeadHours: h))),
                     ],
                   ),
-                ),
-              ),
+                  const SizedBox(height: 4),
+                  Text('How long before the end of the day to remind you.',
+                      style: TextStyle(fontSize: 12, color: c.inkMuted)),
+                ],
+              ],
             ),
+          ),
+          const SizedBox(height: 10),
+
+          // Daily reminder
+          _card(
+            c,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: _prefs.customEnabled,
+                  onChanged: (v) => _apply(_prefs.copyWith(customEnabled: v)),
+                  title: Text('Daily reminder',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: c.inkStrong)),
+                  subtitle: Text('Same time every day',
+                      style: TextStyle(fontSize: 13, color: c.inkSoft)),
+                ),
+                if (_prefs.customEnabled)
+                  TimeWheel(
+                    initial: wheelTime,
+                    onChanged: (t) {
+                      // Wait for the wheels to rest before rescheduling.
+                      _wheelDebounce?.cancel();
+                      _wheelDebounce = Timer(const Duration(milliseconds: 500), () {
+                        if (!mounted) return;
+                        final hh = t.hour.toString().padLeft(2, '0');
+                        final mm = t.minute.toString().padLeft(2, '0');
+                        _apply(_prefs.copyWith(customTime: '$hh:$mm'));
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
-  }
-
-  Future<void> _pickCustomTime() async {
-    final parts = _prefs.customTime.split(':');
-    final init = TimeOfDay(
-        hour: int.tryParse(parts[0]) ?? 18,
-        minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
-    final picked = await showTimePicker(context: context, initialTime: init);
-    if (picked != null) {
-      final hh = picked.hour.toString().padLeft(2, '0');
-      final mm = picked.minute.toString().padLeft(2, '0');
-      await _apply(_prefs.copyWith(customTime: '$hh:$mm'));
-    }
   }
 
   Widget _chip(AppColors c, String label, bool on, VoidCallback onTap) {

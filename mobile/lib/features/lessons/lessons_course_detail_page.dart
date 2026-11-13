@@ -92,34 +92,24 @@ class _NotesCourseDetailPageState
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // The course name sits in the back-chevron row, like every other
+                  // detail page, instead of under a "LESSONS" label.
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                                size: 20),
-                            color: c.inkMedium,
-                            onPressed: () => context.pop(),
-                          ),
-                        ],
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                        color: c.inkMedium,
+                        onPressed: () => context.pop(),
                       ),
-                      const SizedBox(height: 4),
-                      Text('LESSONS',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.4,
-                              color: c.accent)),
-                      const SizedBox(height: 6),
-                      Text(courseTitle,
-                          style: TextStyle(
-                              fontSize: 25,
-                              fontWeight: FontWeight.w800,
-                              color: c.inkStrong,
-                              letterSpacing: -0.5,
-                              height: 1.15)),
+                      Expanded(
+                        child: Text(courseTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: c.inkStrong)),
+                      ),
                     ],
                   ),
                 ),

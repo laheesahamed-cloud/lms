@@ -500,7 +500,18 @@ class _MetricRow extends ConsumerWidget {
                 label: 'AVG MARKS',
                 hint: avgHint,
                 hintTrend: avgDeltaShown == 0 ? null : avgDeltaShown > 0,
-                accent: DashAccents.green)),
+                // The chip stays green; only the number is red below 45,
+                // amber 45-75, green above 75.
+                accent: DashAccents.green,
+                valueAccent: examAvg.maybeWhen<SectionAccent?>(
+                    data: (e) => !e.hasData
+                        ? null
+                        : e.displayAverage < 45
+                            ? DashAccents.rose
+                            : e.displayAverage <= 75
+                                ? DashAccents.amber
+                                : DashAccents.green,
+                    orElse: () => null))),
         const SizedBox(width: 8),
         Expanded(
             child: _MetricChip(
@@ -508,7 +519,11 @@ class _MetricRow extends ConsumerWidget {
                 label: 'STREAK',
                 hint: 'days',
                 icon: Icons.local_fire_department_rounded,
-                accent: DashAccents.amber)),
+                accent: DashAccents.peach,
+                // Brighter than the usual darkened tint text, so it reads
+                // orange rather than brown.
+                inkLight: const Color(0xFFEA580C),
+                inkDark: const Color(0xFFFDBA74))),
       ],
     );
   }
@@ -521,6 +536,13 @@ class _MetricChip extends StatelessWidget {
   final IconData? icon;
   final SectionAccent? accent;
 
+  /// Colours only the big number, when it should differ from the chip.
+  final SectionAccent? valueAccent;
+
+  /// Replaces the number, label and icon colour in light / dark mode.
+  final Color? inkLight;
+  final Color? inkDark;
+
   /// Colours [hint]: true = improved (green), false = worse (red), null =
   /// neutral. No icon — the signed number carries the direction on its own.
   final bool? hintTrend;
@@ -531,14 +553,21 @@ class _MetricChip extends StatelessWidget {
       this.hint = '',
       this.icon,
       this.accent,
+      this.valueAccent,
+      this.inkLight,
+      this.inkDark,
       this.hintTrend});
   @override
   Widget build(BuildContext context) {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final a = accent;
-    final valueColor = a != null ? a.textOn(dark) : c.inkStrong;
-    final labelColor = a != null ? a.textOn(dark).withValues(alpha: 0.8) : c.inkSoft;
+    final va = valueAccent ?? a;
+    final ink = dark ? inkDark : inkLight;
+    final valueColor = ink ?? (va != null ? va.textOn(dark) : c.inkStrong);
+    final labelColor = ink != null
+        ? ink.withValues(alpha: 0.85)
+        : (a != null ? a.textOn(dark).withValues(alpha: 0.8) : c.inkSoft);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(

@@ -11,6 +11,7 @@ import '../features/planner/planner_repository.dart';
 import '../features/quizzes/quizzes_repository.dart';
 import '../features/subscriptions/iap_reconciler.dart';
 import '../features/subscriptions/subscriptions_repository.dart';
+import 'saved_first.dart';
 
 /// Drop every cached, user-scoped provider so one account never sees another's
 /// data on the same device. Called on login, logout, and forced sign-out
@@ -33,6 +34,8 @@ import '../features/subscriptions/subscriptions_repository.dart';
 /// loading state rather than another person's data. One frame of spinner is
 /// the correct trade.
 void resetUserScopedData(Ref ref) {
+  // The phone's saved copies of the lists belong to the account that is leaving.
+  clearSavedLists();
   // AI notes
   ref.invalidate(lessonsListProvider, asReload: true);
   ref.invalidate(lessonDocProvider, asReload: true);

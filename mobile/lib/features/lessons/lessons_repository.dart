@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
+import '../../state/saved_first.dart';
 import '../../services/xp_gain.dart';
 import 'lesson_models.dart';
 
@@ -59,18 +60,24 @@ void markLessonOpened(ApiClient api, String lessonId) {
 final lessonsListProvider = FutureProvider<List<LessonListItem>>((ref) async {
   ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
-  final res = await api.dio.get(
-    '/lessons/canvas/student/notes',
-    queryParameters: const {'engine': 'gemini'},
-  );
-  final data = res.data;
-  final rows = (data is List)
-      ? data
-      : (data is Map
-          ? (data['notes'] ?? data['aiNotes'] ?? data['items'] ?? data['data'] ?? const [])
-          : const []);
-  return compute(
-    (List<dynamic> r) => r.map(LessonListItem.fromJson).toList(),
-    rows as List<dynamic>,
+  return savedFirst(
+    ref,
+    name: 'lessons',
+    fetch: () async => (await api.dio.get(
+          '/lessons/canvas/student/notes',
+          queryParameters: const {'engine': 'gemini'},
+        ))
+        .data,
+    parse: (data) {
+      final rows = (data is List)
+          ? data
+          : (data is Map
+              ? (data['notes'] ?? data['aiNotes'] ?? data['items'] ?? data['data'] ?? const [])
+              : const []);
+      return compute(
+        (List<dynamic> r) => r.map(LessonListItem.fromJson).toList(),
+        rows as List<dynamic>,
+      );
+    },
   );
 });

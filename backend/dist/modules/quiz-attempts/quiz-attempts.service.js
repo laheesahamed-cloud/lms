@@ -325,6 +325,12 @@ let QuizAttemptsService = class QuizAttemptsService {
     async submitExam(authorization, quizId, dto, appClient) {
         const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId, appClient);
         const examState = await this.ensureExamSession(user.id, quizId, quiz);
+        const preSession = await this.getLatestExamSession(user.id, quizId)
+            || await this.getExamSessionById(Number(examState.session.id));
+        const preQuestions = preSession && preSession.status === 'in_progress'
+            ? await this.loadQuestionsForExamSession(quiz, preSession)
+            : null;
+        let attemptId = 0;
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
@@ -337,7 +343,11 @@ let QuizAttemptsService = class QuizAttemptsService {
             if (!session || session.status !== 'in_progress') {
                 throw new common_1.NotFoundException('Exam session not found');
             }
-            const questions = await this.loadQuestionsForExamSession(quiz, session);
+            const sameSession = preQuestions
+                && preSession
+                && Number(preSession.id) === Number(session.id)
+                && (preSession.question_ids_json || null) === (session.question_ids_json || null);
+            const questions = sameSession ? preQuestions : await this.loadQuestionsForExamSession(quiz, session);
             const incomingAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
             const sessionAnswers = session ? this.parseAnswerJson(session.answers_json) : {};
             const deadline = session ? this.parseDate(session.deadline_at) : null;
@@ -350,7 +360,7 @@ let QuizAttemptsService = class QuizAttemptsService {
             WHERE id = ? AND user_id = ? AND quiz_id = ? AND status = 'in_progress'
           `, [JSON.stringify(submittedAnswers), session.id, user.id, quizId]);
             }
-            const attemptId = await this.createExamAttempt(connection, user.id, quizId, quiz, questions, submittedAnswers);
+            attemptId = await this.createExamAttempt(connection, user.id, quizId, quiz, questions, submittedAnswers);
             if (session) {
                 await connection.execute(`
             UPDATE exam_sessions
@@ -359,8 +369,6 @@ let QuizAttemptsService = class QuizAttemptsService {
           `, [canAcceptIncomingAnswers ? 'submitted' : 'expired', attemptId, session.id, user.id, quizId]);
             }
             await connection.commit();
-            const xp = await this.xpService.onExamSubmitted(user.id, attemptId);
-            return { success: true, attemptId, xp };
         }
         catch (error) {
             await connection.rollback();
@@ -369,6 +377,8 @@ let QuizAttemptsService = class QuizAttemptsService {
         finally {
             connection.release();
         }
+        const xp = await this.xpService.onExamSubmitted(user.id, attemptId);
+        return { success: true, attemptId, xp };
     }
     async result(authorization, attemptId) {
         const user = await this.requireStudent(authorization);
@@ -1181,6 +1191,7 @@ let QuizAttemptsService = class QuizAttemptsService {
     }
     async finalizeExpiredExamSession(userId, quizId, sessionId, questions) {
         const quiz = await this.loadActiveQuiz(quizId);
+        let newAttemptId = 0;
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
@@ -1206,8 +1217,7 @@ let QuizAttemptsService = class QuizAttemptsService {
           WHERE id = ? AND user_id = ? AND quiz_id = ?
         `, [attemptId, sessionId, userId, quizId]);
             await connection.commit();
-            await this.xpService.onExamSubmitted(userId, attemptId);
-            return attemptId;
+            newAttemptId = attemptId;
         }
         catch (error) {
             await connection.rollback();
@@ -1216,6 +1226,8 @@ let QuizAttemptsService = class QuizAttemptsService {
         finally {
             connection.release();
         }
+        await this.xpService.onExamSubmitted(userId, newAttemptId);
+        return newAttemptId;
     }
     groupAnswerRows(rows) {
         const grouped = {};

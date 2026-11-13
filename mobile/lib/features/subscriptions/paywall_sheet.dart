@@ -1,5 +1,9 @@
 import 'dart:ui' show ImageFilter;
 
+import '../../state/saved_first.dart';
+import '../lessons/lessons_repository.dart';
+import '../courses/courses_repository.dart';
+import '../flashcards/flashcards_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -207,7 +211,13 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     // re-fetched on its own after a purchase — without this it kept showing
     // the pre-purchase locked list until the app was restarted, even though
     // the purchase and the subscription record were both already correct.
+    for (final n in ['quizzes', 'lessons', 'courses', 'decks']) {
+      freshNext(n); // a purchase changes what is locked: skip the saved copies
+    }
     ref.invalidate(quizListProvider);
+    ref.invalidate(lessonsListProvider);
+    ref.invalidate(studentCoursesProvider);
+    ref.invalidate(flashDecksProvider);
     return true;
   }
 

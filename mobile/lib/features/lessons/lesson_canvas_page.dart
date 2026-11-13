@@ -15,6 +15,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../state/saved_first.dart';
 import '../../data/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../theme/tokens.dart';
@@ -747,6 +748,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
           data: {'activityType': 'ai_note_viewed', 'itemId': widget.lessonId},
         ).catchError((_) {});
         // Invalidate the notes list so the green tick shows when the user pops back.
+        freshNext('lessons');
+        // The dashboard's "continue" card and progress changed too.
+        freshNext('dashboard');
+        freshNext('courses');
         ref.invalidate(lessonsListProvider);
       }
     } catch (_) {

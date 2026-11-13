@@ -23,6 +23,7 @@ const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const subscription_catalog_1 = require("../plans/subscription-catalog");
+const session_cache_1 = require("./session-cache");
 const auth_token_util_1 = require("./auth-token.util");
 const schema_sync_service_1 = require("../schema/schema-sync.service");
 const role_permissions_1 = require("./role-permissions");
@@ -119,6 +120,7 @@ let AuthService = AuthService_1 = class AuthService {
             (0, auth_token_util_1.createSessionExpiry)(sessionTtlDays),
             user.id,
         ]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             sessionToken,
@@ -193,6 +195,7 @@ let AuthService = AuthService_1 = class AuthService {
             (0, auth_token_util_1.createSessionExpiry)(sessionTtlDays),
             user.id,
         ]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             sessionToken,
@@ -238,6 +241,7 @@ let AuthService = AuthService_1 = class AuthService {
             (0, auth_token_util_1.createSessionExpiry)(sessionTtlDays),
             user.id,
         ]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             sessionToken,
@@ -325,6 +329,7 @@ let AuthService = AuthService_1 = class AuthService {
         const token = (0, auth_token_util_1.extractBearerToken)(authorization);
         if ((0, auth_token_util_1.isValidSessionTokenFormat)(token)) {
             await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE session_token = ?', [(0, auth_token_util_1.hashSessionToken)(token)]);
+            (0, session_cache_1.forgetSessionToken)((0, auth_token_util_1.hashSessionToken)(token));
         }
         return {
             ok: true,
@@ -360,6 +365,7 @@ let AuthService = AuthService_1 = class AuthService {
              password_reset_expires_at = NULL,
              deleted_at = NOW()
          WHERE id = ?`, [scrambledEmail, lockedPassword, user.id]);
+            (0, session_cache_1.forgetUserSessions)(user.id);
             await connection.execute(`UPDATE user_subscriptions
          SET status = 'cancelled'
          WHERE user_id = ? AND status IN ('active', 'pending')`, [user.id]);
@@ -465,6 +471,7 @@ let AuthService = AuthService_1 = class AuthService {
            session_token = NULL,
            session_expires_at = NULL
        WHERE id = ?`, [hashedPassword, user.id]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             message: 'Password updated. You can sign in with your new password.',
@@ -594,6 +601,7 @@ let AuthService = AuthService_1 = class AuthService {
             (0, auth_token_util_1.createSessionExpiry)(sessionTtlDays),
             user.id,
         ]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             sessionToken,
@@ -695,6 +703,7 @@ If you did not try to sign in, you can safely ignore this email.`;
             throw new common_1.BadRequestException('Selected avatar is not available');
         }
         await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?', [fullName, avatarKey, user.id]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             user: await this.serializeUser({
@@ -708,6 +717,7 @@ If you did not try to sign in, you can safely ignore this email.`;
     async completeProfileSetup(authorization) {
         const user = await this.findUserByToken(this.extractToken(authorization));
         await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             user: await this.serializeUser({ ...user, needs_profile_setup: 0 }),
@@ -725,6 +735,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         }
         const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
         await this.db.execute('UPDATE users SET password = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?', [hashedPassword, user.id]);
+        (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
             signedOut: true,
@@ -765,6 +776,11 @@ If you did not try to sign in, you can safely ignore this email.`;
         return token;
     }
     async findUserByToken(sessionToken) {
+        const tokenHash = (0, auth_token_util_1.hashSessionToken)(sessionToken);
+        const remembered = (0, session_cache_1.getCachedSession)(tokenHash);
+        if (remembered) {
+            return remembered;
+        }
         const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
        FROM users
        WHERE session_token = ?
@@ -774,6 +790,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         if (!user) {
             throw new common_1.UnauthorizedException('Session is invalid or has expired');
         }
+        (0, session_cache_1.setCachedSession)(tokenHash, Number(user.id), user);
         return user;
     }
     async getPasswordResetSmtpSettings() {

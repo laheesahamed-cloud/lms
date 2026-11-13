@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
+import '../../state/saved_first.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -165,14 +166,19 @@ class CourseDetail {
 final studentCoursesProvider = FutureProvider<List<CourseCard>>((ref) async {
   ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/courses/student');
-  final data = res.data;
-  final rows = (data is List)
-      ? data
-      : (data is Map
-          ? (data['courses'] ?? data['items'] ?? data['data'] ?? const [])
-          : const []);
-  return (rows as List).map(CourseCard.fromJson).toList();
+  return savedFirst(
+    ref,
+    name: 'courses',
+    fetch: () async => (await api.dio.get('/courses/student')).data,
+    parse: (data) async {
+      final rows = (data is List)
+          ? data
+          : (data is Map
+              ? (data['courses'] ?? data['items'] ?? data['data'] ?? const [])
+              : const []);
+      return (rows as List).map(CourseCard.fromJson).toList();
+    },
+  );
 });
 
 /// One course's subject-wise detail.

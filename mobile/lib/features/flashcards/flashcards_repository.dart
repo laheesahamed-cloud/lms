@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
+import '../../state/saved_first.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -186,8 +187,12 @@ class DecksResult {
 final flashDecksProvider = FutureProvider<DecksResult>((ref) async {
   ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/student/flashcards/decks');
-  return DecksResult.fromJson(res.data);
+  return savedFirst(
+    ref,
+    name: 'decks',
+    fetch: () async => (await api.dio.get('/student/flashcards/decks')).data,
+    parse: (data) async => DecksResult.fromJson(data),
+  );
 });
 
 /// The review queue for a deck scope (comma-separated note ids).

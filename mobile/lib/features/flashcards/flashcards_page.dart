@@ -11,6 +11,8 @@ import '../personal_flashcards/personal_flashcards_page.dart';
 import '../../widgets/shell_insets.dart';
 import '../../data/app_error.dart';
 import '../../widgets/adaptive_sheet.dart';
+import '../../state/saved_first.dart';
+import '../../widgets/time_wheel.dart';
 
 /// Anki-style flashcards: a deck list with New / Learning / Due counts.
 /// Tap a deck to start an FSRS review session.
@@ -247,6 +249,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
                 if (_mine) {
                   await _personalKey.currentState?.reload();
                 } else {
+                  freshNext('decks');
                   ref.invalidate(flashDecksProvider);
                   await ref.read(flashDecksProvider.future);
                 }
@@ -588,7 +591,7 @@ class _FlashcardReminderSheetState extends State<_FlashcardReminderSheet> {
     final init = TimeOfDay(
         hour: int.tryParse(parts[0]) ?? 19,
         minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
-    final picked = await showTimePicker(context: context, initialTime: init);
+    final picked = await pickTimeWheel(context, initial: init);
     if (picked != null) {
       final hh = picked.hour.toString().padLeft(2, '0');
       final mm = picked.minute.toString().padLeft(2, '0');

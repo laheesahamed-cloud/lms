@@ -1,3 +1,4 @@
+import '../../state/saved_first.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +23,11 @@ class ResultsPage extends ConsumerWidget {
     return SafeArea(
       bottom: false,
       child: RefreshIndicator(
-        onRefresh: () => ref.refresh(resultsListProvider.future),
+        onRefresh: () {
+          // A pull is an explicit ask for the server's answer, not the saved copy.
+          freshNext('results');
+          return ref.refresh(resultsListProvider.future);
+        },
         child: resultsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ListView(
@@ -41,13 +46,6 @@ class ResultsPage extends ConsumerWidget {
           data: (items) => ListView(
             padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: <Widget>[
-              Text('YOUR HISTORY',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      color: c.accent)),
-              const SizedBox(height: AppSpace.x1),
               Text('Results',
                   style: TextStyle(
                       fontSize: 28,

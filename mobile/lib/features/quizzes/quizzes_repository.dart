@@ -2,6 +2,7 @@ import '../../services/xp_gain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
+import '../../state/saved_first.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -444,12 +445,17 @@ List<QuizScopeGroup> groupQuizzesByScope(
 final quizListProvider = FutureProvider<List<QuizListItem>>((ref) async {
   ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/quiz-attempts/quizzes');
-  final data = res.data;
-  final rows = (data is List)
-      ? data
-      : (data is Map ? (data['quizzes'] ?? data['items'] ?? data['data'] ?? const []) : const []);
-  return (rows as List).map(QuizListItem.fromJson).toList();
+  return savedFirst(
+    ref,
+    name: 'quizzes',
+    fetch: () async => (await api.dio.get('/quiz-attempts/quizzes')).data,
+    parse: (data) async {
+      final rows = (data is List)
+          ? data
+          : (data is Map ? (data['quizzes'] ?? data['items'] ?? data['data'] ?? const []) : const []);
+      return (rows as List).map(QuizListItem.fromJson).toList();
+    },
+  );
 });
 
 /// Load a quiz in practice mode (answers + explanations inline for the reveal).
@@ -731,12 +737,41 @@ class ResultListItem {
 final resultsListProvider = FutureProvider<List<ResultListItem>>((ref) async {
   ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/quiz-attempts/results');
-  final data = res.data;
-  final rows = (data is List)
-      ? data
-      : (data is Map ? (data['results'] ?? data['items'] ?? const []) : const []);
-  return (rows as List).map(ResultListItem.fromJson).toList();
+  return savedFirst(
+    ref,
+    name: 'results',
+    fetch: () async => (await api.dio.get('/quiz-attempts/results')).data,
+    parse: (data) async {
+      final rows = (data is List)
+          ? data
+          : (data is Map ? (data['results'] ?? data['items'] ?? const []) : const []);
+      return (rows as List).map(ResultListItem.fromJson).toList();
+    },
+  );
+});
+
+/// How a student has done on one Q-bank set, from their exam attempts.
+class QuizOutcome {
+  final int best; // best score, 0-100
+  final bool passed; // passed at least once
+  const QuizOutcome(this.best, this.passed);
+}
+
+/// Per quiz id. A set is COMPLETED only when it has been passed; an attempt
+/// that did not reach the pass mark is shown as "give it another go". Practice
+/// leaves no entry here.
+final quizOutcomesProvider = Provider<Map<int, QuizOutcome>>((ref) {
+  final results = ref.watch(resultsListProvider).value ?? const <ResultListItem>[];
+  final out = <int, QuizOutcome>{};
+  for (final r in results) {
+    final pct = r.percentage.round();
+    final prev = out[r.quizId];
+    out[r.quizId] = QuizOutcome(
+      prev == null || pct > prev.best ? pct : prev.best,
+      (prev?.passed ?? false) || r.passed,
+    );
+  }
+  return out;
 });
 
 /// Mean mark across every exam/quiz attempt, plus what that mean was before

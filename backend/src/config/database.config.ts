@@ -8,7 +8,9 @@ export default () => ({
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     name: process.env.DB_NAME || 'lms_db',
-    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '8', 10),
+    // Kept below the host's per-account connection cap: during a restart the old
+    // and new copy of the app overlap, so two pools must fit inside it together.
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '4', 10),
     maxIdle: parseInt(process.env.DB_MAX_IDLE || '4', 10),
     idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '60000', 10),
     connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10),

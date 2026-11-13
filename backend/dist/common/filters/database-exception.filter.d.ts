@@ -1,5 +1,6 @@
 import { ArgumentsHost } from '@nestjs/common';
 import { BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
+export declare function isDatabaseUnavailableError(error: unknown): boolean;
 export declare class DatabaseExceptionFilter extends BaseExceptionFilter {
     private readonly adapterHost;
     constructor(adapterHost: HttpAdapterHost);

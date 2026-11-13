@@ -7,7 +7,7 @@ const express = require('express') as any;
 const { json, urlencoded } = express;
 const path = require('path');
 import { AppModule } from './app.module';
-import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
+import { DatabaseExceptionFilter, isDatabaseUnavailableError } from './common/filters/database-exception.filter';
 import { AuthService } from './modules/auth/auth.service';
 import { recordApiRequestMetric } from './performance-metrics';
 import { isValidMediaSignature, uploadResource } from './common/utils/signed-media.util';
@@ -784,6 +784,18 @@ export async function configureApp(app: INestApplication) {
       rewriteRequestUrl(req, rewrittenPath);
       next();
     } catch (error: any) {
+      // A refused or lost database connection is not a bad login. Answering 401
+      // here made the web and the app throw away a perfectly good session
+      // whenever the host briefly capped our connections. Say "busy" instead.
+      if (isDatabaseUnavailableError(error)) {
+        res.setHeader('Retry-After', '3');
+        res.status(503).json({
+          statusCode: 503,
+          code: 'DATABASE_UNAVAILABLE',
+          message: 'The server is busy. Please try again in a moment.',
+        });
+        return;
+      }
       const statusCode = Number(error?.status || error?.statusCode || 401);
       res.status(statusCode).json({ message: error?.message || 'Access denied' });
     }

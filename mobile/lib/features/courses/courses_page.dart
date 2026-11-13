@@ -65,11 +65,6 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
           return ListView(
             padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: <Widget>[
-              Text('YOUR LIBRARY',
-                  style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4, color: c.accent)),
-              const SizedBox(height: AppSpace.x1),
               Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 Expanded(
                   child: Text('Courses',

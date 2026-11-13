@@ -681,6 +681,15 @@ async function configureApp(app) {
             next();
         }
         catch (error) {
+            if ((0, database_exception_filter_1.isDatabaseUnavailableError)(error)) {
+                res.setHeader('Retry-After', '3');
+                res.status(503).json({
+                    statusCode: 503,
+                    code: 'DATABASE_UNAVAILABLE',
+                    message: 'The server is busy. Please try again in a moment.',
+                });
+                return;
+            }
             const statusCode = Number(error?.status || error?.statusCode || 401);
             res.status(statusCode).json({ message: error?.message || 'Access denied' });
         }

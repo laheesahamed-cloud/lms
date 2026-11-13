@@ -13,6 +13,10 @@ const DATABASE_AVAILABILITY_ERROR_CODES = new Set([
   'EHOSTDOWN',
   'ENOTFOUND',
   'ER_CON_COUNT_ERROR',
+  // The host's per-user connection cap. A busy database, not a broken request:
+  // answer 503 so clients wait and retry instead of treating it as a crash.
+  'ER_USER_LIMIT_REACHED',
+  'ER_TOO_MANY_USER_CONNECTIONS',
   'ER_SERVER_SHUTDOWN',
   'ER_SERVER_GONE_ERROR',
   'CR_SERVER_GONE_ERROR',
@@ -35,14 +39,14 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error || '');
 }
 
-function isDatabaseUnavailableError(error: unknown) {
+export function isDatabaseUnavailableError(error: unknown) {
   const code = getErrorCode(error);
   if (code && DATABASE_AVAILABILITY_ERROR_CODES.has(code)) {
     return true;
   }
 
   const message = getErrorMessage(error);
-  return /(?:connect\s+ECONNREFUSED|connect\s+ETIMEDOUT|read\s+ECONNRESET|PROTOCOL_CONNECTION_LOST|server has gone away|pool is closed|connection is in closed state|can't enqueue .* after fatal error)/i.test(message);
+  return /(?:connect\s+ECONNREFUSED|connect\s+ETIMEDOUT|read\s+ECONNRESET|PROTOCOL_CONNECTION_LOST|server has gone away|pool is closed|connection is in closed state|can't enqueue .* after fatal error|max_user_connections|queue limit reached)/i.test(message);
 }
 
 @Catch()

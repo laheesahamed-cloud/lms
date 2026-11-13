@@ -51,3 +51,4 @@ backend/test/*.d.ts
 
 # Full-site backup archives contain backend/.env — never commit them.
 /backups/
+/lesson-images-upload/

@@ -11,9 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var DashboardService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardService = void 0;
 const common_1 = require("@nestjs/common");
+const run_in_batches_1 = require("../../common/utils/run-in-batches");
 const node_crypto_1 = require("node:crypto");
 const database_tokens_1 = require("../../database/database.tokens");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
@@ -22,55 +24,58 @@ const auth_token_util_1 = require("../auth/auth-token.util");
 const courses_service_1 = require("../courses/courses.service");
 const streak_1 = require("../xp/streak");
 const xp_service_1 = require("../xp/xp.service");
-let DashboardService = class DashboardService {
+let DashboardService = DashboardService_1 = class DashboardService {
     constructor(db, authService, coursesService, xpService) {
         this.db = db;
         this.authService = authService;
         this.coursesService = coursesService;
         this.xpService = xpService;
+        this.questionOfDayCache = new Map();
+        this.questionOfDayInflight = new Map();
+        this.eligibleQuestionCountCache = new Map();
     }
     async getAdminDashboard(authorization) {
         const admin = await this.authService.requireAdmin(authorization);
         const canViewLearnerPii = this.canViewLearnerPii(admin);
-        const [summaryResult, userGrowthResult, courseGrowthResult, lessonGrowthResult, quizGrowthResult, questionGrowthResult, attemptResult, recentUsersResult, recentCoursesResult, recentLessonsResult, recentAttemptsResult,] = await Promise.all([
-            this.db.query(`SELECT
+        const [summaryResult, userGrowthResult, courseGrowthResult, lessonGrowthResult, quizGrowthResult, questionGrowthResult, attemptResult, recentUsersResult, recentCoursesResult, recentLessonsResult, recentAttemptsResult,] = await (0, run_in_batches_1.runInBatches)([
+            () => this.db.query(`SELECT
           (SELECT COUNT(*) FROM users) AS users_count,
           (SELECT COUNT(*) FROM courses) AS courses_count,
           (SELECT COUNT(*) FROM topics) AS topics_count,
           (SELECT COUNT(*) FROM quizzes) AS quizzes_count,
           (SELECT COUNT(*) FROM questions) AS questions_count,
           (SELECT COUNT(*) FROM lessons) AS lessons_count`),
-            this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM users
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`),
-            this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM courses
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`),
-            this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM lessons
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`),
-            this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM quizzes
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`),
-            this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
          FROM questions
          WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(created_at)
          ORDER BY DATE(created_at) ASC`),
-            this.db.query(`SELECT DATE(COALESCE(submitted_at, created_at)) AS day_key, COUNT(*) AS count_value
+            () => this.db.query(`SELECT DATE(COALESCE(submitted_at, created_at)) AS day_key, COUNT(*) AS count_value
          FROM quiz_attempts
          WHERE COALESCE(submitted_at, created_at) >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
          GROUP BY DATE(COALESCE(submitted_at, created_at))
          ORDER BY DATE(COALESCE(submitted_at, created_at)) ASC`),
-            this.db.query(`SELECT
+            () => this.db.query(`SELECT
            'user' AS item_type,
            id AS item_id,
            full_name AS title,
@@ -80,7 +85,7 @@ let DashboardService = class DashboardService {
          FROM users
          ORDER BY created_at DESC, id DESC
          LIMIT 4`),
-            this.db.query(`SELECT
+            () => this.db.query(`SELECT
            'course' AS item_type,
            id AS item_id,
            course_title AS title,
@@ -90,7 +95,7 @@ let DashboardService = class DashboardService {
          FROM courses
          ORDER BY created_at DESC, id DESC
          LIMIT 4`),
-            this.db.query(`SELECT
+            () => this.db.query(`SELECT
            'lesson' AS item_type,
            l.id AS item_id,
            l.lesson_title AS title,
@@ -103,7 +108,7 @@ let DashboardService = class DashboardService {
          LEFT JOIN subtopics s ON s.id = l.subtopic_id
          ORDER BY l.created_at DESC, l.id DESC
          LIMIT 4`),
-            this.db.query(`SELECT
+            () => this.db.query(`SELECT
            'attempt' AS item_type,
            qa.id AS item_id,
            COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS title,
@@ -114,7 +119,7 @@ let DashboardService = class DashboardService {
          INNER JOIN quizzes q ON q.id = qa.quiz_id
          ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
          LIMIT 6`),
-        ]);
+        ], 3);
         const [summaryRows] = summaryResult;
         const [userGrowthRows] = userGrowthResult;
         const [courseGrowthRows] = courseGrowthResult;
@@ -377,15 +382,15 @@ let DashboardService = class DashboardService {
         const student = await this.findActiveStudentByToken(this.extractToken(authorization));
         const serverNow = new Date();
         const serverClock = this.buildServerClock(serverNow);
-        const [summaryResult, recentAttemptsResult, topicRowsResult, smartNotesResult, attemptDaysResult, performanceWindowsResult, missedPatternsResult, todayQuizRowsResult, todayNoteRowsResult, todayResultViewRowsResult, questionOfDay, courseProgress, xpSummary,] = await Promise.all([
-            this.db.execute(`SELECT
+        const [summaryResult, recentAttemptsResult, topicRowsResult, smartNotesResult, attemptDaysResult, performanceWindowsResult, missedPatternsResult, todayQuizRowsResult, todayNoteRowsResult, todayResultViewRowsResult, questionOfDay, courseProgress, xpSummary,] = await (0, run_in_batches_1.runInBatches)([
+            () => this.db.execute(`SELECT
           (SELECT COUNT(*) FROM quizzes WHERE status = 'active') AS total_quizzes,
           (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ?) AS total_attempts,
           (SELECT AVG(percentage) FROM quiz_attempts WHERE user_id = ? AND status = 'submitted') AS average_percentage,
           (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ? AND pass_status = 'pass') AS total_passed,
           (SELECT COUNT(*) FROM smart_notes WHERE user_id = ?) AS total_smart_notes,
           (SELECT COUNT(*) FROM smart_notes WHERE user_id = ? AND (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL)) AS generated_smart_notes`, [student.id, student.id, student.id, student.id, student.id]),
-            this.db.execute(`SELECT
+            () => this.db.execute(`SELECT
           qa.id,
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
           q.quiz_number,
@@ -404,7 +409,7 @@ let DashboardService = class DashboardService {
         WHERE qa.user_id = ?
         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
         LIMIT 5`, [student.id]),
-            this.db.execute(`SELECT
+            () => this.db.execute(`SELECT
           t.topic_name,
           c.course_title,
           AVG(qa.percentage) AS average_percentage,
@@ -417,7 +422,7 @@ let DashboardService = class DashboardService {
         GROUP BY q.topic_id, t.topic_name, c.course_title
         HAVING attempts_count > 0
         ORDER BY average_percentage ASC, attempts_count DESC`, [student.id]),
-            this.db.execute(`SELECT
+            () => this.db.execute(`SELECT
           id,
           title,
           updated_at,
@@ -429,7 +434,7 @@ let DashboardService = class DashboardService {
         WHERE user_id = ?
         ORDER BY updated_at DESC, id DESC
         LIMIT 3`, [student.id]),
-            this.db.execute(`SELECT attempt_day FROM (
+            () => this.db.execute(`SELECT attempt_day FROM (
            SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
            FROM quiz_attempts
            WHERE user_id = ? AND status = 'submitted'
@@ -439,7 +444,7 @@ let DashboardService = class DashboardService {
            WHERE user_id = ? AND activity_type IN ('practice_completed', 'ai_note_viewed')
          ) AS days
          ORDER BY attempt_day DESC`, [student.id, student.id]),
-            this.db.execute(`SELECT
+            () => this.db.execute(`SELECT
            CASE
              WHEN DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 'last_7'
              ELSE 'previous_7'
@@ -451,7 +456,7 @@ let DashboardService = class DashboardService {
            AND status = 'submitted'
            AND DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
          GROUP BY window_key`, [student.id]),
-            this.db.execute(`SELECT
+            () => this.db.execute(`SELECT
            c.course_title,
            subj.topic_name AS subject_name,
            sub.subtopic_name AS topic_name,
@@ -477,7 +482,7 @@ let DashboardService = class DashboardService {
          GROUP BY c.course_title, subj.topic_name, sub.subtopic_name, l.lesson_title, qn.question_type
          ORDER BY miss_count DESC, latest_missed_at DESC
          LIMIT 5`, [student.id]),
-            this.db.execute(`SELECT q.id, c.course_title, t.topic_name
+            () => this.db.execute(`SELECT q.id, c.course_title, t.topic_name
          FROM quiz_attempts qa
          INNER JOIN quizzes q ON q.id = qa.quiz_id
          LEFT JOIN courses c ON c.id = q.course_id
@@ -495,7 +500,7 @@ let DashboardService = class DashboardService {
            AND e.activity_type = 'practice_completed'
            AND DATE(e.created_at) = CURDATE()
          ORDER BY id DESC`, [student.id, student.id]),
-            this.db.execute(`SELECT DISTINCT
+            () => this.db.execute(`SELECT DISTINCT
            n.id,
            c.course_title,
            t.topic_name
@@ -507,13 +512,13 @@ let DashboardService = class DashboardService {
            AND e.activity_type = 'ai_note_viewed'
            AND DATE(e.created_at) = CURDATE()
          ORDER BY n.id DESC`, [student.id]),
-            this.db.execute(`SELECT 1 FROM study_activity_events
+            () => this.db.execute(`SELECT 1 FROM study_activity_events
          WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE()
          LIMIT 1`, [student.id]),
-            this.getRandomDashboardQuestion(student.id, appClient),
-            this.coursesService.findStudentCourses(authorization),
-            this.xpService.getSummary(student.id),
-        ]);
+            () => this.getRandomDashboardQuestion(student.id, appClient),
+            () => this.coursesService.findStudentCourses(authorization),
+            () => this.xpService.getSummary(student.id),
+        ], 3);
         const [summaryRows] = summaryResult;
         const [recentAttempts] = recentAttemptsResult;
         const [topicRows] = topicRowsResult;
@@ -850,6 +855,35 @@ let DashboardService = class DashboardService {
         ];
     }
     async getRandomDashboardQuestion(studentId, appClient) {
+        const client = (0, mobile_client_util_1.isMobileAppClient)(appClient) ? 'app' : 'web';
+        const today = new Date();
+        const dayKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+        const key = `${dayKey}:${studentId}:${client}`;
+        const now = Date.now();
+        const cached = this.questionOfDayCache.get(key);
+        if (cached && cached.expiresAt > now) {
+            return cached.value;
+        }
+        const running = this.questionOfDayInflight.get(key);
+        if (running) {
+            return running;
+        }
+        const task = this.computeRandomDashboardQuestion(studentId, appClient)
+            .then((value) => {
+            if (this.questionOfDayCache.size > 5000) {
+                for (const [k, entry] of this.questionOfDayCache) {
+                    if (entry.expiresAt <= Date.now())
+                        this.questionOfDayCache.delete(k);
+                }
+            }
+            this.questionOfDayCache.set(key, { value, expiresAt: Date.now() + DashboardService_1.QUESTION_OF_DAY_TTL_MS });
+            return value;
+        })
+            .finally(() => this.questionOfDayInflight.delete(key));
+        this.questionOfDayInflight.set(key, task);
+        return task;
+    }
+    async computeRandomDashboardQuestion(studentId, appClient) {
         const isMobileClient = (0, mobile_client_util_1.isMobileAppClient)(appClient);
         const eligibleQuestionWhere = `
        q.status = 'active'
@@ -870,10 +904,22 @@ let DashboardService = class DashboardService {
            INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
            WHERE qqf.question_id = q.id
          )`}`;
-        const [[countRow]] = await this.db.execute(`SELECT COUNT(*) AS total_questions
-       FROM questions q
-       WHERE ${eligibleQuestionWhere}`);
-        const totalQuestions = Number(countRow?.total_questions || 0);
+        const countKey = isMobileClient ? 'app' : 'web';
+        const cachedCount = this.eligibleQuestionCountCache.get(countKey);
+        let totalQuestions;
+        if (cachedCount && cachedCount.expiresAt > Date.now()) {
+            totalQuestions = cachedCount.total;
+        }
+        else {
+            const [[countRow]] = await this.db.execute(`SELECT COUNT(*) AS total_questions
+         FROM questions q
+         WHERE ${eligibleQuestionWhere}`);
+            totalQuestions = Number(countRow?.total_questions || 0);
+            this.eligibleQuestionCountCache.set(countKey, {
+                total: totalQuestions,
+                expiresAt: Date.now() + DashboardService_1.QUESTION_OF_DAY_TTL_MS,
+            });
+        }
         if (totalQuestions <= 0) {
             return null;
         }
@@ -994,7 +1040,8 @@ let DashboardService = class DashboardService {
     }
 };
 exports.DashboardService = DashboardService;
-exports.DashboardService = DashboardService = __decorate([
+DashboardService.QUESTION_OF_DAY_TTL_MS = 60 * 60 * 1000;
+exports.DashboardService = DashboardService = DashboardService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,

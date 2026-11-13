@@ -10,6 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseExceptionFilter = void 0;
+exports.isDatabaseUnavailableError = isDatabaseUnavailableError;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const DATABASE_UNAVAILABLE_CODE = 'DATABASE_UNAVAILABLE';
@@ -23,6 +24,8 @@ const DATABASE_AVAILABILITY_ERROR_CODES = new Set([
     'EHOSTDOWN',
     'ENOTFOUND',
     'ER_CON_COUNT_ERROR',
+    'ER_USER_LIMIT_REACHED',
+    'ER_TOO_MANY_USER_CONNECTIONS',
     'ER_SERVER_SHUTDOWN',
     'ER_SERVER_GONE_ERROR',
     'CR_SERVER_GONE_ERROR',
@@ -47,7 +50,7 @@ function isDatabaseUnavailableError(error) {
         return true;
     }
     const message = getErrorMessage(error);
-    return /(?:connect\s+ECONNREFUSED|connect\s+ETIMEDOUT|read\s+ECONNRESET|PROTOCOL_CONNECTION_LOST|server has gone away|pool is closed|connection is in closed state|can't enqueue .* after fatal error)/i.test(message);
+    return /(?:connect\s+ECONNREFUSED|connect\s+ETIMEDOUT|read\s+ECONNRESET|PROTOCOL_CONNECTION_LOST|server has gone away|pool is closed|connection is in closed state|can't enqueue .* after fatal error|max_user_connections|queue limit reached)/i.test(message);
 }
 let DatabaseExceptionFilter = class DatabaseExceptionFilter extends core_1.BaseExceptionFilter {
     constructor(adapterHost) {

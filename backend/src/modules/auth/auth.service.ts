@@ -8,6 +8,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { decryptSecret } from '../../common/utils/ai-provider.utils';
 import { DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
+import { forgetSessionToken, forgetUserSessions, getCachedSession, setCachedSession } from './session-cache';
 import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken, isValidSessionTokenFormat } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -217,6 +218,7 @@ export class AuthService {
       createSessionExpiry(sessionTtlDays),
       user.id,
     ]);
+    forgetUserSessions(user.id);
 
     return {
       ok: true,
@@ -328,6 +330,7 @@ export class AuthService {
       createSessionExpiry(sessionTtlDays),
       user.id,
     ]);
+    forgetUserSessions(user.id);
 
     return {
       ok: true,
@@ -394,6 +397,7 @@ export class AuthService {
       createSessionExpiry(sessionTtlDays),
       user.id,
     ]);
+    forgetUserSessions(user.id);
 
     return {
       ok: true,
@@ -504,6 +508,7 @@ export class AuthService {
     const token = extractBearerToken(authorization);
     if (isValidSessionTokenFormat(token)) {
       await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE session_token = ?', [hashSessionToken(token)]);
+      forgetSessionToken(hashSessionToken(token));
     }
 
     return {
@@ -566,6 +571,7 @@ export class AuthService {
          WHERE id = ?`,
         [scrambledEmail, lockedPassword, user.id]
       );
+      forgetUserSessions(user.id);
 
       // Close out their subscriptions. The account cannot sign in again, so
       // leaving rows 'active' only misreports who is subscribed.
@@ -721,6 +727,7 @@ export class AuthService {
        WHERE id = ?`,
       [hashedPassword, user.id]
     );
+    forgetUserSessions(user.id);
 
     return {
       ok: true,
@@ -899,6 +906,7 @@ export class AuthService {
       createSessionExpiry(sessionTtlDays),
       user.id,
     ]);
+    forgetUserSessions(user.id);
 
     return {
       ok: true,
@@ -1032,6 +1040,7 @@ If you did not try to sign in, you can safely ignore this email.`;
       'UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?',
       [fullName, avatarKey, user.id]
     );
+    forgetUserSessions(user.id);
 
     return {
       ok: true,
@@ -1053,6 +1062,7 @@ If you did not try to sign in, you can safely ignore this email.`;
   async completeProfileSetup(authorization: string | undefined) {
     const user = await this.findUserByToken(this.extractToken(authorization));
     await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
+    forgetUserSessions(user.id);
     return {
       ok: true,
       user: await this.serializeUser({ ...user, needs_profile_setup: 0 }),
@@ -1081,6 +1091,7 @@ If you did not try to sign in, you can safely ignore this email.`;
       'UPDATE users SET password = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?',
       [hashedPassword, user.id]
     );
+    forgetUserSessions(user.id);
 
     return {
       ok: true,
@@ -1136,6 +1147,11 @@ If you did not try to sign in, you can safely ignore this email.`;
   }
 
   private async findUserByToken(sessionToken: string) {
+    const tokenHash = hashSessionToken(sessionToken);
+    const remembered = getCachedSession<UserRow>(tokenHash);
+    if (remembered) {
+      return remembered;
+    }
     const [rows] = await this.db.execute<UserRow[]>(
       `SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
        FROM users
@@ -1151,6 +1167,7 @@ If you did not try to sign in, you can safely ignore this email.`;
       throw new UnauthorizedException('Session is invalid or has expired');
     }
 
+    setCachedSession(tokenHash, Number(user.id), user);
     return user;
   }
 

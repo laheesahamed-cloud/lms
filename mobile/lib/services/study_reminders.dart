@@ -128,8 +128,8 @@ class StudyReminders {
       if (at != null) {
         await Notifications.schedule(
           id: _customId,
-          title: 'Study time',
-          body: 'Time for your study session — open your planner to get started.',
+          title: 'Study time \u{1F4DA}',
+          body: 'Small steps every day add up, study a little now and tomorrow gets easier.',
           when: at,
         );
         scheduled.add(_customId);
@@ -140,13 +140,20 @@ class StudyReminders {
     if (prefs.plannerEnabled) {
       final lead = Duration(hours: prefs.plannerLeadHours.clamp(0, 72));
       final now = DateTime.now();
-      final upcoming = tasks
-          .where((t) => !t.done && t.due != null)
-          .map((t) {
-            final d = t.due!;
-            final endOfDay = DateTime(d.year, d.month, d.day, 23, 59);
-            return (task: t, at: endOfDay.subtract(lead));
-          })
+      // One reminder per due DAY, however many tasks fall on it: five lessons due
+      // on Monday are one notification, not five at the same minute.
+      final byDay = <DateTime, List<PlannerTask>>{};
+      for (final t in tasks) {
+        final d = t.due;
+        if (t.done || d == null) continue;
+        byDay.putIfAbsent(DateTime(d.year, d.month, d.day), () => []).add(t);
+      }
+      final upcoming = byDay.entries
+          .map((e) => (
+                day: e.key,
+                tasks: e.value,
+                at: DateTime(e.key.year, e.key.month, e.key.day, 23, 59).subtract(lead),
+              ))
           .where((e) => e.at.isAfter(now))
           .toList()
         ..sort((a, b) => a.at.compareTo(b.at));
@@ -154,10 +161,15 @@ class StudyReminders {
       var index = 0;
       for (final e in upcoming.take(32)) {
         final id = _plannerIdBase + (index % _plannerIdSpan);
+        final n = e.tasks.length;
         await Notifications.schedule(
           id: id,
-          title: 'Upcoming: ${e.task.title}',
-          body: 'This task is due soon. Tap to review it in your planner.',
+          title: n == 1
+              ? '${e.tasks.first.title} is due today \u23F0'
+              : '$n tasks due today \u{1F3AF}',
+          body: n == 1
+              ? 'Complete this last step in today\'s plan to stay on track.'
+              : 'Begin with ${e.tasks.first.title}, then work through the rest at your own pace.',
           when: e.at,
         );
         scheduled.add(id);

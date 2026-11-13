@@ -198,6 +198,11 @@ export declare class QuizAttemptsController {
     submitExam(quizId: number, authorization: string | undefined, submitExamDto: SubmitExamDto, appClient?: string): Promise<{
         success: boolean;
         attemptId: number;
+        xp?: undefined;
+    } | {
+        success: boolean;
+        attemptId: number;
+        xp: import("../xp/xp.service").XpResult;
     }>;
     saveExamProgress(quizId: number, authorization: string | undefined, saveExamProgressDto: SaveExamProgressDto, appClient?: string): Promise<{
         success: boolean;

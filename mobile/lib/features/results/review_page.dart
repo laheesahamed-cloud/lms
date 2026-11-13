@@ -1,3 +1,4 @@
+import '../../state/saved_first.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,7 +40,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
         '/dashboard/student/activity',
         data: {'activityType': 'result_viewed'},
       ).then((_) {
-        if (mounted) ref.invalidate(studentDashboardProvider);
+        if (!mounted) return;
+        freshNext('dashboard');
+        ref.invalidate(studentDashboardProvider);
       }).catchError((_) {});
     });
   }
