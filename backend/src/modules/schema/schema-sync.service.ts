@@ -200,6 +200,11 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_question_quiz', 'question_id, quiz_id');
       await this.ensureIndex(connection, 'question_options', 'idx_question_options_question_label', 'question_id, option_label');
       await this.ensureIndex(connection, 'questions', 'idx_questions_status_type_id', 'status, question_type, id');
+      // Admin dashboard "added per day" charts (questions, lessons) and the
+      // question-of-the-day correct-option check. See sql/2026-11-13_perf_indexes.sql.
+      await this.ensureIndex(connection, 'questions', 'idx_questions_created_at', 'created_at');
+      await this.ensureIndex(connection, 'lessons', 'idx_lessons_created_at', 'created_at');
+      await this.ensureIndex(connection, 'question_options', 'idx_question_options_question_correct', 'question_id, is_correct');
       await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_course_scope', 'status, course_id, topic_id, subtopic_id, lesson_id, question_type, id');
       await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_paper_scope', 'status, paper_id, question_type, id');
       await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_question_category', 'status, question_category, question_type, id');

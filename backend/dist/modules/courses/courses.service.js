@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var CoursesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoursesService = void 0;
 const common_1 = require("@nestjs/common");
@@ -19,12 +20,14 @@ const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const plans_service_1 = require("../plans/plans.service");
 const xp_service_1 = require("../xp/xp.service");
-let CoursesService = class CoursesService {
+let CoursesService = CoursesService_1 = class CoursesService {
     constructor(db, authService, plansService, xpService) {
         this.db = db;
         this.authService = authService;
         this.plansService = plansService;
         this.xpService = xpService;
+        this.courseStructureCache = new Map();
+        this.courseStructureInflight = new Map();
     }
     async getLandingSummary() {
         const [topics] = await this.db.execute(`SELECT t.id, t.topic_name, COUNT(q.id) AS question_count
@@ -519,6 +522,33 @@ let CoursesService = class CoursesService {
         }
         const accessProfile = await this.getLessonAccessProfile(userId);
         const placeholders = (0, sql_safety_1.sqlPlaceholders)(courseIds);
+        const { subjectRows, topicRows, lessonRows } = await this.getCourseStructure(courseIds);
+        const [progressRows] = await this.db.execute(`SELECT lesson_id, status, progress_percent, started_at, completed_at
+       FROM student_lesson_progress
+       WHERE user_id = ? AND course_id IN (${placeholders})`, [userId, ...courseIds]);
+        return this.buildHierarchy(courseIds, subjectRows, topicRows, lessonRows, progressRows, accessProfile);
+    }
+    getCourseStructure(courseIds) {
+        const key = courseIds.join(',');
+        const cached = this.courseStructureCache.get(key);
+        if (cached && cached.expiresAt > Date.now())
+            return Promise.resolve(cached.value);
+        const running = this.courseStructureInflight.get(key);
+        if (running)
+            return running;
+        const task = this.readCourseStructure(courseIds)
+            .then((value) => {
+            if (this.courseStructureCache.size > 200)
+                this.courseStructureCache.clear();
+            this.courseStructureCache.set(key, { value, expiresAt: Date.now() + CoursesService_1.COURSE_STRUCTURE_TTL_MS });
+            return value;
+        })
+            .finally(() => this.courseStructureInflight.delete(key));
+        this.courseStructureInflight.set(key, task);
+        return task;
+    }
+    async readCourseStructure(courseIds) {
+        const placeholders = (0, sql_safety_1.sqlPlaceholders)(courseIds);
         const [subjectRows] = await this.db.execute(`SELECT id, course_id, topic_name, status
        FROM topics
        WHERE status = 'active' AND course_id IN (${placeholders})
@@ -533,9 +563,9 @@ let CoursesService = class CoursesService {
        WHERE status = 'active' AND is_public = 1 AND (note_data IS NOT NULL OR pdf_url IS NOT NULL)
          AND course_id IN (${placeholders})
        ORDER BY sort_order ASC, id ASC`, courseIds);
-        const [progressRows] = await this.db.execute(`SELECT lesson_id, status, progress_percent, started_at, completed_at
-       FROM student_lesson_progress
-       WHERE user_id = ? AND course_id IN (${placeholders})`, [userId, ...courseIds]);
+        return { subjectRows, topicRows, lessonRows };
+    }
+    buildHierarchy(courseIds, subjectRows, topicRows, lessonRows, progressRows, accessProfile) {
         const progressByLessonId = new Map(progressRows.map((row) => [row.lesson_id, row]));
         const topicsBySubjectId = new Map();
         for (const subject of subjectRows) {
@@ -784,7 +814,8 @@ let CoursesService = class CoursesService {
     }
 };
 exports.CoursesService = CoursesService;
-exports.CoursesService = CoursesService = __decorate([
+CoursesService.COURSE_STRUCTURE_TTL_MS = 30_000;
+exports.CoursesService = CoursesService = CoursesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,

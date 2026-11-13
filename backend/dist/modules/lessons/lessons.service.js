@@ -53,6 +53,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
         this.db = db;
         this.config = config;
         this.pushNotificationsService = pushNotificationsService;
+        this.canvasCatalogCache = new Map();
+        this.canvasCatalogInflight = new Map();
     }
     isAppOnlyBlocked(appClient) {
         return !(0, mobile_client_util_1.isMobileAppClient)(appClient);
@@ -482,6 +484,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         fs.writeFileSync(filePath, file.buffer);
         const pdfUrl = `/uploads/pdf/${safeName}`;
         await this.db.execute('UPDATE lessons SET pdf_url = ? WHERE id = ?', [pdfUrl, id]);
+        this.forgetCanvasCatalog();
         await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'pdf_uploaded', this.getActorId(actor) || null, `PDF uploaded for lesson ${id}`]);
         return { ok: true, id, pdfUrl };
     }
@@ -509,6 +512,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         if (fs.existsSync(filePath))
             fs.unlinkSync(filePath);
         await this.db.execute('UPDATE lessons SET pdf_url = NULL WHERE id = ?', [id]);
+        this.forgetCanvasCatalog();
         await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'pdf_removed', this.getActorId(actor) || null, `PDF removed from lesson ${id}`]);
         return { ok: true, id };
     }
@@ -531,6 +535,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         fs.renameSync(tempPath, filePath);
         const videoUrl = `/uploads/video/${safeName}`;
         await this.db.execute('UPDATE lessons SET video_url = ? WHERE id = ?', [videoUrl, id]);
+        this.forgetCanvasCatalog();
         await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'video_uploaded', this.getActorId(actor) || null, `Video uploaded for lesson ${id}`]);
         return { ok: true, id, videoUrl };
     }
@@ -544,6 +549,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 fs.unlinkSync(filePath);
         }
         await this.db.execute('UPDATE lessons SET video_url = NULL WHERE id = ?', [id]);
+        this.forgetCanvasCatalog();
         await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'video_removed', this.getActorId(actor) || null, `Video removed from lesson ${id}`]);
         return { ok: true, id };
     }
@@ -1028,6 +1034,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         if (!ids.length)
             return { ok: true };
         await Promise.all(ids.map((id, index) => this.db.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])));
+        this.forgetCanvasCatalog();
         return { ok: true };
     }
     async canvasAdminFindOne(id, token, engineKey = 'gemini') {
@@ -1105,6 +1112,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         values.push(id);
         try {
             await this.db.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+            this.forgetCanvasCatalog();
         }
         catch (err) {
             const e = err;
@@ -1117,6 +1125,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
     async canvasAdminRemove(id, token, engineKey = 'gemini') {
         await this.requireAdminToken(token);
         await this.db.execute(`UPDATE lessons SET note_data = NULL, raw_text = NULL, is_public = 0 WHERE id = ? AND engine_key = ?`, [id, engineKey]);
+        this.forgetCanvasCatalog();
         return { deleted: true };
     }
     async canvasAdminListFlashcards(id, token) {
@@ -1852,21 +1861,51 @@ let LessonsService = LessonsService_1 = class LessonsService {
             'Return ONLY this JSON: {"title":"","subtitle":"","sections":[{"heading":"...","bullets":["..."]},{"heading":"Management","bullets":[],"embedded_flow":["step 1","step 2"],"embedded_label":"specific label"},{"type":"note","heading":"...","bullets":["..."],"anchor_topic":"Management"}],"summary_box":"","key_points":[]}',
         ].join('\n');
     }
-    async canvasStudentList(token, engineKey = 'gemini', appClient) {
-        const student = await this.requireStudentToken(token);
-        const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
-        const [rows] = await this.db.execute(`
+    forgetCanvasCatalog() {
+        this.canvasCatalogCache.clear();
+    }
+    async getCanvasStudentCatalog(engineKey) {
+        const cached = this.canvasCatalogCache.get(engineKey);
+        if (cached && cached.expiresAt > Date.now())
+            return cached.rows;
+        const running = this.canvasCatalogInflight.get(engineKey);
+        if (running)
+            return running;
+        const task = this.db.execute(`
       SELECT ${this.canvasLessonSelect(false)},
-             slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
              (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
       FROM lessons l
-      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = l.id AND slp.user_id = ?
       LEFT JOIN courses c ON c.id = l.course_id
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
-        return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
+      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey])
+            .then(([rows]) => {
+            this.canvasCatalogCache.set(engineKey, { rows, expiresAt: Date.now() + LessonsService_1.CANVAS_CATALOG_TTL_MS });
+            return rows;
+        })
+            .finally(() => this.canvasCatalogInflight.delete(engineKey));
+        this.canvasCatalogInflight.set(engineKey, task);
+        return task;
+    }
+    async canvasStudentList(token, engineKey = 'gemini', appClient) {
+        const student = await this.requireStudentToken(token);
+        const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
+        const catalog = await this.getCanvasStudentCatalog(engineKey);
+        const [progressRows] = await this.db.execute(`SELECT lesson_id, status, progress_percent, completed_at
+       FROM student_lesson_progress
+       WHERE user_id = ?`, [student.id]);
+        const progressByLesson = new Map(progressRows.map((p) => [Number(p.lesson_id), p]));
+        return catalog.map((row) => {
+            const progress = progressByLesson.get(Number(row.id));
+            const merged = {
+                ...row,
+                lesson_progress_status: progress ? progress.status : null,
+                lesson_progress_percent: progress ? progress.progress_percent : null,
+                lesson_completed_at: progress ? progress.completed_at : null,
+            };
+            return this.mapCanvasStudentNote(merged, accessProfile, false);
+        });
     }
     async canvasStudentFindNote(id, token, engineKey = 'gemini', appClient) {
         const student = await this.requireStudentToken(token);
@@ -2764,6 +2803,7 @@ LessonsService.ASIDE_PATTERNS = [
     /^points?\s+to\s+remember$/,
     /^faqs?$/,
 ];
+LessonsService.CANVAS_CATALOG_TTL_MS = 30_000;
 exports.LessonsService = LessonsService = LessonsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),

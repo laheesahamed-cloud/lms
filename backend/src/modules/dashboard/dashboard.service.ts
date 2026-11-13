@@ -1191,7 +1191,8 @@ export class DashboardService {
   // eligible questions, for an hour instead of recomputing on every dashboard.
   private readonly questionOfDayCache = new Map<string, { value: unknown; expiresAt: number }>();
   private readonly questionOfDayInflight = new Map<string, Promise<unknown>>();
-  private readonly eligibleQuestionCountCache = new Map<string, { total: number; expiresAt: number }>();
+  private eligibleQuestionIdsCache: { app: number[]; web: number[]; expiresAt: number } | null = null;
+  private eligibleQuestionIdsInflight: Promise<{ app: number[]; web: number[] }> | null = null;
   private static readonly QUESTION_OF_DAY_TTL_MS = 60 * 60 * 1000;
 
   private async getRandomDashboardQuestion(studentId: number, appClient?: string) {
@@ -1224,16 +1225,26 @@ export class DashboardService {
     return task;
   }
 
-  private async computeRandomDashboardQuestion(studentId: number, appClient?: string) {
-    // This "question of the day" widget had no premium check at all — any
-    // question in the entire bank (full text, all options, correct answer
-    // marked) could be picked, dashboard-wide, for every student. Restrict
-    // the website's pool to questions that also appear in a free quiz (a
-    // question can be linked to several); the app can draw from the full
-    // bank since it's allowed to show premium content anyway.
-    const isMobileClient = isMobileAppClient(appClient);
-    const eligibleQuestionWhere = `
-       q.status = 'active'
+  // The eligible ids, in id order, shared by every student for an hour. Each
+  // student's pick is then one lookup by id. Before, every student's first
+  // dashboard of the day walked the bank with LIMIT 1 OFFSET n (tens of
+  // thousands of rows read) to land on the same row ids[n] gives.
+  //
+  // One read serves both lists: the app's list is every eligible question, the
+  // website's is the subset that also appears in a free quiz (in_free_quiz).
+  private async getEligibleQuestionIdLists(): Promise<{ app: number[]; web: number[] }> {
+    const cached = this.eligibleQuestionIdsCache;
+    if (cached && cached.expiresAt > Date.now()) return cached;
+    if (this.eligibleQuestionIdsInflight) return this.eligibleQuestionIdsInflight;
+    const task = this.db.execute<(RowDataPacket & { id: number; in_free_quiz: number })[]>(
+      `SELECT q.id,
+              EXISTS (
+                SELECT 1 FROM question_quizzes qqf
+                INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
+                WHERE qqf.question_id = q.id
+              ) AS in_free_quiz
+       FROM questions q
+       WHERE q.status = 'active'
          AND q.question_type = 'sba'
          AND (
            SELECT COUNT(*)
@@ -1246,34 +1257,44 @@ export class DashboardService {
            WHERE qo.question_id = q.id
              AND qo.is_correct = 1
          ) = 1
-         ${isMobileClient ? '' : `AND EXISTS (
-           SELECT 1 FROM question_quizzes qqf
-           INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
-           WHERE qqf.question_id = q.id
-         )`}`;
-
-    const countKey = isMobileClient ? 'app' : 'web';
-    const cachedCount = this.eligibleQuestionCountCache.get(countKey);
-    let totalQuestions: number;
-    if (cachedCount && cachedCount.expiresAt > Date.now()) {
-      totalQuestions = cachedCount.total;
-    } else {
-      const [[countRow]] = await this.db.execute<(RowDataPacket & { total_questions: number })[]>(
-        `SELECT COUNT(*) AS total_questions
-         FROM questions q
-         WHERE ${eligibleQuestionWhere}`
-      );
-      totalQuestions = Number(countRow?.total_questions || 0);
-      this.eligibleQuestionCountCache.set(countKey, {
-        total: totalQuestions,
-        expiresAt: Date.now() + DashboardService.QUESTION_OF_DAY_TTL_MS,
+       ORDER BY q.id ASC`
+    )
+      .then(([rows]) => {
+        const value = {
+          app: rows.map((row) => Number(row.id)),
+          web: rows.filter((row) => Number(row.in_free_quiz) === 1).map((row) => Number(row.id)),
+          expiresAt: Date.now() + DashboardService.QUESTION_OF_DAY_TTL_MS,
+        };
+        this.eligibleQuestionIdsCache = value;
+        return value;
+      })
+      .finally(() => {
+        this.eligibleQuestionIdsInflight = null;
       });
-    }
+    this.eligibleQuestionIdsInflight = task;
+    return task;
+  }
+
+  private async computeRandomDashboardQuestion(studentId: number, appClient?: string) {
+    // This "question of the day" widget had no premium check at all — any
+    // question in the entire bank (full text, all options, correct answer
+    // marked) could be picked, dashboard-wide, for every student. Restrict
+    // the website's pool to questions that also appear in a free quiz (a
+    // question can be linked to several); the app can draw from the full
+    // bank since it's allowed to show premium content anyway.
+    const isMobileClient = isMobileAppClient(appClient);
+    const lists = await this.getEligibleQuestionIdLists();
+    const eligibleIds = isMobileClient ? lists.app : lists.web;
+    const totalQuestions = eligibleIds.length;
     if (totalQuestions <= 0) {
       return null;
     }
 
     const offset = this.getDashboardQuestionOffset(studentId, totalQuestions);
+    const pickedId = eligibleIds[offset];
+    if (!pickedId) {
+      return null;
+    }
     const [questionRows] = await this.db.execute<DashboardQuestionRow[]>(
       `SELECT
          q.id,
@@ -1286,10 +1307,9 @@ export class DashboardService {
        LEFT JOIN courses c ON c.id = q.course_id
        LEFT JOIN topics subj ON subj.id = q.topic_id
        LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
-       WHERE ${eligibleQuestionWhere}
-       ORDER BY q.id ASC
-       LIMIT 1 OFFSET ?`,
-      [offset]
+       WHERE q.id = ?
+       LIMIT 1`,
+      [pickedId]
     );
     const question = questionRows[0];
     if (!question) {

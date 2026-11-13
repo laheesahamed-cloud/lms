@@ -238,9 +238,11 @@ export declare class DashboardService {
     private buildStudentAdaptivePlan;
     private readonly questionOfDayCache;
     private readonly questionOfDayInflight;
-    private readonly eligibleQuestionCountCache;
+    private eligibleQuestionIdsCache;
+    private eligibleQuestionIdsInflight;
     private static readonly QUESTION_OF_DAY_TTL_MS;
     private getRandomDashboardQuestion;
+    private getEligibleQuestionIdLists;
     private computeRandomDashboardQuestion;
     private getDashboardQuestionOffset;
     private extractToken;

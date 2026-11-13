@@ -32,7 +32,8 @@ let DashboardService = DashboardService_1 = class DashboardService {
         this.xpService = xpService;
         this.questionOfDayCache = new Map();
         this.questionOfDayInflight = new Map();
-        this.eligibleQuestionCountCache = new Map();
+        this.eligibleQuestionIdsCache = null;
+        this.eligibleQuestionIdsInflight = null;
     }
     async getAdminDashboard(authorization) {
         const admin = await this.authService.requireAdmin(authorization);
@@ -883,10 +884,20 @@ let DashboardService = DashboardService_1 = class DashboardService {
         this.questionOfDayInflight.set(key, task);
         return task;
     }
-    async computeRandomDashboardQuestion(studentId, appClient) {
-        const isMobileClient = (0, mobile_client_util_1.isMobileAppClient)(appClient);
-        const eligibleQuestionWhere = `
-       q.status = 'active'
+    async getEligibleQuestionIdLists() {
+        const cached = this.eligibleQuestionIdsCache;
+        if (cached && cached.expiresAt > Date.now())
+            return cached;
+        if (this.eligibleQuestionIdsInflight)
+            return this.eligibleQuestionIdsInflight;
+        const task = this.db.execute(`SELECT q.id,
+              EXISTS (
+                SELECT 1 FROM question_quizzes qqf
+                INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
+                WHERE qqf.question_id = q.id
+              ) AS in_free_quiz
+       FROM questions q
+       WHERE q.status = 'active'
          AND q.question_type = 'sba'
          AND (
            SELECT COUNT(*)
@@ -899,31 +910,35 @@ let DashboardService = DashboardService_1 = class DashboardService {
            WHERE qo.question_id = q.id
              AND qo.is_correct = 1
          ) = 1
-         ${isMobileClient ? '' : `AND EXISTS (
-           SELECT 1 FROM question_quizzes qqf
-           INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
-           WHERE qqf.question_id = q.id
-         )`}`;
-        const countKey = isMobileClient ? 'app' : 'web';
-        const cachedCount = this.eligibleQuestionCountCache.get(countKey);
-        let totalQuestions;
-        if (cachedCount && cachedCount.expiresAt > Date.now()) {
-            totalQuestions = cachedCount.total;
-        }
-        else {
-            const [[countRow]] = await this.db.execute(`SELECT COUNT(*) AS total_questions
-         FROM questions q
-         WHERE ${eligibleQuestionWhere}`);
-            totalQuestions = Number(countRow?.total_questions || 0);
-            this.eligibleQuestionCountCache.set(countKey, {
-                total: totalQuestions,
+       ORDER BY q.id ASC`)
+            .then(([rows]) => {
+            const value = {
+                app: rows.map((row) => Number(row.id)),
+                web: rows.filter((row) => Number(row.in_free_quiz) === 1).map((row) => Number(row.id)),
                 expiresAt: Date.now() + DashboardService_1.QUESTION_OF_DAY_TTL_MS,
-            });
-        }
+            };
+            this.eligibleQuestionIdsCache = value;
+            return value;
+        })
+            .finally(() => {
+            this.eligibleQuestionIdsInflight = null;
+        });
+        this.eligibleQuestionIdsInflight = task;
+        return task;
+    }
+    async computeRandomDashboardQuestion(studentId, appClient) {
+        const isMobileClient = (0, mobile_client_util_1.isMobileAppClient)(appClient);
+        const lists = await this.getEligibleQuestionIdLists();
+        const eligibleIds = isMobileClient ? lists.app : lists.web;
+        const totalQuestions = eligibleIds.length;
         if (totalQuestions <= 0) {
             return null;
         }
         const offset = this.getDashboardQuestionOffset(studentId, totalQuestions);
+        const pickedId = eligibleIds[offset];
+        if (!pickedId) {
+            return null;
+        }
         const [questionRows] = await this.db.execute(`SELECT
          q.id,
          q.question_text,
@@ -935,9 +950,8 @@ let DashboardService = DashboardService_1 = class DashboardService {
        LEFT JOIN courses c ON c.id = q.course_id
        LEFT JOIN topics subj ON subj.id = q.topic_id
        LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
-       WHERE ${eligibleQuestionWhere}
-       ORDER BY q.id ASC
-       LIMIT 1 OFFSET ?`, [offset]);
+       WHERE q.id = ?
+       LIMIT 1`, [pickedId]);
         const question = questionRows[0];
         if (!question) {
             return null;

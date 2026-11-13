@@ -116,7 +116,7 @@ export declare class CoursesService {
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
         ok: boolean;
         lessonId: number;
-        status: "in_progress" | "completed" | "not_started";
+        status: "not_started" | "in_progress" | "completed";
         progressPercent: number;
         actionLabel: string;
         xp: import("../xp/xp.service").XpResult | undefined;
@@ -140,6 +140,12 @@ export declare class CoursesService {
     private validateCoursePayload;
     private findById;
     private loadHierarchyForCourses;
+    private static readonly COURSE_STRUCTURE_TTL_MS;
+    private readonly courseStructureCache;
+    private readonly courseStructureInflight;
+    private getCourseStructure;
+    private readCourseStructure;
+    private buildHierarchy;
     private getLessonAccessProfile;
     private parseIdList;
     private resolveEffectiveAccessScope;

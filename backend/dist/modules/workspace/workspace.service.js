@@ -500,7 +500,7 @@ let WorkspaceService = class WorkspaceService {
         const courseFunnelWhere = ['1=1'];
         const courseFunnelParams = [];
         this.appendCourseFilter(courseFunnelWhere, courseFunnelParams, 'c.id', filters);
-        const courseFunnelJoinConditions = ['slp.course_id = c.id'];
+        const courseFunnelJoinConditions = ['1=1'];
         const courseFunnelJoinParams = [];
         this.appendDateFilter(courseFunnelJoinConditions, courseFunnelJoinParams, 'slp.updated_at', filters);
         this.appendUserFilter(courseFunnelJoinConditions, courseFunnelJoinParams, 'slp.user_id', filters);
@@ -549,7 +549,7 @@ let WorkspaceService = class WorkspaceService {
         LEFT JOIN (SELECT user_id, MAX(created_at) AS last_at FROM study_activity_events GROUP BY user_id) sae ON sae.user_id = u.id
         LEFT JOIN (SELECT user_id, MAX(updated_at) AS last_at FROM student_lesson_progress GROUP BY user_id) slp ON slp.user_id = u.id
         WHERE ${inactiveWhere.join(' AND ')}
-        ORDER BY last_activity IS NULL DESC, last_activity ASC
+        ORDER BY last_activity IS NULL DESC, last_activity ASC, u.id ASC
         LIMIT 10
       `, inactiveParams),
             () => this.db.execute(`
@@ -589,18 +589,35 @@ let WorkspaceService = class WorkspaceService {
         LIMIT 10
       `, quizPerformanceParams),
             () => this.db.execute(`
+        -- Lessons and progress are counted per course separately. Joining both
+        -- raw tables to the course repeated every progress row once per lesson,
+        -- so "completions" came out multiplied by the course's lesson count
+        -- (and the query read lessons x progress rows).
         SELECT
           c.id,
           c.course_title,
-          COUNT(DISTINCT l.id) AS total_lessons,
-          COUNT(DISTINCT slp.user_id) AS students_started,
-          SUM(slp.status = 'completed') AS completed_lessons,
-          AVG(slp.progress_percent) AS average_progress
+          COALESCE(lc.total_lessons, 0) AS total_lessons,
+          COALESCE(pc.students_started, 0) AS students_started,
+          pc.completed_lessons,
+          pc.average_progress
         FROM courses c
-        LEFT JOIN lessons l ON l.course_id = c.id AND l.status = 'active'
-        LEFT JOIN student_lesson_progress slp ON ${courseFunnelJoinConditions.join(' AND ')}
+        LEFT JOIN (
+          SELECT course_id, COUNT(*) AS total_lessons
+          FROM lessons
+          WHERE status = 'active'
+          GROUP BY course_id
+        ) lc ON lc.course_id = c.id
+        LEFT JOIN (
+          SELECT
+            slp.course_id,
+            COUNT(DISTINCT slp.user_id) AS students_started,
+            SUM(slp.status = 'completed') AS completed_lessons,
+            AVG(slp.progress_percent) AS average_progress
+          FROM student_lesson_progress slp
+          WHERE ${courseFunnelJoinConditions.join(' AND ')}
+          GROUP BY slp.course_id
+        ) pc ON pc.course_id = c.id
         WHERE ${courseFunnelWhere.join(' AND ')}
-        GROUP BY c.id, c.course_title
         ORDER BY students_started DESC, c.course_title ASC
         LIMIT 8
       `, [...courseFunnelJoinParams, ...courseFunnelParams]),

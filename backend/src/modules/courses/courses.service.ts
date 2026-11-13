@@ -724,6 +724,46 @@ export class CoursesService {
     const accessProfile = await this.getLessonAccessProfile(userId);
 
     const placeholders = sqlPlaceholders(courseIds);
+    const { subjectRows, topicRows, lessonRows } = await this.getCourseStructure(courseIds);
+    const [progressRows] = await this.db.execute<ProgressRow[]>(
+      `SELECT lesson_id, status, progress_percent, started_at, completed_at
+       FROM student_lesson_progress
+       WHERE user_id = ? AND course_id IN (${placeholders})`,
+      [userId, ...courseIds]
+    );
+    return this.buildHierarchy(courseIds, subjectRows, topicRows, lessonRows, progressRows, accessProfile);
+  }
+
+  // Subjects, topics and ready lessons of a set of courses are the same for
+  // every student with that set, and the dashboard, the boot call and the
+  // Courses page each read all three. They are shared for 30 seconds; only the
+  // student's own progress is read per request.
+  private static readonly COURSE_STRUCTURE_TTL_MS = 30_000;
+  private readonly courseStructureCache = new Map<string, {
+    value: { subjectRows: SubjectRow[]; topicRows: TopicRow[]; lessonRows: LessonHierarchyRow[] };
+    expiresAt: number;
+  }>();
+  private readonly courseStructureInflight = new Map<string, Promise<{ subjectRows: SubjectRow[]; topicRows: TopicRow[]; lessonRows: LessonHierarchyRow[] }>>();
+
+  private getCourseStructure(courseIds: number[]) {
+    const key = courseIds.join(',');
+    const cached = this.courseStructureCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+    const running = this.courseStructureInflight.get(key);
+    if (running) return running;
+    const task = this.readCourseStructure(courseIds)
+      .then((value) => {
+        if (this.courseStructureCache.size > 200) this.courseStructureCache.clear();
+        this.courseStructureCache.set(key, { value, expiresAt: Date.now() + CoursesService.COURSE_STRUCTURE_TTL_MS });
+        return value;
+      })
+      .finally(() => this.courseStructureInflight.delete(key));
+    this.courseStructureInflight.set(key, task);
+    return task;
+  }
+
+  private async readCourseStructure(courseIds: number[]) {
+    const placeholders = sqlPlaceholders(courseIds);
     const [subjectRows] = await this.db.execute<SubjectRow[]>(
       `SELECT id, course_id, topic_name, status
        FROM topics
@@ -752,13 +792,17 @@ export class CoursesService {
        ORDER BY sort_order ASC, id ASC`,
       courseIds
     );
-    const [progressRows] = await this.db.execute<ProgressRow[]>(
-      `SELECT lesson_id, status, progress_percent, started_at, completed_at
-       FROM student_lesson_progress
-       WHERE user_id = ? AND course_id IN (${placeholders})`,
-      [userId, ...courseIds]
-    );
+    return { subjectRows, topicRows, lessonRows };
+  }
 
+  private buildHierarchy(
+    courseIds: number[],
+    subjectRows: SubjectRow[],
+    topicRows: TopicRow[],
+    lessonRows: LessonHierarchyRow[],
+    progressRows: ProgressRow[],
+    accessProfile: Awaited<ReturnType<CoursesService['getLessonAccessProfile']>>,
+  ) {
     const progressByLessonId = new Map(progressRows.map((row) => [row.lesson_id, row]));
     const topicsBySubjectId = new Map<number, Array<{
       id: string | number;

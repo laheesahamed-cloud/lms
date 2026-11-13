@@ -133,8 +133,13 @@ class DashboardQuestionMockPool {
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
     const isFreeOnlyQuery = normalizedSql.includes('free_quiz');
 
-    if (normalizedSql.startsWith('SELECT COUNT(*) AS total_questions')) {
-      return [[{ total_questions: isFreeOnlyQuery ? this.freeEligibleCount : this.allEligibleCount }] as T, []];
+    // The eligible-id list (cached by the service): every eligible question,
+    // flagged when it also appears in a free quiz (the website's pool).
+    if (normalizedSql.startsWith('SELECT q.id, EXISTS')) {
+      return [Array.from({ length: this.allEligibleCount }, (_, i) => ({
+        id: 49,
+        in_free_quiz: i < this.freeEligibleCount ? 1 : 0,
+      })) as T, []];
     }
 
     if (normalizedSql.includes('FROM questions q') && normalizedSql.includes('LEFT JOIN courses c')) {

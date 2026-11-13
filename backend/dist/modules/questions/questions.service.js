@@ -79,7 +79,14 @@ let QuestionsService = class QuestionsService {
         st.subtopic_name AS topic_name,
         l.lesson_title,
         p.paper_title,
-        COALESCE(qql.quiz_count, 0) AS quiz_count,
+        -- Counted per listed row. Joining a quiz count for the whole bank
+        -- (GROUP BY over every question_quizzes row) on each page read tens of
+        -- thousands of rows to show 20.
+        (
+          SELECT COUNT(DISTINCT qqc.quiz_id)
+          FROM question_quizzes qqc
+          WHERE qqc.question_id = q.id
+        ) AS quiz_count,
         (
           SELECT MAX(cv.version_number)
           FROM content_versions cv
@@ -91,11 +98,6 @@ let QuestionsService = class QuestionsService {
       LEFT JOIN subtopics st ON st.id = q.subtopic_id
       LEFT JOIN lessons l ON l.id = q.lesson_id
       LEFT JOIN papers p ON p.id = q.paper_id
-      LEFT JOIN (
-        SELECT question_id, COUNT(DISTINCT quiz_id) AS quiz_count
-        FROM question_quizzes
-        GROUP BY question_id
-      ) qql ON qql.question_id = q.id
       WHERE 1 = 1
     `;
         const params = [];
@@ -177,10 +179,10 @@ let QuestionsService = class QuestionsService {
             sql += ` AND ${missingClauses[filters.missing]}`;
         }
         if (filters.usage === 'unused') {
-            sql += ' AND COALESCE(qql.quiz_count, 0) = 0';
+            sql += ' AND NOT EXISTS (SELECT 1 FROM question_quizzes qqu WHERE qqu.question_id = q.id)';
         }
         if (filters.usage === 'used') {
-            sql += ' AND COALESCE(qql.quiz_count, 0) > 0';
+            sql += ' AND EXISTS (SELECT 1 FROM question_quizzes qqu WHERE qqu.question_id = q.id)';
         }
         sql += filters.random ? ' ORDER BY RAND()' : ' ORDER BY q.id DESC';
         sql += ' LIMIT ?';
@@ -196,16 +198,16 @@ let QuestionsService = class QuestionsService {
         let sql = `
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN COALESCE(qql.quiz_count, 0) = 0 THEN 1 ELSE 0 END) AS unused,
-        SUM(CASE WHEN COALESCE(qql.quiz_count, 0) > 0 THEN 1 ELSE 0 END) AS used
+        SUM(CASE WHEN qu.question_id IS NULL THEN 1 ELSE 0 END) AS unused,
+        SUM(CASE WHEN qu.question_id IS NOT NULL THEN 1 ELSE 0 END) AS used
       FROM questions q
       LEFT JOIN subtopics st ON st.id = q.subtopic_id
       LEFT JOIN papers p ON p.id = q.paper_id
+      -- "Is it in any quiz" only needs the distinct linked ids, which the
+      -- (question_id, quiz_id) index gives without counting quizzes per question.
       LEFT JOIN (
-        SELECT question_id, COUNT(DISTINCT quiz_id) AS quiz_count
-        FROM question_quizzes
-        GROUP BY question_id
-      ) qql ON qql.question_id = q.id
+        SELECT DISTINCT question_id FROM question_quizzes
+      ) qu ON qu.question_id = q.id
       WHERE 1 = 1
     `;
         const params = [];

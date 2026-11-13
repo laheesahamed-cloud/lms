@@ -802,6 +802,7 @@ export class LessonsService {
 
     const pdfUrl = `/uploads/pdf/${safeName}`;
     await this.db.execute('UPDATE lessons SET pdf_url = ? WHERE id = ?', [pdfUrl, id]);
+    this.forgetCanvasCatalog();
 
     await this.db.execute(
       `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
@@ -864,6 +865,7 @@ export class LessonsService {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
     await this.db.execute('UPDATE lessons SET pdf_url = NULL WHERE id = ?', [id]);
+    this.forgetCanvasCatalog();
 
     await this.db.execute(
       `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
@@ -897,6 +899,7 @@ export class LessonsService {
 
     const videoUrl = `/uploads/video/${safeName}`;
     await this.db.execute('UPDATE lessons SET video_url = ? WHERE id = ?', [videoUrl, id]);
+    this.forgetCanvasCatalog();
 
     await this.db.execute(
       `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
@@ -916,6 +919,7 @@ export class LessonsService {
     }
 
     await this.db.execute('UPDATE lessons SET video_url = NULL WHERE id = ?', [id]);
+    this.forgetCanvasCatalog();
 
     await this.db.execute(
       `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
@@ -1550,6 +1554,7 @@ export class LessonsService {
         this.db.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])
       )
     );
+    this.forgetCanvasCatalog();
     return { ok: true };
   }
 
@@ -1615,6 +1620,7 @@ export class LessonsService {
     values.push(id);
     try {
       await this.db.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+      this.forgetCanvasCatalog();
     } catch (err: unknown) {
       const e = err as { code?: string; errno?: number };
       if (e?.code === 'ER_NET_PACKET_TOO_LARGE' || e?.errno === 1153)
@@ -1629,6 +1635,7 @@ export class LessonsService {
     await this.db.execute(
       `UPDATE lessons SET note_data = NULL, raw_text = NULL, is_public = 0 WHERE id = ? AND engine_key = ?`, [id, engineKey]
     );
+    this.forgetCanvasCatalog();
     return { deleted: true };
   }
 
@@ -2712,21 +2719,65 @@ export class LessonsService {
   // changes, so moving a group really does mean moving its lessons. Existing
   // rows are renumbered once at boot in their current visible order — see
   // flattenLessonSortOrder in schema-sync — so nothing moves on deploy.
-  async canvasStudentList(token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
-    const student = await this.requireStudentToken(token);
-    const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
-    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
+  // The lesson catalog (titles, course/topic names, flashcard counts) is the
+  // same for every student, but it used to be read in full, joined to the
+  // student's progress, on every launch, Notes and Flashcards load (Flashcards
+  // once per engine). It is now read once per CANVAS_CATALOG_TTL_MS and shared;
+  // each request only reads that student's own progress rows. Lesson-editor
+  // writes below clear it at once; other changes (topic renames, flashcard
+  // approvals) show within the TTL.
+  private static readonly CANVAS_CATALOG_TTL_MS = 30_000;
+  private readonly canvasCatalogCache = new Map<string, { rows: CanvasLessonRow[]; expiresAt: number }>();
+  private readonly canvasCatalogInflight = new Map<string, Promise<CanvasLessonRow[]>>();
+
+  private forgetCanvasCatalog() {
+    this.canvasCatalogCache.clear();
+  }
+
+  private async getCanvasStudentCatalog(engineKey: CanvasEngineKey): Promise<CanvasLessonRow[]> {
+    const cached = this.canvasCatalogCache.get(engineKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.rows;
+    const running = this.canvasCatalogInflight.get(engineKey);
+    if (running) return running;
+    const task = this.db.execute<CanvasLessonRow[]>(`
       SELECT ${this.canvasLessonSelect(false)},
-             slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
              (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
       FROM lessons l
-      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = l.id AND slp.user_id = ?
       LEFT JOIN courses c ON c.id = l.course_id
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [student.id, engineKey]);
-    return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
+      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey])
+      .then(([rows]) => {
+        this.canvasCatalogCache.set(engineKey, { rows, expiresAt: Date.now() + LessonsService.CANVAS_CATALOG_TTL_MS });
+        return rows;
+      })
+      .finally(() => this.canvasCatalogInflight.delete(engineKey));
+    this.canvasCatalogInflight.set(engineKey, task);
+    return task;
+  }
+
+  async canvasStudentList(token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
+    const student = await this.requireStudentToken(token);
+    const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
+    const catalog = await this.getCanvasStudentCatalog(engineKey);
+    // One row per (user_id, lesson_id) — uniq_student_lesson_progress.
+    const [progressRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT lesson_id, status, progress_percent, completed_at
+       FROM student_lesson_progress
+       WHERE user_id = ?`, [student.id]);
+    const progressByLesson = new Map(progressRows.map((p) => [Number(p.lesson_id), p]));
+    return catalog.map((row) => {
+      const progress = progressByLesson.get(Number(row.id));
+      // A copy per request: the shared catalog rows are never changed.
+      const merged = {
+        ...row,
+        lesson_progress_status: progress ? progress.status : null,
+        lesson_progress_percent: progress ? progress.progress_percent : null,
+        lesson_completed_at: progress ? progress.completed_at : null,
+      } as CanvasLessonRow;
+      return this.mapCanvasStudentNote(merged, accessProfile, false);
+    });
   }
 
   async canvasStudentFindNote(id: number, token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
