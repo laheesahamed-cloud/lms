@@ -131,15 +131,17 @@ class DashboardQuestionMockPool {
 
   async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
-    const isFreeOnlyQuery = normalizedSql.includes('free_quiz');
 
-    // The eligible-id list (cached by the service): every eligible question,
-    // flagged when it also appears in a free quiz (the website's pool).
-    if (normalizedSql.startsWith('SELECT q.id, EXISTS')) {
-      return [Array.from({ length: this.allEligibleCount }, (_, i) => ({
-        id: 49,
-        in_free_quiz: i < this.freeEligibleCount ? 1 : 0,
-      })) as T, []];
+    // Website pool: eligible questions reached through free quizzes only.
+    if (normalizedSql.startsWith('SELECT DISTINCT q.id FROM quizzes free_quiz')) {
+      return [Array.from({ length: this.freeEligibleCount }, () => ({ id: 49 })) as T, []];
+    }
+    // App pick: id range, then the first eligible question from a start id.
+    if (normalizedSql.startsWith('SELECT MIN(id) AS min_id')) {
+      return [[{ min_id: 1, max_id: 100 }] as T, []];
+    }
+    if (normalizedSql.startsWith('SELECT q.id FROM questions q WHERE q.id >= ?')) {
+      return [(this.allEligibleCount > 0 ? [{ id: 49 }] : []) as T, []];
     }
 
     if (normalizedSql.includes('FROM questions q') && normalizedSql.includes('LEFT JOIN courses c')) {

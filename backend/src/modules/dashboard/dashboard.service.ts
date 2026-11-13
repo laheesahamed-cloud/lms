@@ -1186,14 +1186,31 @@ export class DashboardService {
   }
 
   // Question of the day is the same for a student all day (it is picked from a
-  // hash of the date and the student id), but working it out scans the whole
-  // question bank twice. Keep each student's answer, and the shared count of
-  // eligible questions, for an hour instead of recomputing on every dashboard.
+  // hash of the date and the student id). Each student's answer is kept until
+  // midnight, so after the first dashboard of the day it costs no database work
+  // (until the process restarts).
   private readonly questionOfDayCache = new Map<string, { value: unknown; expiresAt: number }>();
   private readonly questionOfDayInflight = new Map<string, Promise<unknown>>();
-  private eligibleQuestionIdsCache: { app: number[]; web: number[]; expiresAt: number } | null = null;
-  private eligibleQuestionIdsInflight: Promise<{ app: number[]; web: number[] }> | null = null;
-  private static readonly QUESTION_OF_DAY_TTL_MS = 60 * 60 * 1000;
+  private webQuestionPoolCache: { ids: number[]; expiresAt: number } | null = null;
+  private webQuestionPoolInflight: Promise<number[]> | null = null;
+  private static readonly WEB_QUESTION_POOL_TTL_MS = 60 * 60 * 1000;
+
+  // A question the widget can show: an active single-best-answer question with
+  // five options, exactly one of them correct.
+  private static readonly DASHBOARD_QUESTION_ELIGIBLE = `
+       q.status = 'active'
+         AND q.question_type = 'sba'
+         AND (
+           SELECT COUNT(*)
+           FROM question_options qo
+           WHERE qo.question_id = q.id
+         ) = 5
+         AND (
+           SELECT COUNT(*)
+           FROM question_options qo
+           WHERE qo.question_id = q.id
+             AND qo.is_correct = 1
+         ) = 1`;
 
   private async getRandomDashboardQuestion(studentId: number, appClient?: string) {
     const client = isMobileAppClient(appClient) ? 'app' : 'web';
@@ -1217,7 +1234,9 @@ export class DashboardService {
             if (entry.expiresAt <= Date.now()) this.questionOfDayCache.delete(k);
           }
         }
-        this.questionOfDayCache.set(key, { value, expiresAt: Date.now() + DashboardService.QUESTION_OF_DAY_TTL_MS });
+        const midnight = new Date();
+        midnight.setHours(24, 0, 0, 0);
+        this.questionOfDayCache.set(key, { value, expiresAt: midnight.getTime() });
         return value;
       })
       .finally(() => this.questionOfDayInflight.delete(key));
@@ -1225,54 +1244,61 @@ export class DashboardService {
     return task;
   }
 
-  // The eligible ids, in id order, shared by every student for an hour. Each
-  // student's pick is then one lookup by id. Before, every student's first
-  // dashboard of the day walked the bank with LIMIT 1 OFFSET n (tens of
-  // thousands of rows read) to land on the same row ids[n] gives.
-  //
-  // One read serves both lists: the app's list is every eligible question, the
-  // website's is the subset that also appears in a free quiz (in_free_quiz).
-  private async getEligibleQuestionIdLists(): Promise<{ app: number[]; web: number[] }> {
-    const cached = this.eligibleQuestionIdsCache;
-    if (cached && cached.expiresAt > Date.now()) return cached;
-    if (this.eligibleQuestionIdsInflight) return this.eligibleQuestionIdsInflight;
-    const task = this.db.execute<(RowDataPacket & { id: number; in_free_quiz: number })[]>(
-      `SELECT q.id,
-              EXISTS (
-                SELECT 1 FROM question_quizzes qqf
-                INNER JOIN quizzes free_quiz ON free_quiz.id = qqf.quiz_id AND free_quiz.status = 'active' AND free_quiz.is_free = 1
-                WHERE qqf.question_id = q.id
-              ) AS in_free_quiz
-       FROM questions q
-       WHERE q.status = 'active'
-         AND q.question_type = 'sba'
-         AND (
-           SELECT COUNT(*)
-           FROM question_options qo
-           WHERE qo.question_id = q.id
-         ) = 5
-         AND (
-           SELECT COUNT(*)
-           FROM question_options qo
-           WHERE qo.question_id = q.id
-             AND qo.is_correct = 1
-         ) = 1
+  // Website pool: eligible questions that also appear in a free quiz, in id
+  // order. Read from the free quizzes' links (a few hundred rows), not from the
+  // whole bank, and shared for an hour.
+  private async getWebQuestionPool(): Promise<number[]> {
+    const cached = this.webQuestionPoolCache;
+    if (cached && cached.expiresAt > Date.now()) return cached.ids;
+    if (this.webQuestionPoolInflight) return this.webQuestionPoolInflight;
+    const task = this.db.execute<(RowDataPacket & { id: number })[]>(
+      `SELECT DISTINCT q.id
+       FROM quizzes free_quiz
+       -- STRAIGHT_JOIN keeps this order (free quizzes first). Left to itself the
+       -- optimizer started from questions and checked the whole bank.
+       STRAIGHT_JOIN question_quizzes qqf ON qqf.quiz_id = free_quiz.id
+       STRAIGHT_JOIN questions q ON q.id = qqf.question_id
+       WHERE free_quiz.status = 'active' AND free_quiz.is_free = 1
+         AND ${DashboardService.DASHBOARD_QUESTION_ELIGIBLE}
        ORDER BY q.id ASC`
     )
       .then(([rows]) => {
-        const value = {
-          app: rows.map((row) => Number(row.id)),
-          web: rows.filter((row) => Number(row.in_free_quiz) === 1).map((row) => Number(row.id)),
-          expiresAt: Date.now() + DashboardService.QUESTION_OF_DAY_TTL_MS,
-        };
-        this.eligibleQuestionIdsCache = value;
-        return value;
+        const ids = rows.map((row) => Number(row.id));
+        this.webQuestionPoolCache = { ids, expiresAt: Date.now() + DashboardService.WEB_QUESTION_POOL_TTL_MS };
+        return ids;
       })
       .finally(() => {
-        this.eligibleQuestionIdsInflight = null;
+        this.webQuestionPoolInflight = null;
       });
-    this.eligibleQuestionIdsInflight = task;
+    this.webQuestionPoolInflight = task;
     return task;
+  }
+
+  // App pool is the whole bank, so no list is built: the day's hash picks a
+  // starting id and the first eligible question from there is taken (wrapping
+  // to the start of the bank when none follows). That reads a handful of rows
+  // instead of every question. Ids that follow a gap are slightly likelier.
+  private async pickAppQuestionId(studentId: number): Promise<number | null> {
+    const [[range]] = await this.db.execute<(RowDataPacket & { min_id: number | null; max_id: number | null })[]>(
+      `SELECT MIN(id) AS min_id, MAX(id) AS max_id FROM questions`
+    );
+    const minId = Number(range?.min_id || 0);
+    const maxId = Number(range?.max_id || 0);
+    if (!minId || !maxId) return null;
+    const start = minId + this.getDashboardQuestionOffset(studentId, maxId - minId + 1);
+    const first = (from: number) => this.db.execute<(RowDataPacket & { id: number })[]>(
+      `SELECT q.id
+       FROM questions q
+       WHERE q.id >= ?
+         AND ${DashboardService.DASHBOARD_QUESTION_ELIGIBLE}
+       ORDER BY q.id ASC
+       LIMIT 1`,
+      [from]
+    );
+    const [rows] = await first(start);
+    if (rows[0]) return Number(rows[0].id);
+    const [wrapped] = await first(minId);
+    return wrapped[0] ? Number(wrapped[0].id) : null;
   }
 
   private async computeRandomDashboardQuestion(studentId: number, appClient?: string) {
@@ -1282,16 +1308,13 @@ export class DashboardService {
     // the website's pool to questions that also appear in a free quiz (a
     // question can be linked to several); the app can draw from the full
     // bank since it's allowed to show premium content anyway.
-    const isMobileClient = isMobileAppClient(appClient);
-    const lists = await this.getEligibleQuestionIdLists();
-    const eligibleIds = isMobileClient ? lists.app : lists.web;
-    const totalQuestions = eligibleIds.length;
-    if (totalQuestions <= 0) {
-      return null;
+    let pickedId: number | null;
+    if (isMobileAppClient(appClient)) {
+      pickedId = await this.pickAppQuestionId(studentId);
+    } else {
+      const pool = await this.getWebQuestionPool();
+      pickedId = pool.length ? pool[this.getDashboardQuestionOffset(studentId, pool.length)] : null;
     }
-
-    const offset = this.getDashboardQuestionOffset(studentId, totalQuestions);
-    const pickedId = eligibleIds[offset];
     if (!pickedId) {
       return null;
     }

@@ -11,8 +11,11 @@ export default () => ({
     // Kept below the host's per-account connection cap: during a restart the old
     // and new copy of the app overlap, so two pools must fit inside it together.
     connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '4', 10),
-    maxIdle: parseInt(process.env.DB_MAX_IDLE || '4', 10),
-    idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '60000', 10),
+    // Idle connections still count against the host's cap. Keep one at most and
+    // close it after 10s unused, so a restart overlap is not two pools' worth of
+    // idle connections sitting open for a minute.
+    maxIdle: parseInt(process.env.DB_MAX_IDLE || '1', 10),
+    idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '10000', 10),
     connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10),
     queueLimit: parseInt(process.env.DB_QUEUE_LIMIT || '100', 10),
   },

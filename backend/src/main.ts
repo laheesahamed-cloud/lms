@@ -924,6 +924,8 @@ export async function configureApp(app: INestApplication) {
 
 export async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+  // Runs onApplicationShutdown (which closes the database pool) on SIGTERM/SIGINT.
+  app.enableShutdownHooks();
   await configureApp(app);
   const configService = app.get(ConfigService);
 

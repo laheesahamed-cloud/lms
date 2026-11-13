@@ -63,6 +63,28 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
     return { ...this.settingsCache };
   }
 
+  // Shuffles ids only, then loads the chosen drugs in that shuffled order.
+  // ORDER BY RAND() on the full rows sorted every drug with all its long text
+  // fields attached (~0.3s for a 20-drug batch).
+  private async pickRandomDrugs(count: number): Promise<[RowDataPacket[], unknown]> {
+    const [idRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id FROM drugs
+       WHERE is_active = 1 AND drug_class IS NOT NULL
+       ORDER BY RAND()
+       LIMIT ?`, [count],
+    );
+    const ids = idRows.map((r) => Number(r.id));
+    if (!ids.length) return [[], null];
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric,
+              side_effects, warnings, drug_interactions, pregnancy_info, sl_brand_names
+       FROM drugs
+       WHERE id IN (${ids.map(() => '?').join(', ')})`, ids,
+    );
+    const byId = new Map(rows.map((r) => [Number(r.id), r]));
+    return [ids.map((id) => byId.get(id)).filter((r): r is RowDataPacket => !!r), null];
+  }
+
   // ── batch fetch — 3 parallel queries, no N+1, no counter increment ──
   async getBatch(userId: number, count: number) {
     const safeCount = Math.min(Math.max(1, count), 20);
@@ -72,14 +94,7 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
       this.db.execute<RowDataPacket[]>(
         `SELECT drug_spins_used FROM users WHERE id = ?`, [userId],
       ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric,
-                side_effects, warnings, drug_interactions, pregnancy_info, sl_brand_names
-         FROM drugs
-         WHERE is_active = 1 AND drug_class IS NOT NULL
-         ORDER BY RAND()
-         LIMIT ?`, [safeCount],
-      ),
+      this.pickRandomDrugs(safeCount),
       this.db.execute<RowDataPacket[]>(
         `SELECT DISTINCT drug_class FROM drugs
          WHERE is_active = 1 AND drug_class IS NOT NULL

@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var DatabaseWarmupService_1;
+var DatabaseWarmupService_1, DatabaseShutdownService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseModule = void 0;
 const common_1 = require("@nestjs/common");
@@ -45,6 +45,26 @@ DatabaseWarmupService = DatabaseWarmupService_1 = __decorate([
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object])
 ], DatabaseWarmupService);
+let DatabaseShutdownService = DatabaseShutdownService_1 = class DatabaseShutdownService {
+    constructor(db) {
+        this.db = db;
+        this.logger = new common_1.Logger(DatabaseShutdownService_1.name);
+    }
+    async onApplicationShutdown(signal) {
+        try {
+            await this.db.end();
+            this.logger.log(`Database connections closed${signal ? ` (${signal})` : ''}`);
+        }
+        catch (error) {
+            this.logger.warn(`Closing database connections failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+};
+DatabaseShutdownService = DatabaseShutdownService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
+    __metadata("design:paramtypes", [Object])
+], DatabaseShutdownService);
 let DatabaseModule = class DatabaseModule {
 };
 exports.DatabaseModule = DatabaseModule;
@@ -65,8 +85,8 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                         database: configService.get('database.name'),
                         waitForConnections: true,
                         connectionLimit: configService.get('database.connectionLimit') || 4,
-                        maxIdle: configService.get('database.maxIdle') || 4,
-                        idleTimeout: configService.get('database.idleTimeout') || 60000,
+                        maxIdle: configService.get('database.maxIdle') || 1,
+                        idleTimeout: configService.get('database.idleTimeout') || 10000,
                         connectTimeout: configService.get('database.connectTimeout') || 10000,
                         queueLimit: configService.get('database.queueLimit') || 100,
                         enableKeepAlive: true,
@@ -75,6 +95,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                 },
             },
             DatabaseWarmupService,
+            DatabaseShutdownService,
         ],
         exports: [database_tokens_1.DATABASE_CONNECTION],
     })

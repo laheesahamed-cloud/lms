@@ -7,6 +7,13 @@ import { APPLE_IAP_PRODUCTS, DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATU
 
 /// Non-IAP payment records that keep the payer's email when an account is
 /// deleted. Apple purchases (iap_transactions) are deliberately not here.
+// ensureCriticalTables() runs once per value of this marker (kept in
+// system_settings.critical_schema_version), not on every boot.
+// CHANGE THIS VALUE whenever a step is added to or changed in
+// ensureCriticalTables(), or the new step will never run on a database that
+// already recorded the old value.
+export const CRITICAL_SCHEMA_VERSION = '2026-11-13.1';
+
 export const PAYER_EMAIL_TABLES = [
   'user_subscriptions',
   'subscription_requests',
@@ -775,15 +782,42 @@ export class SchemaSyncService implements OnModuleInit {
     }
 
     const conn = connection;
+    let failed = 0;
     const step = async (name: string, run: () => Promise<unknown>) => {
       try {
         await run();
       } catch (error) {
+        failed += 1;
         // Named, so the log says which migration failed rather than just that
         // "something" did.
         this.logger.error(`Critical schema step failed: ${name}`, error as Error);
       }
     };
+
+    // These steps used to run on EVERY boot: ~80 queries including ALTER TABLEs,
+    // a DROP TABLE and a backfill UPDATE. The host restarts the app every few
+    // minutes, so that was repeated heavy schema work at exactly the moments the
+    // server was coldest. They now run once per CRITICAL_SCHEMA_VERSION, and
+    // only a run with no failed step is recorded, so a failure retries next boot.
+    try {
+      await conn.execute(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
+          setting_value TEXT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+      const [done] = await conn.execute<RowDataPacket[]>(
+        `SELECT setting_value FROM system_settings WHERE setting_key = 'critical_schema_version' LIMIT 1`,
+      );
+      if (done[0] && String(done[0].setting_value) === CRITICAL_SCHEMA_VERSION) {
+        connection.release();
+        return;
+      }
+    } catch (error) {
+      // Could not read the marker: fall through and run the steps as before.
+      this.logger.warn(`Could not read critical_schema_version: ${(error as Error).message}`);
+    }
 
     try {
       // Read on EVERY authenticated request (session serialization selects it), so a
@@ -872,6 +906,13 @@ export class SchemaSyncService implements OnModuleInit {
           'needs_profile_setup',
           'TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_key',
         ));
+      if (failed === 0) {
+        await step('record critical_schema_version', () => conn.execute(
+          `INSERT INTO system_settings (setting_key, setting_value) VALUES ('critical_schema_version', ?)
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+          [CRITICAL_SCHEMA_VERSION],
+        ));
+      }
     } finally {
       connection.release();
     }

@@ -52,16 +52,26 @@ let DrugsService = DrugsService_1 = class DrugsService {
     getSettings() {
         return { ...this.settingsCache };
     }
+    async pickRandomDrugs(count) {
+        const [idRows] = await this.db.execute(`SELECT id FROM drugs
+       WHERE is_active = 1 AND drug_class IS NOT NULL
+       ORDER BY RAND()
+       LIMIT ?`, [count]);
+        const ids = idRows.map((r) => Number(r.id));
+        if (!ids.length)
+            return [[], null];
+        const [rows] = await this.db.execute(`SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric,
+              side_effects, warnings, drug_interactions, pregnancy_info, sl_brand_names
+       FROM drugs
+       WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
+        const byId = new Map(rows.map((r) => [Number(r.id), r]));
+        return [ids.map((id) => byId.get(id)).filter((r) => !!r), null];
+    }
     async getBatch(userId, count) {
         const safeCount = Math.min(Math.max(1, count), 20);
         const [[userRows], [drugRows], [classRows]] = await Promise.all([
             this.db.execute(`SELECT drug_spins_used FROM users WHERE id = ?`, [userId]),
-            this.db.execute(`SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric,
-                side_effects, warnings, drug_interactions, pregnancy_info, sl_brand_names
-         FROM drugs
-         WHERE is_active = 1 AND drug_class IS NOT NULL
-         ORDER BY RAND()
-         LIMIT ?`, [safeCount]),
+            this.pickRandomDrugs(safeCount),
             this.db.execute(`SELECT DISTINCT drug_class FROM drugs
          WHERE is_active = 1 AND drug_class IS NOT NULL
          ORDER BY RAND() LIMIT 30`),

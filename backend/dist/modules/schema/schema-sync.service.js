@@ -13,12 +13,13 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 var SchemaSyncService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SchemaSyncService = exports.PAYER_EMAIL_TABLES = void 0;
+exports.SchemaSyncService = exports.PAYER_EMAIL_TABLES = exports.CRITICAL_SCHEMA_VERSION = void 0;
 const common_1 = require("@nestjs/common");
 const bcrypt = require("bcryptjs");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const subscription_catalog_1 = require("../plans/subscription-catalog");
+exports.CRITICAL_SCHEMA_VERSION = '2026-11-13.1';
 exports.PAYER_EMAIL_TABLES = [
     'user_subscriptions',
     'subscription_requests',
@@ -687,14 +688,33 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             return;
         }
         const conn = connection;
+        let failed = 0;
         const step = async (name, run) => {
             try {
                 await run();
             }
             catch (error) {
+                failed += 1;
                 this.logger.error(`Critical schema step failed: ${name}`, error);
             }
         };
+        try {
+            await conn.execute(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
+          setting_value TEXT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+            const [done] = await conn.execute(`SELECT setting_value FROM system_settings WHERE setting_key = 'critical_schema_version' LIMIT 1`);
+            if (done[0] && String(done[0].setting_value) === exports.CRITICAL_SCHEMA_VERSION) {
+                connection.release();
+                return;
+            }
+        }
+        catch (error) {
+            this.logger.warn(`Could not read critical_schema_version: ${error.message}`);
+        }
         try {
             await step('users.permissions', () => this.ensureColumn(conn, 'users', 'permissions', 'TEXT NULL AFTER role'));
             await step('account deletion audit', () => this.ensureAccountDeletionAuditTable(conn));
@@ -736,6 +756,10 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             });
             await step('notification dismissals', () => this.ensureNotificationDismissalsTable(conn));
             await step('users.needs_profile_setup', () => this.ensureColumn(conn, 'users', 'needs_profile_setup', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_key'));
+            if (failed === 0) {
+                await step('record critical_schema_version', () => conn.execute(`INSERT INTO system_settings (setting_key, setting_value) VALUES ('critical_schema_version', ?)
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`, [exports.CRITICAL_SCHEMA_VERSION]));
+            }
         }
         finally {
             connection.release();

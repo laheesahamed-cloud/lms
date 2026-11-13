@@ -106,10 +106,17 @@ let ContentGovernanceService = class ContentGovernanceService {
             ORDER BY cae.created_at DESC, cae.id DESC
             LIMIT 1
           ) AS published_at
-        FROM content_workflow_states cws
-        WHERE ${where.join(' AND ')}
+        -- The newest 1000 rows are chosen first; the lookups above then run for
+        -- those rows only. Sorting the whole table with every lookup attached
+        -- worked them out for every row (tens of thousands of reads, ~0.5s).
+        FROM (
+          SELECT entity_type, entity_id, workflow_state, updated_by, updated_at
+          FROM content_workflow_states cws
+          WHERE ${where.join(' AND ')}
+          ORDER BY cws.updated_at DESC, cws.entity_type ASC, cws.entity_id DESC
+          LIMIT 1000
+        ) cws
         ORDER BY cws.updated_at DESC, cws.entity_type ASC, cws.entity_id DESC
-        LIMIT 1000
       `, params);
         const userIds = Array.from(new Set(rows.flatMap((row) => [
             row.author_id ? Number(row.author_id) : null,

@@ -797,6 +797,7 @@ async function configureApp(app) {
 }
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, { bodyParser: false });
+    app.enableShutdownHooks();
     await configureApp(app);
     const configService = app.get(config_1.ConfigService);
     await app.listen(configService.get('port') || 3000, '0.0.0.0');

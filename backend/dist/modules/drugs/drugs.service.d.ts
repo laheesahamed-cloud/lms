@@ -28,6 +28,7 @@ export declare class DrugsService implements OnModuleInit, OnModuleDestroy {
     onModuleDestroy(): void;
     private refreshSettings;
     getSettings(): DrugsSettings;
+    private pickRandomDrugs;
     getBatch(userId: number, count: number): Promise<{
         drugs: {
             drug: DrugRow;
