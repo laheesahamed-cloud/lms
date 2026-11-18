@@ -575,7 +575,9 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
             builder: (_) => _SeriesPicker(
                 series: series,
                 selectedKey: sel.key,
-                noun: label == 'All series' ? 'series' : 'subjects'),
+                noun: label == 'All series' ? 'series' : 'subjects',
+                locked: _lockedSeries,
+                lockedBy: Map.of(_lockedBy)),
           ),
         );
         if (picked != null && mounted) _selectSeries(picked);
@@ -1062,7 +1064,16 @@ class _SeriesPicker extends StatefulWidget {
   final List<_Series> series;
   final String selectedKey;
   final String noun; // "series" or "subjects"
-  const _SeriesPicker({required this.series, required this.selectedKey, this.noun = 'series'});
+  // Exam lock (2026-11-18): the same series the shelf shows locked.
+  final Set<String> locked;
+  final Map<String, String> lockedBy;
+  const _SeriesPicker({
+    required this.series,
+    required this.selectedKey,
+    this.noun = 'series',
+    this.locked = const {},
+    this.lockedBy = const {},
+  });
 
   @override
   State<_SeriesPicker> createState() => _SeriesPickerState();
@@ -1090,7 +1101,13 @@ class _SeriesPickerState extends State<_SeriesPicker> {
       final n = s.fullName.toLowerCase();
       return words.every(n.contains);
     }).toList()
-      ..sort((a, b) => rank[a.status]!.compareTo(rank[b.status]!));
+      // Locked series go last (open ones first, in their usual order).
+      ..sort((a, b) {
+        final la = widget.locked.contains(a.key) ? 1 : 0;
+        final lb = widget.locked.contains(b.key) ? 1 : 0;
+        if (la != lb) return la.compareTo(lb);
+        return rank[a.status]!.compareTo(rank[b.status]!);
+      });
 
     Widget chip(String label, _SeriesStatus? f) {
       final on = _filter == f;
@@ -1174,6 +1191,48 @@ class _SeriesPickerState extends State<_SeriesPicker> {
                         final s = list[i];
                         final p = s.total == 0 ? 0.0 : s.done / s.total;
                         final fin = s.status == _SeriesStatus.done;
+                        final isLocked = widget.locked.contains(s.key);
+                        if (isLocked) {
+                          return InkWell(
+                            onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(widget.lockedBy[s.key] == null
+                                  ? 'Pass the papers before this one first.'
+                                  : 'Pass every paper in ${widget.lockedBy[s.key]} to unlock this.'),
+                              duration: const Duration(seconds: 2),
+                            )),
+                            child: Opacity(
+                              opacity: 0.55,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                decoration: BoxDecoration(border: Border(top: BorderSide(color: c.line))),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(color: c.surface2, shape: BoxShape.circle),
+                                      child: Icon(Icons.lock_rounded, size: 16, color: c.inkSoft),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(s.fullName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.inkStrong)),
+                                          Text('Locked', style: TextStyle(fontSize: 12.5, color: c.inkSoft)),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.lock_outline_rounded, size: 18, color: c.inkSoft),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }
                         return InkWell(
                           onTap: () => Navigator.of(context).pop(s.key),
                           child: Container(
