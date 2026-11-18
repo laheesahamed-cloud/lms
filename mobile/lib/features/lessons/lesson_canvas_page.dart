@@ -2574,6 +2574,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
       return Scaffold(
         backgroundColor: c.page,
         body: SafeArea(
+          // The page runs to the screen edge (no blank strip above the home bar).
+          bottom: false,
           child: Column(
             children: [
               _personalHeader(c),
@@ -2605,6 +2607,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     return Scaffold(
       backgroundColor: c.page,
       body: SafeArea(
+        // The page runs to the screen edge (no blank strip above the home bar).
+        bottom: false,
         child: Column(
           children: [
             _header(c, noteAsync.asData?.value),
