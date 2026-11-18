@@ -4166,12 +4166,6 @@ class _NoteContent extends StatelessWidget {
         .where((f) => f.isNotEmpty)
         .toList();
 
-    final chipBorder = dark
-        ? Colors.white.withValues(alpha: 0.10)
-        : const Color(0xFF1D4ED8).withValues(alpha: 0.15);
-    final chipBg = dark
-        ? Colors.white.withValues(alpha: 0.06)
-        : const Color(0xFF1D4ED8).withValues(alpha: 0.08);
     final chipText = dark ? const Color(0xFFDCE6FF) : const Color(0xFF1E3A5F);
 
     Widget body;
@@ -4183,28 +4177,39 @@ class _NoteContent extends StatelessWidget {
           accent: cyan,
           dark: dark);
     } else {
-      body = Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      // Plain bulleted lines, not small cards inside the card (user, 2026-11-18).
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < frags.length; i++)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: chipBg,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: chipBorder),
+            Padding(
+              padding: EdgeInsets.only(bottom: i == frags.length - 1 ? 0 : 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(color: cyan, shape: BoxShape.circle),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _inlineText(
+                        frags[i],
+                        TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: chipText,
+                            fontWeight: FontWeight.w600),
+                        accent: cyan,
+                        highlightIndex: i,
+                        dark: dark),
+                  ),
+                ],
               ),
-              child: _inlineText(
-                  frags[i],
-                  TextStyle(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: chipText,
-                      fontWeight: FontWeight.w600),
-                  accent: cyan,
-                  highlightIndex: i,
-                  dark: dark),
             ),
         ],
       );
