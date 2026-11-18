@@ -65,7 +65,8 @@ export function PageMeta({
   noindex = false,
 }) {
   useEffect(() => {
-    const fullTitle = title === DEFAULT_TITLE ? title : `${title} | xyndrome`;
+    // A title that already names xyndrome is used as is (no "| xyndrome" added twice).
+    const fullTitle = /xyndrome/i.test(title) ? title : `${title} | xyndrome`;
     const canonicalUrl = publicUrl(path);
     const imageUrl = PUBLIC_WEBSITE_URL ? absoluteUrl(publicAssetPath(image), `${PUBLIC_WEBSITE_URL}/`) : absoluteUrl(image);
 

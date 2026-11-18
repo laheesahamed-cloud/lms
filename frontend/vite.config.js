@@ -53,18 +53,19 @@ export default defineConfig(({ command }) => ({
 
           return 'assets/[name][extname]';
         },
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            // Heavy libraries stay isolated so only the routes that import them pay for them.
-            if (id.includes('html2canvas')) return 'html2canvas';
-            if (id.includes('gsap')) return 'gsap';
-            if (id.includes('framer-motion')) return 'motion';
-            if (id.includes('node_modules/react-dom/')) return 'vendor-react-dom';
-            return 'vendor';
-          }
-          // Group only the small always-loaded shared tail; layout/search/popup/
-          // launch/account/seo stay route-driven so routes don't pay for them eagerly.
-          if (/\/src\/shared\/(api|platform|utils|stores|routing|auth|security|hooks|brand|components|notifications|ui)\//.test(id)) return 'app-shared';
+        // OPTIMIZE 10.55: Rolldown's own grouping. includeDependenciesRecursively:false
+        // stops a group from pulling its dependencies in (manualChunks did, which put
+        // React inside the animation chunk and forced one big shared app file onto
+        // every page). Only React and the heavy libraries get named files; the rest
+        // splits by what each page imports, so the homepage and demo load only theirs.
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@remix-run[\\/]router)[\\/]/, priority: 40 },
+            { name: 'gsap', test: /node_modules[\\/]gsap[\\/]/, priority: 30 },
+            { name: 'motion', test: /node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/, priority: 30 },
+            { name: 'html2canvas', test: /node_modules[\\/]html2canvas[\\/]/, priority: 30 },
+          ],
         },
       },
     },

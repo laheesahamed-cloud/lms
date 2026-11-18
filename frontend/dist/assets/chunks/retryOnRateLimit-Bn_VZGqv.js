@@ -1,0 +1,1 @@
+function e(e){let t=e?.response?.headers?.[`retry-after`],n=Number(t);return Number.isFinite(n)&&n>0?Math.min(65e3,Math.ceil(n*1e3)+250):15e3}async function t(t,{retries:n=6,onWait:r,sleep:i=e=>new Promise(t=>setTimeout(t,e))}={}){for(let a=0;;a+=1)try{return await t()}catch(t){if(t?.response?.status!==429||a>=n)throw t;let o=e(t);r?.(Math.ceil(o/1e3),a+1),await i(o)}}export{t};

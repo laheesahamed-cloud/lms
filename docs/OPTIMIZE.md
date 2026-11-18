@@ -3916,6 +3916,45 @@ Search (2026-11-18): the phone app reads `examModeOnly` (7 files), `displayTitle
 - Tested: admin set save (API and the builder's Update button, set 1022), header search (4 sets via the new index), exam start for a test student (set 887, 3 questions), question open and save; the builder and Questions page open with no errors. An admin page opened before the update gets a 400 on save until reloaded (old keyword field).
 - Deploy: backend `dist` rebuilt locally; the live database must be backed up first, because the boot step drops columns and a table on the first start. Frontend not built for live yet.
 
+### 10.55 Homepage and demo load separately (file grouping) — ✅ BUILT locally 2026-11-18 (not committed)
+
+**Decisions** — ✅ user 2026-11-18: "optimize the website page load the demo and main page separately" (10.53 plan step "load the pages separately").
+
+**Aims** — the homepage and the demo download only the code they use; the animation libraries never load outside the homepage; no visible change anywhere.
+
+**Before** (production build, measured in the browser from a fresh load; compressed = gzip -9):
+
+| Page | Files | Raw | Compressed |
+|---|---|---|---|
+| Homepage `/` (loader plays) | 18 | 1,638 KB | 455 KB |
+| Demo `/try` (opened directly) | 15 | 1,376 KB | 365 KB |
+
+Largest on both: the whole app stylesheet `main.css` 538 KB; the forced `app-shared` chunk 373 KB (every shared app module, used or not); `vendor-react-dom` 171 KB; `main` 100 KB; the catch-all `vendor` 71 KB.
+
+**Cause** — `vite.config.js` uses `manualChunks`, which on Rolldown (Vite 8) becomes groups that pull each group's dependencies in with it: one `app-shared` file for all shared app code, one catch-all `vendor`, and (seen in 10.53) React's code landing inside the `motion` chunk when the other groups are removed.
+
+**Plan**
+1. Replace `manualChunks` with Rolldown's native `codeSplitting` groups and `includeDependenciesRecursively: false`: React + router in their own group first, then the heavy libraries (GSAP, framer-motion, html2canvas) in their own groups; no `app-shared`, no catch-all `vendor` — the rest splits by what each page actually imports.
+2. Measure both pages again; check the animation library is not loaded on `/try`; check the number of files does not explode.
+3. Check app pages still load: student pages, admin builder and Questions page, sign-in (no console errors).
+4. The stylesheet split (538 KB) stays a separate step (needs screenshots of every page).
+
+**Changes** — `frontend/vite.config.js`: `manualChunks` replaced by `codeSplitting` with `includeDependenciesRecursively: false` and four groups (`vendor-react` = react, react-dom, scheduler, react-router; `gsap`; `motion` = framer-motion, motion-dom, motion-utils; `html2canvas`). No `app-shared`, no catch-all `vendor`.
+
+**After** (same measurement):
+
+| Page | Files | Raw | Compressed |
+|---|---|---|---|
+| Homepage `/` | 33 (was 18) | **1,455 KB** (was 1,638) | **404 KB** (was 455) |
+| Demo `/try` | 29 (was 15) | **1,193 KB** (was 1,376) | **314 KB** (was 365) |
+
+- Each page drops 183 KB raw / 51 KB compressed: the unused part of the old `app-shared` file and the catch-all `vendor` no longer download.
+- The animation libraries (GSAP 110 KB, framer-motion 124 KB) load only on the homepage; the demo loads neither (before the fix the animation file loaded on every page because it carried part of React).
+- More, smaller files (all cached for a year by `.htaccess`); app-only start-up modules still on public pages total ~10 KB (announcements, reminders, workspace API) — not worth moving.
+- Checked on the built site: homepage (hero, loader), demo, student pages (Study Hub, courses, lessons, flashcards, profile) and admin pages (set builder, questions, dashboard, structure, sets) load with no console errors.
+- Still above 1 MB raw on both pages: the whole-app stylesheet (538 KB raw / 76 KB compressed) — the next step, with screenshots of every page.
+- Deploy: needs a fresh `npm run build` in `frontend` (writes `frontend/dist`) committed with it.
+
 ## 8. Change log
 
 | Date | Change |

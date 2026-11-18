@@ -1,0 +1,1 @@
+import{t as e}from"./client-EeWM_kTt.js";function t(t){let n=String(t||``).trim();if(!n)return``;if(/^(?:https?:|data:|blob:)/i.test(n))return n;if(n.startsWith(`/api/`)){let t=String(e||``).replace(/\/+$/,``);if(t.endsWith(`/api`))return`${t.slice(0,-4)}${n}`}return n}export{t};
