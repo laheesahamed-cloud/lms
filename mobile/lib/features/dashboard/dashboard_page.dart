@@ -2,7 +2,9 @@ import '../../utils/count_plus.dart';
 import 'dart:async';
 import '../../core/perf_log.dart';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
@@ -162,7 +164,11 @@ class DashboardPage extends ConsumerWidget {
     // was zoomed into a thin slice. A taller header there shows about half
     // of it, close to what the phone shows (2026-11-17, mock B). The room goes
     // under the bell + profile row, so those stay at the top.
-    final heroExtra = mq.size.width >= 700 ? 140.0 : 0.0;
+    // 2026-11-18: "Study Hub" moved up on big screens (gap 140 → 60) and the
+    // picture made a bit shorter (140 → 100 extra) — same top, same framing,
+    // so it still reaches behind the top of the Continue card.
+    final heroExtra = mq.size.width >= 700 ? 60.0 : 0.0;
+    final heroImageExtra = mq.size.width >= 700 ? 100.0 : 0.0;
     final kids = <Widget>[
       // Top bar: notifications + profile
       Row(
@@ -313,8 +319,8 @@ class DashboardPage extends ConsumerWidget {
             top: -(safeTop + 14),
             left: -16,
             right: -16,
-            height: safeTop + heroExtra + _HubHero.toCardTop + _HubHero.intoCard,
-            child: const _HubHero(),
+            height: safeTop + heroImageExtra + _HubHero.toCardTop + _HubHero.intoCard,
+            child: _HubHero(pull: _heroPull),
           ),
           kids[0],
         ],
@@ -323,6 +329,11 @@ class DashboardPage extends ConsumerWidget {
 
     final list = ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      // The artwork hangs off the first (38pt) row, so the list must keep that
+      // row alive until the whole picture is off screen — with the default
+      // 250 the row was dropped early and the picture vanished mid-scroll
+      // (2026-11-18, phone and iPad).
+      scrollCacheExtent: const ScrollCacheExtent.pixels(700),
       padding: EdgeInsets.fromLTRB(16, safeTop + 14, 16, shellScrollEnd(context)),
       children: reduced
           ? kids
@@ -336,10 +347,23 @@ class DashboardPage extends ConsumerWidget {
               children: kids,
             ),
     );
+    // How far the list is pulled down past the top (iOS bounce): the artwork's
+    // top edge fades by that much, so the gap above it never shows a hard
+    // line. 0 at rest, so the resting picture is unchanged (2026-11-18).
+    final listened = NotificationListener<ScrollUpdateNotification>(
+      onNotification: (n) {
+        if (n.depth == 0) {
+          final pull = n.metrics.pixels < 0 ? -n.metrics.pixels : 0.0;
+          if (pull != _heroPull.value) _heroPull.value = pull;
+        }
+        return false;
+      },
+      child: list,
+    );
     // No top SafeArea: the inset is in the list's padding above, so the
     // viewport runs to the top of the screen and the artwork is not clipped
     // short of it.
-    return reduced ? list : AnimationLimiter(child: list);
+    return reduced ? listened : AnimationLimiter(child: listened);
   }
 }
 
@@ -368,10 +392,14 @@ const _kHubHeroesLight = [
   'assets/hub/hero_light_6.webp',
 ];
 
+/// Pull-down distance past the top of the Study Hub list (see build).
+final _heroPull = ValueNotifier<double>(0);
+
 /// A full-bleed photograph behind the page's first screenful, dissolving into
 /// the page colour before it reaches the bottom of the Continue card.
 class _HubHero extends StatelessWidget {
-  const _HubHero();
+  final ValueListenable<double> pull;
+  const _HubHero({required this.pull});
 
   /// From the top of the list's content down to the Continue card's own top:
   /// the 14 padding, the avatar row, and the eyebrow / title / goal-line stack
@@ -390,8 +418,41 @@ class _HubHero extends StatelessWidget {
     final set = dark ? _kHubHeroes : _kHubHeroesLight;
     final asset = set[DateTime.now().day % set.length];
 
+    // Edges fade to SEE-THROUGH (2026-11-18): the top only while the list is
+    // pulled down (fade height = the pull, so at rest nothing changes) and a
+    // short fade on the left edge (next to the iPad side nav). Bottom and
+    // right are as they always were.
     return IgnorePointer(
-        child: Stack(
+        child: ValueListenableBuilder<double>(
+          valueListenable: pull,
+          builder: (context, p, child) => ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (rect) {
+              final top = rect.height <= 0 ? 0.0 : (p / rect.height).clamp(0.0, 0.35);
+              return LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                // Top only (while pulled). The bottom / right side is back to
+                // the original look (user, 2026-11-18).
+                colors: const [Color(0x00FFFFFF), Color(0xFFFFFFFF)],
+                stops: [0.0, top],
+              ).createShader(rect);
+            },
+            // Left edge too: on iPad landscape the picture starts right next
+            // to the side nav, which left a hard vertical line. A short fade,
+            // the same on every device (2026-11-18).
+            child: ShaderMask(
+              blendMode: BlendMode.dstIn,
+              shaderCallback: (rect) => LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: const [Color(0x00FFFFFF), Color(0xFFFFFFFF)],
+                stops: [0.0, rect.width <= 0 ? 0.0 : (56 / rect.width).clamp(0.0, 0.2)],
+              ).createShader(rect),
+              child: child,
+            ),
+          ),
+          child: Stack(
           fit: StackFit.expand,
           children: [
             Image.asset(asset,
@@ -436,6 +497,7 @@ class _HubHero extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
     );
   }

@@ -526,27 +526,27 @@ class _SideBar extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 2026-11-18: "Student Portal" removed; logo + name on one
+                  // row, left-aligned, the name centred on the logo's height.
                   Padding(
                     padding: const EdgeInsets.only(left: 6, bottom: 18),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const BrandLogo(size: 44),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('xyndrome',
-                                style: TextStyle(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.2,
-                                    color: c.inkStrong)),
-                            Text('Student Portal',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.inkSoft)),
-                          ],
+                        const SizedBox(width: 5),
+                        // Lined up with the logo's VISUAL middle (where its
+                        // ink weight is — the heavy X sits low), measured on
+                        // screen: 1pt down from the plain box-centred spot.
+                        Transform.translate(
+                          offset: const Offset(0, 1),
+                          child: Text('xyndrome',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  height: 1.0,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                  color: c.inkStrong)),
                         ),
                       ],
                     ),
