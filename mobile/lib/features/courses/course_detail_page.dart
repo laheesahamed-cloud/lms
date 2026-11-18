@@ -49,6 +49,7 @@ class CourseDetailPage extends ConsumerWidget {
     final detailAsync = ref.watch(courseDetailProvider(courseId));
 
     return SafeArea(
+      bottom: false,
       child: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _back(
@@ -66,7 +67,7 @@ class CourseDetailPage extends ConsumerWidget {
           final frac = total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + MediaQuery.viewPaddingOf(context).bottom),
             children: [
               Row(children: [
                 IconButton(

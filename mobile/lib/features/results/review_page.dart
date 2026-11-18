@@ -70,6 +70,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     final c = context.c;
     final reviewAsync = ref.watch(attemptReviewProvider(widget.attemptId));
     return SafeArea(
+      bottom: false,
       child: reviewAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -127,7 +128,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                     // At the end of the list (user, 2026-11-18): the student
                     // reaches it after going through every question.
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                      padding: EdgeInsets.fromLTRB(0, 8, 0, 24 + MediaQuery.viewPaddingOf(context).bottom),
                       child: _FinishReviewButton(
                         reviewed: _reviewed,
                         busy: _markingBusy,

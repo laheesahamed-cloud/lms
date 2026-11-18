@@ -24,6 +24,7 @@ class ResultDetailPage extends ConsumerWidget {
     final c = context.c;
     final resultAsync = ref.watch(attemptResultProvider(attemptId));
     return SafeArea(
+      bottom: false,
       child: resultAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -76,7 +77,7 @@ class ResultDetailPage extends ConsumerWidget {
           onPressed: () => context.pop()),
     ];
     final list = ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + MediaQuery.viewPaddingOf(context).bottom),
       children: reduced
           ? kids
           : AnimationConfiguration.toStaggeredList(

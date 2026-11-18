@@ -26,6 +26,7 @@ class ExamCompletePage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.page,
       body: SafeArea(
+        bottom: false,
         child: resultAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
@@ -56,7 +57,7 @@ class ExamCompletePage extends ConsumerWidget {
     final passed = r.passed;
     final accent = passed ? _green : _red;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+      padding: EdgeInsets.fromLTRB(16, 18, 16, 28 + MediaQuery.viewPaddingOf(context).bottom),
       children: [
         Center(
           child: Container(

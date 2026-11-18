@@ -115,6 +115,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     final quizzesAsync = ref.watch(quizListProvider);
 
     return SafeArea(
+      bottom: false,
       child: quizzesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _back(
@@ -219,7 +220,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
                   ),
                 ),
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, showChips ? 6 : 0, 16, 28),
+                padding: EdgeInsets.fromLTRB(16, showChips ? 6 : 0, 16, 28 + MediaQuery.viewPaddingOf(context).bottom),
                 sliver: SliverToBoxAdapter(
                   child: mine.isEmpty
                       ? Padding(

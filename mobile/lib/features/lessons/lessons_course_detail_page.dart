@@ -71,6 +71,7 @@ class _NotesCourseDetailPageState
     final notesAsync = ref.watch(lessonsListProvider);
 
     return SafeArea(
+      bottom: false,
       child: notesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _backWrap(
@@ -152,7 +153,7 @@ class _NotesCourseDetailPageState
                     ),
                   ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+                  padding: EdgeInsets.fromLTRB(16, 10, 16, 28 + MediaQuery.viewPaddingOf(context).bottom),
                   sliver: SliverToBoxAdapter(
                     child: group.isEmpty ? const SizedBox.shrink() : _subjectLessons(c, group.first),
                   ),
