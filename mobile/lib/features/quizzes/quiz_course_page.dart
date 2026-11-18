@@ -41,6 +41,11 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
   // works, so the cards never reshuffle under their finger; only the strip
   // scrolls.
   List<String>? _shelfKeys;
+  // Exam tab, Full course (user, 2026-11-18): series unlock in order — the
+  // next one opens only when every paper in the ones before it is PASSED.
+  // From the pass marks saved on the phone; no request.
+  Set<String> _lockedSeries = const {};
+  final Map<String, String> _lockedBy = {}; // locked series -> the one to pass first
 
   bool get _exam => widget.examMode;
 
@@ -53,6 +58,10 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
   /// Choosing a series slides the whole row of cards to the left, together,
   /// until the chosen card is the first one in view.
   void _selectSeries(String key) {
+    if (_lockedSeries.contains(key)) {
+      _showLocked(key);
+      return;
+    }
     setState(() => _seriesKey = key);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final i = _shelfKeys?.indexOf(key) ?? -1;
@@ -66,12 +75,28 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     });
   }
 
+  void _showLocked(String key) {
+    final first = _lockedBy[key];
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(first == null
+          ? 'Pass the papers before this one first.'
+          : 'Pass every paper in $first to unlock this.'),
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
   void _onScopeChanged(QuizScope s) {
     setState(() {
       _scope = s;
       _activeGroup = null; // a new scope re-groups, so clear the chip filter
       _collapsed.clear();
+      // Subjects and Full course share the card shelf (2026-11-18): start fresh.
+      _seriesKey = null;
+      _shelfKeys = null;
     });
+    // The card row starts at its first card again (it kept the other tab's
+    // scroll, hiding the selected card).
+    if (_shelfScroll.hasClients) _shelfScroll.jumpTo(0);
   }
 
   void _toggleCollapse(String key) {
@@ -123,8 +148,27 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
               ? _scope!
               : (available.isNotEmpty ? available.first : QuizScope.subject);
           final isFull = scope == QuizScope.fullCourse;
+          final isSubject = scope == QuizScope.subject;
           final scoped = filterQuizzesByScope(mine, scope);
           final series = isFull ? _buildSeries(scoped) : const <_Series>[];
+          _lockedSeries = const {};
+          _lockedBy.clear();
+          if (isFull && _exam) {
+            final outcomes = ref.watch(quizOutcomesProvider);
+            bool passedAll(_Series x) =>
+                x.sets.every((q) => outcomes[int.tryParse(q.id) ?? -1]?.passed == true);
+            final locked = <String>{};
+            _Series? gate;
+            for (final x in series) {
+              if (gate != null) {
+                locked.add(x.key);
+                _lockedBy[x.key] = gate.fullName;
+              } else if (!passedAll(x)) {
+                gate = x; // open, but everything after it waits for it
+              }
+            }
+            _lockedSeries = locked;
+          }
           final groups = isFull
               ? const <QuizScopeGroup>[]
               : groupQuizzesByScope(scoped, scope, courseName);
@@ -141,7 +185,17 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           // The filter chips are a pinned sliver, so they stay on screen while
           // the sets scroll underneath — a student deep in a long list can
           // switch subject without scrolling back to the top.
-          final showChips = !isFull && mine.isNotEmpty && groups.length > 1;
+          // Subjects use the same ring cards + Start banner as Full course
+          // (user, 2026-11-18): every subject is a "series" of its sets.
+          // Built from the saved lists — no request.
+          final groupByKey = {for (final g in groups) g.label.toLowerCase(): g};
+          final subjectSeries = isSubject
+              ? [
+                  for (final g in groups)
+                    _Series(g.label.toLowerCase(), g.label, g.quizzes, prefix: courseName),
+                ]
+              : const <_Series>[];
+          final showChips = !isFull && !isSubject && mine.isNotEmpty && groups.length > 1;
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
@@ -175,6 +229,12 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
                         )
                       : isFull
                           ? _fullCourseView(c, series)
+                      : isSubject
+                          ? _fullCourseView(c, subjectSeries,
+                              allLabel: 'All subjects',
+                              rows: (sel) => groupByKey[sel.key] == null
+                                  ? const <Widget>[]
+                                  : _groupRows(c, groupByKey[sel.key]!))
                       : visibleGroups.isEmpty
                           ? Padding(
                               padding: const EdgeInsets.only(top: 24),
@@ -272,7 +332,12 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
 
   _Series _selectedSeries(List<_Series> series) {
     for (final s in series) {
-      if (s.key == _seriesKey) return s;
+      if (s.key == _seriesKey && !_lockedSeries.contains(s.key)) return s;
+    }
+    final open = series.where((s) => !_lockedSeries.contains(s.key)).toList();
+    if (open.isNotEmpty && open.length < series.length) {
+      // Exam lock: the last open series is the one to work on.
+      return open.last;
     }
     // Nothing chosen yet: start the student where they left off.
     return series.firstWhere((s) => s.status == _SeriesStatus.inProgress,
@@ -318,7 +383,8 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
         c.primary.withValues(alpha: dark ? 0.26 : 0.14), dark ? c.card : Colors.white);
   }
 
-  Widget _fullCourseView(AppColors c, List<_Series> series) {
+  Widget _fullCourseView(AppColors c, List<_Series> series,
+      {String allLabel = 'All series', List<Widget> Function(_Series sel)? rows}) {
     if (series.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 24),
@@ -358,7 +424,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
                     SizedBox(
                       width: _allW,
                       height: _shelfH,
-                      child: _allSeriesCard(c, series, sel),
+                      child: _allSeriesCard(c, series, sel, label: allLabel),
                     ),
                     SizedBox(width: trailing),
                   ],
@@ -370,11 +436,14 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
         const SizedBox(height: 12),
         _continueCard(c, sel),
         const SizedBox(height: 12),
-        for (var i = 0; i < sel.sets.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _QuizRow(quiz: sel.sets[i], index: i, exam: _exam),
-          ),
+        if (rows != null)
+          ...rows(sel)
+        else
+          for (var i = 0; i < sel.sets.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _QuizRow(quiz: sel.sets[i], index: i, exam: _exam),
+            ),
       ],
     );
   }
@@ -383,6 +452,39 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final p = s.total == 0 ? 0.0 : s.done / s.total;
     final fin = s.status == _SeriesStatus.done;
+    if (_lockedSeries.contains(s.key)) {
+      return GestureDetector(
+        onTap: () => _showLocked(s.key),
+        child: Opacity(
+          opacity: 0.55,
+          child: GlassCard(
+            padding: const EdgeInsets.all(11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: c.surface2, shape: BoxShape.circle),
+                  child: Icon(Icons.lock_rounded, size: 18, color: c.inkSoft),
+                ),
+                const Spacer(),
+                if (s.prefix.isNotEmpty)
+                  Text(s.prefix,
+                      maxLines: 1,
+                      style: TextStyle(fontSize: 11, height: 1.1, fontWeight: FontWeight.w700, color: c.inkSoft)),
+                Text(s.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, height: 1.2, fontWeight: FontWeight.w800, color: c.inkStrong)),
+                const SizedBox(height: 2),
+                Text('Locked', style: TextStyle(fontSize: 11.5, color: c.inkSoft)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -463,13 +565,17 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     );
   }
 
-  Widget _allSeriesCard(AppColors c, List<_Series> series, _Series sel) {
+  Widget _allSeriesCard(AppColors c, List<_Series> series, _Series sel,
+      {String label = 'All series'}) {
     return GlassCard(
       padding: const EdgeInsets.all(11),
       onTap: () async {
         final picked = await Navigator.of(context).push<String>(
           MaterialPageRoute(
-            builder: (_) => _SeriesPicker(series: series, selectedKey: sel.key),
+            builder: (_) => _SeriesPicker(
+                series: series,
+                selectedKey: sel.key,
+                noun: label == 'All series' ? 'series' : 'subjects'),
           ),
         );
         if (picked != null && mounted) _selectSeries(picked);
@@ -479,7 +585,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
         children: [
           Icon(Icons.apps_rounded, size: 26, color: c.inkMedium),
           const SizedBox(height: 6),
-          Text('All series',
+          Text(label,
               style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
@@ -955,7 +1061,8 @@ void _openQuiz(BuildContext context, QuizListItem quiz, bool exam) {
 class _SeriesPicker extends StatefulWidget {
   final List<_Series> series;
   final String selectedKey;
-  const _SeriesPicker({required this.series, required this.selectedKey});
+  final String noun; // "series" or "subjects"
+  const _SeriesPicker({required this.series, required this.selectedKey, this.noun = 'series'});
 
   @override
   State<_SeriesPicker> createState() => _SeriesPickerState();
@@ -1013,7 +1120,7 @@ class _SeriesPickerState extends State<_SeriesPicker> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: PageHeader(title: 'All series (${widget.series.length})'),
+              child: PageHeader(title: 'All ${widget.noun} (${widget.series.length})'),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1023,7 +1130,7 @@ class _SeriesPickerState extends State<_SeriesPicker> {
                 onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 onChanged: (v) => setState(() => _query = v),
                 decoration: InputDecoration(
-                  hintText: 'Search series',
+                  hintText: 'Search ${widget.noun}',
                   prefixIcon: const Icon(Icons.search_rounded, size: 20),
                   isDense: true,
                   filled: true,
@@ -1056,7 +1163,7 @@ class _SeriesPickerState extends State<_SeriesPicker> {
             Expanded(
               child: list.isEmpty
                   ? Center(
-                      child: Text('No series match.',
+                      child: Text('No ${widget.noun} match.',
                           style: TextStyle(color: c.inkSoft)))
                   : ListView.builder(
                       keyboardDismissBehavior:
