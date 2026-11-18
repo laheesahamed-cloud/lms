@@ -51,9 +51,6 @@ const noteCanvasUi = {
   // still needs its flex layout + ↳/+/× buttons) instead of replacing it.
   subPartHeaderEdit:
     'mt-2.5 border-t border-transparent pt-2 [&_[data-ncv-rich-editable]]:text-[13px] [&_[data-ncv-rich-editable]]:font-extrabold [&_[data-ncv-rich-editable]]:uppercase [&_[data-ncv-rich-editable]]:tracking-[0.04em]',
-  summaryFrags: 'flex flex-wrap items-center gap-2',
-  summaryFrag:
-    "min-w-0 max-w-full break-words rounded-[10px] border border-black/[0.07] px-3 py-1.5 text-[13px] font-medium leading-[1.5] text-slate-700 dark:border-white/10 dark:text-[rgba(220,230,255,0.92)]",
   wrapOuter: 'relative',
   canvas:
     "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#e3e3e7] bg-[#f2f2f4] bg-[radial-gradient(circle,rgba(60,60,67,0.05)_1.2px,transparent_1.2px)] bg-[length:22px_22px] text-[#3b465f] shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:border-white/10 dark:bg-[#111827] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.082)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
@@ -1380,23 +1377,25 @@ function dottedCardBackground(accentColor, theme, surface) {
 /* ══════════════════════════════════════════════════════════════
    SUMMARY FRAGMENTS
 ══════════════════════════════════════════════════════════════ */
-function SummaryFragments({ text, highlightColors, accentColor, colors, theme }) {
+function SummaryFragments({ text, highlightColors, accentColor, colors }) {
   if (!text) return null;
   const frags = text.split(/\s*[·|]\s*|\s*→\s+/).filter(Boolean);
-  const isDark = theme === 'dark';
   if (frags.length <= 1) return <RichText text={text} highlightColors={highlightColors} accentColor={accentColor}/>;
+  // Plain bulleted lines, not small cards inside the card (2026-11-18; the app matches).
   return (
-    <div className={noteCanvasUi.summaryFrags}>
+    <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
       {frags.map((f, i) => {
-        const chipColor = colors ? colors[i % colors.length] : accentColor;
+        const dot = colors ? colors[i % colors.length] : accentColor;
         return (
-          <span key={i} className={noteCanvasUi.summaryFrag}
-            style={{ background: `${chipColor}${isDark ? '2e' : '1e'}`, borderColor: `${chipColor}${isDark ? '44' : '30'}` }}>
-            <RichText text={f.trim()} highlightColors={highlightColors} accentColor={chipColor} highlightIndex={i}/>
-          </span>
+          <li key={i} className="flex items-start gap-2.5">
+            <span aria-hidden="true" className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dot }}/>
+            <span className="min-w-0 flex-1 font-semibold leading-relaxed">
+              <RichText text={f.trim()} highlightColors={highlightColors} accentColor={dot} highlightIndex={i}/>
+            </span>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
