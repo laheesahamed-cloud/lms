@@ -212,10 +212,12 @@ const noteCanvasUi = {
     'relative mx-5 mb-3 mt-1 overflow-hidden rounded-[14px] border border-[#f3c77f]/70 px-4 py-3.5 dark:border-white/[0.12] max-[520px]:mx-2 max-[520px]:px-3',
   keyPointsLabel:
     "mb-2.5 flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.8px] text-slate-600 dark:text-[rgba(200,220,255,0.7)]",
-  keyPointsList: 'flex flex-wrap gap-2',
-  keyChip:
-    "max-w-full break-words rounded-lg border border-black/[0.05] px-3 py-1.5 text-[14px] font-bold text-slate-700 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.09)] max-[520px]:text-[14.5px]",
-  keyChipEdit: 'cursor-text focus:outline focus:outline-2 focus:outline-white/50',
+  keyPointsList: 'm-0 flex list-none flex-col gap-1.5 p-0',
+  keyItem: 'flex items-start gap-2.5',
+  keyDot: 'mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full',
+  keyText:
+    'min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.5] text-slate-700 dark:text-[#e5ecff] max-[520px]:text-[14.5px]',
+  keyTextEdit: 'cursor-text focus:outline focus:outline-2 focus:outline-white/50',
   summary:
     'relative mx-5 mb-5 overflow-hidden rounded-[14px] border border-indigo-500/20 px-5 py-4 dark:border-indigo-400/20 max-[520px]:mx-2 max-[520px]:px-3',
   summaryLabel:
@@ -3692,19 +3694,21 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
               </svg>
               Key Exam Points
             </div>
-            <div className={noteCanvasUi.keyPointsList}>
+            <ul className={noteCanvasUi.keyPointsList}>
               {data.key_points.map((pt, i) => (
-                editable ? (
-                  <EField key={i} value={pt} onChange={v => patchKeyPoint(i, v)}
-                    className={cx(noteCanvasUi.keyChip, noteCanvasUi.keyChipEdit)}
-                    style={{ background: `${colors[i % colors.length]}${theme === 'dark' ? '30' : '24'}` }}/>
-                ) : (
-                  <div key={i} className={noteCanvasUi.keyChip} style={{ background: `${colors[i % colors.length]}${theme === 'dark' ? '30' : '24'}` }}>
-                    <RichText text={pt} highlightColors={highlightColors} accentColor={colors[i % colors.length]} highlightIndex={i}/>
-                  </div>
-                )
+                <li key={i} className={noteCanvasUi.keyItem}>
+                  <span className={noteCanvasUi.keyDot} style={{ background: colors[i % colors.length] }} />
+                  {editable ? (
+                    <EField value={pt} onChange={v => patchKeyPoint(i, v)}
+                      className={cx(noteCanvasUi.keyText, noteCanvasUi.keyTextEdit)}/>
+                  ) : (
+                    <div className={noteCanvasUi.keyText}>
+                      <RichText text={pt} highlightColors={highlightColors} accentColor={colors[i % colors.length]} highlightIndex={i}/>
+                    </div>
+                  )}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 
