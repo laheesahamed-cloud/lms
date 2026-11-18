@@ -170,37 +170,44 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
               ],
 
               const SizedBox(height: 16),
-              _comparison(c, billing.plans),
+              _comparison(c),
             ],
           ),
       ),
     );
   }
 
-  /// Free vs Premium, instead of dumping every plan with its own long feature
-  /// list. Rows are derived from the actual plans so this stays in step with
-  /// the catalog rather than drifting from it.
-  Widget _comparison(AppColors c, List<SubPlan> plans) {
-    if (plans.isEmpty) return const SizedBox.shrink();
+  /// Free vs Premium. Fixed text since 2026-11-18 (OPTIMIZE 10.56): the
+  /// table no longer comes from the server's plan list, so the page needs only
+  /// the student's own plan. Same 16 rows and Free ticks as the plans had.
+  static const _premiumRows = <String>[
+    'Courses access',
+    'Subject access',
+    'Topic access',
+    'Full lessons access',
+    'Full question bank',
+    'Past paper access',
+    'Mock paper access',
+    'Practice mode',
+    'Exam mode',
+    'Results tracking',
+    'Report question',
+    'Lessons study mode',
+    'Basic progress tracking',
+    'Advanced progress tracking',
+    'Performance analytics',
+    'Weak area analysis',
+  ];
+  static const _freeRows = <String>{
+    'Courses access',
+    'Subject access',
+    'Topic access',
+    'Basic progress tracking',
+  };
 
-    final free = plans.where((p) => p.isFree).toList();
-    final paid = plans.where((p) => !p.isFree).toList();
-    if (paid.isEmpty) return const SizedBox.shrink();
-
-    final freeFeatures = free.isEmpty
-        ? <String>{}
-        : free.first.features.map((f) => f.trim()).toSet();
-
-    // The richest paid plan defines what "Premium" means.
-    paid.sort((a, b) => b.features.length.compareTo(a.features.length));
-    final premiumFeatures = paid.first.features.map((f) => f.trim()).toList();
-
-    // Union, premium order first so the list reads as "what you get".
-    final rows = <String>[
-      ...premiumFeatures,
-      ...freeFeatures.where((f) => !premiumFeatures.contains(f)),
-    ];
-    if (rows.isEmpty) return const SizedBox.shrink();
+  Widget _comparison(AppColors c) {
+    const rows = _premiumRows;
+    const freeFeatures = _freeRows;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

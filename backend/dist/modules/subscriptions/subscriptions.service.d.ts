@@ -38,7 +38,7 @@ export declare class SubscriptionsService {
             billingPeriod: string;
             appleProductId: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -87,7 +87,7 @@ export declare class SubscriptionsService {
             featureKey: string;
             description: string;
             category: string;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             createdAt: string | null;
             updatedAt: string | null;
         }[];
@@ -174,7 +174,7 @@ export declare class SubscriptionsService {
         notes: string;
         status: "active" | "pending" | "expired" | "cancelled";
         computedStatus: "active" | "pending" | "expired" | "cancelled";
-        paymentStatus: "free_plan" | "paid" | "manual" | "unpaid";
+        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -182,7 +182,7 @@ export declare class SubscriptionsService {
         paymentReference: string;
         paymentDate: string | null;
         receiptUrl: string;
-        accessScope: "lessons" | "courses" | "all";
+        accessScope: "all" | "courses" | "lessons";
         courseIds: number[];
         lessonIds: number[];
         startDate: string;
@@ -283,7 +283,7 @@ export declare class SubscriptionsService {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "rejected" | "approved" | "cancelled";
+        status: "pending" | "cancelled" | "approved" | "rejected";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -301,7 +301,7 @@ export declare class SubscriptionsService {
         paymentProofName: string;
         paymentProofMime: string;
         paymentProofDataUrl: string;
-        accessScope: "lessons" | "courses" | "all";
+        accessScope: "all" | "courses" | "lessons";
         courseIds: number[];
         lessonIds: number[];
         invoiceId: string;
@@ -319,6 +319,21 @@ export declare class SubscriptionsService {
         id: number;
         subscriptionId: number | null;
     }>;
+    getStudentCurrentPlanForApp(userId: number): Promise<{
+        currentSubscription: null;
+    } | {
+        currentSubscription: {
+            planName: string;
+            status: "active" | "pending" | "expired" | "cancelled";
+            computedStatus: "active" | "pending" | "expired" | "cancelled";
+            isFreePlan: boolean;
+            isUnlimitedAccess: boolean;
+            startDate: string;
+            endDate: string;
+            daysRemaining: number | null;
+            isExpiringSoon: boolean;
+        };
+    }>;
     getStudentBilling(userId: number): Promise<{
         currentSubscription: {
             id: number;
@@ -328,7 +343,7 @@ export declare class SubscriptionsService {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "paid" | "manual" | "unpaid";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -336,7 +351,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -379,7 +394,7 @@ export declare class SubscriptionsService {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "paid" | "manual" | "unpaid";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -387,7 +402,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -436,7 +451,7 @@ export declare class SubscriptionsService {
             billingPeriod: string;
             appleProductId: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -472,7 +487,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "rejected" | "approved" | "cancelled";
+            status: "pending" | "cancelled" | "approved" | "rejected";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -490,7 +505,7 @@ export declare class SubscriptionsService {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;
@@ -538,11 +553,11 @@ export declare class SubscriptionsService {
             cancelUrl: string;
             notifyUrl: string;
             autoActivatePaidSubscriptions: boolean;
-            appCheckoutMode: "web" | "native";
+            appCheckoutMode: "native" | "web";
             hasAppMerchantSecret: boolean;
             maskedAppMerchantSecret: string;
         };
-        appCheckoutMode: "web" | "native";
+        appCheckoutMode: "native" | "web";
     }>;
     findCoupons(): Promise<{
         id: number;
@@ -552,7 +567,7 @@ export declare class SubscriptionsService {
         discountType: "fixed" | "percent";
         discountValue: number;
         planIds: number[];
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         startsAt: string;
         expiresAt: string;
         maxRedemptions: number | null;
@@ -757,7 +772,7 @@ export declare class SubscriptionsService {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "paid" | "manual" | "unpaid";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -765,7 +780,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -808,7 +823,7 @@ export declare class SubscriptionsService {
             notes: string;
             status: "active" | "pending" | "expired" | "cancelled";
             computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "paid" | "manual" | "unpaid";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -816,7 +831,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -865,7 +880,7 @@ export declare class SubscriptionsService {
             billingPeriod: string;
             appleProductId: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -901,7 +916,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "rejected" | "approved" | "cancelled";
+            status: "pending" | "cancelled" | "approved" | "rejected";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -919,7 +934,7 @@ export declare class SubscriptionsService {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "lessons" | "courses" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;
@@ -967,11 +982,11 @@ export declare class SubscriptionsService {
             cancelUrl: string;
             notifyUrl: string;
             autoActivatePaidSubscriptions: boolean;
-            appCheckoutMode: "web" | "native";
+            appCheckoutMode: "native" | "web";
             hasAppMerchantSecret: boolean;
             maskedAppMerchantSecret: string;
         };
-        appCheckoutMode: "web" | "native";
+        appCheckoutMode: "native" | "web";
     }>;
     listAppleTransactions(params?: {
         limit?: number;

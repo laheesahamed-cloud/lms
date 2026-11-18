@@ -186,7 +186,11 @@ let SubscriptionsController = class SubscriptionsController {
         const admin = await this.authService.requireAdmin(authorization);
         return this.subscriptionsService.updatePayment(id, dto, admin.id);
     }
-    async getMine(authorization) {
+    async getMine(authorization, view) {
+        if (view === 'app') {
+            const student = await this.authService.requireStudent(authorization);
+            return this.subscriptionsService.getStudentCurrentPlanForApp(Number(student.id));
+        }
         const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.getStudentBilling(student.id);
     }
@@ -493,8 +497,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('me'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('view')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "getMine", null);
 exports.SubscriptionsController = SubscriptionsController = __decorate([

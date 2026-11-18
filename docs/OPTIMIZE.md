@@ -3955,6 +3955,51 @@ Largest on both: the whole app stylesheet `main.css` 538 KB; the forced `app-sha
 - Still above 1 MB raw on both pages: the whole-app stylesheet (538 KB raw / 76 KB compressed) — the next step, with screenshots of every page.
 - Deploy: needs a fresh `npm run build` in `frontend` (writes `frontend/dist`) committed with it.
 
+### 10.56 App Subscription page: "What's included" fixed text, 1-query plan read — ✅ BUILT locally 2026-11-18 (not committed, not deployed)
+
+**Decisions** — ✅ user 2026-11-18: "make the what is included as the hard coded text no api calls and make max optimize … dont touch in app purchases". Website unchanged (it keeps the full reply). Apple purchase, restore, verify and the reconciler are not touched.
+
+**Aims** — the app's Subscription page reads only the student's own current plan: 1 query, rows examined = the student's own subscription rows, a reply of a few hundred bytes. The Free / Premium table is fixed text in the app.
+
+**Before** (local, app client, `GET /subscriptions/me`, test student with 2 subscription rows; from the MariaDB log by trace id):
+
+| Case | Requests | Queries | Rows examined | Rows returned | Reply |
+|---|---|---|---|---|---|
+| Normal (plan memory warm) | 1 | 4 | 5 | 4 | 50,583 bytes |
+| Plan memory cold (once an hour, first student) | 1 | 8 | 209 | 168 | 50,583 bytes |
+
+Warm queries: session user row (1/1), access profile (2/1), subscription history (2/2), plan-change requests (0/0). Cold adds: active plans (10/5), all features (70/35), plan↔feature links (63/63), whole `system_settings` table (61/61).
+The app opens the page from its once-a-day saved copy, so a repeat open the same day is 0 requests; the numbers above are the first open of the day, pull-to-refresh and after a purchase.
+
+The app uses only `currentSubscription` (plan name, status, free/unlimited flags, dates, days left) and the plans' feature lists (only to draw the Free / Premium table). History, requests, payment settings, checkout mode and the 4 plans with their features are unused by the app.
+
+**Plan**
+1. App: the Free / Premium table becomes fixed text (same 16 rows, same order, same Free ticks as today); it no longer needs `availablePlans`.
+2. App: `GET /subscriptions/me?view=app`.
+3. Server: `view=app` → lean path: the signed-token student check (`requireStudent`, no database read) and one indexed statement for the current subscription (`WHERE user_id = ? ORDER BY FIELD(status …), end_date DESC, id DESC LIMIT 1`); plan name from the plan memory; reply `{ currentSubscription: { planName, status, computedStatus, isFreePlan, isUnlimitedAccess, startDate, endDate, daysRemaining, isExpiringSoon } }`.
+4. Without `view=app` (website, older app builds) the reply is unchanged.
+5. Measure after; check the page on the iPad simulator (paid plan card, Change plan / Manage buttons, table).
+
+**Targets** — normal: 1 request · 1 query · rows examined = the student's rows (2 here) · 1 returned · reply under 1 KB. The plan memory cold read (once an hour, shared by everyone) is unchanged.
+
+**Changes**
+- `mobile/lib/features/subscriptions/subscriptions_page.dart`: `_comparison` draws fixed `_premiumRows` (16) and `_freeRows` (4); no plan list needed.
+- `mobile/lib/features/subscriptions/subscriptions_repository.dart`: `GET /subscriptions/me?view=app`.
+- `backend/src/modules/subscriptions/subscriptions.controller.ts` (+dist): `view=app` → `requireStudent` (signed token, no read) + `getStudentCurrentPlanForApp`.
+- `backend/src/modules/subscriptions/subscriptions.service.ts` (+dist): `getStudentCurrentPlanForApp` — one statement, `LIMIT 1`, plan name from the plan memory, 9 fields.
+- Apple purchase / restore / verify / reconciler: untouched.
+
+**After** (same measurement):
+
+| Case | Requests | Queries | Rows examined | Rows returned | Reply |
+|---|---|---|---|---|---|
+| Normal | 1 | **1** (was 4) | **3** (was 5) | **1** (was 4) | **239 bytes** (was 50,583) |
+| Plan memory cold (once an hour, shared) | 1 | 4 (was 8) | 146 (was 209) | 104 (was 168) | 239 bytes |
+| Website / older app (no `view=app`) | 1 | 4 | 5 | 4 | 50,583 bytes (unchanged) |
+
+- Repeat opens the same day stay 0 requests (the app's once-a-day saved copy).
+- Deploy: backend dist + an app build (older app builds keep working; they just get the full reply).
+
 ## 8. Change log
 
 | Date | Change |

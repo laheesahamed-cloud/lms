@@ -1175,6 +1175,39 @@ export class SubscriptionsService {
     return { ok: true, id: requestId, subscriptionId };
   }
 
+  /**
+   * 10.56: the app's Subscription page. One indexed statement for the
+   * student's current subscription (same pick order as getStudentBilling);
+   * the plan name comes from the plan memory. Only the fields the app reads.
+   */
+  async getStudentCurrentPlanForApp(userId: number) {
+    const [raw] = await this.db.execute<SubscriptionRow[]>(
+      `SELECT ${SUBSCRIPTION_LIST_COLUMNS}
+       FROM user_subscriptions us
+       WHERE us.user_id = ?
+       ORDER BY FIELD(us.status, 'active', 'pending', 'expired', 'cancelled'), us.end_date DESC, us.id DESC
+       LIMIT 1`,
+      [userId]
+    );
+    const plans = await this.plansService.findByIds(raw.map((row) => Number(row.plan_id)));
+    const row = this.withPlanColumns(raw, plans)[0];
+    if (!row) return { currentSubscription: null };
+    const s = await this.mapSubscription(row, plans.get(Number(row.plan_id)));
+    return {
+      currentSubscription: {
+        planName: s.planName,
+        status: s.status,
+        computedStatus: s.computedStatus,
+        isFreePlan: s.isFreePlan,
+        isUnlimitedAccess: s.isUnlimitedAccess,
+        startDate: s.startDate,
+        endDate: s.endDate,
+        daysRemaining: s.daysRemaining,
+        isExpiringSoon: s.isExpiringSoon,
+      },
+    };
+  }
+
   async getStudentBilling(userId: number) {
     // 10.35: one statement for the history AND the current subscription (was
     // two reads of the same rows). The current one is picked here with the

@@ -873,6 +873,31 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
        WHERE id = ?`, [status, String(adminNote || '').trim(), adminId, subscriptionId, requestId]);
         return { ok: true, id: requestId, subscriptionId };
     }
+    async getStudentCurrentPlanForApp(userId) {
+        const [raw] = await this.db.execute(`SELECT ${SUBSCRIPTION_LIST_COLUMNS}
+       FROM user_subscriptions us
+       WHERE us.user_id = ?
+       ORDER BY FIELD(us.status, 'active', 'pending', 'expired', 'cancelled'), us.end_date DESC, us.id DESC
+       LIMIT 1`, [userId]);
+        const plans = await this.plansService.findByIds(raw.map((row) => Number(row.plan_id)));
+        const row = this.withPlanColumns(raw, plans)[0];
+        if (!row)
+            return { currentSubscription: null };
+        const s = await this.mapSubscription(row, plans.get(Number(row.plan_id)));
+        return {
+            currentSubscription: {
+                planName: s.planName,
+                status: s.status,
+                computedStatus: s.computedStatus,
+                isFreePlan: s.isFreePlan,
+                isUnlimitedAccess: s.isUnlimitedAccess,
+                startDate: s.startDate,
+                endDate: s.endDate,
+                daysRemaining: s.daysRemaining,
+                isExpiringSoon: s.isExpiringSoon,
+            },
+        };
+    }
     async getStudentBilling(userId) {
         const [rawHistoryRows] = await this.db.execute(`SELECT ${SUBSCRIPTION_LIST_COLUMNS}
        FROM user_subscriptions us

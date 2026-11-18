@@ -184,7 +184,10 @@ final billingProvider = FutureProvider<Billing>((ref) async {
   return savedFirst(
     ref,
     name: 'billing',
-    fetch: () async => (await api.dio.get('/subscriptions/me')).data,
+    // 10.56: view=app → only the student's current plan (1 query); the
+    // What's included table is fixed text in the app now.
+    fetch: () async => (await api.dio.get('/subscriptions/me',
+        queryParameters: const {'view': 'app'})).data,
     parse: (raw) async => Billing.fromJson(raw, scope: scope),
   );
 });

@@ -338,7 +338,14 @@ export class SubscriptionsController {
   }
 
   @Get('me')
-  async getMine(@Headers('authorization') authorization?: string) {
+  async getMine(@Headers('authorization') authorization?: string, @Query('view') view?: string) {
+    // 10.56: the app's Subscription page needs only the student's current
+    // plan — signed-token check (no read) + one indexed statement. The
+    // website and older app builds keep the full reply.
+    if (view === 'app') {
+      const student = await this.authService.requireStudent(authorization);
+      return this.subscriptionsService.getStudentCurrentPlanForApp(Number(student.id));
+    }
     const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.getStudentBilling(student.id);
   }
