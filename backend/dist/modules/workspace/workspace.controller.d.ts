@@ -2,51 +2,52 @@ import { WorkspaceService } from './workspace.service';
 export declare class WorkspaceController {
     private readonly workspaceService;
     constructor(workspaceService: WorkspaceService);
-    listAdminAnnouncements(authorization?: string): Promise<{
-        id: number;
-        title: string;
-        body: string;
-        targetRole: string;
-        status: string;
-        publishAt: any;
-        createdByName: string;
-        createdAt: any;
-        updatedAt: any;
-    }[]>;
+    listAdminAnnouncements(authorization?: string, after?: string): Promise<{
+        items: {
+            id: number;
+            style: "card" | "banner";
+            title: string;
+            body: string;
+            imageUrl: string;
+            actionLabel: string;
+            actionPath: string;
+            startAt: string | null;
+            endAt: string | null;
+            priority: number;
+            audience: import("../notices/notices.service").Audience;
+            targetRole: import("../notices/notices.service").Audience;
+            status: "active" | "draft";
+            createdAt: string;
+            updatedAt: string;
+        }[];
+        next: null;
+    }>;
     createAnnouncement(authorization: string | undefined, body: any): Promise<{
         ok: boolean;
         id: number;
+        overlapping: number;
     }>;
     updateAnnouncement(authorization: string | undefined, id: number, body: any): Promise<{
         ok: boolean;
         id: number;
+        overlapping: number;
     }>;
     deleteAnnouncement(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
     }>;
-    listNotifications(authorization?: string): Promise<({
-        kind: string;
-        read: boolean;
-        actionPath: string;
+    listNotifications(authorization?: string): Promise<{
         id: number;
-        title: string;
-        body: string;
-        targetRole: string;
-        status: string;
-        publishAt: any;
-        createdByName: string;
-        createdAt: any;
-        updatedAt: any;
-    } | {
-        id: string;
         kind: string;
         title: string;
         body: string;
+        targetRole: import("../notices/notices.service").Audience;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
         read: boolean;
-        createdAt: any;
         actionPath: string;
-    })[]>;
+    }[]>;
     markNotificationRead(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
@@ -61,9 +62,6 @@ export declare class WorkspaceController {
     }>;
     dismissNotification(authorization: string | undefined, key: string): Promise<{
         ok: boolean;
-        key?: undefined;
-    } | {
-        ok: boolean;
         key: string;
     }>;
     listPlannerTasks(authorization?: string): Promise<{
@@ -72,14 +70,14 @@ export declare class WorkspaceController {
         description: string;
         dueDate: string;
         status: string;
-        category: "general" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+        category: "lesson" | "flashcards" | "quiz" | "exam" | "review" | "general";
         itemType: string | null;
         itemId: number | null;
-        rule: any;
-        priority: "low" | "medium" | "high";
+        rule: Record<string, unknown> | null;
+        priority: "medium" | "low" | "high";
         estimatedMinutes: number | null;
-        createdAt: any;
-        updatedAt: any;
+        createdAt: string | null;
+        updatedAt: string | null;
     }[]>;
     getPlannerAgenda(authorization?: string): Promise<{
         generatedAt: string;

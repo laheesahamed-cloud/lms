@@ -230,20 +230,6 @@ function GlyphPulse() {
     </svg>
   );
 }
-function GlyphNotes() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 3h7l3 3v15H7z" /><path d="M14 3v4h4" /><path d="M10 11h5M10 15h5M10 19h3" />
-    </svg>
-  );
-}
-function GlyphChart() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 19V5" /><path d="M4 19h16" /><path d="M8 16v-4" /><path d="M12 16V8" /><path d="M16 16v-6" />
-    </svg>
-  );
-}
 
 const HERO_LINES = [
   { label: 'All in one clinical platform for medicos', icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>) },
@@ -265,9 +251,6 @@ export function CinematicHero({
   ),
   metricValue = 6,
   metricLabel = 'Study tools, one app',
-  ctaHeading = 'Your exam prep starts now.',
-  ctaDescription = 'Notes, MCQs, flashcards, mock exams and a study planner, all in one app.',
-  primaryCta = { label: 'Start Free Trial', to: '/register' },
   secondaryCta = { label: 'Sign In', to: '/login' },
   className,
   ...props
@@ -426,9 +409,17 @@ export function CinematicHero({
             ))}
           </ul>
 
-          <Link to={secondaryCta.to} className="btn-ghost-dark inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold no-underline focus:no-underline hover:no-underline focus:outline-none">
-            <span>{secondaryCta.label}</span>
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {/* The free demo (/try): one lesson, one practice set and one exam
+                with its review — the real screens, no sign-up. */}
+            <Link to="/try" className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-extrabold no-underline focus:no-underline hover:no-underline focus:outline-none">
+              <span style={{ background: 'linear-gradient(135deg,#4aa3f4 0%,#5274f3 52%,#6d35df 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Give it a free try</span>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ color: '#5274f3' }}><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </Link>
+            <Link to={secondaryCta.to} className="btn-ghost-dark inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold no-underline focus:no-underline hover:no-underline focus:outline-none">
+              <span>{secondaryCta.label}</span>
+            </Link>
+          </div>
         </div>
       </div>
 

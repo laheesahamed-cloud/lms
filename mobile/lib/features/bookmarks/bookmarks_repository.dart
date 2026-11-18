@@ -1,12 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/api_client.dart';
+
+import '../../state/auth_controller.dart';
+import '../../state/catalogue.dart';
+import '../../state/content_files.dart';
 import '../../state/current_user.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
 bool _b(dynamic v) => v == true || v == 1 || v == '1' || v == 'true';
 
-/// A saved item — `GET /study-bookmarks`. `itemType` is quiz | ai_note | question.
+/// A saved item. `itemType` is quiz | ai_note | question.
 class Bookmark {
   final int id;
   final String itemType;
@@ -48,26 +53,93 @@ class Bookmark {
       topicName: _s(m['topicName']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'itemType': itemType,
+        'itemId': itemId,
+        'title': title,
+        'examModeOnly': examModeOnly,
+        if (quizId != null) 'quizId': quizId,
+        'courseTitle': courseTitle,
+        'topicName': topicName,
+      };
 }
 
-final bookmarksProvider = FutureProvider.autoDispose<List<Bookmark>>((ref) async {
+/// This account's bookmarks file on the phone (OPTIMIZE 10.25: bookmarks live
+/// on the device only — no API call to read, add or remove one).
+String _fileFor(String? userId) => 'bookmarks_${userId ?? 'guest'}.json';
+
+String? _userId(Ref ref) => ref.read(authControllerProvider).user?.id;
+
+Future<List<Bookmark>> _read(String? userId) async {
+  final raw = await ContentFiles.read(_fileFor(userId));
+  if (raw == null) return <Bookmark>[];
+  try {
+    return (jsonDecode(raw) as List).map(Bookmark.fromJson).toList();
+  } catch (_) {
+    return <Bookmark>[];
+  }
+}
+
+/// The student's bookmarks, newest first, read from the phone (0 requests).
+final bookmarksProvider = FutureProvider<List<Bookmark>>((ref) async {
   ref.watch(userScopeProvider);
-  final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/study-bookmarks');
-  final data = res.data;
-  final rows = (data is List)
-      ? data
-      : (data is Map ? (data['bookmarks'] ?? data['items'] ?? const []) : const []);
-  return (rows as List).map(Bookmark.fromJson).toList();
+  ref.watch(authControllerProvider.select((s) => s.user?.id));
+  return _read(_userId(ref));
 });
 
-/// Toggle a bookmark on/off. Passing an already-saved (itemType,itemId) removes it.
+/// Names for a new bookmark from the lists already on the phone (the one
+/// list the screen showing the button has loaded — nothing is downloaded).
+Future<Bookmark> _describe(WidgetRef ref, String itemType, int itemId) async {
+  String title = '', courseTitle = '', topicName = '';
+  bool examOnly = false;
+  Catalogue? cat;
+  if (itemType == 'quiz') {
+    cat = ref.read(quizCatalogueProvider).value;
+    final q = cat?.quizzes.where((r) => r[0] == itemId).firstOrNull;
+    if (q != null) {
+      title = _s(q[8]).isNotEmpty ? _s(q[8]) : _s(q[9]);
+      examOnly = q[6] == 1;
+      courseTitle = _s(cat!.courseById[q[1]]?[1]);
+      topicName = _s(cat.subjectById[q[2]]?[2]);
+    }
+  } else if (itemType == 'ai_note') {
+    cat = ref.read(catalogueProvider).value;
+    final l = cat?.lessonById[itemId];
+    if (l != null) {
+      title = _s(l[4]);
+      courseTitle = _s(cat!.courseById[l[1]]?[1]);
+      topicName = _s(cat.subjectById[l[2]]?[2]);
+    }
+  }
+  return Bookmark(
+    id: DateTime.now().millisecondsSinceEpoch,
+    itemType: itemType,
+    itemId: itemId,
+    title: title,
+    examModeOnly: examOnly,
+    quizId: null,
+    courseTitle: courseTitle,
+    topicName: topicName,
+  );
+}
+
+/// Toggle a bookmark on/off on the phone. Passing an already-saved
+/// (itemType, itemId) removes it.
 Future<void> toggleBookmark(
   WidgetRef ref,
   String itemType,
   int itemId,
 ) async {
-  final api = ref.read(apiClientProvider);
-  await api.dio.post('/study-bookmarks/toggle',
-      data: {'itemType': itemType, 'itemId': itemId});
+  final userId = ref.read(authControllerProvider).user?.id;
+  final list = await _read(userId);
+  final at = list.indexWhere((b) => b.itemType == itemType && b.itemId == itemId);
+  if (at >= 0) {
+    list.removeAt(at);
+  } else {
+    list.insert(0, await _describe(ref, itemType, itemId));
+  }
+  await ContentFiles.write(_fileFor(userId), jsonEncode([for (final b in list) b.toJson()]));
+  ref.invalidate(bookmarksProvider);
 }

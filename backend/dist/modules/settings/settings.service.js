@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var SettingsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingsService = void 0;
+const admin_read_cache_1 = require("../../common/utils/admin-read-cache");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const nodemailer = require("nodemailer");
@@ -21,7 +22,6 @@ const crypto_1 = require("crypto");
 const promises_1 = require("fs/promises");
 const path_1 = require("path");
 const database_tokens_1 = require("../../database/database.tokens");
-const sql_safety_1 = require("../../database/sql-safety");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const WHATSAPP_NUMBER_SETTING_KEY = 'contact_whatsapp_number';
 const NEW_CONTENT_NOTIFICATIONS_SETTING_KEY = 'new_content_notifications_enabled';
@@ -108,6 +108,9 @@ let SettingsService = SettingsService_1 = class SettingsService {
         this.logger = new common_1.Logger(SettingsService_1.name);
         this.publicSettingsCache = null;
         this.publicAvailabilityCache = null;
+        this.newContentNotificationsCache = null;
+        this.settingsSnapshot = null;
+        this.settingsSnapshotLoad = null;
     }
     clearPublicSettingsCache() {
         this.publicSettingsCache = null;
@@ -158,7 +161,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
             };
         }
         const availability = this.serializeAvailabilitySettings(await this.getAvailabilityMode());
-        this.publicAvailabilityCache = { expiresAt: now + 5_000, value: availability };
+        this.publicAvailabilityCache = { expiresAt: now + 60_000, value: availability };
         return {
             ok: true,
             availability,
@@ -199,8 +202,13 @@ let SettingsService = SettingsService_1 = class SettingsService {
             .find(Boolean) || '';
     }
     async isNewContentNotificationsEnabled() {
+        const cached = this.newContentNotificationsCache;
+        if (cached && cached.expiresAt > Date.now())
+            return cached.value;
         const raw = (await this.getSettingValue(NEW_CONTENT_NOTIFICATIONS_SETTING_KEY)).toLowerCase();
-        return !['0', 'false', 'off', 'no'].includes(raw);
+        const value = !['0', 'false', 'off', 'no'].includes(raw);
+        this.newContentNotificationsCache = { value, expiresAt: Date.now() + 10 * 60 * 1000 };
+        return value;
     }
     async updateGeneralSettings(input) {
         if (input.whatsappNumber !== undefined) {
@@ -208,6 +216,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
         }
         if (input.newContentNotifications !== undefined) {
             await this.saveSettingValue(NEW_CONTENT_NOTIFICATIONS_SETTING_KEY, input.newContentNotifications ? '1' : '0');
+            this.newContentNotificationsCache = null;
         }
         this.clearPublicSettingsCache();
         return this.getGeneralSettings();
@@ -285,6 +294,9 @@ let SettingsService = SettingsService_1 = class SettingsService {
     async getStudentPaymentSettings() {
         const settings = await this.getRawPaymentSettings();
         return this.serializePaymentSettings(settings, false);
+    }
+    studentPaymentSettingsFrom(raw) {
+        return this.serializePaymentSettings(raw, false);
     }
     async getPayHereCheckoutSettings() {
         return this.getRawPaymentSettings();
@@ -661,26 +673,33 @@ let SettingsService = SettingsService_1 = class SettingsService {
         }
         return this.getAiProviderSettings();
     }
+    async settingsMap() {
+        const snap = this.settingsSnapshot;
+        if (snap && Date.now() - snap.at < 10 * 60 * 1000)
+            return snap.map;
+        if (!this.settingsSnapshotLoad) {
+            this.settingsSnapshotLoad = this.db
+                .execute('SELECT setting_key, setting_value FROM system_settings')
+                .then(([rows]) => {
+                const map = new Map(rows.map((row) => [String(row.setting_key), String(row.setting_value ?? '')]));
+                this.settingsSnapshot = { at: Date.now(), map };
+                return map;
+            })
+                .finally(() => { this.settingsSnapshotLoad = null; });
+        }
+        return this.settingsSnapshotLoad;
+    }
     async getSettingValue(settingKey) {
-        const [rows] = await this.db.execute(`
-        SELECT setting_key, setting_value, updated_at
-        FROM system_settings
-        WHERE setting_key = ?
-        LIMIT 1
-      `, [settingKey]);
-        return rows[0]?.setting_value?.trim() || '';
+        return ((await this.settingsMap()).get(settingKey) || '').trim();
     }
     async getSettingMap(settingKeys) {
-        if (settingKeys.length === 0) {
-            return new Map();
+        const all = await this.settingsMap();
+        const out = new Map();
+        for (const key of settingKeys) {
+            if (all.has(key))
+                out.set(key, String(all.get(key) || '').trim());
         }
-        const placeholders = (0, sql_safety_1.sqlPlaceholders)(settingKeys);
-        const [rows] = await this.db.execute(`
-        SELECT setting_key, setting_value
-        FROM system_settings
-        WHERE setting_key IN (${placeholders})
-      `, settingKeys);
-        return new Map(rows.map((row) => [String(row.setting_key), String(row.setting_value || '').trim()]));
+        return out;
     }
     async getAvailabilityMode() {
         return this.normalizeAvailabilityMode(await this.getSettingValue(AVAILABILITY_MODE_SETTING_KEY), 'live');
@@ -722,6 +741,9 @@ let SettingsService = SettingsService_1 = class SettingsService {
         return String(value || '').replace(/\D/g, '').slice(-40);
     }
     async getRawPaymentSettings() {
+        return (0, admin_read_cache_1.cachedAdminRead)('settings.payment', () => this.readPaymentSettings(), 3_600_000);
+    }
+    async readPaymentSettings() {
         const values = await this.getSettingMap(Object.values(PAYMENT_SETTING_KEYS));
         const encryptedMerchantSecret = values.get(PAYMENT_SETTING_KEYS.merchantSecret) || '';
         const encryptedAppMerchantSecret = values.get(PAYMENT_SETTING_KEYS.appMerchantSecret) || '';
@@ -835,8 +857,12 @@ let SettingsService = SettingsService_1 = class SettingsService {
             version: values.get(POPUP_ALERT_SETTING_KEYS.version) || '',
         };
     }
-    async getRawApnsSettings() {
-        const values = await this.getSettingMap(Object.values(APNS_SETTING_KEYS));
+    async getRawPushSettings() {
+        const values = await this.getSettingMap([...Object.values(APNS_SETTING_KEYS), ...Object.values(FCM_SETTING_KEYS)]);
+        return { apns: await this.getRawApnsSettings(values), fcm: await this.getRawFcmSettings(values) };
+    }
+    async getRawApnsSettings(preloaded) {
+        const values = preloaded || await this.getSettingMap(Object.values(APNS_SETTING_KEYS));
         const encryptedPrivateKey = values.get(APNS_SETTING_KEYS.privateKey) || '';
         return {
             keyId: values.get(APNS_SETTING_KEYS.keyId) || String(this.configService.get('APNS_KEY_ID') || '').trim(),
@@ -849,8 +875,8 @@ let SettingsService = SettingsService_1 = class SettingsService {
                 : String(this.configService.get('APNS_PRIVATE_KEY') || '').replace(/\\n/g, '\n').trim(),
         };
     }
-    async getRawFcmSettings() {
-        const values = await this.getSettingMap(Object.values(FCM_SETTING_KEYS));
+    async getRawFcmSettings(preloaded) {
+        const values = preloaded || await this.getSettingMap(Object.values(FCM_SETTING_KEYS));
         const encryptedServerKey = values.get(FCM_SETTING_KEYS.serverKey) || '';
         const encryptedServiceAccountJson = values.get(FCM_SETTING_KEYS.serviceAccountJson) || '';
         return {
@@ -1099,6 +1125,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
         VALUES (?, ?)
         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
       `, [settingKey, settingValue]);
+        this.settingsSnapshot?.map.set(settingKey, settingValue);
     }
     async listAiProviders() {
         const [rows] = await this.db.execute(`

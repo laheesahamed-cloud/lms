@@ -6,16 +6,25 @@ const fs_1 = require("fs");
 const http2 = require("http2");
 const https = require("https");
 class NativePushSender {
-    constructor(configService, logger, getApnsRuntimeSettings, getFcmRuntimeSettings) {
+    constructor(configService, logger, getApnsRuntimeSettings, getFcmRuntimeSettings, getPushRuntimeSettings) {
         this.configService = configService;
         this.logger = logger;
         this.getApnsRuntimeSettings = getApnsRuntimeSettings;
         this.getFcmRuntimeSettings = getFcmRuntimeSettings;
+        this.getPushRuntimeSettings = getPushRuntimeSettings;
         this.fcmAccessToken = null;
         this.apnsJwt = null;
     }
-    async isConfigured() {
-        return (await this.isApnsConfigured()) || this.isFcmConfigured();
+    async loadSettings() {
+        const raw = this.getPushRuntimeSettings ? await this.getPushRuntimeSettings() : undefined;
+        return {
+            apns: await this.resolveApnsSettings(raw ? raw.apns : undefined),
+            fcm: await this.resolveFcmSettings(raw ? raw.fcm : undefined),
+        };
+    }
+    async isConfigured(snapshot) {
+        const s = snapshot || await this.loadSettings();
+        return this.apnsReady(s.apns) || this.fcmReady(s.fcm);
     }
     async isConfiguredFor(platform) {
         if (platform === 'ios')
@@ -24,28 +33,32 @@ class NativePushSender {
             return this.isFcmConfigured();
         return false;
     }
-    async send(platform, token, payload) {
+    async send(platform, token, payload, snapshot) {
         if (platform === 'ios')
-            return this.sendApns(token, payload);
+            return this.sendApns(token, payload, snapshot?.apns);
         if (platform === 'android')
-            return this.sendFcm(token, payload);
+            return this.sendFcm(token, payload, snapshot?.fcm);
         return { ok: false, error: 'Unsupported native push platform' };
     }
     async isApnsConfigured() {
-        const settings = await this.resolveApnsSettings();
+        return this.apnsReady(await this.resolveApnsSettings());
+    }
+    apnsReady(settings) {
         return Boolean(settings.keyId &&
             settings.teamId &&
             settings.bundleId &&
             this.getApnsPrivateKey(settings));
     }
     async isFcmConfigured() {
-        const settings = await this.resolveFcmSettings();
+        return this.fcmReady(await this.resolveFcmSettings());
+    }
+    fcmReady(settings) {
         return Boolean(settings.projectId &&
             (this.getFcmServiceAccount(settings) || settings.serverKey));
     }
-    async sendApns(token, payload) {
-        const settings = await this.resolveApnsSettings();
-        if (!(await this.isApnsConfigured()))
+    async sendApns(token, payload, given) {
+        const settings = given || await this.resolveApnsSettings();
+        if (!this.apnsReady(settings))
             return { ok: false, error: 'APNs is not configured' };
         const host = settings.useSandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
         const body = JSON.stringify({
@@ -100,9 +113,9 @@ class NativePushSender {
             request.end(body);
         });
     }
-    async sendFcm(token, payload) {
-        const settings = await this.resolveFcmSettings();
-        if (!(await this.isFcmConfigured()))
+    async sendFcm(token, payload, given) {
+        const settings = given || await this.resolveFcmSettings();
+        if (!this.fcmReady(settings))
             return { ok: false, error: 'FCM is not configured' };
         const channelId = this.resolveAndroidChannelId(payload);
         const legacyServerKey = settings.serverKey;
@@ -110,7 +123,7 @@ class NativePushSender {
             return this.sendFcmLegacy(token, payload, legacyServerKey);
         }
         const projectId = settings.projectId;
-        const accessToken = await this.getFcmAccessToken();
+        const accessToken = await this.getFcmAccessToken(settings);
         const body = JSON.stringify({
             message: {
                 token,
@@ -160,12 +173,12 @@ class NativePushSender {
             authorization: `key=${serverKey}`,
         });
     }
-    async getFcmAccessToken() {
+    async getFcmAccessToken(given) {
         const now = Math.floor(Date.now() / 1000);
         if (this.fcmAccessToken && this.fcmAccessToken.expiresAt - 60 > now) {
             return this.fcmAccessToken.value;
         }
-        const account = this.getFcmServiceAccount(await this.resolveFcmSettings());
+        const account = this.getFcmServiceAccount(given || await this.resolveFcmSettings());
         if (!account?.client_email || !account?.private_key) {
             throw new Error('FCM service account is missing client_email or private_key');
         }
@@ -228,9 +241,9 @@ class NativePushSender {
         const channelId = String(value || '').trim();
         return ['default', 'exam_reminders', 'course_updates', 'account_alerts'].includes(channelId) ? channelId : '';
     }
-    async resolveFcmSettings() {
-        if (this.getFcmRuntimeSettings) {
-            const settings = await this.getFcmRuntimeSettings();
+    async resolveFcmSettings(fromDbGiven) {
+        if (fromDbGiven || this.getFcmRuntimeSettings) {
+            const settings = fromDbGiven || await this.getFcmRuntimeSettings();
             if (settings.projectId || settings.serverKey || settings.serviceAccountJson || settings.serviceAccountPath) {
                 return settings;
             }
@@ -242,8 +255,8 @@ class NativePushSender {
             serviceAccountJson: String(this.configService.get('FCM_SERVICE_ACCOUNT_JSON') || '').trim(),
         };
     }
-    async resolveApnsSettings() {
-        const fromDb = this.getApnsRuntimeSettings ? await this.getApnsRuntimeSettings() : undefined;
+    async resolveApnsSettings(fromDbGiven) {
+        const fromDb = fromDbGiven || (this.getApnsRuntimeSettings ? await this.getApnsRuntimeSettings() : undefined);
         const envKeyId = String(this.configService.get('APNS_KEY_ID') || '').trim();
         const envTeamId = String(this.configService.get('APNS_TEAM_ID') || '').trim();
         const envBundleId = String(this.configService.get('APNS_BUNDLE_ID') || '').trim();

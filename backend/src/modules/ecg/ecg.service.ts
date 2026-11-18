@@ -158,7 +158,8 @@ export class EcgService {
 
   async getQuizQuestion(id: number) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT * FROM ecg_quiz_questions WHERE id = ?`, [id],
+      `SELECT id, question_text, image_url, options_json, explanation, position, is_active, created_at, updated_at
+       FROM ecg_quiz_questions WHERE id = ?`, [id],
     );
     if (!rows[0]) return null;
     const r = rows[0] as any;
@@ -229,7 +230,8 @@ export class EcgService {
 
   async getTopic(id: number) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT * FROM ecg_topics WHERE id = ?`, [id],
+      `SELECT id, title, description, category, position, is_active, created_at, updated_at
+       FROM ecg_topics WHERE id = ?`, [id],
     );
     return rows[0] ?? null;
   }
@@ -290,7 +292,8 @@ export class EcgService {
 
   async getCard(id: number) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT * FROM ecg_cards WHERE id = ?`, [id],
+      `SELECT id, topic_id, title, image_url, explanation, annotations_json, source_credit, position, is_active, created_at, updated_at
+       FROM ecg_cards WHERE id = ?`, [id],
     );
     return rows[0] ?? null;
   }

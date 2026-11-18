@@ -14,6 +14,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
+const access_token_1 = require("../../common/auth/access-token");
+const token_user_1 = require("../../common/auth/token-user");
+const subscription_scope_1 = require("../../common/auth/subscription-scope");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const crypto_1 = require("crypto");
@@ -92,6 +95,7 @@ let AuthService = AuthService_1 = class AuthService {
         this.logger = new common_1.Logger(AuthService_1.name);
         this.loginFailures = new Map();
         this.appleKeysCache = null;
+        (0, token_user_1.setFullFeatureAccess)(AuthService_1.fullFeatureAccess());
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
@@ -124,6 +128,7 @@ let AuthService = AuthService_1 = class AuthService {
         return {
             ok: true,
             sessionToken,
+            ...(await this.issueAccessToken(user, (0, auth_token_util_1.hashSessionToken)(sessionToken))),
             sessionTtlDays,
             redirectPath: this.getRedirectPath(user.role, user.status),
             user: await this.serializeUser(user),
@@ -132,6 +137,11 @@ let AuthService = AuthService_1 = class AuthService {
     async register(registerDto) {
         const fullName = registerDto.fullName.trim();
         const email = registerDto.email.trim().toLowerCase();
+        const country = registerDto.universityCountry.trim();
+        const university = registerDto.university.trim();
+        if (country.length < 2 || university.length < 2) {
+            throw new common_1.BadRequestException('Choose your university\'s country and enter its name');
+        }
         if (registerDto.password !== registerDto.confirmPassword) {
             throw new common_1.BadRequestException('Passwords do not match');
         }
@@ -143,7 +153,7 @@ let AuthService = AuthService_1 = class AuthService {
             throw new common_1.BadRequestException('An account with this email already exists');
         }
         const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-        const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, email_verified) VALUES (?, ?, ?, ?, ?, 0)', [fullName, email, hashedPassword, 'student', 'active']);
+        const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, email_verified, university_country, university) VALUES (?, ?, ?, ?, ?, 0, ?, ?)', [fullName, email, hashedPassword, 'student', 'active', country, university]);
         await this.assignDefaultEntryPlan(result.insertId);
         return this.beginEmailVerification({
             id: result.insertId,
@@ -199,6 +209,7 @@ let AuthService = AuthService_1 = class AuthService {
         return {
             ok: true,
             sessionToken,
+            ...(await this.issueAccessToken(user, (0, auth_token_util_1.hashSessionToken)(sessionToken))),
             sessionTtlDays,
             redirectPath: this.getRedirectPath(user.role, user.status),
             user: await this.serializeUser(user),
@@ -245,6 +256,7 @@ let AuthService = AuthService_1 = class AuthService {
         return {
             ok: true,
             sessionToken,
+            ...(await this.issueAccessToken(user, (0, auth_token_util_1.hashSessionToken)(sessionToken))),
             sessionTtlDays,
             redirectPath: this.getRedirectPath(user.role, user.status),
             user: await this.serializeUser(user),
@@ -327,7 +339,14 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async logout(authorization) {
         const token = (0, auth_token_util_1.extractBearerToken)(authorization);
-        if ((0, auth_token_util_1.isValidSessionTokenFormat)(token)) {
+        if (token && (0, access_token_1.looksLikeAccessToken)(token)) {
+            const result = (0, access_token_1.verifyAccessToken)(token);
+            if (result.ok) {
+                await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE id = ? AND session_token = ?', [result.claims.sub, result.claims.sid]);
+                (0, session_cache_1.forgetSessionToken)(result.claims.sid);
+            }
+        }
+        else if ((0, auth_token_util_1.isValidSessionTokenFormat)(token)) {
             await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE session_token = ?', [(0, auth_token_util_1.hashSessionToken)(token)]);
             (0, session_cache_1.forgetSessionToken)((0, auth_token_util_1.hashSessionToken)(token));
         }
@@ -336,18 +355,29 @@ let AuthService = AuthService_1 = class AuthService {
         };
     }
     async deleteAccount(authorization) {
-        const user = await this.findUserByToken(this.extractToken(authorization));
+        const user = await this.findUserFresh(this.extractToken(authorization));
         if ((0, role_permissions_1.isStaffRole)(user.role)) {
             throw new common_1.BadRequestException('Staff accounts cannot be self-deleted here');
         }
-        const scrambledEmail = `deleted+${user.id}-${(0, crypto_1.randomBytes)(6).toString('hex')}@deleted.invalid`;
+        await this.softDeleteUser(user.id, 'self_service');
+        return {
+            ok: true,
+            message: 'Your account has been deleted.',
+        };
+    }
+    async softDeleteUser(userId, reason) {
+        const [rows] = await this.db.execute('SELECT id, email FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [userId]);
+        const target = rows[0];
+        if (!target)
+            throw new common_1.NotFoundException('User not found');
+        const scrambledEmail = `deleted+${target.id}-${(0, crypto_1.randomBytes)(6).toString('hex')}@deleted.invalid`;
         const lockedPassword = await bcrypt.hash(`deleted:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
             for (const table of schema_sync_service_1.PAYER_EMAIL_TABLES) {
                 try {
-                    await connection.execute(`UPDATE ${table} SET payer_email = ? WHERE user_id = ? AND payer_email IS NULL`, [user.email, user.id]);
+                    await connection.execute(`UPDATE ${table} SET payer_email = ? WHERE user_id = ? AND payer_email IS NULL`, [target.email, target.id]);
                 }
                 catch (error) {
                     if (error.errno !== 1146)
@@ -364,12 +394,12 @@ let AuthService = AuthService_1 = class AuthService {
              password_reset_token = NULL,
              password_reset_expires_at = NULL,
              deleted_at = NOW()
-         WHERE id = ?`, [scrambledEmail, lockedPassword, user.id]);
-            (0, session_cache_1.forgetUserSessions)(user.id);
+         WHERE id = ?`, [scrambledEmail, lockedPassword, target.id]);
+            (0, session_cache_1.forgetUserSessions)(target.id);
             await connection.execute(`UPDATE user_subscriptions
          SET status = 'cancelled'
-         WHERE user_id = ? AND status IN ('active', 'pending')`, [user.id]);
-            await connection.execute('INSERT INTO account_deletion_audit (user_id, email_hash, reason) VALUES (?, ?, ?)', [user.id, this.hashEmailForAudit(user.email), 'self_service']);
+         WHERE user_id = ? AND status IN ('active', 'pending')`, [target.id]);
+            void reason;
             await connection.commit();
         }
         catch (error) {
@@ -379,19 +409,6 @@ let AuthService = AuthService_1 = class AuthService {
         finally {
             connection.release();
         }
-        return {
-            ok: true,
-            message: 'Your account has been deleted.',
-        };
-    }
-    hashEmailForAudit(email) {
-        const secret = String(this.configService.get('ACCOUNT_DELETION_HASH_SECRET')
-            || this.configService.get('SETTINGS_ENCRYPTION_KEY')
-            || '').trim();
-        const normalized = String(email || '').trim().toLowerCase();
-        if (!secret || !normalized)
-            return null;
-        return (0, crypto_1.createHmac)('sha256', secret).update(normalized).digest('hex');
     }
     canExposeDevResetToken(shouldSendEmail) {
         const nodeEnv = this.configService.get('NODE_ENV') || 'development';
@@ -605,6 +622,7 @@ let AuthService = AuthService_1 = class AuthService {
         return {
             ok: true,
             sessionToken,
+            ...(await this.issueAccessToken(user, (0, auth_token_util_1.hashSessionToken)(sessionToken))),
             sessionTtlDays,
             redirectPath: this.getRedirectPath(user.role, user.status),
             user: await this.serializeUser(user),
@@ -696,13 +714,20 @@ If you did not try to sign in, you can safely ignore this email.`;
 </html>`;
     }
     async updateProfile(authorization, updateProfileDto) {
-        const user = await this.findUserByToken(this.extractToken(authorization));
+        const user = await this.findUserFresh(this.extractToken(authorization));
         const fullName = updateProfileDto.fullName.trim();
         const avatarKey = updateProfileDto.avatarKey?.trim() || null;
         if (avatarKey && !ALLOWED_AVATAR_KEYS.has(avatarKey)) {
             throw new common_1.BadRequestException('Selected avatar is not available');
         }
-        await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?', [fullName, avatarKey, user.id]);
+        const country = updateProfileDto.universityCountry?.trim() || '';
+        const university = updateProfileDto.university?.trim() || '';
+        if (country && university) {
+            await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0, university_country = ?, university = ? WHERE id = ?', [fullName, avatarKey, country, university, user.id]);
+        }
+        else {
+            await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?', [fullName, avatarKey, user.id]);
+        }
         (0, session_cache_1.forgetUserSessions)(user.id);
         return {
             ok: true,
@@ -714,8 +739,31 @@ If you did not try to sign in, you can safely ignore this email.`;
             }),
         };
     }
+    async updateProfileLean(authorization, dto) {
+        const token = this.extractToken(authorization);
+        if (!(0, access_token_1.looksLikeAccessToken)(token))
+            return this.updateProfile(authorization, dto);
+        const claims = (0, token_user_1.userFromAccessToken)(token).__claims;
+        const fullName = dto.fullName.trim();
+        const avatarKey = dto.avatarKey?.trim() || null;
+        if (avatarKey && !ALLOWED_AVATAR_KEYS.has(avatarKey)) {
+            throw new common_1.BadRequestException('Selected avatar is not available');
+        }
+        const country = dto.universityCountry?.trim() || '';
+        const university = dto.university?.trim() || '';
+        const sets = country && university
+            ? 'full_name = ?, avatar_key = ?, needs_profile_setup = 0, university_country = ?, university = ?'
+            : 'full_name = ?, avatar_key = ?, needs_profile_setup = 0';
+        const params = country && university ? [fullName, avatarKey, country, university] : [fullName, avatarKey];
+        const [result] = await this.db.execute(`UPDATE users SET ${sets}
+        WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL`, [...params, claims.sub, claims.sid]);
+        if (!result.affectedRows)
+            throw new common_1.UnauthorizedException('Session is invalid or has expired');
+        (0, session_cache_1.forgetUserSessions)(claims.sub);
+        return { ok: true, user: { fullName, avatarKey: avatarKey || '', needsProfileSetup: false } };
+    }
     async completeProfileSetup(authorization) {
-        const user = await this.findUserByToken(this.extractToken(authorization));
+        const user = await this.findUserFresh(this.extractToken(authorization));
         await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
         (0, session_cache_1.forgetUserSessions)(user.id);
         return {
@@ -724,7 +772,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         };
     }
     async changePassword(authorization, changePasswordDto) {
-        const user = await this.findUserByToken(this.extractToken(authorization));
+        const user = await this.findUserFresh(this.extractToken(authorization));
         if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
             throw new common_1.BadRequestException('New passwords do not match');
         }
@@ -753,11 +801,39 @@ If you did not try to sign in, you can safely ignore this email.`;
         return this.serializeUser(user);
     }
     async requireStudent(authorization) {
-        const user = await this.findUserByToken(this.extractToken(authorization));
+        const token = this.extractToken(authorization);
+        const user = await this.findUserByToken(token);
         if (user.role !== 'student' || user.status !== 'active') {
             throw new common_1.UnauthorizedException('Student access is required');
         }
-        return this.serializeUser(user);
+        const tokenHash = (0, access_token_1.looksLikeAccessToken)(token) ? '' : (0, auth_token_util_1.hashSessionToken)(token);
+        const cached = tokenHash ? (0, session_cache_1.getCachedResolved)(tokenHash) : null;
+        if (cached) {
+            (0, subscription_scope_1.rememberTokenScope)(Number(user.id), cached.scope);
+            (0, subscription_scope_1.rememberStudent)(cached.value);
+            return cached.value;
+        }
+        const serialized = await this.serializeUser(user);
+        const resolved = {
+            ...serialized,
+            full_name: serialized.fullName,
+            __accessProfile: user.__accessProfile || {
+                hasActiveSubscription: serialized.hasActiveSubscription,
+                subscriptionStatus: serialized.subscriptionStatus,
+                currentPlanName: serialized.currentPlanName,
+                featureAccess: serialized.featureAccess,
+            },
+        };
+        if (tokenHash) {
+            const scope = (await this.activeSubscriptions(Number(user.id))).map((r) => ({
+                plan_slug: r.plan_slug ?? null, access_scope: r.access_scope ?? null,
+                course_ids_json: r.course_ids_json ?? null, lesson_ids_json: r.lesson_ids_json ?? null,
+            }));
+            (0, subscription_scope_1.rememberTokenScope)(Number(user.id), scope);
+            (0, session_cache_1.setCachedResolved)(tokenHash, resolved, scope);
+        }
+        (0, subscription_scope_1.rememberStudent)(resolved);
+        return resolved;
     }
     getRedirectPath(role, status) {
         if ((0, role_permissions_1.isStaffRole)(role)) {
@@ -775,7 +851,65 @@ If you did not try to sign in, you can safely ignore this email.`;
         }
         return token;
     }
+    async findUserFresh(token) {
+        if (!(0, access_token_1.looksLikeAccessToken)(token)) {
+            const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+         FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`, [(0, auth_token_util_1.hashSessionToken)(token)]);
+            if (!rows[0])
+                throw new common_1.UnauthorizedException('Session is invalid or has expired');
+            return rows[0];
+        }
+        const claims = (0, token_user_1.userFromAccessToken)(token).__claims;
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+       FROM users WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL LIMIT 1`, [claims.sub, claims.sid]);
+        if (!rows[0])
+            throw new common_1.UnauthorizedException('Session is invalid or has expired');
+        return rows[0];
+    }
+    async requireFreshUser(authorization) {
+        return this.serializeUser(await this.findUserFresh(this.extractToken(authorization)));
+    }
+    async requireFreshStudent(authorization) {
+        const user = await this.findUserFresh(this.extractToken(authorization));
+        if (user.role !== 'student' || user.status !== 'active') {
+            throw new common_1.UnauthorizedException('Student access is required');
+        }
+        return this.serializeUser(user);
+    }
+    async issueAccessToken(user, sessionHash) {
+        const accessProfile = user.role === 'student' ? await this.getStudentAccessProfile(user.id) : null;
+        const until = accessProfile?.accessUntil;
+        const maxSeconds = until ? Math.max(60, Math.floor((until - Date.now()) / 1000)) : undefined;
+        const scopeRows = user.role === 'student'
+            ? (await this.activeSubscriptions(Number(user.id))).map((r) => ({
+                plan_slug: r.plan_slug ?? null, access_scope: r.access_scope ?? null,
+                course_ids_json: r.course_ids_json ?? null, lesson_ids_json: r.lesson_ids_json ?? null,
+            }))
+            : [];
+        const scope = JSON.stringify(scopeRows).length <= 4000 ? scopeRows : null;
+        (0, subscription_scope_1.rememberTokenScope)(Number(user.id), scopeRows);
+        const signed = (0, access_token_1.signAccessToken)({
+            sub: Number(user.id), sid: sessionHash, role: String(user.role), st: String(user.status),
+            name: String(user.full_name || ''), email: String(user.email || ''), perm: user.permissions ?? null,
+            av: String(user.avatar_key || ''), nps: Number(user.needs_profile_setup ?? 0) === 1 ? 1 : 0,
+            acc: accessProfile ? { ...accessProfile, featureAccess: undefined, fa: accessProfile.hasActiveSubscription ? 'all' : 'none' } : accessProfile,
+            scope,
+        }, maxSeconds);
+        return { accessToken: signed.token, accessExpiresIn: signed.expiresIn };
+    }
+    async renewAccessToken(authorization) {
+        const token = this.extractToken(authorization);
+        if ((0, access_token_1.looksLikeAccessToken)(token))
+            throw new common_1.UnauthorizedException('Renew with the session token');
+        const user = await this.findUserFresh(token);
+        if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active')
+            throw new common_1.UnauthorizedException('Your admin account is not active right now');
+        const issued = await this.issueAccessToken(user, (0, auth_token_util_1.hashSessionToken)(token));
+        return { ok: true, ...issued, user: await this.serializeUser({ ...user, __accessProfile: (0, token_user_1.userFromAccessToken)(issued.accessToken).__accessProfile }) };
+    }
     async findUserByToken(sessionToken) {
+        if ((0, access_token_1.looksLikeAccessToken)(sessionToken))
+            return (0, token_user_1.userFromAccessToken)(sessionToken);
         const tokenHash = (0, auth_token_util_1.hashSessionToken)(sessionToken);
         const remembered = (0, session_cache_1.getCachedSession)(tokenHash);
         if (remembered) {
@@ -981,7 +1115,8 @@ ${settings.footer}`;
         return emailName.length >= 2 ? emailName.slice(0, 120) : 'Google Student';
     }
     async serializeUser(user) {
-        const accessProfile = user.role === 'student'
+        const carried = user.__accessProfile;
+        const accessProfile = carried ? carried : user.role === 'student'
             ? await this.getStudentAccessProfile(user.id)
             : {
                 hasActiveSubscription: true,
@@ -1018,10 +1153,26 @@ ${settings.footer}`;
             subscriptionStatus: accessProfile.subscriptionStatus,
             currentPlanName: accessProfile.currentPlanName,
             featureAccess: accessProfile.featureAccess,
+            accessUntil: accessProfile.accessUntil ? new Date(accessProfile.accessUntil).toISOString() : null,
+            accessRenews: Boolean(accessProfile.accessRenews),
         };
     }
-    async getStudentAccessProfile(userId) {
-        const [rows] = await this.db.execute(`SELECT plans.name AS plan_name, us.status AS subscription_status
+    dateText(value) {
+        if (value instanceof Date) {
+            return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+        }
+        return String(value || '').slice(0, 10);
+    }
+    async activeSubscriptions(userId) {
+        const ctx = subscription_scope_1.requestContext.getStore();
+        const memo = ctx ? (ctx.activeSubs ??= new Map()) : undefined;
+        const hit = memo?.get(userId);
+        if (hit)
+            return hit;
+        const task = this.db.execute(`SELECT plans.name AS plan_name, plans.slug AS plan_slug, us.status AS subscription_status, us.end_date,
+         -- Apple's exact expiry is stored in UTC; MySQL works out the seconds left.
+         TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), us.access_expires_at) AS access_seconds_left,
+         us.access_scope, us.course_ids_json, us.lesson_ids_json
        FROM user_subscriptions us
        INNER JOIN plans ON plans.id = us.plan_id
        WHERE us.user_id = ?
@@ -1029,8 +1180,12 @@ ${settings.footer}`;
          AND us.start_date <= CURDATE()
          AND us.end_date >= CURDATE()
          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-       ORDER BY us.end_date DESC, us.id DESC
-       LIMIT 1`, [userId]);
+       ORDER BY us.end_date DESC, us.id DESC`, [userId]).then(([rows]) => rows);
+        memo?.set(userId, task);
+        return task;
+    }
+    async getStudentAccessProfile(userId) {
+        const rows = await this.activeSubscriptions(userId);
         const row = rows[0];
         if (!row) {
             return {
@@ -1056,9 +1211,14 @@ ${settings.footer}`;
                 },
             };
         }
-        const featureKeys = await this.getActiveFeatureKeysForUser(userId);
-        const featureAccess = this.buildFeatureAccessMap(featureKeys);
+        const featureAccess = this.buildFeatureAccessMap(Array.from(new Set(subscription_catalog_1.DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey))));
+        const endOfDay = new Date(`${this.dateText(row.end_date)}T23:59:59`).getTime();
+        const secondsLeft = row.access_seconds_left;
+        const appleEnd = secondsLeft === null || secondsLeft === undefined ? NaN : Date.now() + Number(secondsLeft) * 1000;
+        const accessUntil = Math.min(Number.isFinite(endOfDay) ? endOfDay : Infinity, Number.isFinite(appleEnd) ? appleEnd : Infinity);
         return {
+            accessUntil: Number.isFinite(accessUntil) ? accessUntil : null,
+            accessRenews: Number.isFinite(appleEnd),
             hasActiveSubscription: true,
             subscriptionStatus: String(row.subscription_status || 'active'),
             currentPlanName: String(row.plan_name || ''),
@@ -1080,7 +1240,13 @@ ${settings.footer}`;
             return [];
         return Array.from(new Set(subscription_catalog_1.DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey)));
     }
+    static fullFeatureAccess() {
+        return AuthService_1.featureMap(Array.from(new Set(subscription_catalog_1.DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey))));
+    }
     buildFeatureAccessMap(featureKeys) {
+        return AuthService_1.featureMap(featureKeys);
+    }
+    static featureMap(featureKeys) {
         const has = (featureKey) => featureKeys.includes(featureKey);
         return {
             aiNotes: has('notes_canvas_study_mode'),

@@ -2281,16 +2281,28 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
     document.removeEventListener('pointerup', onResizeUp);
   }
 
+  // 10.33: a section that is only a heading (the title of a table turned into
+  // per-disease cards) shows just its title, centred — no card box behind it.
+  // Same rule as the app (lesson_canvas_page.dart _SectionCard). Editing keeps the card.
+  const headingOnly = !editable && (!section.type || section.type === 'text') && !!section.heading
+    && !(section.bullets || []).some((b) => String(b || '').trim())
+    && !String(section.callout || '').trim() && !String(section.mnemonic || '').trim()
+    && !String(section.sticky_note || '').trim() && !section.sectionImage
+    && !(section.embedded_flow || []).length && !(section.embedded_table?.headers || []).length;
+
   return (
     <div
       data-canvas-card
       className={noteCanvasUi.section}
-      style={{
+      style={headingOnly ? {
+        background: 'transparent', border: 'none', boxShadow: 'none',
+        minHeight: 0, display: 'flex', justifyContent: 'center', textAlign: 'center',
+      } : {
         minHeight: cardHeight || undefined,
         background: canvasCardBackground(accentColor, theme),
       }}
     >
-      <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} editable={editable} />
+      {!headingOnly && <MedicalMiniIcon index={colorIndex + 1} heading={section.heading} color={accentColor} theme={theme} editable={editable} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>

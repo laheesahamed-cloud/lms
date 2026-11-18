@@ -1,4 +1,12 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { StudentCatalogueService } from '../courses/student-catalogue.service';
+import { getScopeRows } from '../../common/auth/subscription-scope';
+import { buildContentAccess, canOpenLesson, ScopeRowLike } from '../../common/auth/content-access';
+import { isMobileAppClient } from '../../common/utils/mobile-client.util';
+import { applyProgress, TODAY } from '../../common/utils/progress-write';
+import { localDateKey } from '../xp/streak';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { LessonsService } from '../lessons/lessons.service';
@@ -75,11 +83,22 @@ export class FlashcardsService {
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly scheduler: FlashcardSchedulerService,
     private readonly aiNotes: LessonsService,
+    @Optional() private readonly catalogue?: StudentCatalogueService,
   ) {}
 
   // ── settings (stored in system_settings, no new table) ─────
 
+  // 10.23 F5/F7: the settings change only from the admin page — kept in memory
+  // (cleared on save), so the cards request and the start-up reply read none.
+  private settingsCache: (FlashcardFsrsSettings & { newPerDay: number; reviewsPerDay: number }) | null = null;
+
   async getSettings(): Promise<FlashcardFsrsSettings & { newPerDay: number; reviewsPerDay: number }> {
+    if (this.settingsCache) return this.settingsCache;
+    this.settingsCache = await this.readSettings();
+    return this.settingsCache;
+  }
+
+  private async readSettings(): Promise<FlashcardFsrsSettings & { newPerDay: number; reviewsPerDay: number }> {
     const [rows] = await this.db.execute<RowDataPacket[]>(
       'SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1',
       [FSRS_SETTINGS_KEY],
@@ -97,7 +116,8 @@ export class FlashcardsService {
   }
 
   async updateSettings(patch: Record<string, unknown>) {
-    const current = await this.getSettings();
+    this.settingsCache = null;
+    const current = await this.readSettings();
     const next = {
       requestRetention: clampNumber(patch.requestRetention, 0.7, 0.99, current.requestRetention),
       maximumInterval: clampNumber(patch.maximumInterval, 1, 36500, current.maximumInterval),
@@ -126,7 +146,7 @@ export class FlashcardsService {
   // ── deck list with live New / Learning / Due counts ────────
 
   async listDecks(userId: number, token: string, appClient?: string) {
-    const notes = await this.loadAccessibleNotes(token, appClient);
+    const notes = await this.loadAccessibleNotes(token, appClient, userId);
     const reviewByNote = await this.reviewCountsByNote(userId);
     const tree = buildDeckTree(notes, reviewByNote);
     const totals = tree.reduce(
@@ -141,12 +161,97 @@ export class FlashcardsService {
     return { decks: tree, totals };
   }
 
+  // ── phone-side flashcards (OPTIMIZE 10 step 5) ──────────────
+  // The app keeps decks, cards and its own review progress on the phone. It
+  // downloads a lesson's cards once (and again only when they change) and
+  // imports the student's existing review history once.
+
+  /** Cards of up to 50 lessons the student may open, with the current FSRS settings. */
+  async cardsForLessons(userId: number, lessonIds: number[], appClient?: string) {
+    const settings = await this.getSettings();
+    const wanted = [...new Set(lessonIds.filter((id) => Number.isInteger(id) && id > 0))].slice(0, 50);
+    if (!wanted.length || !this.catalogue) return { cards: [], settings };
+    const [{ decks }, scopeRows] = await Promise.all([this.catalogue.get(), getScopeRows<ScopeRowLike>(this.db, userId)]);
+    const access = buildContentAccess(scopeRows);
+    const appOnlyBlocked = !isMobileAppClient(appClient);
+    const deckById = new Map(decks.map((d) => [d.id, d]));
+    const open = wanted.filter((id) => {
+      const d = deckById.get(id);
+      return d && canOpenLesson(access, { id: d.id, courseId: d.courseId, isFree: d.isFree }, appOnlyBlocked);
+    });
+    if (!open.length) return { cards: [], settings };
+    // 10.23 F5: each lesson's cards are kept in memory and in a file, keyed by
+    // the lesson's card stamp from the catalogue — a batch costs no database
+    // work. Only lessons whose cards changed are read (one statement, by id).
+    const cards: unknown[][] = [];
+    const missing: number[] = [];
+    for (const id of open) {
+      const stamp = Number(deckById.get(id)?.stamp || 0);
+      const kept = await this.keptCards(id, stamp);
+      if (kept) cards.push(...kept);
+      else missing.push(id);
+    }
+    if (missing.length) {
+      const [rows] = await this.db.query<RowDataPacket[]>(
+        `SELECT id, lesson_id, question, answer, source_hint, image_url, image_fit, sort_order
+           FROM lesson_flashcards
+          WHERE status = 'approved' AND lesson_id IN (?)`,
+        [missing],
+      );
+      const byLesson = new Map<number, unknown[][]>(missing.map((id) => [id, []]));
+      for (const r of rows) {
+        // [id, lessonId, question, answer, sourceHint, imageUrls, imageFit, sortOrder]
+        byLesson.get(Number(r.lesson_id))?.push([
+          Number(r.id), Number(r.lesson_id), String(r.question || ''), String(r.answer || ''), String(r.source_hint || ''),
+          parseImageUrls(r.image_url), r.image_fit === 'cover' ? 'cover' : 'contain', Number(r.sort_order) || 0,
+        ]);
+      }
+      for (const [id, list] of byLesson) {
+        cards.push(...list);
+        await this.keepCards(id, Number(deckById.get(id)?.stamp || 0), list);
+      }
+    }
+    return { settings, cards, lessonIds: open };
+  }
+
+  private readonly cardsMemory = new Map<number, { stamp: number; cards: unknown[][] }>();
+  private readonly cardsDir = join(process.env.CACHE_DIR || join(process.cwd(), 'storage', 'cache'), 'flashcards');
+
+  private async keptCards(lessonId: number, stamp: number): Promise<unknown[][] | null> {
+    const hit = this.cardsMemory.get(lessonId);
+    if (hit && hit.stamp === stamp) return hit.cards;
+    try {
+      const saved = JSON.parse(await readFile(join(this.cardsDir, `${lessonId}.json`), 'utf8'));
+      if (Number(saved?.stamp) === stamp && Array.isArray(saved.cards)) {
+        this.cardsMemory.set(lessonId, { stamp, cards: saved.cards });
+        return saved.cards;
+      }
+    } catch { /* not kept yet */ }
+    return null;
+  }
+
+  private async keepCards(lessonId: number, stamp: number, cards: unknown[][]) {
+    this.cardsMemory.set(lessonId, { stamp, cards });
+    try {
+      await mkdir(this.cardsDir, { recursive: true });
+      const file = join(this.cardsDir, `${lessonId}.json`);
+      await writeFile(`${file}.tmp`, JSON.stringify({ stamp, cards }));
+      await rename(`${file}.tmp`, file);
+    } catch { /* memory copy still serves */ }
+  }
+
+  /** The student's existing review states, read by user id (imported once by the app). */
+  /** 10.37: progress is phone-only; older app builds get an empty history. */
+  async exportReviews(_userId: number) {
+    return { settings: await this.getSettings(), reviews: [] as unknown[] };
+  }
+
   // ── review queue for a deck scope ──────────────────────────
 
   async getQueue(userId: number, token: string, params: { noteIds: number[]; limit?: number; newLimit?: number }, appClient?: string) {
     const settings = await this.getSettings();
     const fsrs = this.fsrsSettings(settings);
-    const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token, appClient)).filter((n) => n.canAccess).map((n) => n.id));
+    const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token, appClient, userId)).filter((n) => n.canAccess).map((n) => n.id));
     const noteIds = params.noteIds.filter((id) => accessibleNoteIds.has(id));
     if (!noteIds.length) return { cards: [], counts: { new: 0, learning: 0, due: 0 } };
 
@@ -247,39 +352,17 @@ export class FlashcardsService {
       results.push({ cardId, applied, state, previews: this.scheduler.preview(state, new Date(), fsrs) });
     }
 
+    // 10.30: today's goals are counted on the phone; anything that rode along
+    // (practices, a day-done mark) is applied in one statement.
+    await applyProgress(this.db, userId, localDateKey(new Date()));
     return { results };
   }
 
   // ── undo last review for a card ────────────────────────────
 
-  async undo(userId: number, cardId: number) {
-    const existing = (await this.loadReviewRows(userId, [cardId])).get(cardId);
-    if (!existing) throw new NotFoundException('Nothing to undo for this card.');
-    const log = parseLog(existing.log_json);
-    if (!log.length) {
-      await this.db.execute('DELETE FROM lesson_flashcard_reviews WHERE user_id = ? AND card_id = ?', [userId, cardId]);
-      return { cardId, reverted: true, state: null };
-    }
-    log.pop();
-    if (!log.length) {
-      await this.db.execute('DELETE FROM lesson_flashcard_reviews WHERE user_id = ? AND card_id = ?', [userId, cardId]);
-      return { cardId, reverted: true, state: null };
-    }
-    const last = log[log.length - 1];
-    const state: CardState = {
-      state: last.state,
-      due: last.due,
-      stability: last.stability,
-      difficulty: last.difficulty,
-      elapsedDays: last.elapsedDays,
-      scheduledDays: last.scheduledDays,
-      reps: last.reps,
-      lapses: last.lapses,
-      learningSteps: 0,
-      lastReview: last.ts,
-    };
-    await this.upsertState(userId, cardId, state, log);
-    return { cardId, reverted: true, state };
+  async undo(_userId: number, cardId: number) {
+    // 10.37: nothing is stored on the server, so there is nothing to undo here.
+    return { cardId, reverted: false, state: null };
   }
 
   // ── suspend / bury / reset ─────────────────────────────────
@@ -299,12 +382,8 @@ export class FlashcardsService {
   // ── stats ──────────────────────────────────────────────────
 
   async stats(userId: number) {
-    const [rows] = await this.db.execute<ReviewRow[]>(
-      `SELECT lfr.* FROM lesson_flashcard_reviews lfr
-       JOIN lesson_flashcards lf ON lf.id = lfr.card_id AND lf.status = 'approved'
-       WHERE lfr.user_id = ?`,
-      [userId],
-    );
+    void userId; // 10.37: no server-side review history any more
+    const rows: ReviewRow[] = [];
     const now = new Date();
     const byState = { new: 0, learning: 0, review: 0, relearning: 0 };
     const forecast: Record<string, number> = {};
@@ -348,7 +427,30 @@ export class FlashcardsService {
     return r === 1 || r === 2 || r === 4 ? r : 3;
   }
 
-  private async loadAccessibleNotes(token: string, appClient?: string) {
+  /**
+   * Lessons with approved flashcards and whether this student may open them.
+   * From the shared catalogue (built once per content version, with the card
+   * counts) and the student's plan scope (from the signed token): 0 rows here.
+   * It used to build the whole lesson list for two engines (≈ 9,000 rows).
+   */
+  private async loadAccessibleNotes(token: string, appClient?: string, userId?: number) {
+    if (this.catalogue && userId) {
+      const [{ decks }, scopeRows] = await Promise.all([
+        this.catalogue.get(),
+        getScopeRows<ScopeRowLike>(this.db, userId),
+      ]);
+      const access = buildContentAccess(scopeRows);
+      const appOnlyBlocked = !isMobileAppClient(appClient);
+      return decks.map((d) => {
+        const canAccess = canOpenLesson(access, { id: d.id, courseId: d.courseId, isFree: d.isFree }, appOnlyBlocked);
+        return normalizeNote({
+          id: d.id, engineKey: 'gemini', courseId: d.courseId, topicId: d.topicId, subtopicId: d.subtopicId, lessonId: d.id,
+          courseTitle: d.courseTitle, topicName: d.topicName, subtopicName: d.subtopicName, lessonTitle: d.lessonTitle,
+          approvedFlashcardCount: d.approvedFlashcardCount, canAccess,
+          appOnly: !canAccess && !d.isFree && appOnlyBlocked,
+        });
+      });
+    }
     const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine, appClient)));
     const merged = new Map<number, ReturnType<typeof normalizeNote>>();
     for (const list of lists) {
@@ -362,29 +464,8 @@ export class FlashcardsService {
     return [...merged.values()];
   }
 
-  private async reviewCountsByNote(userId: number) {
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT lf.note_id AS note_id, lfr.state AS state, lfr.due AS due, lfr.suspended AS suspended, lfr.buried AS buried
-       FROM lesson_flashcard_reviews lfr
-       JOIN lesson_flashcards lf ON lf.id = lfr.card_id AND lf.status = 'approved'
-       WHERE lfr.user_id = ?`,
-      [userId],
-    );
-    const now = new Date();
-    const eod = endOfDay(now).getTime();
-    const map = new Map<number, { reviewed: number; learning: number; due: number }>();
-    for (const row of rows) {
-      const noteId = Number(row.note_id);
-      const entry = map.get(noteId) || { reviewed: 0, learning: 0, due: 0 };
-      entry.reviewed += 1;
-      if (!row.suspended && !row.buried) {
-        const dueTime = Date.parse(String(row.due));
-        if ((row.state === 1 || row.state === 3) && dueTime <= now.getTime()) entry.learning += 1;
-        else if (row.state === 2 && dueTime <= eod) entry.due += 1;
-      }
-      map.set(noteId, entry);
-    }
-    return map;
+  private async reviewCountsByNote(_userId: number) {
+    return new Map<number, { reviewed: number; learning: number; due: number }>();
   }
 
   private async loadCards(noteIds: number[]): Promise<CardContentRow[]> {
@@ -400,14 +481,11 @@ export class FlashcardsService {
     return rows;
   }
 
-  private async loadReviewRows(userId: number, cardIds: number[]): Promise<Map<number, ReviewRow>> {
-    if (!cardIds.length) return new Map();
-    const placeholders = cardIds.map(() => '?').join(',');
-    const [rows] = await this.db.execute<ReviewRow[]>(
-      `SELECT * FROM lesson_flashcard_reviews WHERE user_id = ? AND card_id IN (${placeholders})`,
-      [userId, ...cardIds],
-    );
-    return new Map(rows.map((row) => [row.card_id, row]));
+  // 10.37: card progress lives on the phone only; the old per-card review
+  // table is gone. Endpoints still answered for older app builds / the website
+  // behave as if nothing was reviewed yet, and nothing is stored.
+  private async loadReviewRows(_userId: number, _cardIds: number[]): Promise<Map<number, ReviewRow>> {
+    return new Map();
   }
 
   private async validCardIds(cardIds: number[]): Promise<Set<number>> {
@@ -421,30 +499,13 @@ export class FlashcardsService {
   }
 
   private async upsertState(
-    userId: number,
-    cardId: number,
-    state: CardState,
-    log: LogEntry[],
-    flags: { suspended?: boolean; buried?: boolean } = {},
+    _userId: number,
+    _cardId: number,
+    _state: CardState,
+    _log: LogEntry[],
+    _flags: { suspended?: boolean; buried?: boolean } = {},
   ) {
-    await this.db.execute<ResultSetHeader>(
-      `INSERT INTO lesson_flashcard_reviews
-        (user_id, card_id, state, due, stability, difficulty, elapsed_days, scheduled_days,
-         reps, lapses, learning_steps, last_review, suspended, buried, log_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         state = VALUES(state), due = VALUES(due), stability = VALUES(stability),
-         difficulty = VALUES(difficulty), elapsed_days = VALUES(elapsed_days),
-         scheduled_days = VALUES(scheduled_days), reps = VALUES(reps), lapses = VALUES(lapses),
-         learning_steps = VALUES(learning_steps), last_review = VALUES(last_review),
-         suspended = VALUES(suspended), buried = VALUES(buried), log_json = VALUES(log_json)`,
-      [
-        userId, cardId, state.state, toMysqlDateTime(state.due), state.stability, state.difficulty,
-        state.elapsedDays, state.scheduledDays, state.reps, state.lapses, state.learningSteps,
-        state.lastReview ? toMysqlDateTime(state.lastReview) : null,
-        flags.suspended ? 1 : 0, flags.buried ? 1 : 0, JSON.stringify(log),
-      ],
-    );
+    // 10.37: not stored on the server any more.
   }
 }
 

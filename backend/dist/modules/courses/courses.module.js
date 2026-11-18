@@ -13,15 +13,18 @@ const plans_module_1 = require("../plans/plans.module");
 const xp_module_1 = require("../xp/xp.module");
 const courses_controller_1 = require("./courses.controller");
 const courses_service_1 = require("./courses.service");
+const course_structure_service_1 = require("./course-structure.service");
+const student_catalogue_service_1 = require("./student-catalogue.service");
+const student_catalogue_controller_1 = require("./student-catalogue.controller");
 let CoursesModule = class CoursesModule {
 };
 exports.CoursesModule = CoursesModule;
 exports.CoursesModule = CoursesModule = __decorate([
     (0, common_1.Module)({
         imports: [auth_module_1.AuthModule, plans_module_1.PlansModule, xp_module_1.XpModule],
-        controllers: [courses_controller_1.CoursesController],
-        providers: [courses_service_1.CoursesService],
-        exports: [courses_service_1.CoursesService],
+        controllers: [courses_controller_1.CoursesController, student_catalogue_controller_1.StudentCatalogueController],
+        providers: [courses_service_1.CoursesService, course_structure_service_1.CourseStructureService, student_catalogue_service_1.StudentCatalogueService],
+        exports: [courses_service_1.CoursesService, course_structure_service_1.CourseStructureService, student_catalogue_service_1.StudentCatalogueService],
     })
 ], CoursesModule);
 //# sourceMappingURL=courses.module.js.map

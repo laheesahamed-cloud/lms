@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { clearAllTimedApiCaches } from '../api/cache.js';
 import { setUnauthorizedHandler } from '../api/client.js';
-import { fetchCurrentUser, login, loginWithApple, loginWithGoogle, loginWithGoogleCode, logout, register, verifyEmailOtp } from '../api/auth.api.js';
+import { fetchAppStart, fetchCurrentUser, login, loginWithApple, loginWithGoogle, loginWithGoogleCode, logout, register, verifyEmailOtp } from '../api/auth.api.js';
 import { detectPlatform } from '../platform/detect.js';
 import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
+import { clearStudentAccess, setStartPayload, setStudentAccess, setStudentProgress } from './studentAccess.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 import { isPublicWebsiteRoute } from '../routing/publicRoutes.js';
 
@@ -20,6 +21,7 @@ function isPublicAuthRoute() {
 
 function finishSignedOut(set) {
   clearAllTimedApiCaches();
+  clearStudentAccess();
   setAuthToken('');
   setStoredAuthUser(null);
   set({
@@ -170,12 +172,21 @@ export const useAuthStore = create((set, get) => ({
           return;
         }
 
-        const data = await fetchCurrentUser({
+        // 10.22: the app's start-up request in place of /auth/me — it also
+        // brings the student's signed token and the Study Hub's data.
+        const data = await fetchAppStart({
           silent: !force && isPublicAuthRoute(),
-          timeout: !force && isPublicAuthRoute() ? PUBLIC_AUTH_HYDRATE_TIMEOUT_MS : 5000,
+          timeout: !force && isPublicAuthRoute() ? PUBLIC_AUTH_HYDRATE_TIMEOUT_MS : 8000,
         });
         if (hydrateVersion !== authMutationVersion) {
           return;
+        }
+        if (data?.user?.role === 'student') {
+          setStudentAccess(data.accessToken || '');
+          setStartPayload(data);
+          setStudentProgress(data.progress || null);
+        } else {
+          clearStudentAccess();
         }
         set({
           token: getAuthToken(),
@@ -213,6 +224,8 @@ export const useAuthStore = create((set, get) => ({
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');
+    if (data?.user?.role === 'student' && raw?.accessToken) setStudentAccess(raw.accessToken);
+    else clearStudentAccess();
     setStoredAuthUser(data.user);
     set({
       token: data.sessionToken || '',
@@ -329,6 +342,7 @@ export const useAuthStore = create((set, get) => ({
   signOut: async () => {
     authMutationVersion += 1;
     clearAllTimedApiCaches();
+    clearStudentAccess();
     set({ isSigningOut: true });
 
     await new Promise((resolve) => {
@@ -367,6 +381,7 @@ export const useAuthStore = create((set, get) => ({
       Boolean(current.isAuthenticated || current.user || current.token);
     authMutationVersion += 1;
     clearAllTimedApiCaches();
+    clearStudentAccess();
     clearStoredAuth();
     set({
       token: '',

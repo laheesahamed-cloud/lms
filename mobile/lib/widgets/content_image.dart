@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
+import 'saved_network_image.dart';
 
 /// Renders an inline content image that may be an http(s) URL, a server-relative
 /// path (`/uploads/...`), or a base64 `data:` URI (the web admin uploader
@@ -43,10 +44,8 @@ class ContentImage extends StatelessWidget {
         }
       }
     } else if (value.startsWith('http') || value.startsWith('/')) {
-      img = Image.network(_absolute(value),
-          fit: fit,
-          cacheWidth: decodeWidth,
-          errorBuilder: (_, _, _) => const SizedBox.shrink());
+      // Saved on the phone after the first view (10.26 P1).
+      img = SavedNetworkImage(_absolute(value), fit: fit, decodeWidth: decodeWidth);
     }
     if (img == null) return const SizedBox.shrink();
 

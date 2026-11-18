@@ -14,33 +14,23 @@ const common_1 = require("@nestjs/common");
 const auth_service_1 = require("../auth/auth.service");
 const lessons_service_1 = require("../lessons/lessons.service");
 const dashboard_service_1 = require("../dashboard/dashboard.service");
-const quiz_attempts_service_1 = require("../quiz-attempts/quiz-attempts.service");
-const study_bookmarks_service_1 = require("../study-bookmarks/study-bookmarks.service");
 const workspace_service_1 = require("../workspace/workspace.service");
-function bearerToken(authorization) {
-    return authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-}
 let BootService = class BootService {
-    constructor(authService, dashboardService, workspaceService, quizAttemptsService, studyBookmarksService, lessonsService) {
+    constructor(authService, dashboardService, workspaceService, lessonsService) {
         this.authService = authService;
         this.dashboardService = dashboardService;
         this.workspaceService = workspaceService;
-        this.quizAttemptsService = quizAttemptsService;
-        this.studyBookmarksService = studyBookmarksService;
         this.lessonsService = lessonsService;
     }
     async getStudentBoot(authorization, engineKey) {
-        const student = await this.authService.requireStudent(authorization);
+        await this.authService.requireStudent(authorization);
         const engine = this.lessonsService.normalizeEngineKey(engineKey);
-        const [dashboard, notifications, agenda, quizzes, bookmarks, aiNotes] = await Promise.allSettled([
+        const [dashboard, notifications, agenda] = await Promise.allSettled([
             this.dashboardService.getStudentDashboard(authorization),
             this.workspaceService.listNotifications(authorization),
             this.workspaceService.getPlannerAgenda(authorization),
-            this.quizAttemptsService.listQuizzes(authorization),
-            this.studyBookmarksService.list(student.id),
-            this.lessonsService.canvasStudentList(bearerToken(authorization), engine),
         ]).then((results) => results.map((r) => (r.status === 'fulfilled' ? r.value : null)));
-        return { dashboard, notifications, agenda, quizzes, bookmarks, aiNotes, aiNotesEngine: engine };
+        return { dashboard, notifications, agenda, aiNotesEngine: engine };
     }
 };
 exports.BootService = BootService;
@@ -49,8 +39,6 @@ exports.BootService = BootService = __decorate([
     __metadata("design:paramtypes", [auth_service_1.AuthService,
         dashboard_service_1.DashboardService,
         workspace_service_1.WorkspaceService,
-        quiz_attempts_service_1.QuizAttemptsService,
-        study_bookmarks_service_1.StudyBookmarksService,
         lessons_service_1.LessonsService])
 ], BootService);
 //# sourceMappingURL=boot.service.js.map

@@ -1,3 +1,4 @@
+import { cachedAdminRead } from '../../common/utils/admin-read-cache';
 import { BadGatewayException, BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket } from 'mysql2/promise';
@@ -6,7 +7,6 @@ import { randomUUID, timingSafeEqual } from 'crypto';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
-import { sqlPlaceholders } from '../../database/sql-safety';
 import {
   AI_PROVIDER_LABELS,
   AI_PROVIDER_MODE_OPTIONS,
@@ -280,7 +280,9 @@ export class SettingsService {
     }
 
     const availability = this.serializeAvailabilitySettings(await this.getAvailabilityMode());
-    this.publicAvailabilityCache = { expiresAt: now + 5_000, value: availability };
+    // 10.25: kept 60 s (was 5 s): every site open asks for it, and it only
+    // changes when an admin saves it (that save clears this copy at once).
+    this.publicAvailabilityCache = { expiresAt: now + 60_000, value: availability };
 
     return {
       ok: true,
@@ -335,9 +337,18 @@ export class SettingsService {
 
   /// On unless an admin has switched it off. Read on every publish, so flipping it
   /// in the admin panel takes effect immediately — no app build or redeploy.
+  // Read on every publish (new lesson, quiz, flashcards), so it is kept in
+  // memory: the admin toggle below clears it, so a change still applies at once.
+  // The 10-minute expiry only matters for edits made outside the app.
+  private newContentNotificationsCache: { value: boolean; expiresAt: number } | null = null;
+
   async isNewContentNotificationsEnabled() {
+    const cached = this.newContentNotificationsCache;
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
     const raw = (await this.getSettingValue(NEW_CONTENT_NOTIFICATIONS_SETTING_KEY)).toLowerCase();
-    return !['0', 'false', 'off', 'no'].includes(raw);
+    const value = !['0', 'false', 'off', 'no'].includes(raw);
+    this.newContentNotificationsCache = { value, expiresAt: Date.now() + 10 * 60 * 1000 };
+    return value;
   }
 
   async updateGeneralSettings(input: { whatsappNumber?: string; newContentNotifications?: boolean }) {
@@ -346,6 +357,7 @@ export class SettingsService {
     }
     if (input.newContentNotifications !== undefined) {
       await this.saveSettingValue(NEW_CONTENT_NOTIFICATIONS_SETTING_KEY, input.newContentNotifications ? '1' : '0');
+      this.newContentNotificationsCache = null;
     }
     this.clearPublicSettingsCache();
 
@@ -444,6 +456,11 @@ export class SettingsService {
   async getStudentPaymentSettings() {
     const settings = await this.getRawPaymentSettings();
     return this.serializePaymentSettings(settings, false);
+  }
+
+  /** The student view of payment settings from settings already read (no second read). */
+  studentPaymentSettingsFrom(raw: Awaited<ReturnType<SettingsService['getRawPaymentSettings']>>) {
+    return this.serializePaymentSettings(raw, false);
   }
 
   async getPayHereCheckoutSettings() {
@@ -916,36 +933,40 @@ export class SettingsService {
     return this.getAiProviderSettings();
   }
 
-  private async getSettingValue(settingKey: string) {
-    const [rows] = await this.db.execute<SettingRow[]>(
-      `
-        SELECT setting_key, setting_value, updated_at
-        FROM system_settings
-        WHERE setting_key = ?
-        LIMIT 1
-      `,
-      [settingKey]
-    );
+  // OPTIMIZE 10.48: the settings table (a few dozen rows) is kept in memory —
+  // read once, updated by every save here, re-read at most every 10 minutes
+  // (covers a save made by another server process). Public / payment settings
+  // then cost no database statement per request.
+  private settingsSnapshot: { at: number; map: Map<string, string> } | null = null;
+  private settingsSnapshotLoad: Promise<Map<string, string>> | null = null;
 
-    return rows[0]?.setting_value?.trim() || '';
+  private async settingsMap(): Promise<Map<string, string>> {
+    const snap = this.settingsSnapshot;
+    if (snap && Date.now() - snap.at < 10 * 60 * 1000) return snap.map;
+    if (!this.settingsSnapshotLoad) {
+      this.settingsSnapshotLoad = this.db
+        .execute<SettingRow[]>('SELECT setting_key, setting_value FROM system_settings')
+        .then(([rows]) => {
+          const map = new Map(rows.map((row) => [String(row.setting_key), String(row.setting_value ?? '')]));
+          this.settingsSnapshot = { at: Date.now(), map };
+          return map;
+        })
+        .finally(() => { this.settingsSnapshotLoad = null; });
+    }
+    return this.settingsSnapshotLoad;
+  }
+
+  private async getSettingValue(settingKey: string) {
+    return ((await this.settingsMap()).get(settingKey) || '').trim();
   }
 
   private async getSettingMap(settingKeys: string[]) {
-    if (settingKeys.length === 0) {
-      return new Map<string, string>();
+    const all = await this.settingsMap();
+    const out = new Map<string, string>();
+    for (const key of settingKeys) {
+      if (all.has(key)) out.set(key, String(all.get(key) || '').trim());
     }
-
-    const placeholders = sqlPlaceholders(settingKeys);
-    const [rows] = await this.db.execute<SettingRow[]>(
-      `
-        SELECT setting_key, setting_value
-        FROM system_settings
-        WHERE setting_key IN (${placeholders})
-      `,
-      settingKeys
-    );
-
-    return new Map(rows.map((row) => [String(row.setting_key), String(row.setting_value || '').trim()]));
+    return out;
   }
 
   private async getAvailabilityMode(): Promise<AvailabilityMode> {
@@ -999,6 +1020,14 @@ export class SettingsService {
   }
 
   private async getRawPaymentSettings(): Promise<PayHerePaymentSettings> {
+    // Same for everyone: kept up to an hour, cleared on every settings / admin
+    // save (PUT /api/settings/payments clears it), so /subscriptions/me no
+    // longer reads the settings table each time. PayHere only; Apple purchase
+    // code does not use these.
+    return cachedAdminRead('settings.payment', () => this.readPaymentSettings(), 3_600_000);
+  }
+
+  private async readPaymentSettings(): Promise<PayHerePaymentSettings> {
     const values = await this.getSettingMap(Object.values(PAYMENT_SETTING_KEYS));
     const encryptedMerchantSecret = values.get(PAYMENT_SETTING_KEYS.merchantSecret) || '';
     const encryptedAppMerchantSecret = values.get(PAYMENT_SETTING_KEYS.appMerchantSecret) || '';
@@ -1123,8 +1152,14 @@ export class SettingsService {
     };
   }
 
-  async getRawApnsSettings(): Promise<ApnsSettings> {
-    const values = await this.getSettingMap(Object.values(APNS_SETTING_KEYS));
+  /** APNs and FCM settings in ONE read (push broadcasts read this once for all phones). */
+  async getRawPushSettings(): Promise<{ apns: ApnsSettings; fcm: FcmSettings }> {
+    const values = await this.getSettingMap([...Object.values(APNS_SETTING_KEYS), ...Object.values(FCM_SETTING_KEYS)]);
+    return { apns: await this.getRawApnsSettings(values), fcm: await this.getRawFcmSettings(values) };
+  }
+
+  async getRawApnsSettings(preloaded?: Map<string, string>): Promise<ApnsSettings> {
+    const values = preloaded || await this.getSettingMap(Object.values(APNS_SETTING_KEYS));
     const encryptedPrivateKey = values.get(APNS_SETTING_KEYS.privateKey) || '';
 
     return {
@@ -1142,8 +1177,8 @@ export class SettingsService {
     };
   }
 
-  async getRawFcmSettings(): Promise<FcmSettings> {
-    const values = await this.getSettingMap(Object.values(FCM_SETTING_KEYS));
+  async getRawFcmSettings(preloaded?: Map<string, string>): Promise<FcmSettings> {
+    const values = preloaded || await this.getSettingMap(Object.values(FCM_SETTING_KEYS));
     const encryptedServerKey = values.get(FCM_SETTING_KEYS.serverKey) || '';
     const encryptedServiceAccountJson = values.get(FCM_SETTING_KEYS.serviceAccountJson) || '';
 
@@ -1427,6 +1462,7 @@ export class SettingsService {
       `,
       [settingKey, settingValue]
     );
+    this.settingsSnapshot?.map.set(settingKey, settingValue);
   }
 
   private async listAiProviders() {

@@ -3,6 +3,14 @@ import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/pro
 import * as bcrypt from 'bcryptjs';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
+import { convertToGapRanks } from '../../common/utils/structure-order';
+import { recountStructure } from '../../common/utils/structure-counts';
+import { foldPlannerRows } from '../../common/utils/planner-doc';
+import { lessonBits } from '../../common/utils/lesson-bits';
+import { localDateKey, toDayNumber } from '../xp/streak';
+import { streakStateFromDays } from '../xp/streak-sql';
+import { recountCourseQuestionTotals, recountCourseQuizTotals, recountQuestionLinks, recountQuizCounts } from '../../common/utils/quiz-counts';
+import { RECAP_KEYS, optionsOf, recapOf, sqlMissingMaskExpression } from '../../common/utils/question-content';
 import { APPLE_IAP_PRODUCTS, DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
 
 /// Non-IAP payment records that keep the payer's email when an account is
@@ -12,7 +20,7 @@ import { APPLE_IAP_PRODUCTS, DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATU
 // CHANGE THIS VALUE whenever a step is added to or changed in
 // ensureCriticalTables(), or the new step will never run on a database that
 // already recorded the old value.
-export const CRITICAL_SCHEMA_VERSION = '2026-11-13.1';
+export const CRITICAL_SCHEMA_VERSION = '2026-11-18.2';
 
 export const PAYER_EMAIL_TABLES = [
   'user_subscriptions',
@@ -62,32 +70,18 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIapTables(connection);
       await this.ensureSubscriptionCouponsTable(connection);
       await this.ensurePaymentTransactionsTable(connection);
-      await this.ensureStudyBookmarksTable(connection);
-      await this.ensureStudyActivityEventsTable(connection);
       await this.ensurePapersTable(connection);
       await this.ensureQuestionReportsTable(connection);
-      await this.ensureExamSessionsTable(connection);
-      await this.ensureLessonAnnotationsTable(connection);
-      await this.ensureStudentLessonProgressTable(connection);
-      await this.ensureAnnouncementsTable(connection);
-      await this.ensurePushSubscriptionsTable(connection);
       await this.ensureNativePushTokensTable(connection);
       await this.ensureStudyPlannerTasksTable(connection);
       await this.ensureSystemSettingsTable(connection);
       await this.ensureAiProviderConfigsTable(connection);
-      await this.ensureSmartNotesTable(connection);
       await this.ensureLessonFlashcardsTable(connection);
-      await this.ensureLessonFlashcardReviewsTable(connection);
-      await this.ensureQuestionKeywordsTables(connection);
       await this.ensureSubscriptionFeaturesTables(connection);
       await this.ensureSubscriptionRequestTables(connection);
-      await this.ensureQuestionTheoryRecapsTable(connection);
-      await this.ensureContentGovernanceTables(connection);
-      await this.ensureAdminAuditEventsTable(connection);
       await this.ensureEcgTables(connection);
       await this.ensureAuscultationTables(connection);
       await this.ensureUserRoleColumnSupportsStaff(connection);
-      await this.ensureStudyActivityEventTypes(connection);
       await this.ensureColumn(connection, 'users', 'avatar_key', "VARCHAR(64) NULL AFTER status");
       await this.ensureColumn(connection, 'users', 'session_expires_at', 'DATETIME NULL AFTER session_token');
       await this.ensureColumn(connection, 'users', 'password_reset_token', 'VARCHAR(128) NULL AFTER session_expires_at');
@@ -117,7 +111,6 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'questions', 'subtopic_id', 'INT NULL AFTER topic_id');
       await this.ensureColumn(connection, 'questions', 'lesson_id', 'INT NULL AFTER subtopic_id');
       await this.ensureColumn(connection, 'questions', 'paper_id', 'INT NULL AFTER lesson_id');
-      await this.ensureColumn(connection, 'questions', 'keywords_text', 'TEXT NULL AFTER question_text');
       await this.ensureColumn(connection, 'questions', 'question_category', "VARCHAR(20) NULL AFTER category");
       await this.ensureColumn(connection, 'questions', 'explanation_image_url', 'LONGTEXT NULL AFTER explanation');
       // "How to approach this question" — a clue-by-clue reasoning walkthrough for
@@ -128,7 +121,6 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'questions', 'question_approach', 'LONGTEXT NULL AFTER explanation_image_url');
       await this.ensureColumn(connection, 'questions', 'question_approach_highlights', 'LONGTEXT NULL AFTER question_approach');
       await this.ensureQuestionCategoryColumns(connection);
-      await this.ensureColumn(connection, 'question_options', 'why_incorrect', 'TEXT NULL AFTER is_correct');
       await this.ensureColumn(connection, 'courses', 'updated_at', 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
       await this.ensureColumn(connection, 'topics', 'updated_at', 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
       await this.ensureColumn(connection, 'lessons', 'updated_at', 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
@@ -136,17 +128,11 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'questions', 'updated_at', 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
       await this.ensureColumn(connection, 'quizzes', 'updated_at', 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at');
       await this.ensureColumn(connection, 'quizzes', 'subtopic_id', 'INT NULL AFTER topic_id');
-      await this.ensureColumn(connection, 'quizzes', 'lesson_id', 'INT NULL AFTER subtopic_id');
-      await this.ensureColumn(connection, 'quizzes', 'paper_id', 'INT NULL AFTER lesson_id');
-      await this.ensureColumn(connection, 'quizzes', 'category', 'VARCHAR(120) NULL AFTER paper_id');
-      await this.ensureColumn(connection, 'quizzes', 'collection_tags', 'TEXT NULL AFTER category');
-      await this.ensureColumn(connection, 'quizzes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER collection_tags');
-      await this.ensureColumn(connection, 'quizzes', 'admin_name', 'VARCHAR(255) NULL AFTER exam_mode_only');
-      await this.ensureColumn(connection, 'quizzes', 'student_title', 'VARCHAR(255) NULL AFTER admin_name');
-      await this.ensureColumn(connection, 'quizzes', 'display_title_mode', "VARCHAR(20) NOT NULL DEFAULT 'number' AFTER student_title");
-      await this.ensureColumn(connection, 'quizzes', 'quiz_number', 'INT NULL DEFAULT NULL AFTER display_title_mode');
-      await this.ensureColumn(connection, 'quizzes', 'blueprint_json', 'LONGTEXT NULL AFTER quiz_description');
-      await this.ensureColumn(connection, 'quizzes', 'randomization_mode', "VARCHAR(20) NOT NULL DEFAULT 'static' AFTER blueprint_json");
+      // 10.54: lesson_id, paper_id, collection_tags, admin_name, student_title, display_title_mode,
+      // blueprint_json, randomization_mode (and other unused set columns) were dropped — not re-added.
+      await this.ensureColumn(connection, 'quizzes', 'category', 'VARCHAR(120) NULL AFTER subtopic_id');
+      await this.ensureColumn(connection, 'quizzes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER category');
+      await this.ensureColumn(connection, 'quizzes', 'quiz_number', 'INT NULL DEFAULT NULL');
       await this.ensureColumn(connection, 'lessons', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url');
       await this.ensureColumn(connection, 'plans', 'slug', 'VARCHAR(160) NULL AFTER name');
       await this.ensureColumn(connection, 'plans', 'regular_price', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER description');
@@ -187,41 +173,28 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'subscription_coupons', 'coupon_mode', "ENUM('discount','package') NOT NULL DEFAULT 'discount' AFTER label");
       await this.ensureColumn(connection, 'subscription_coupons', 'plan_ids_json', 'TEXT NULL AFTER discount_value');
       await this.ensureColumn(connection, 'question_quizzes', 'sort_order', 'INT NOT NULL DEFAULT 0');
-      await this.ensureColumn(connection, 'exam_sessions', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
-      await this.ensureColumn(connection, 'quiz_attempts', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
-      await this.ensureColumn(connection, 'quiz_attempts', 'reviewed_at', 'DATETIME NULL AFTER submitted_at');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_practice', 'TINYINT(1) NOT NULL DEFAULT 1');
-      await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_exam', 'TINYINT(1) NOT NULL DEFAULT 0');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_review', 'TINYINT(1) NOT NULL DEFAULT 1');
       await this.ensureIndex(connection, 'questions', 'idx_questions_subtopic_id', 'subtopic_id');
       await this.ensureIndex(connection, 'questions', 'idx_questions_lesson_id', 'lesson_id');
       await this.ensureIndex(connection, 'questions', 'idx_questions_paper_id', 'paper_id');
       await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_subtopic_id', 'subtopic_id');
-      await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_lesson_id', 'lesson_id');
-      await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_paper_id', 'paper_id');
       await this.ensureIndex(connection, 'plans', 'idx_plans_slug', 'slug');
       await this.ensureIndex(connection, 'users', 'idx_users_password_reset_token', 'password_reset_token');
       await this.ensureIndex(connection, 'users', 'idx_users_session_token_expires', 'session_token, session_expires_at');
       await this.ensureIndex(connection, 'plans', 'idx_plans_sort_order', 'sort_order');
       await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_quiz_sort', 'quiz_id, sort_order');
       await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_question_quiz', 'question_id, quiz_id');
-      await this.ensureIndex(connection, 'question_options', 'idx_question_options_question_label', 'question_id, option_label');
       await this.ensureIndex(connection, 'questions', 'idx_questions_status_type_id', 'status, question_type, id');
       // Admin dashboard "added per day" charts (questions, lessons) and the
       // question-of-the-day correct-option check. See sql/2026-11-13_perf_indexes.sql.
       await this.ensureIndex(connection, 'questions', 'idx_questions_created_at', 'created_at');
       await this.ensureIndex(connection, 'lessons', 'idx_lessons_created_at', 'created_at');
-      await this.ensureIndex(connection, 'question_options', 'idx_question_options_question_correct', 'question_id, is_correct');
       await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_course_scope', 'status, course_id, topic_id, subtopic_id, lesson_id, question_type, id');
       await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_paper_scope', 'status, paper_id, question_type, id');
       await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_question_category', 'status, question_category, question_type, id');
       await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_legacy_category', 'status, category, question_type, id');
       await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_status_course_id', 'status, course_id, id');
-      await this.ensureIndex(connection, 'quiz_attempts', 'idx_quiz_attempts_user_status_dates', 'user_id, status, submitted_at, created_at');
-      await this.ensureIndex(connection, 'quiz_attempts', 'idx_quiz_attempts_quiz_user_dates', 'quiz_id, user_id, submitted_at, created_at');
-      await this.ensureIndex(connection, 'student_answers', 'idx_student_answers_attempt_question', 'attempt_id, question_id');
-      await this.ensureIndex(connection, 'student_answers', 'idx_student_answers_question_option', 'question_id, option_id');
-      await this.ensureIndex(connection, 'question_keyword_map', 'idx_question_keyword_map_keyword_id', 'keyword_id');
       await this.ensureIndex(connection, 'subscription_features', 'idx_subscription_features_key', 'feature_key');
       await this.ensureIndex(connection, 'subscription_features', 'idx_subscription_features_category', 'category');
       await this.ensureIndex(connection, 'subscription_plan_features', 'idx_subscription_plan_features_feature_id', 'feature_id');
@@ -234,28 +207,17 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'payment_transactions', 'idx_payment_transactions_invoice', 'invoice_id');
       await this.ensureIndex(connection, 'payment_transactions', 'idx_payment_transactions_user', 'user_id');
       await this.ensureIndex(connection, 'subscription_coupons', 'idx_subscription_coupons_status', 'status');
-      await this.ensureIndex(connection, 'announcements', 'idx_announcements_status_target', 'status, target_role');
-      await this.ensureIndex(connection, 'announcement_reads', 'idx_announcement_reads_user', 'user_id');
-      await this.ensureIndex(connection, 'push_subscriptions', 'idx_push_subscriptions_user', 'user_id');
-      await this.ensureIndex(connection, 'push_subscriptions', 'idx_push_subscriptions_enabled', 'enabled');
       await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_user', 'user_id');
       await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_enabled', 'enabled');
       await this.ensureIndex(connection, 'study_planner_tasks', 'idx_study_planner_user_due', 'user_id, due_date');
-      await this.ensureIndex(connection, 'study_activity_events', 'idx_study_activity_user_type_created', 'user_id, activity_type, created_at');
-      await this.ensureIndex(connection, 'smart_notes', 'idx_smart_notes_user_updated', 'user_id, updated_at');
       await this.ensureIndex(connection, 'lessons', 'idx_lessons_public_status_course', 'is_public, status, course_id, topic_id');
       await this.ensureIndex(connection, 'lessons', 'idx_lessons_engine_pub_status', 'engine_key, is_public, status, updated_at');
-      await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
       await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_note_status', 'note_id, status');
       await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_lesson_status', 'lesson_id, status');
-      await this.ensureIndex(connection, 'content_audit_events', 'idx_content_audit_entity', 'entity_type, entity_id');
-      await this.ensureIndex(connection, 'content_versions', 'idx_content_versions_entity', 'entity_type, entity_id');
       await this.backfillPlanSubscriptionColumns(connection);
       await this.seedSubscriptionFeatureCatalog(connection);
       await this.seedDefaultPlans(connection);
       await this.backfillPlanFeatureMaps(connection);
-      await this.backfillQuestionKeywordMaps(connection);
-      await this.backfillQuizTitles(connection);
       await this.hashLegacyPlaintextPasswords(connection);
     } catch (error) {
       const message = error instanceof Error ? error.stack || error.message : String(error);
@@ -284,19 +246,6 @@ export class SchemaSyncService implements OnModuleInit {
     if (rows.length > 0) {
       this.logger.warn(`Hashed ${rows.length} legacy plaintext user password(s).`);
     }
-  }
-
-  private async backfillQuizTitles(connection: PoolConnection) {
-    await connection.execute(`
-      UPDATE quizzes
-      SET
-        admin_name = COALESCE(NULLIF(TRIM(admin_name), ''), quiz_title),
-        student_title = COALESCE(NULLIF(TRIM(student_title), ''), quiz_title),
-        quiz_title = COALESCE(NULLIF(TRIM(student_title), ''), NULLIF(TRIM(quiz_title), ''), NULLIF(TRIM(admin_name), ''))
-    `);
-    await connection.execute(
-      "ALTER TABLE study_bookmarks MODIFY item_type ENUM('quiz', 'ai_note', 'question') NOT NULL"
-    ).catch(() => undefined);
   }
 
   private async ensurePapersTable(connection: PoolConnection) {
@@ -499,43 +448,6 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
-  private async ensureStudyBookmarksTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS study_bookmarks (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        item_type ENUM('quiz', 'ai_note') NOT NULL,
-        item_id INT NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_study_bookmark (user_id, item_type, item_id),
-        INDEX idx_study_bookmarks_user (user_id),
-        INDEX idx_study_bookmarks_item (item_type, item_id)
-      )
-    `);
-  }
-
-  private async ensureStudyActivityEventsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS study_activity_events (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        activity_type VARCHAR(80) NOT NULL,
-        item_id INT NULL,
-        event_type VARCHAR(80) NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_study_activity_user (user_id),
-        INDEX idx_study_activity_type (activity_type),
-        INDEX idx_study_activity_created (created_at)
-      )
-    `);
-  }
-
-  private async ensureStudyActivityEventTypes(connection: PoolConnection) {
-    await connection.execute(
-      "ALTER TABLE study_activity_events MODIFY activity_type VARCHAR(80) NOT NULL"
-    ).catch(() => undefined);
-    await this.ensureColumn(connection, 'study_activity_events', 'event_type', 'VARCHAR(80) NULL AFTER item_id');
-  }
 
   private async ensureQuestionReportsTable(connection: PoolConnection) {
     await connection.execute(`
@@ -555,26 +467,6 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
-  private async ensureExamSessionsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS exam_sessions (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        quiz_id INT NOT NULL,
-        status ENUM('in_progress','submitted','expired') NOT NULL DEFAULT 'in_progress',
-        started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        deadline_at DATETIME NULL,
-        last_question_index INT NOT NULL DEFAULT 0,
-        answers_json LONGTEXT NULL,
-        flagged_question_ids_json TEXT NULL,
-        submitted_attempt_id INT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_exam_sessions_user_quiz_status (user_id, quiz_id, status),
-        INDEX idx_exam_sessions_deadline (deadline_at)
-      )
-    `);
-  }
 
   private async ensureLessonGenerationJobsTable(connection: PoolConnection) {
     await connection.execute(`
@@ -603,101 +495,6 @@ export class SchemaSyncService implements OnModuleInit {
     } catch {
       // best-effort — table may be mid-use or already correct; never block boot on this
     }
-  }
-
-  private async ensureLessonAnnotationsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS lesson_annotations (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        lesson_id INT NOT NULL,
-        user_id INT NOT NULL,
-        type ENUM('highlight', 'note') NOT NULL,
-        selected_text TEXT NOT NULL,
-        start_offset INT NOT NULL,
-        end_offset INT NOT NULL,
-        color VARCHAR(32) NULL,
-        note_text TEXT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_lesson_annotations_lesson_user (lesson_id, user_id),
-        INDEX idx_lesson_annotations_user (user_id)
-      )
-    `);
-  }
-
-  private async ensureStudentLessonProgressTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS student_lesson_progress (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        course_id INT NOT NULL,
-        subject_id INT NOT NULL,
-        topic_id INT NULL,
-        lesson_id INT NOT NULL,
-        status ENUM('not_started', 'in_progress', 'completed') NOT NULL DEFAULT 'not_started',
-        progress_percent INT NOT NULL DEFAULT 0,
-        started_at TIMESTAMP NULL DEFAULT NULL,
-        completed_at TIMESTAMP NULL DEFAULT NULL,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_student_lesson_progress (user_id, lesson_id),
-        INDEX idx_student_lesson_progress_user_course (user_id, course_id),
-        INDEX idx_student_lesson_progress_user_subject (user_id, subject_id),
-        INDEX idx_student_lesson_progress_user_topic (user_id, topic_id),
-        INDEX idx_student_lesson_progress_status (status)
-      )
-    `);
-  }
-
-  private async ensureAnnouncementsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS announcements (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(180) NOT NULL,
-        body TEXT NOT NULL,
-        target_role ENUM('all','student','admin') NOT NULL DEFAULT 'student',
-        status ENUM('draft','published','archived') NOT NULL DEFAULT 'published',
-        publish_at DATETIME NULL,
-        created_by INT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_announcements_status_target (status, target_role),
-        INDEX idx_announcements_publish_at (publish_at)
-      )
-    `);
-
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS announcement_reads (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        announcement_id INT NOT NULL,
-        user_id INT NOT NULL,
-        read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_announcement_read (announcement_id, user_id),
-        INDEX idx_announcement_reads_user (user_id)
-      )
-    `);
-  }
-
-  private async ensurePushSubscriptionsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS push_subscriptions (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        endpoint_hash CHAR(64) NOT NULL,
-        endpoint TEXT NOT NULL,
-        p256dh TEXT NOT NULL,
-        auth TEXT NOT NULL,
-        user_agent VARCHAR(500) NULL,
-        delivery_mode ENUM('inside','outside','both') NOT NULL DEFAULT 'outside',
-        enabled TINYINT(1) NOT NULL DEFAULT 1,
-        last_error VARCHAR(500) NULL,
-        failed_at DATETIME NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_push_endpoint_hash (endpoint_hash),
-        INDEX idx_push_subscriptions_user (user_id),
-        INDEX idx_push_subscriptions_enabled (enabled)
-      )
-    `);
   }
 
   private async ensureNativePushTokensTable(connection: PoolConnection) {
@@ -832,7 +629,6 @@ export class SchemaSyncService implements OnModuleInit {
       // Same lesson as the content-governance tables above.
       // Written by the account-deletion path, which must work whether or not
       // schema sync runs — same reason as the columns below.
-      await step('account deletion audit', () => this.ensureAccountDeletionAuditTable(conn));
       await step('user_subscriptions.access_expires_at', () =>
         this.ensureColumn(conn, 'user_subscriptions', 'access_expires_at', 'DATETIME NULL AFTER end_date'));
       await step('access_expires_at backfill', () => this.backfillAccessExpiresAt(conn));
@@ -843,8 +639,6 @@ export class SchemaSyncService implements OnModuleInit {
         await step(`${table}.payer_email`, () =>
           this.ensureColumn(conn, table, 'payer_email', 'VARCHAR(255) NULL'));
       }
-      await step('content governance tables', () => this.ensureContentGovernanceTables(conn));
-      await step('admin audit events', () => this.ensureAdminAuditEventsTable(conn));
       // Read directly (no try/catch) by resolveActiveCanvasProvider() on every
       // "Generate Lesson" call — missing on prod would throw a raw, unhandled 500.
       await step('ai provider configs', () => this.ensureAiProviderConfigsTable(conn));
@@ -860,7 +654,9 @@ export class SchemaSyncService implements OnModuleInit {
         const added = await this.ensureColumn(conn, 'lessons', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER subtopic_id');
         await this.ensureIndex(conn, 'lessons', 'idx_lessons_sort', 'topic_id, subtopic_id, sort_order');
         if (added) await this.backfillLessonSortOrder(conn);
-        await this.flattenLessonSortOrder(conn);
+        // (The old one-time "flatten lesson order across the course" step is
+        // gone: lessons are now ranked inside their topic — see the
+        // 'structure gap ranks' step below.)
       });
       // Same as above, one level up the hierarchy — subjects (topics) within a
       // course, and topics (subtopics) within a subject, also need an
@@ -881,7 +677,6 @@ export class SchemaSyncService implements OnModuleInit {
       await step('osce tables', () => this.ensureOsceTables(conn));
       // Written on every exam submit and lesson completion, so they must exist
       // whether or not SCHEMA_SYNC runs.
-      await step('xp tables', () => this.ensureXpTables(conn));
       // Which lesson or quiz a generated planner task is. Read and written by
       // every planner request, so it must not wait for SCHEMA_SYNC.
       await step('study_planner_tasks item link', async () => {
@@ -890,10 +685,6 @@ export class SchemaSyncService implements OnModuleInit {
         // A whole plan saved as one rule row; the phone works out the days.
         await this.ensureColumn(conn, 'study_planner_tasks', 'rule_json', 'TEXT NULL');
       });
-      // Clearing a notification is a student write path, and prod runs
-      // SCHEMA_SYNC=0, so this cannot sit behind the full sync.
-      await step('notification dismissals', () =>
-        this.ensureNotificationDismissalsTable(conn));
       // Read on EVERY login and session restore (serializeUser) and written the
       // moment an Apple/Google sign-in creates an account, so it cannot sit
       // behind the full sync either. Default 0: every account that already
@@ -906,6 +697,397 @@ export class SchemaSyncService implements OnModuleInit {
           'needs_profile_setup',
           'TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_key',
         ));
+      // Admin Structure page: course order and stored counts, so its lists read
+      // one row per course/subject instead of counting on every open.
+      await step('structure counts and course order', async () => {
+        const addedOrder = await this.ensureColumn(conn, 'courses', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER status');
+        if (addedOrder) {
+          // Start from today's order (by title), spaced by 10 like lessons.
+          await conn.query('SET @course_order := 0');
+          await conn.query('UPDATE courses SET sort_order = (@course_order := @course_order + 10) ORDER BY course_title ASC, id ASC');
+        }
+        await this.ensureIndex(conn, 'courses', 'idx_courses_sort', 'sort_order, id');
+        const addedCounts = [
+          await this.ensureColumn(conn, 'courses', 'lesson_count', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'courses', 'subject_count', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'topics', 'lesson_count', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'topics', 'subtopic_count', 'INT NOT NULL DEFAULT 0'),
+        ].some(Boolean);
+        // One subject's lessons, read already in order (no sort pass), so the
+        // rows examined equal the lessons listed.
+        await this.ensureIndex(conn, 'lessons', 'idx_lessons_topic_engine_pub_sort', 'topic_id, engine_key, is_public, sort_order, id');
+        // Filled once, when the columns are first created. After that every
+        // save keeps them right itself; there is no recount at startup.
+        if (addedCounts) await recountStructure(conn);
+      });
+      // Structure page order: every level ranked inside its own parent with
+      // gaps (1000, 2000…), so a move changes one row. Converted once, in the
+      // order students see today; rolled back if any visible order would change.
+      await step('structure gap ranks', async () => {
+        await convertToGapRanks(conn, (msg) => this.logger.log(msg));
+      });
+      // Assessments folder view: stored counts per subject and per course
+      // (general / no subject), adjusted by every assessment save. Filled once
+      // when the columns are created. Indexes serve a folder's list in id order
+      // (pages "after id X") and index-only counting for Fix counts.
+      await step('assessment folder counts', async () => {
+        const added = [
+          await this.ensureColumn(conn, 'topics', 'quiz_total', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'topics', 'quiz_active', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'courses', 'quiz_general_total', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'courses', 'quiz_general_active', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'courses', 'quiz_unfiled_total', 'INT NOT NULL DEFAULT 0'),
+          await this.ensureColumn(conn, 'courses', 'quiz_unfiled_active', 'INT NOT NULL DEFAULT 0'),
+        ].some(Boolean);
+        await this.ensureIndex(conn, 'quizzes', 'idx_quizzes_topic_general', 'topic_id, is_general, id, status');
+        await this.ensureIndex(conn, 'quizzes', 'idx_quizzes_course_general', 'course_id, is_general, id, status');
+        if (added) await recountQuizCounts(conn);
+      });
+      // Question bank: how many assessments use each question, stored so the
+      // list and the "unused" filters/counts don't count links on every read.
+      await step('question link counts', async () => {
+        const added = await this.ensureColumn(conn, 'questions', 'quiz_count', 'INT NOT NULL DEFAULT 0');
+        if (added) await recountQuestionLinks(conn);
+      });
+      // Admin dashboard: whole-site totals read from the 4 course rows
+      // (questions and assessments per course, adjusted by every save), and
+      // indexes so each user / money number reads only the rows it needs.
+      // The two computed flags are VIRTUAL (nothing stored, no app write
+      // changes, Apple purchase paths untouched); only their indexes are kept.
+      await step('dashboard totals', async () => {
+        const addedQuestions = await this.ensureColumn(conn, 'courses', 'question_total', 'INT NOT NULL DEFAULT 0');
+        const addedQuizzes = await this.ensureColumn(conn, 'courses', 'quiz_total', 'INT NOT NULL DEFAULT 0');
+        if (addedQuestions) await recountCourseQuestionTotals(conn);
+        if (addedQuizzes) await recountCourseQuizTotals(conn);
+        // Deleted (anonymized) accounts are left out of counts and lists, so
+        // deleted_at is in the index: counts stay index-only.
+        await this.ensureIndex(conn, 'users', 'idx_users_role_status_live', 'role, status, deleted_at');
+        await this.ensureIndex(conn, 'users', 'idx_users_created', 'created_at, id');
+        await this.ensureIndex(conn, 'user_subscriptions', 'idx_user_subscriptions_status_end', 'status, end_date');
+        // A confirmed payment with an amount ("Recent payments", "Today's earnings").
+        await this.ensureColumn(conn, 'user_subscriptions', 'is_collected',
+          "TINYINT GENERATED ALWAYS AS (IF(payment_status IN ('paid', 'manual') AND amount_paid > 0, 1, 0)) VIRTUAL");
+        await this.ensureIndex(conn, 'user_subscriptions', 'idx_user_subscriptions_collected', 'is_collected, created_at, id');
+        await this.ensureIndex(conn, 'user_subscriptions', 'idx_user_subscriptions_collected_day', 'is_collected, payment_date, updated_at');
+        // A request the admin pages list: not an online checkout that was
+        // started and abandoned (same rule as the Subscriptions requests list).
+        await this.ensureColumn(conn, 'subscription_requests', 'admin_visible',
+          "TINYINT GENERATED ALWAYS AS (IF(invoice_id IS NULL OR payment_proof_data_url IS NOT NULL OR status = 'approved' OR subscription_id IS NOT NULL, 1, 0)) VIRTUAL");
+        await this.ensureIndex(conn, 'subscription_requests', 'idx_subscription_requests_visible', 'admin_visible, status, requested_at, id');
+      });
+      // Admin search (header box + Structure lesson search): word-start
+      // matching that reads only the matching rows. The first FULLTEXT index
+      // on a table rebuilds it once (lessons, 28 MB locally: 0.6 s).
+      await step('admin search indexes', async () => {
+        await this.ensureFulltextIndex(conn, 'lessons', 'ft_lessons_title', 'lesson_title');
+        await this.ensureFulltextIndex(conn, 'quizzes', 'ft_quizzes_title', 'quiz_title'); // 10.54: one name column
+        await this.ensureFulltextIndex(conn, 'users', 'ft_users_name_email', 'full_name, email');
+      });
+      // Subscriptions page: the paid list skips the one free-plan row every
+      // student has; Apple purchases find their plan by product id.
+      await step('subscriptions page indexes', async () => {
+        await this.ensureIndex(conn, 'user_subscriptions', 'idx_user_subscriptions_payment_status', 'payment_status, id');
+        await this.ensureIndex(conn, 'plans', 'idx_plans_apple_product', 'apple_product_id');
+      });
+      // Users page pages by status then newest id; announcements newest first by id.
+      await step('users page index', async () => {
+        await this.ensureIndex(conn, 'users', 'idx_users_status_live', 'status, deleted_at');
+      });
+      // Drugs admin list: name order by index.
+      await step('drugs list index', async () => {
+        await this.ensureIndex(conn, 'drugs', 'idx_drugs_name_id', 'name, id');
+      });
+      // OPTIMIZE 10.28: one row per student. The row has every column it
+      // needs; the columns the day rows / topic stats used are removed.
+      await step('one row per student', async () => {
+        await this.ensureStudyStatsTables(conn);
+        await this.ensureColumn(conn, 'student_study_summary', 'practice_seq', 'INT UNSIGNED NOT NULL DEFAULT 0');
+        for (const column of ['streak_grace', 'streak_for_day', 'streak_today_active', 'area_trimmed_through', 'quiz_progress_built',
+          'lessons_today', 'lessons_day', 'exams_today', 'exam_pct_today', 'exams_day', 'days14']) {
+          const [cols] = await conn.execute<RowDataPacket[]>(
+            `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student_study_summary' AND COLUMN_NAME = ?`,
+            [column],
+          );
+          if (cols.length) await conn.query(`ALTER TABLE student_study_summary DROP COLUMN ${column}`);
+        }
+      });
+      // OPTIMIZE 10.29: the all-time exam totals are gone — exams taken, passed
+      // and the average marks come from quiz_marks (one byte per quiz).
+      // 2026-11-17: the university's country (from a list) and the university's
+      // name (typed), asked at sign-up and on the onboarding screen.
+      await step('users university country and name', async () => {
+        const [old] = await conn.execute<RowDataPacket[]>(
+          `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'country'`,
+        );
+        if (old.length) await conn.query('ALTER TABLE users CHANGE COLUMN country university_country VARCHAR(64) NULL');
+        await this.ensureColumn(conn, 'users', 'university_country', 'VARCHAR(64) NULL');
+        await this.ensureColumn(conn, 'users', 'university', 'VARCHAR(160) NULL');
+      });
+      // OPTIMIZE 10.37: flashcard progress is phone-only; the old per-card
+      // review table (frozen since 10.23) is dropped. Backup first.
+      await step('drop flashcard reviews table', async () => {
+        await conn.query('DROP TABLE IF EXISTS lesson_flashcard_reviews');
+      });
+      // OPTIMIZE 10.43: each question's options and theory recap move INTO the
+      // question row (options_json / recap_json, old column names kept, option
+      // ids kept). Every question is read back and compared field by field with
+      // the old rows; only when ALL match are the old tables dropped. Any
+      // mismatch stops here and changes nothing else.
+      await step('questions hold options and recap', async () => {
+        await this.ensureColumn(conn, 'questions', 'options_json', 'LONGTEXT NULL');
+        await this.ensureColumn(conn, 'questions', 'recap_json', 'LONGTEXT NULL');
+        const exists = async (table: string) => {
+          const [t] = await conn.execute<RowDataPacket[]>(
+            'SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', [table]);
+          return t.length > 0;
+        };
+        const hasOptions = await exists('question_options');
+        const hasRecaps = await exists('question_theory_recaps');
+        if (!hasOptions && !hasRecaps) return;
+        const recapCols = 'id, question_id, ' + RECAP_KEYS.join(', ') + ', created_at, updated_at';
+        const [idRows] = await conn.query<RowDataPacket[]>('SELECT id FROM questions ORDER BY id');
+        const ids = idRows.map((r) => Number(r.id));
+        const oldOptions = new Map<number, RowDataPacket[]>();
+        const oldRecaps = new Map<number, RowDataPacket>();
+        for (let i = 0; i < ids.length; i += 500) {
+          const part = ids.slice(i, i + 500);
+          const marks = part.map(() => '?').join(',');
+          if (hasOptions) {
+            const [o] = await conn.query<RowDataPacket[]>(
+              `SELECT id, question_id, option_label, option_text, is_correct, why_incorrect FROM question_options
+                WHERE question_id IN (${marks}) ORDER BY question_id, option_label, id`, part);
+            for (const row of o) {
+              const list = oldOptions.get(Number(row.question_id)) || [];
+              list.push(row);
+              oldOptions.set(Number(row.question_id), list);
+            }
+          }
+          if (hasRecaps) {
+            const [r] = await conn.query<RowDataPacket[]>(
+              `SELECT ${recapCols} FROM question_theory_recaps WHERE question_id IN (${marks}) ORDER BY id`, part);
+            for (const row of r) oldRecaps.set(Number(row.question_id), row);
+          }
+          for (const id of part) {
+            const opts = (oldOptions.get(id) || []).map((o) => ({
+              id: Number(o.id), option_label: String(o.option_label), option_text: o.option_text == null ? '' : String(o.option_text),
+              is_correct: Number(o.is_correct) === 1 ? 1 : 0, why_incorrect: o.why_incorrect == null ? null : String(o.why_incorrect),
+            }));
+            const rec = oldRecaps.get(id);
+            const recap = rec ? Object.fromEntries(
+              ['id', ...RECAP_KEYS, 'created_at', 'updated_at'].map((k) => [k, rec[k] instanceof Date ? (rec[k] as Date).toISOString() : (rec[k] ?? null)]),
+            ) : null;
+            await conn.execute('UPDATE questions SET options_json = ?, recap_json = ? WHERE id = ?',
+              [JSON.stringify(opts), recap ? JSON.stringify(recap) : null, id]);
+          }
+        }
+        // Read back and compare.
+        const [stored] = await conn.query<RowDataPacket[]>('SELECT id, options_json, recap_json FROM questions');
+        let mismatches = 0;
+        for (const row of stored) {
+          const id = Number(row.id);
+          const now = optionsOf(id, row.options_json);
+          const before = oldOptions.get(id) || [];
+          if (now.length !== before.length) { mismatches++; continue; }
+          for (let k = 0; k < now.length; k++) {
+            const b = before[k];
+            if (now[k].id !== Number(b.id) || now[k].option_label !== String(b.option_label)
+              || now[k].option_text !== (b.option_text == null ? '' : String(b.option_text))
+              || now[k].is_correct !== (Number(b.is_correct) === 1 ? 1 : 0)
+              || now[k].why_incorrect !== (b.why_incorrect == null ? null : String(b.why_incorrect))) { mismatches++; break; }
+          }
+          const rNow = recapOf(id, row.recap_json);
+          const rBefore = oldRecaps.get(id);
+          if (!!rNow !== !!rBefore) { mismatches++; continue; }
+          if (rNow && rBefore) {
+            for (const k of ['id', ...RECAP_KEYS]) {
+              const a1 = (rNow as any)[k]; const b1 = rBefore[k];
+              if (String(a1 ?? '') !== String(b1 ?? '')) { mismatches++; break; }
+            }
+          }
+        }
+        const oldOptionTotal = [...oldOptions.values()].reduce((n, l) => n + l.length, 0);
+        if (mismatches > 0) {
+          throw new Error(`question content move: ${mismatches} question(s) differ — old tables kept, nothing dropped`);
+        }
+        this.logger.log(`Question content moved and verified: ${stored.length} questions, ${oldOptionTotal} options, ${oldRecaps.size} recaps.`);
+        // Foreign keys pointing at the old tables (student_answers.option_id →
+        // question_options) go first; the option_id column stays, ids are kept.
+        const [fks] = await conn.execute<RowDataPacket[]>(
+          `SELECT DISTINCT TABLE_NAME AS t, CONSTRAINT_NAME AS c FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IN ('question_options', 'question_theory_recaps')
+              AND TABLE_NAME NOT IN ('question_options', 'question_theory_recaps')`,
+        );
+        for (const fk of fks) {
+          await conn.query(`ALTER TABLE \`${fk.t}\` DROP FOREIGN KEY \`${fk.c}\``);
+        }
+        await conn.query('DROP TABLE IF EXISTS question_options');
+        await conn.query('DROP TABLE IF EXISTS question_theory_recaps');
+      });
+      // OPTIMIZE 10.42: lessons.lesson_content — the first lesson system's text,
+      // written by old saves, never read (the lesson is note_data; the source is raw_text).
+      await step('drop lessons.lesson_content', async () => {
+        const [cols] = await conn.execute<RowDataPacket[]>(
+          `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lessons' AND COLUMN_NAME = 'lesson_content'`,
+        );
+        if (cols.length) await conn.query('ALTER TABLE lessons DROP COLUMN lesson_content');
+      });
+      // OPTIMIZE 10.37 audit: tables no code uses (notices moved to the JSON
+      // feed; the old practice / doubts / review-queue features were replaced).
+      // Backup: ~/Desktop/lms-backups/unused-tables-before-10.37-*.sql.
+      await step('drop unused tables', async () => {
+        for (const table of ['announcement_reads', 'notification_dismissals', 'question_review_items',
+          'lesson_doubts', 'practice_answers', 'practice_sessions', // answers first: FK to sessions
+          'content_audit_events', 'admin_audit_events', // written, never read (111 MB)
+          'content_versions', 'content_workflow_states', // 10.39: never read (≈60 MB)
+          'announcements', // 10.40: announcements live in the JSON notices / popups files
+          'smart_notes', 'account_deletion_audit', // 10.41: old feature; no deletion record kept (user)
+          'lesson_annotations', 'push_subscriptions', 'question_keyword_map']) { // 10.42: unused / never read
+          await conn.query(`DROP TABLE IF EXISTS \`${table}\``);
+        }
+      });
+      // OPTIMIZE 10.30: today's 4 goals are counted on the phone; the day counts
+      // when its day-done mark rides along (last_active_day), so no goal bits.
+      await step('drop today bits', async () => {
+        for (const column of ['today_bits', 'today_day']) {
+          const [cols] = await conn.execute<RowDataPacket[]>(
+            `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student_study_summary' AND COLUMN_NAME = ?`,
+            [column],
+          );
+          if (cols.length) await conn.query(`ALTER TABLE student_study_summary DROP COLUMN ${column}`);
+        }
+      });
+      await step('drop exam totals', async () => {
+        for (const column of ['attempts_total', 'passed_total', 'percentage_sum']) {
+          const [cols] = await conn.execute<RowDataPacket[]>(
+            `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student_study_summary' AND COLUMN_NAME = ?`,
+            [column],
+          );
+          if (cols.length) await conn.query(`ALTER TABLE student_study_summary DROP COLUMN ${column}`);
+        }
+      });
+      await step('question_quizzes quiz order index', () =>
+        this.ensureIndex(conn, 'question_quizzes', 'idx_question_quizzes_quiz_sort_question', 'quiz_id, sort_order, question_id'));
+      // OPTIMIZE 10.23 F6: whether the student has old (server-side) flashcard
+      // review history, so the app imports it only when there is some. Read
+      // with the summary row the start-up request already reads.
+      // OPTIMIZE 10.24: a student's active subscription found directly (sign-in,
+      // token renewal): examined = returned instead of every subscription row.
+      await step('subscriptions by user, status and end date', async () => {
+        await this.ensureIndex(conn, 'user_subscriptions', 'idx_user_subscriptions_user_status_end', 'user_id, status, end_date');
+      });
+      await step('quiz content stamp', async () => {
+        await this.ensureColumn(conn, 'quizzes', 'content_stamp', 'INT UNSIGNED NOT NULL DEFAULT 1');
+      });
+      await step('flashcard history flag in the summary row', async () => {
+        await this.ensureStudyStatsTables(conn);
+        const added = await this.ensureColumn(conn, 'student_study_summary', 'flash_history', 'TINYINT(1) NOT NULL DEFAULT 0');
+        void added; // 10.37: the review table is gone, nothing to back-fill
+      });
+      // OPTIMIZE 10.12: the whole planner is ONE row per student (category
+      // 'plan', items in rule_json), found by the UNIQUE plan_owner key. Old
+      // per-item rows keep plan_owner NULL; they are folded in once and kept.
+      await step('planner one row', async () => {
+        await this.ensureStudyPlannerTasksTable(conn);
+        await this.ensureColumn(conn, 'study_planner_tasks', 'item_type', 'VARCHAR(16) NULL');
+        await this.ensureColumn(conn, 'study_planner_tasks', 'item_id', 'INT NULL');
+        await this.ensureColumn(conn, 'study_planner_tasks', 'rule_json', 'TEXT NULL');
+        const [cols] = await conn.execute<RowDataPacket[]>(
+          `SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'study_planner_tasks' AND COLUMN_NAME IN ('category', 'rule_json')`,
+        );
+        const type = (name: string) => String(cols.find((c) => c.COLUMN_NAME === name)?.COLUMN_TYPE || '').toLowerCase();
+        if (!type('category').includes("'plan'")) {
+          await conn.execute(
+            "ALTER TABLE study_planner_tasks MODIFY category ENUM('general','lesson','quiz','exam','review','flashcards','plan') NOT NULL DEFAULT 'general'",
+          );
+        }
+        if (type('rule_json') !== 'mediumtext') {
+          await conn.execute('ALTER TABLE study_planner_tasks MODIFY rule_json MEDIUMTEXT NULL');
+        }
+        const addedOwner = await this.ensureColumn(conn, 'study_planner_tasks', 'plan_owner',
+          "INT GENERATED ALWAYS AS (IF(category = 'plan', user_id, NULL)) PERSISTENT");
+        const [idx] = await conn.execute<RowDataPacket[]>(
+          `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'study_planner_tasks' AND INDEX_NAME = 'uniq_planner_plan_owner' LIMIT 1`,
+        );
+        if (!idx.length) await conn.execute('ALTER TABLE study_planner_tasks ADD UNIQUE KEY uniq_planner_plan_owner (plan_owner)');
+        if (addedOwner) await foldPlannerRows(conn);
+      });
+      // OPTIMIZE 10.40: old per-item planner rows (folded into the student's
+      // one plan row above; never read) and exam sessions that a newer session
+      // of the same exam replaced (only the latest per student + exam is read).
+      // Runs after the fold, and only for students who have their plan row.
+      await step('planner old rows and old exam sessions', async () => {
+        await conn.query(
+          `DELETE t FROM study_planner_tasks t
+             JOIN study_planner_tasks p ON p.user_id = t.user_id AND p.category = 'plan'
+            WHERE t.category <> 'plan'`,
+        );
+      });
+      // OPTIMIZE 10.44: tables the new app and website never use — the old
+      // exam flow (attempts, per-option answers, server-side exam sessions:
+      // exams are on the progress row since 10.16), server bookmarks (on the
+      // device since 10.25) and an empty migrations table. Foreign keys that
+      // point at them go first.
+      await step('drop old exam, bookmark and migration tables', async () => {
+        const OLD = ['student_answers', 'exam_sessions', 'quiz_attempts', 'study_bookmarks', 'schema_migrations'];
+        const marks = OLD.map(() => '?').join(', ');
+        const [fks] = await conn.execute<RowDataPacket[]>(
+          `SELECT DISTINCT TABLE_NAME AS t, CONSTRAINT_NAME AS c FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IN (${marks}) AND TABLE_NAME NOT IN (${marks})`,
+          [...OLD, ...OLD],
+        );
+        for (const fk of fks) await conn.query(`ALTER TABLE \`${fk.t}\` DROP FOREIGN KEY \`${fk.c}\``);
+        for (const table of OLD) await conn.query(`DROP TABLE IF EXISTS \`${table}\``);
+      });
+      // OPTIMIZE 10.47: which content pieces a question lacks, as one STORED
+      // generated flag column with an index, for the admin "Missing content"
+      // filters (they scanned and parsed every question before).
+      await step('questions missing-content flags', async () => {
+        const [cols] = await conn.execute<RowDataPacket[]>(
+          `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'questions' AND COLUMN_NAME = 'missing_mask'`,
+        );
+        if (!cols.length) {
+          await conn.query(
+            `ALTER TABLE questions ADD COLUMN missing_mask TINYINT UNSIGNED AS (${sqlMissingMaskExpression()}) STORED`,
+          );
+        }
+        await this.ensureIndex(conn, 'questions', 'idx_questions_missing_mask', 'missing_mask, id');
+      });
+      // OPTIMIZE 10.54: set columns no set used, and question keywords (option C).
+      // The server now answers with the fixed values these columns held, so the
+      // phone app and websites see the same replies. The old two-column title
+      // index goes; admin search uses the one-column index from the step above.
+      await step('drop unused set columns and question keywords', async () => {
+        const [idx] = await conn.execute<RowDataPacket[]>(
+          `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'quizzes' AND INDEX_NAME = 'ft_quizzes_titles' LIMIT 1`,
+        );
+        if (idx.length) await conn.query('ALTER TABLE quizzes DROP INDEX ft_quizzes_titles');
+        const DROP = ['lesson_id', 'paper_id', 'collection_tags', 'subtopic', 'quiz_description', 'blueprint_json',
+          'randomization_mode', 'quiz_mode', 'display_title_mode', 'exam_mode_only', 'hide_time_limit',
+          'hide_passing_marks', 'show_theory_recap_in_exam', 'admin_name', 'student_title'];
+        const [cols] = await conn.execute<RowDataPacket[]>(
+          `SELECT COLUMN_NAME AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'quizzes' AND COLUMN_NAME IN (${DROP.map(() => '?').join(', ')})`,
+          DROP,
+        );
+        if (cols.length) await conn.query(`ALTER TABLE quizzes ${cols.map((r) => `DROP COLUMN \`${r.c}\``).join(', ')}`);
+        await this.ensureFulltextIndex(conn, 'quizzes', 'ft_quizzes_title', 'quiz_title');
+        const [kw] = await conn.execute<RowDataPacket[]>(
+          `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'questions' AND COLUMN_NAME = 'keywords_text' LIMIT 1`,
+        );
+        if (kw.length) await conn.query('ALTER TABLE questions DROP COLUMN keywords_text');
+        await conn.query('DROP TABLE IF EXISTS question_keywords');
+      });
+      // OPTIMIZE 10.54: random sets were removed, so their plan feature goes too
+      // ("Dynamic quiz randomization" was listed on one plan).
+      await step('drop dynamic quiz randomization plan feature', async () => {
+        await conn.query(
+          `DELETE spf FROM subscription_plan_features spf
+             JOIN subscription_features sf ON sf.id = spf.feature_id
+            WHERE sf.feature_key = 'dynamic_quiz_randomization'`,
+        );
+        await conn.query(`DELETE FROM subscription_features WHERE feature_key = 'dynamic_quiz_randomization'`);
+      });
       if (failed === 0) {
         await step('record critical_schema_version', () => conn.execute(
           `INSERT INTO system_settings (setting_key, setting_value) VALUES ('critical_schema_version', ?)
@@ -916,97 +1098,6 @@ export class SchemaSyncService implements OnModuleInit {
     } finally {
       connection.release();
     }
-  }
-
-  /// Makes lessons.sort_order a FLAT order across the whole course.
-  ///
-  /// It used to be scoped per group — the admin list renumbered each subtopic's
-  /// lessons from 10 independently — so a course had many lessons sharing
-  /// sort_order 10, and the only thing keeping the list stable was ordering by
-  /// topic and subtopic first. That is exactly what made a topic un-movable:
-  /// its lessons were welded into a block by the sort itself, so no value could
-  /// place the group between two other lessons.
-  ///
-  /// Renumbering is done in the order the lists CURRENTLY produce, so nothing
-  /// appears to move when this first runs; only the ability to reorder changes.
-  ///
-  /// Runs exactly ONCE, recorded in system_settings.
-  ///
-  /// The first version guarded itself by looking for duplicate sort_order
-  /// values, on the reasoning that renumbering removes them. That is true but
-  /// not safe: this renumbers in TOPIC order, so if anything ever reintroduced
-  /// a duplicate — a newly created lesson, an import — the next boot would
-  /// re-group the whole course and silently undo exactly the manual arrangement
-  /// the flat order exists to allow. A conversion that destroys hand-placed
-  /// ordering must not be able to run twice.
-  private async flattenLessonSortOrder(connection: PoolConnection) {
-    // Ensured here rather than trusted: this step runs unconditionally, while
-    // the table itself is created behind the full schema sync, which prod skips.
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS system_settings (
-        setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
-        setting_value TEXT NULL,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
-    const [done] = await connection.execute<RowDataPacket[]>(
-      `SELECT setting_value FROM system_settings WHERE setting_key = 'lessons_sort_order_flattened' LIMIT 1`,
-    );
-    if (done.length) return;
-
-    const [dupes] = await connection.execute<RowDataPacket[]>(`
-      SELECT COALESCE(course_id, 0) AS course_key
-      FROM lessons
-      GROUP BY COALESCE(course_id, 0), sort_order
-      HAVING COUNT(*) > 1`);
-    const courseKeys = Array.from(new Set(dupes.map((r) => Number(r.course_key))));
-    // Marked even with nothing to convert — a fresh database is already flat,
-    // and the mark is what stops this looking at the data again.
-    await connection.execute(
-      `INSERT INTO system_settings (setting_key, setting_value) VALUES ('lessons_sort_order_flattened', ?)
-       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-      [new Date().toISOString()],
-    );
-    if (!courseKeys.length) return;
-
-    for (const courseKey of courseKeys) {
-      const [rows] = await connection.execute<RowDataPacket[]>(`
-        SELECT l.id
-        FROM lessons l
-        LEFT JOIN topics t ON t.id = l.topic_id
-        LEFT JOIN subtopics s ON s.id = l.subtopic_id
-        WHERE COALESCE(l.course_id, 0) = ?
-        ORDER BY t.sort_order ASC, s.sort_order ASC, l.sort_order ASC, l.id ASC`,
-        [courseKey]);
-      for (let i = 0; i < rows.length; i += 1) {
-        await connection.execute(
-          `UPDATE lessons SET sort_order = ? WHERE id = ?`,
-          [(i + 1) * 10, Number(rows[i].id)],
-        );
-      }
-    }
-    this.logger.log(`Flattened lesson order for ${courseKeys.length} course(s).`);
-  }
-
-  /// Per-user "I have cleared this" marks.
-  ///
-  /// The key is the notification's own id as the list hands it out, which is a
-  /// number for an announcement but a string for the derived subscription and
-  /// weak-topic items ("subscription-active-2026-01-01"). One VARCHAR holds
-  /// both, so clearing works the same for every row in the list — and a derived
-  /// item whose underlying state later changes gets a new key and correctly
-  /// comes back.
-  private async ensureNotificationDismissalsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS notification_dismissals (
-        id               INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id          INT NOT NULL,
-        notification_key VARCHAR(190) NOT NULL,
-        created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_notification_dismissal (user_id, notification_key),
-        INDEX idx_notification_dismissals_user (user_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
   }
 
   private async ensureOsceTables(connection: PoolConnection) {
@@ -1137,67 +1228,6 @@ export class SchemaSyncService implements OnModuleInit {
       'TINYINT(1) NOT NULL DEFAULT 0 AFTER seen_json');
 
     await connection.execute('DROP TABLE IF EXISTS osce_systems').catch(() => undefined);
-  }
-
-  private async ensureContentGovernanceTables(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS content_audit_events (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        entity_type VARCHAR(40) NOT NULL,
-        entity_id INT NOT NULL,
-        action VARCHAR(60) NOT NULL,
-        actor_id INT NULL,
-        summary VARCHAR(255) NOT NULL,
-        before_json JSON NULL,
-        after_json JSON NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_content_audit_created (created_at)
-      )
-    `);
-
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS content_versions (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        entity_type VARCHAR(40) NOT NULL,
-        entity_id INT NOT NULL,
-        version_number INT NOT NULL,
-        snapshot_json JSON NOT NULL,
-        created_by INT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_content_versions_entity_version (entity_type, entity_id, version_number)
-      )
-    `);
-
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS content_workflow_states (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        entity_type VARCHAR(40) NOT NULL,
-        entity_id INT NOT NULL,
-        workflow_state ENUM('draft','in_review','published','archived') NOT NULL DEFAULT 'draft',
-        updated_by INT NULL,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_content_workflow_entity (entity_type, entity_id),
-        INDEX idx_content_workflow_state (workflow_state)
-      )
-    `);
-  }
-
-  private async ensureAdminAuditEventsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS admin_audit_events (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        event_type VARCHAR(80) NOT NULL,
-        actor_id INT NULL,
-        target_type VARCHAR(80) NULL,
-        target_id INT NULL,
-        summary VARCHAR(255) NOT NULL,
-        metadata_json JSON NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_admin_audit_actor (actor_id),
-        INDEX idx_admin_audit_event_type (event_type),
-        INDEX idx_admin_audit_created (created_at)
-      )
-    `);
   }
 
   private async ensureSystemSettingsTable(connection: PoolConnection) {
@@ -1349,27 +1379,6 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
-  private async ensureSmartNotesTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS smart_notes (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        title VARCHAR(255) NOT NULL DEFAULT 'Untitled Note',
-        raw_text LONGTEXT NULL,
-        processed_qa JSON NULL,
-        infographic_elements JSON NULL,
-        representative_image_data LONGTEXT NULL,
-        representative_image_prompt TEXT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_smart_notes_user (user_id)
-      )
-    `);
-
-    await this.ensureColumn(connection, 'smart_notes', 'representative_image_data', 'LONGTEXT NULL AFTER infographic_elements');
-    await this.ensureColumn(connection, 'smart_notes', 'representative_image_prompt', 'TEXT NULL AFTER representative_image_data');
-  }
-
   private async ensureLessonFlashcardsTable(connection: PoolConnection) {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS lesson_flashcards (
@@ -1393,87 +1402,6 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
-  // Per-user FSRS scheduling state for flashcards. ONE row per (user_id, card_id):
-  // current memory state for fast queue/due queries, plus an append-only review
-  // history in log_json (for undo + later FSRS weight re-optimization). Card
-  // CONTENT stays in lesson_flashcards — this table is purely per-user progress.
-  private async ensureLessonFlashcardReviewsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS lesson_flashcard_reviews (
-        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        card_id INT NOT NULL,
-        state TINYINT NOT NULL DEFAULT 0,
-        due DATETIME NOT NULL,
-        stability DOUBLE NOT NULL DEFAULT 0,
-        difficulty DOUBLE NOT NULL DEFAULT 0,
-        elapsed_days INT NOT NULL DEFAULT 0,
-        scheduled_days INT NOT NULL DEFAULT 0,
-        reps INT NOT NULL DEFAULT 0,
-        lapses INT NOT NULL DEFAULT 0,
-        learning_steps INT NOT NULL DEFAULT 0,
-        last_review DATETIME NULL,
-        suspended TINYINT(1) NOT NULL DEFAULT 0,
-        buried TINYINT(1) NOT NULL DEFAULT 0,
-        log_json LONGTEXT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uq_flashcard_review_user_card (user_id, card_id),
-        INDEX idx_flashcard_review_user_due (user_id, due),
-        INDEX idx_flashcard_review_user_state (user_id, state),
-        INDEX idx_flashcard_review_card (card_id)
-      )
-    `);
-  }
-
-  private async ensureQuestionTheoryRecapsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS question_theory_recaps (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        question_id INT NOT NULL,
-        concept_name VARCHAR(255) NULL,
-        hierarchy_course VARCHAR(255) NULL,
-        hierarchy_subject VARCHAR(255) NULL,
-        hierarchy_topic VARCHAR(255) NULL,
-        hierarchy_lesson VARCHAR(255) NULL,
-        etiology JSON NULL,
-        pathophysiology JSON NULL,
-        clinical_features JSON NULL,
-        investigations JSON NULL,
-        treatment JSON NULL,
-        key_points JSON NULL,
-        mnemonic TEXT NULL,
-        generated_by ENUM('ai', 'manual') NOT NULL DEFAULT 'ai',
-        reviewed_status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_question_theory_recaps_question_id (question_id),
-        INDEX idx_question_theory_recaps_reviewed_status (reviewed_status)
-      )
-    `);
-  }
-
-  private async ensureQuestionKeywordsTables(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS question_keywords (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        keyword_name VARCHAR(191) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_question_keywords_keyword_name (keyword_name)
-      )
-    `);
-
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS question_keyword_map (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        question_id INT NOT NULL,
-        keyword_id INT NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_question_keyword_map_question_keyword (question_id, keyword_id),
-        INDEX idx_question_keyword_map_question_id (question_id)
-      )
-    `);
-  }
 
   private async ensureSubscriptionFeaturesTables(connection: PoolConnection) {
     await connection.execute(`
@@ -1551,69 +1479,34 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
-  /// Fills `access_expires_at` for Apple subscriptions created before the
-  /// column existed, from the exact timestamp already stored on the
-  /// transaction. Only touches rows where it is still NULL, so it never
-  /// overwrites a value the live flow has written, and only Apple rows, so
-  /// nothing manual is given an artificial deadline.
-  /// Minimal record that an account was deleted.
-  ///
-  /// DELIBERATELY HOLDS NO PERSONAL DATA. No name, no email, no profile, no
-  /// learning records — copying those into a permanent archive would mean the
-  /// deletion never happened, which is the opposite of what the user asked for
-  /// and what Apple's 5.1.1(v) and data-protection law require.
-  ///
-  /// `email_hash` is an HMAC, not the address: it answers "has this address
-  /// been deleted before?" for a specific address someone supplies, and cannot
-  /// be read back into a list of addresses. That is what makes it safe to keep,
-  /// and it is the standard way to support abuse prevention and subscription
-  /// recovery after erasure.
-  private async ensureXpTables(connection: PoolConnection) {
-    // One row per reward. The unique key is what stops a reward being paid
-    // twice; `day` is the calendar day it was earned, for the daily limit.
+  /**
+   * OPTIMIZE 10.28: a student's progress has ONE home — this row. Every
+   * student starts fresh; the old per-student tables (activity log, daily
+   * rows, per-quiz / per-lesson rows, topic stats, XP log) are not created.
+   */
+  private async ensureStudyStatsTables(connection: PoolConnection) {
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS xp_events (
-        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        event_type VARCHAR(32) NOT NULL,
-        ref_id BIGINT NOT NULL DEFAULT 0,
-        xp INT NOT NULL,
-        day DATE NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_xp_event (user_id, event_type, ref_id),
-        KEY idx_xp_user_day (user_id, day)
-      )
-    `);
-    // The running total, so the dashboard reads one row instead of adding up.
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS student_xp (
+      CREATE TABLE IF NOT EXISTS student_study_summary (
         user_id INT NOT NULL PRIMARY KEY,
-        total_xp INT NOT NULL DEFAULT 0,
+        streak INT NOT NULL DEFAULT 0,
+        last_active_day DATE NULL,
+        streak_forgiven_day DATE NULL,
+        streak_after_forgiven INT NOT NULL DEFAULT 0,
+        xp_total INT NOT NULL DEFAULT 0,
+        xp_today INT NOT NULL DEFAULT 0,
+        xp_day DATE NULL,
+        streak_xp_day DATE NULL,
+        streak7_paid TINYINT NOT NULL DEFAULT 0,
+        streak30_paid TINYINT NOT NULL DEFAULT 0,
+        lessons_done BLOB NULL,
+        progress_version INT NOT NULL DEFAULT 0,
+        quiz_marks BLOB NULL,
+        recent_results MEDIUMTEXT NULL,
+        exam_nonce VARCHAR(32) NULL,
+        exam_quiz_id INT NULL,
+        practice_seq INT UNSIGNED NOT NULL DEFAULT 0,
+        flash_history TINYINT(1) NOT NULL DEFAULT 0,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
-    // When a student last opened each lesson: the start of the 60 second
-    // check before completing it pays XP.
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS lesson_opens (
-        user_id INT NOT NULL,
-        lesson_id INT NOT NULL,
-        last_opened_at DATETIME NOT NULL,
-        PRIMARY KEY (user_id, lesson_id)
-      )
-    `);
-  }
-
-  private async ensureAccountDeletionAuditTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS account_deletion_audit (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        email_hash CHAR(64) NULL,
-        reason VARCHAR(40) NOT NULL DEFAULT 'self_service',
-        deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_account_deletion_user (user_id),
-        INDEX idx_account_deletion_hash (email_hash)
       )
     `);
   }
@@ -1834,55 +1727,6 @@ export class SchemaSyncService implements OnModuleInit {
     }
   }
 
-  private async backfillQuestionKeywordMaps(connection: PoolConnection) {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `
-        SELECT id, keywords_text
-        FROM questions
-        WHERE keywords_text IS NOT NULL AND TRIM(keywords_text) <> ''
-      `
-    );
-
-    for (const row of rows) {
-      const keywords = this.parseKeywordList(String(row.keywords_text || ''));
-      if (keywords.length === 0) {
-        continue;
-      }
-
-      for (const keyword of keywords) {
-        await connection.execute(
-          'INSERT IGNORE INTO question_keywords (keyword_name) VALUES (?)',
-          [keyword]
-        );
-
-        const [keywordRows] = await connection.execute<RowDataPacket[]>(
-          'SELECT id FROM question_keywords WHERE keyword_name = ? LIMIT 1',
-          [keyword]
-        );
-
-        if (!keywordRows[0]) {
-          continue;
-        }
-
-        await connection.execute(
-          'INSERT IGNORE INTO question_keyword_map (question_id, keyword_id) VALUES (?, ?)',
-          [Number(row.id), Number(keywordRows[0].id)]
-        );
-      }
-    }
-  }
-
-  private parseKeywordList(raw: string) {
-    return Array.from(
-      new Set(
-        raw
-          .split(',')
-          .map((keyword) => keyword.trim())
-          .filter(Boolean)
-      )
-    );
-  }
-
   private parseFeatureArray(raw: string) {
     try {
       const parsed = raw ? JSON.parse(raw) : [];
@@ -2019,6 +1863,20 @@ export class SchemaSyncService implements OnModuleInit {
 
     await connection.execute(`ALTER TABLE ${table} ADD INDEX ${index} (${columns})`);
     this.logger.log(`Added index ${indexName} on ${tableName}.${columnNames}`);
+  }
+
+  private async ensureFulltextIndex(connection: PoolConnection, tableName: string, indexName: string, columnNames: string) {
+    const table = sqlIdentifier(tableName, undefined, 'schema table');
+    const index = sqlIdentifier(indexName, undefined, 'schema index');
+    const columns = columnNames.split(',').map((c) => sqlIdentifier(c.trim(), undefined, 'schema column')).join(', ');
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ? LIMIT 1`,
+      [tableName, indexName]
+    );
+    if (rows.length > 0) return;
+    await connection.execute(`ALTER TABLE ${table} ADD FULLTEXT ${index} (${columns})`);
+    this.logger.log(`Added FULLTEXT index ${indexName} on ${tableName}.${columnNames}`);
   }
 
   private async ensureUniqueIndex(connection: PoolConnection, tableName: string, indexName: string, columnNames: string) {

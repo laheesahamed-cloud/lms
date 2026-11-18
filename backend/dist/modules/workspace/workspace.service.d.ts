@@ -1,3 +1,4 @@
+import { NoticesService } from '../notices/notices.service';
 import { Pool } from 'mysql2/promise';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
@@ -36,57 +37,57 @@ export declare class WorkspaceService {
     private readonly authService;
     private readonly plansService;
     private readonly pushNotificationsService;
-    constructor(db: Pool, authService: AuthService, plansService: PlansService, pushNotificationsService: PushNotificationsService);
-    listAdminAnnouncements(authorization?: string): Promise<{
-        id: number;
-        title: string;
-        body: string;
-        targetRole: string;
-        status: string;
-        publishAt: any;
-        createdByName: string;
-        createdAt: any;
-        updatedAt: any;
-    }[]>;
+    private readonly notices;
+    constructor(db: Pool, authService: AuthService, plansService: PlansService, pushNotificationsService: PushNotificationsService, notices: NoticesService);
+    listAdminAnnouncements(authorization?: string, _after?: number): Promise<{
+        items: {
+            id: number;
+            style: "card" | "banner";
+            title: string;
+            body: string;
+            imageUrl: string;
+            actionLabel: string;
+            actionPath: string;
+            startAt: string | null;
+            endAt: string | null;
+            priority: number;
+            audience: import("../notices/notices.service").Audience;
+            targetRole: import("../notices/notices.service").Audience;
+            status: "active" | "draft";
+            createdAt: string;
+            updatedAt: string;
+        }[];
+        next: null;
+    }>;
     createAnnouncement(authorization: string | undefined, input: any): Promise<{
         ok: boolean;
         id: number;
+        overlapping: number;
     }>;
     updateAnnouncement(authorization: string | undefined, id: number, input: any): Promise<{
         ok: boolean;
         id: number;
+        overlapping: number;
     }>;
     deleteAnnouncement(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
     }>;
-    listNotifications(authorization?: string): Promise<({
-        kind: string;
-        read: boolean;
-        actionPath: string;
+    private overlappingPopups;
+    private mapPopup;
+    listNotifications(authorization?: string): Promise<{
         id: number;
-        title: string;
-        body: string;
-        targetRole: string;
-        status: string;
-        publishAt: any;
-        createdByName: string;
-        createdAt: any;
-        updatedAt: any;
-    } | {
-        id: string;
         kind: string;
         title: string;
         body: string;
+        targetRole: import("../notices/notices.service").Audience;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
         read: boolean;
-        createdAt: any;
         actionPath: string;
-    })[]>;
-    private loadDismissedKeys;
+    }[]>;
     dismissNotification(authorization: string | undefined, key: string): Promise<{
-        ok: boolean;
-        key?: undefined;
-    } | {
         ok: boolean;
         key: string;
     }>;
@@ -98,12 +99,13 @@ export declare class WorkspaceService {
         ok: boolean;
         marked: number;
     }>;
-    private formatPaymentStatusLabel;
-    private isFreePlanPaymentStatus;
     markNotificationRead(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
     }>;
+    private planItems;
+    private sortPlanItems;
+    private static readonly ITEM_PATH;
     listPlannerTasks(authorization?: string): Promise<{
         id: number;
         title: string;
@@ -113,11 +115,11 @@ export declare class WorkspaceService {
         category: PlannerTaskCategory;
         itemType: string | null;
         itemId: number | null;
-        rule: any;
+        rule: Record<string, unknown> | null;
         priority: PlannerTaskPriority;
         estimatedMinutes: number | null;
-        createdAt: any;
-        updatedAt: any;
+        createdAt: string | null;
+        updatedAt: string | null;
     }[]>;
     getPlannerAgenda(authorization?: string): Promise<{
         generatedAt: string;
@@ -136,6 +138,8 @@ export declare class WorkspaceService {
             total: number;
         };
     }>;
+    private plannerItemFrom;
+    private appendPlanItems;
     createPlannerTask(authorization: string | undefined, input: any): Promise<{
         ok: boolean;
         id: number;
@@ -275,21 +279,20 @@ export declare class WorkspaceService {
     private logAdminAuditEvent;
     private normalizeAdminReportFilters;
     private appendDateFilter;
-    private appendActivityDateFilter;
+    private lessonBitmapStats;
     private appendUserFilter;
     private appendCourseFilter;
     private optionalPositiveInteger;
-    private normalizeAnnouncementInput;
     private requiredString;
     private optionalString;
     private optionalDate;
     private normalizePlannerTaskCategory;
     private normalizePlannerTaskPriority;
     private optionalPlannerEstimatedMinutes;
-    private mapAnnouncement;
     private normalizePlannerItemLink;
     private normalizePlannerRule;
     private parsePlannerRule;
+    private mapPlannerItem;
     private mapPlannerTask;
     private mapQuestionReport;
 }

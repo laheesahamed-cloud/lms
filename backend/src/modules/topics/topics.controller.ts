@@ -31,11 +31,6 @@ export class TopicsController {
     return this.topicsService.create(createTopicDto, actor);
   }
 
-  @Patch('reorder')
-  reorder(@Body('orderedIds') orderedIds: number[]) {
-    return this.topicsService.reorder(Array.isArray(orderedIds) ? orderedIds.map(Number) : []);
-  }
-
   @Patch(':id')
   async update(
     @Headers('authorization') authorization: string | undefined,

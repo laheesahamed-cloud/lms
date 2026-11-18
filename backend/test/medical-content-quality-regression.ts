@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import { signExamToken, verifyExamToken } from '../src/common/auth/exam-token';
 import { QuizAttemptsService } from '../src/modules/quiz-attempts/quiz-attempts.service';
 
 const service = new QuizAttemptsService({} as any, {} as any, {} as any) as any;
@@ -91,16 +92,12 @@ function testScaledScoringAndReviewPayload() {
 }
 
 function testTimerIntegrity() {
-  assert.equal(
-    service.isExamSessionExpired({ deadline_at: new Date(Date.now() - 1000) }),
-    true,
-    'past exam deadline must be expired'
-  );
-  assert.equal(
-    service.isExamSessionExpired({ deadline_at: new Date(Date.now() + 60_000) }),
-    false,
-    'future exam deadline must remain active'
-  );
+  // OPTIMIZE 10.44: the exam deadline travels in the signed exam token (no
+  // server-side session row): a token long past its deadline is refused.
+  const claims = (d: number) => ({ u: 100, q: 501, n: 'nonce', s: Date.now() - 1000, d, ids: [1, 2] });
+  assert(verifyExamToken(signExamToken(claims(Date.now() + 60_000)), 100, 501), 'a token before its deadline must be accepted');
+  assert.equal(verifyExamToken(signExamToken(claims(Date.now() - 60 * 60_000)), 100, 501), null, 'a token an hour past its deadline must be refused');
+  assert.equal(verifyExamToken(signExamToken(claims(Date.now() + 60_000)), 200, 501), null, 'another student cannot use the token');
 }
 
 function testSubmittedAnswerNormalization() {

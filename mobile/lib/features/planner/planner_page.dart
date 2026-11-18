@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:go_router/go_router.dart';
 
+import '../../state/catalogue.dart';
+import '../../state/saved_first.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/study_reminders.dart';
@@ -24,7 +26,6 @@ import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
 import '../../data/api_client.dart';
 import '../../data/app_error.dart';
-import '../../state/saved_first.dart';
 import '../../widgets/adaptive_sheet.dart';
 import '../../widgets/status_tick.dart';
 import '../../widgets/time_wheel.dart';
@@ -323,9 +324,16 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     // subscriber on each open, then vanish when the answer arrived. `.value`
     // also keeps the last answer during a refresh, so a refresh after the app
     // resumes does not bring the flash back. The real gate is _ensureSubscribed.
-    final billing = ref.watch(billingProvider);
-    final showPro =
-        billing.hasValue && billing.value?.current?.isPaid != true;
+    // 10.19: "paid plan" from the progress the app already holds (0
+    // requests); /subscriptions/me only as a fallback for an older server.
+    final paidPlan = ref.watch(studentProgressProvider).value?.paidPlan;
+    final bool showPro;
+    if (paidPlan != null) {
+      showPro = !paidPlan;
+    } else {
+      final billing = ref.watch(billingProvider);
+      showPro = billing.hasValue && billing.value?.current?.isPaid != true;
+    }
     final total = tasks.length;
     final doneCount = tasks.where((t) => t.done).length;
 
@@ -627,14 +635,20 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Column(
-                    children: [
-                      Text(label,
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w800, color: c.inkStrong)),
-                      Text('$done of ${tasks.length} done',
-                          style: TextStyle(fontSize: 10.5, color: c.inkMuted)),
-                    ],
+                  // Flexible + one line: a long course name used to run past
+                  // the screen edge (the pill has no width of its own).
+                  Flexible(
+                    child: Column(
+                      children: [
+                        Text(label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w800, color: c.inkStrong)),
+                        Text('$done of ${tasks.length} done',
+                            style: TextStyle(fontSize: 10.5, color: c.inkMuted)),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 6),
                   AnimatedRotation(
@@ -783,15 +797,16 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     if (!mounted) return;
 
     // The fold is done. Show the empty planner NOW; the server may still be
-    // working through the deletes (on a server without the one-request clear it
-    // is hundreds of them), and the student should not sit watching that.
+    // working through the deletes, and the student should not sit watching.
     setState(() {
       _newTaskIds.clear();
       _resetting = false;
       _clearedLocally = true;
-      // Progress only if the server is still working once the fold is over, so
-      // the fold, the progress and the empty planner follow one after another.
-      _clearing = !requestDone;
+    });
+    // The progress card only when the server is really slow: shown at once it
+    // blinked on and off for the usual one-request clear.
+    final slow = Timer(const Duration(milliseconds: 600), () {
+      if (mounted && !requestDone) setState(() => _clearing = true);
     });
 
     Object? failure;
@@ -800,17 +815,25 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     } catch (e) {
       failure = e;
     }
+    slow.cancel();
+    // Swap in the new list BEFORE dropping the local "cleared" view. Dropping
+    // it first showed the old tasks again for a moment (the list had not been
+    // re-read yet), then the empty planner: the flash after Clear all.
+    try {
+      if (failure == null) {
+        await seedSaved('planner', const <Object>[]); // cleared: nothing left, no re-read
+      } else {
+        freshNext('planner'); // some may be gone: read what is really left
+      }
+      ref.invalidate(plannerTasksProvider);
+      await ref.read(plannerTasksProvider.future);
+    } catch (_) {}
     if (mounted) {
       setState(() {
         _clearedLocally = false;
         _clearing = false;
       });
     }
-    // Always re-read the list, success or not. After a failure some tasks may
-    // already be gone, and showing the old list would show tasks that no longer
-    // exist.
-    freshNext('planner');
-      ref.invalidate(plannerTasksProvider);
     if (failure != null) _toast('Could not clear every task. Pull down to refresh.');
   }
 
@@ -896,7 +919,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
                     child: TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0, end: value),
                       duration: const Duration(milliseconds: 250),
-                      builder: (_, v, __) => CircularProgressIndicator(
+                      builder: (_, v, _) => CircularProgressIndicator(
                         value: v,
                         strokeWidth: 6,
                         backgroundColor: c.inkMuted.withValues(alpha: 0.2),
@@ -964,6 +987,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
       if (clear == true && mounted) _confirmReset();
       return;
     }
+    if (!mounted) return;
     final created = await Navigator.of(context).push<List<int>>(
       CupertinoPageRoute(builder: (_) => const GeneratePlanPage()),
     );
@@ -984,11 +1008,21 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   /// feature. The paywall's own result decides the retry: it returns true only
   /// when a purchase actually granted access.
   Future<bool> _ensureSubscribed() async {
-    Billing? billing;
+    // 10.19: the paid-plan flag from the progress reply (0 requests).
+    bool? paidPlan;
     try {
-      billing = await ref.read(billingProvider.future);
+      paidPlan = (await ref.read(studentProgressProvider.future)).paidPlan;
     } catch (_) {
-      billing = null;
+      paidPlan = null;
+    }
+    if (paidPlan == true) return true;
+    Billing? billing;
+    if (paidPlan == null) {
+      try {
+        billing = await ref.read(billingProvider.future);
+      } catch (_) {
+        billing = null;
+      }
     }
     // isPaid, NOT isActive. A free plan is an ordinary subscription row with
     // status 'active' and an unlimited end date, so isActive was true for
@@ -998,8 +1032,10 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
     final granted = await PaywallSheet.show(context);
     if (granted == true) {
       // The purchase changes what the rest of the app may show, so the cached
-      // billing state has to go with it.
+      // billing and progress (the paid-plan flag) have to go with it.
       ref.invalidate(billingProvider);
+      freshNext('progress');
+      ref.invalidate(studentProgressProvider);
       return true;
     }
     return false;

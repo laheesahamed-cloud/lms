@@ -12,13 +12,15 @@ const auth_module_1 = require("../auth/auth.module");
 const courses_module_1 = require("../courses/courses.module");
 const dashboard_controller_1 = require("./dashboard.controller");
 const xp_module_1 = require("../xp/xp.module");
+const users_module_1 = require("../users/users.module");
+const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
 const dashboard_service_1 = require("./dashboard.service");
 let DashboardModule = class DashboardModule {
 };
 exports.DashboardModule = DashboardModule;
 exports.DashboardModule = DashboardModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, courses_module_1.CoursesModule, xp_module_1.XpModule],
+        imports: [auth_module_1.AuthModule, courses_module_1.CoursesModule, xp_module_1.XpModule, users_module_1.UsersModule, subscriptions_module_1.SubscriptionsModule],
         controllers: [dashboard_controller_1.DashboardController],
         providers: [dashboard_service_1.DashboardService],
         exports: [dashboard_service_1.DashboardService],

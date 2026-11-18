@@ -27,8 +27,10 @@ let QuizzesController = class QuizzesController {
         this.quizzesService = quizzesService;
         this.authService = authService;
     }
-    findAll(search, courseId, topicId, status, limit, page, offset, order) {
+    findAll(search, courseId, topicId, status, limit, page, offset, order, after, slim) {
         return this.quizzesService.findAll({
+            after: this.parsePositiveNumber(after),
+            slim: slim === '1' || slim === 'true',
             search,
             courseId: courseId ? parseInt(courseId, 10) : undefined,
             topicId: topicId || undefined,
@@ -47,7 +49,9 @@ let QuizzesController = class QuizzesController {
             status,
         });
     }
-    meta(includeQuestions) {
+    meta(includeQuestions, scope) {
+        if (scope === 'folders')
+            return this.quizzesService.metaFolders();
         return this.quizzesService.meta({
             includeQuestions: includeQuestions === '1' || includeQuestions === 'true',
         });
@@ -125,8 +129,10 @@ __decorate([
     __param(5, (0, common_1.Query)('page')),
     __param(6, (0, common_1.Query)('offset')),
     __param(7, (0, common_1.Query)('order')),
+    __param(8, (0, common_1.Query)('after')),
+    __param(9, (0, common_1.Query)('slim')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuizzesController.prototype, "findAll", null);
 __decorate([
@@ -146,8 +152,9 @@ __decorate([
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
     (0, permissions_decorator_1.RequirePermissions)('quizzes.manage'),
     __param(0, (0, common_1.Query)('includeQuestions')),
+    __param(1, (0, common_1.Query)('scope')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], QuizzesController.prototype, "meta", null);
 __decorate([

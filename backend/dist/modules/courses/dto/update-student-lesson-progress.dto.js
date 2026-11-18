@@ -33,4 +33,19 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateStudentLessonProgressDto.prototype, "userId", void 0);
+__decorate([
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(86400),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateStudentLessonProgressDto.prototype, "readSeconds", void 0);
+__decorate([
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateStudentLessonProgressDto.prototype, "subjectId", void 0);
 //# sourceMappingURL=update-student-lesson-progress.dto.js.map

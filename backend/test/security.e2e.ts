@@ -1,3 +1,10 @@
+import { tmpdir } from 'node:os';
+import { join as joinPath } from 'node:path';
+process.env.CACHE_DIR = process.env.CACHE_DIR || joinPath(tmpdir(), 'lms-security-e2e-cache');
+// Every run builds its snapshots from the fake database (a file left by an
+// earlier run would hide changes to the fake data).
+require('node:fs').rmSync(process.env.CACHE_DIR, { recursive: true, force: true });
+process.env.NOTICES_DIR = process.env.NOTICES_DIR || joinPath(tmpdir(), 'lms-security-e2e-notices');
 import { strict as assert } from 'node:assert';
 import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -76,6 +83,25 @@ class SecurityE2eDb {
       return [[{ ok: 1 }] as T, []];
     }
 
+    // The shared course snapshot's lesson slice (CourseStructureService): one
+    // ready, free, active lesson 10 in course 10 — what "Done" (10.15) checks.
+    if (normalized.includes('AS ready FROM lessons WHERE id > ?')) {
+      return [[...(Number(params[0]) < 10 ? [{
+        id: 10, course_id: 10, topic_id: 20, subtopic_id: null, lesson_title: 'Accessible lesson', video_url: null,
+        is_free: 1, status: 'active', sort_order: 1, is_public: 1, has_note: 1, has_pdf: 0, engine_key: 'gemini', updated_ts: 0, ready: 1,
+      }] : [])] as T, []];
+    }
+
+    // "Done" (OPTIMIZE 10.15) is ONE update of the student's summary row.
+    if (normalized.startsWith('UPDATE student_study_summary SET streak')) {
+      return [{ insertId: 2006, affectedRows: 1 } as T, []];
+    }
+
+    // Older builds' "Done" (no readSeconds): the server's own opening stamp.
+    if (normalized.includes('FROM lesson_opens WHERE user_id = ? AND lesson_id = ?')) {
+      return [[] as T, []];
+    }
+
     if (normalized.includes('(SELECT COUNT(*) FROM users) AS users')) {
       return [[{ users: 2, courses: 1, lessons: 1, questions: 1, quiz_attempts: 0 }] as T, []];
     }
@@ -103,14 +129,7 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
-    if (normalized.includes('FROM quiz_attempts qa') && normalized.includes('WHERE qa.user_id = ?')) {
-      return [[] as T, []];
-    }
-
-    if (normalized.includes('FROM quiz_attempts qa') && normalized.includes('WHERE qa.id = ? AND qa.user_id = ?')) {
-      return [[] as T, []];
-    }
-
+    // Results list (step 5): the student's attempts by user id off the index.
     if (normalized.includes('SELECT plans.name AS plan_name') && normalized.includes('FROM user_subscriptions us')) {
       return [[] as T, []];
     }
@@ -164,6 +183,32 @@ class SecurityE2eDb {
     }
 
     if (normalized.includes('SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses WHERE status =')) {
+      return [[] as T, []];
+    }
+
+    // Catalogue version (start-up reply, phone caches) and the shared course
+    // structure snapshot, read in id-ordered slices (OPTIMIZE 10 step 3a).
+    if (normalized.includes("FROM system_settings WHERE setting_key = 'content_version'")) {
+      return [[] as T, []];
+    }
+    if (/FROM (courses|topics|subtopics|lessons) WHERE id > \? ORDER BY id LIMIT 1000/.test(normalized)) {
+      return [[] as T, []];
+    }
+
+    // Study Hub stored numbers (OPTIMIZE 10 step 3b): the summary row exists,
+    // writes succeed, reads are empty.
+    if (normalized.includes('SELECT quiz_progress_built FROM student_study_summary WHERE user_id = ?')) {
+      return [[{ quiz_progress_built: 1 }] as T, []];
+    }
+    // OPTIMIZE 10.28: the student's one row is created empty the first time.
+    if (normalized.startsWith('INSERT IGNORE INTO student_study_summary (user_id) VALUES (?)')) {
+      return [{ affectedRows: 0 } as T, []];
+    }
+    if (/^(INSERT INTO|UPDATE|DELETE FROM) student_(study_summary|daily_activity|area_stats|area_daily|quiz_progress)\b/.test(normalized)
+        || /^UPDATE student_area_stats s JOIN/.test(normalized)) {
+      return [{ affectedRows: 1 } as T, []];
+    }
+    if (/FROM student_(study_summary|daily_activity|area_stats|area_daily|quiz_progress)\b/.test(normalized)) {
       return [[] as T, []];
     }
 
@@ -225,10 +270,6 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
-    if (normalized.includes('FROM study_bookmarks b')) {
-      return [[] as T, []];
-    }
-
     if (normalized.includes('FROM quizzes q') && normalized.includes("WHERE q.id = ? AND q.status = 'active'")) {
       return [[{
         id: Number(params[0]),
@@ -283,25 +324,17 @@ class SecurityE2eDb {
         question_text: 'Security question',
         explanation: '',
         status: 'active',
+        // OPTIMIZE 10.43: options + recap live in the question row.
+        options_json: JSON.stringify([
+          { id: 801, option_label: 'A', option_text: 'Correct', is_correct: 1, why_incorrect: null },
+          { id: 802, option_label: 'B', option_text: 'Wrong', is_correct: 0, why_incorrect: 'Wrong' },
+        ]),
+        recap_json: null,
       }] as T, []];
-    }
-
-    if (normalized.includes('FROM question_options') && normalized.includes('WHERE question_id IN')) {
-      return [[
-        { id: 801, question_id: 701, option_label: 'A', option_text: 'Correct', is_correct: 1, why_incorrect: '' },
-        { id: 802, question_id: 701, option_label: 'B', option_text: 'Wrong', is_correct: 0, why_incorrect: 'Wrong' },
-      ] as T, []];
     }
 
     if (normalized.includes('FROM content_versions') && normalized.includes("entity_type = 'question'")) {
       return [[] as T, []];
-    }
-
-    if (normalized.includes('FROM question_options') && normalized.includes('WHERE question_id = ?')) {
-      return [[
-        { id: 801, question_id: Number(params[0]), option_label: 'A', option_text: 'Correct', is_correct: 1, why_incorrect: '' },
-        { id: 802, question_id: Number(params[0]), option_label: 'B', option_text: 'Wrong', is_correct: 0, why_incorrect: 'Wrong' },
-      ] as T, []];
     }
 
     // Theory-recap entitlement (question-access.util.ts): the question sits in a
@@ -316,10 +349,6 @@ class SecurityE2eDb {
 
     if (normalized.includes('SELECT q.course_id, q.is_free') && normalized.includes('FROM question_quizzes qq')) {
       return [[{ course_id: 10, is_free: 1 }] as T, []];
-    }
-
-    if (normalized.includes('FROM question_theory_recaps') && normalized.includes('WHERE question_id IN')) {
-      return [[] as T, []];
     }
 
     if (normalized.includes('FROM practice_sessions') && normalized.includes('WHERE user_id = ? AND quiz_id = ?')) {
@@ -346,56 +375,11 @@ class SecurityE2eDb {
       return [{ affectedRows: 1 } as T, []];
     }
 
-    if (normalized.includes('FROM exam_sessions') && normalized.includes('WHERE user_id = ? AND quiz_id = ?')) {
-      return [[] as T, []];
-    }
-
-    if (normalized.includes('INSERT INTO exam_sessions')) {
-      return [{ insertId: 444, affectedRows: 1 } as T, []];
-    }
-
-    if (normalized.includes('FROM exam_sessions') && normalized.includes('WHERE id = ?')) {
-      return [[{
-        id: Number(params[0]),
-        status: 'in_progress',
-        started_at: new Date(),
-        deadline_at: new Date(Date.now() + 30 * 60_000),
-        last_question_index: 0,
-        answers_json: '{}',
-        flagged_question_ids_json: '[]',
-        submitted_attempt_id: null,
-      }] as T, []];
-    }
-
-    if (normalized.includes('UPDATE exam_sessions')) {
-      return [{ affectedRows: 1 } as T, []];
-    }
-
-    if (normalized.includes('INSERT INTO quiz_attempts')) {
-      return [{ insertId: 999, affectedRows: 1 } as T, []];
-    }
-
-    if (normalized.includes('INSERT INTO student_answers')) {
-      return [{ insertId: 1, affectedRows: 1 } as T, []];
-    }
-
-    if (normalized.includes('UPDATE quiz_attempts SET correct_answers')) {
-      return [{ affectedRows: 1 } as T, []];
-    }
-
     if (normalized.includes("SELECT id FROM quizzes WHERE id = ? AND status = 'active' LIMIT 1")) {
       return [[{ id: Number(params[0]) }] as T, []];
     }
 
-    if (normalized.includes('SELECT id FROM study_bookmarks WHERE user_id = ? AND item_type = ? AND item_id = ? LIMIT 1')) {
-      return [[] as T, []];
-    }
-
-    if (normalized.includes('INSERT IGNORE INTO study_bookmarks') || normalized.includes('INSERT INTO study_bookmarks')) {
-      return [{ insertId: 1, affectedRows: 1 } as T, []];
-    }
-
-    if (normalized.includes('FROM question_theory_recaps') && normalized.includes('WHERE question_id = ?') && normalized.includes('LIMIT 1')) {
+    if (normalized.startsWith('SELECT recap_json FROM questions WHERE id = ?')) {
       return [[] as T, []];
     }
 
@@ -425,6 +409,11 @@ class SecurityE2eDb {
 
     if (normalized.includes("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'subscription_invoice_next'")) {
       return [{ affectedRows: 1 } as T, []];
+    }
+
+    // 10.48: the settings service reads the whole (small) table once into memory.
+    if (normalized === 'SELECT setting_key, setting_value FROM system_settings') {
+      return [Object.entries(TEST_SETTINGS).map(([setting_key, setting_value]) => ({ setting_key, setting_value })) as T, []];
     }
 
     if (normalized.includes('FROM system_settings') && normalized.includes('setting_key IN')) {
@@ -528,21 +517,15 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
-    if (normalized.includes('FROM quiz_attempts qa') && normalized.includes('GROUP BY q.topic_id')) {
-      return [[] as T, []];
-    }
-
-    if (normalized.includes('FROM study_planner_tasks') && normalized.includes('WHERE user_id = ?')) {
+    // Planner in one row per student (OPTIMIZE 10.12): the plan row is found
+    // by the student's unique plan_owner key; student 100 owns item 30 only.
+    if (normalized.includes('SELECT rule_json FROM study_planner_tasks WHERE plan_owner = ?')) {
       return [[{
-        id: 30,
-        user_id: Number(params[0]),
-        title: 'Owned task',
-        description: 'Only this student can see it',
-        due_date: null,
-        status: 'todo',
-        sort_order: 0,
-        created_at: null,
-        updated_at: null,
+        rule_json: JSON.stringify({ v: 1, items: [{
+          id: '30', title: 'Owned task', description: 'Only this student can see it', dueDate: '',
+          status: 'todo', category: 'general', priority: 'medium', estimatedMinutes: null,
+          itemType: null, itemId: null, rule: null, sortOrder: 0, createdAt: null, updatedAt: null,
+        }] }),
       }] as T, []];
     }
 
@@ -550,23 +533,14 @@ class SecurityE2eDb {
       return [{ insertId: 31, affectedRows: 1 } as T, []];
     }
 
-    if (normalized.includes('SELECT id FROM study_planner_tasks WHERE id = ? AND user_id = ? LIMIT 1')) {
-      return [[...(Number(params[0]) === 30 && Number(params[1]) === 100 ? [{ id: 30 }] : [])] as T, []];
-    }
-
-    if (normalized.includes('UPDATE study_planner_tasks SET')) {
-      return [{ affectedRows: 1 } as T, []];
-    }
-
-    if (normalized.includes('DELETE FROM study_planner_tasks WHERE id = ? AND user_id = ?')) {
-      return [{ affectedRows: 1 } as T, []];
+    if (normalized.includes('UPDATE study_planner_tasks SET rule_json')) {
+      // Matches only when the item id is in the calling student's own plan row.
+      const owner = Number(params[params.length - 2]);
+      const itemId = String(params[params.length - 1]);
+      return [{ affectedRows: owner === 100 && itemId === '30' ? 1 : 0 } as T, []];
     }
 
     if (normalized.includes('FROM ai_illustrated_notes n')) {
-      return [[] as T, []];
-    }
-
-    if (normalized.includes('FROM smart_notes WHERE id = ? AND user_id = ?')) {
       return [[] as T, []];
     }
 
@@ -576,6 +550,17 @@ class SecurityE2eDb {
 
     if (normalized.includes('FROM quizzes')) {
       return [[] as T, []];
+    }
+
+    // The shared quiz list reads the student's own attempts and practice counts
+    // separately from the (shared) quiz catalog.
+    if (normalized.includes('FROM study_activity_events WHERE user_id = ?')) {
+      return [[] as T, []];
+    }
+
+    // Structure-page stored counts are recounted after content writes.
+    if (/^UPDATE (courses c|topics t) SET (c|t)\.(lesson_count|subject_count|subtopic_count) = \(SELECT COUNT/.test(normalized)) {
+      return [{ affectedRows: 0 } as T, []];
     }
 
     throw new Error(`Unexpected SQL in security e2e test: ${normalized}`);
@@ -737,81 +722,16 @@ async function testInactiveStaffCannotAccessPermissionProtectedRoutes() {
 }
 
 async function testStudentCannotAccessAnotherStudentsQuizAttemptResultOrReview() {
-  db.reset();
-  const resultResponse = await request(app.getHttpServer())
-    .get('/api/quiz-attempts/result/777')
-    .set('Cookie', [`lms_session=${encodeURIComponent(TOKENS.studentA)}`]);
-
-  assert.equal(resultResponse.status, 404);
-  const resultCall = db.findCall(/WHERE qa\.id = \? AND qa\.user_id = \?/);
-  assert(resultCall, 'quiz result must query by attempt id and authenticated user id');
-  assert.deepEqual(resultCall.params, [777, 100]);
-
-  db.reset();
-  const reviewResponse = await request(app.getHttpServer())
-    .get('/api/quiz-attempts/review/777')
-    .set('Authorization', auth(TOKENS.studentA));
-
-  assert.equal(reviewResponse.status, 404);
-  const reviewCall = db.findCall(/WHERE qa\.id = \? AND qa\.user_id = \?/);
-  assert(reviewCall, 'quiz review must query by attempt id and authenticated user id');
-  assert.deepEqual(reviewCall.params, [777, 100]);
-
-  db.reset();
-  const legacyResultResponse = await request(app.getHttpServer())
-    .get('/api/results/777')
-    .set('Authorization', auth(TOKENS.studentA));
-
-  assert.equal(legacyResultResponse.status, 404);
-  const legacyResultCall = db.findCall(/WHERE qa\.id = \? AND qa\.user_id = \?/);
-  assert(legacyResultCall, 'results detail route must query by attempt id and authenticated user id');
-  assert.deepEqual(legacyResultCall.params, [777, 100]);
-
-  db.reset();
-  const legacyReviewResponse = await request(app.getHttpServer())
-    .get('/api/results/review/777')
-    .set('Authorization', auth(TOKENS.studentA));
-
-  assert.equal(legacyReviewResponse.status, 404);
-  const legacyReviewCall = db.findCall(/WHERE qa\.id = \? AND qa\.user_id = \?/);
-  assert(legacyReviewCall, 'results review route must query by attempt id and authenticated user id');
-  assert.deepEqual(legacyReviewCall.params, [777, 100]);
-}
-
-async function testStudentCannotModifyAnotherStudentsLessonAnnotation() {
-  db.reset();
-  const listResponse = await request(app.getHttpServer())
-    .get('/api/lessons/10/annotations')
-    .set('Authorization', auth(TOKENS.studentA));
-
-  assert.equal(listResponse.status, 200);
-  assert.deepEqual(listResponse.body, []);
-  const listCall = db.findCall(/FROM lesson_annotations WHERE lesson_id = \? AND user_id = \?/);
-  assert(listCall, 'annotation list must query by lesson id and authenticated user id');
-  assert.deepEqual(listCall.params, [10, 100]);
-
-  db.reset();
-  const response = await request(app.getHttpServer())
-    .patch('/api/lessons/10/annotations/55')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ color: '#fff59d', noteText: 'tamper' });
-
-  assert.equal(response.status, 403);
-  const annotationCall = db.findCall(/FROM lesson_annotations WHERE id = \?/);
-  assert(annotationCall, 'annotation lookup must run by annotation id before ownership denial');
-  assert.equal(annotationCall.params[0], 55);
-}
-
-async function testStudentCannotAccessAnotherStudentsSmartNote() {
-  db.reset();
-  const response = await request(app.getHttpServer())
-    .get('/api/smart-notes/444')
-    .set('Authorization', auth(TOKENS.studentA));
-
-  assert.equal(response.status, 404);
-  const smartNoteCall = db.findCall(/FROM smart_notes WHERE id = \? AND user_id = \?/);
-  assert(smartNoteCall, 'smart note lookup must include authenticated user id');
-  assert.deepEqual(smartNoteCall.params, [444, 100]);
+  // OPTIMIZE 10.44: the per-attempt routes are gone (results are the student's
+  // own recent results on the summary row); none of them may reach the database.
+  for (const path of ['/api/quiz-attempts/result/777', '/api/quiz-attempts/review/777', '/api/results/777', '/api/results/review/777']) {
+    db.reset();
+    const response = await request(app.getHttpServer())
+      .get(path)
+      .set('Authorization', auth(TOKENS.studentA));
+    assert.equal(response.status, 404, `${path} must be gone`);
+    assert(!db.findCall(/FROM quiz_attempts|FROM student_answers/i), `${path} must not read attempt tables`);
+  }
 }
 
 async function testCrossSiteUnsafeCookieRequestsBlocked() {
@@ -1163,7 +1083,6 @@ async function testPushNativeTokenOwnershipAndNoHashLeak() {
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(settingsResponse.status, 200);
   assert.equal(JSON.stringify(settingsResponse.body).includes('token'), false, 'push settings must not leak raw tokens or token hashes');
-  expectUserScopedCall(/FROM push_subscriptions WHERE user_id = \?/i, 100, 'push settings must query by authenticated user id');
   expectUserScopedCall(/FROM native_push_tokens WHERE user_id = \?/i, 100, 'native token enabled check must query by authenticated user id');
 
   db.reset();
@@ -1172,8 +1091,8 @@ async function testPushNativeTokenOwnershipAndNoHashLeak() {
     .set('Authorization', auth(TOKENS.studentA))
     .send({ deliveryMode: 'both', userId: 200 });
   assert.equal(updateResponse.status, 200);
-  const updateCall = expectUserScopedCall(/UPDATE push_subscriptions SET delivery_mode = \?, enabled = \? WHERE user_id = \?/i, 100, 'push settings update must use authenticated user id');
-  assert.equal(updateCall.params[2], 100);
+  // 10.42: web push removed — the settings update writes nothing for another user.
+  assert(!db.findCall(/push_subscriptions/i), 'push settings update must not touch the removed web-push table');
 
   db.reset();
   const nativeToken = 'student-a-native-token';
@@ -1204,7 +1123,7 @@ async function testStudentWorkspaceOwnership() {
     .get('/api/study-planner')
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(plannerListResponse.status, 200);
-  expectUserScopedCall(/FROM study_planner_tasks\s+WHERE user_id = \?/i, 100, 'planner list must query by authenticated student');
+  expectUserScopedCall(/FROM study_planner_tasks WHERE plan_owner = \?/i, 100, 'planner list must read the authenticated student\'s own plan row');
 
   db.reset();
   const plannerCreateResponse = await request(app.getHttpServer())
@@ -1221,37 +1140,36 @@ async function testStudentWorkspaceOwnership() {
     .set('Authorization', auth(TOKENS.studentA))
     .send({ title: 'Tamper other task', userId: 200 });
   assert.equal(plannerUpdateResponse.status, 404);
-  const plannerLookupCall = db.findCall(/SELECT id FROM study_planner_tasks WHERE id = \? AND user_id = \?/i);
-  assert(plannerLookupCall, 'planner update must look up by task id and authenticated user id');
-  assert.deepEqual(plannerLookupCall.params, [900, 100]);
-  assert(!db.findCall(/UPDATE study_planner_tasks SET/i), 'planner update must not run for another student task');
+  const plannerUpdateCall = expectUserScopedCall(/UPDATE study_planner_tasks SET rule_json = JSON_SET/i, 100, 'planner update must touch only the authenticated student\'s plan row');
+  assert.deepEqual(plannerUpdateCall.params.slice(-2), [100, '900'], 'planner update must look for the task id inside the student\'s own plan row');
 
   db.reset();
   const plannerDeleteResponse = await request(app.getHttpServer())
     .delete('/api/study-planner/900')
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(plannerDeleteResponse.status, 200);
-  const plannerDeleteCall = db.findCall(/DELETE FROM study_planner_tasks WHERE id = \? AND user_id = \?/i);
-  assert(plannerDeleteCall, 'planner delete must scope delete by authenticated user id');
-  assert.deepEqual(plannerDeleteCall.params, [900, 100]);
+  const plannerDeleteCall = expectUserScopedCall(/UPDATE study_planner_tasks SET rule_json = JSON_REMOVE/i, 100, 'planner delete must touch only the authenticated student\'s plan row');
+  assert.deepEqual(plannerDeleteCall.params, ['900', 100, '900']);
 
   db.reset();
   const notificationsResponse = await request(app.getHttpServer())
     .get('/api/notifications')
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(notificationsResponse.status, 200);
-  expectUserScopedCall(/announcement_reads ar ON ar\.announcement_id = a\.id AND ar\.user_id = \?/i, 100, 'notification read join must use authenticated user id');
-  expectUserScopedCall(/FROM user_subscriptions us LEFT JOIN plans p/i, 100, 'derived subscription notifications must use authenticated user id');
-  expectUserScopedCall(/FROM quiz_attempts qa INNER JOIN quizzes q/i, 100, 'derived weak-topic notifications must use authenticated user id');
+  // Notifications without the database (OPTIMIZE 10 step 4): the list comes
+  // from the shared notices file and read state lives on the device, so no
+  // notification table is read or written, for any student.
+  assert(Array.isArray(notificationsResponse.body), 'notifications list is an array');
+  assert(!db.findCall(/announcement|notification_dismissals/i), 'notifications must not read notification tables');
+  assert(!db.findCall(/FROM user_subscriptions us LEFT JOIN plans p/i), 'no derived subscription notifications on the server');
+  assert(!db.findCall(/FROM quiz_attempts qa INNER JOIN quizzes q/i), 'no derived weak-topic notifications on the server');
 
   db.reset();
   const markReadResponse = await request(app.getHttpServer())
     .post('/api/notifications/77/read')
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(markReadResponse.status, 201);
-  const markReadCall = db.findCall(/INSERT IGNORE INTO announcement_reads/i);
-  assert(markReadCall, 'notification read marker must be inserted');
-  assert.deepEqual(markReadCall.params, [77, 100]);
+  assert(!db.findCall(/announcement_reads|notification_dismissals/i), 'marking read writes nothing on the server');
 
 }
 
@@ -1312,25 +1230,26 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   assert.equal(quizListResponse.status, 200);
   const quizListCall = db.findCall(/FROM quizzes q/i);
   assert(quizListCall, 'quiz list query must run');
-  // Derive the expected count from the query itself rather than hardcoding it —
-  // the number of user-scoped subqueries changes as the list evolves, and a fixed
-  // count silently goes stale. What must hold is that EVERY user_id placeholder is
-  // bound to the authenticated student, and no other student's id appears at all.
-  const userScopedPlaceholders = (quizListCall.sql.match(/\buser_id\s*=\s*\?/g) || []).length;
-  assert(userScopedPlaceholders > 0, 'quiz list must scope its subqueries by user id');
-  assert.equal(
-    quizListCall.params.filter((param) => param === 100).length,
-    userScopedPlaceholders,
-    'every user-scoped quiz list subquery must bind the authenticated student id'
-  );
-  assert(!quizListCall.params.includes(200), 'quiz list must not reference another student id');
+  // The quiz catalog is shared by every student, so it must carry no student id
+  // at all; the student's own attempts and practice counts are read separately,
+  // and EVERY one of those reads must be bound to the authenticated student.
+  assert(!/\buser_id\s*=\s*\?/.test(quizListCall.sql), 'shared quiz catalog must not be user-scoped');
+  assert(!quizListCall.params.includes(100) && !quizListCall.params.includes(200), 'shared quiz catalog must not reference a student id');
+  // 10.16-W: marks come from the student's summary row (and practice events), by user id.
+  const studentReads = db.calls.filter((call) => /FROM (quiz_attempts|study_activity_events|student_study_summary) WHERE user_id = \?/i.test(call.sql.replace(/\s+/g, ' ')));
+  assert(studentReads.length > 0, "quiz list must read the student's own attempts by user id");
+  for (const call of studentReads) {
+    assert.equal(call.params[0], 100, 'every per-student quiz list read must bind the authenticated student id');
+    assert(!call.params.includes(200), 'quiz list must not reference another student id');
+  }
 
   db.reset();
   const resultListResponse = await request(app.getHttpServer())
     .get('/api/quiz-attempts/results')
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(resultListResponse.status, 200);
-  const resultListCall = db.findCall(/FROM quiz_attempts qa/i);
+  // 10.16-W: the 5 recent results from the student's own summary row.
+  const resultListCall = db.findCall(/SELECT recent_results FROM student_study_summary WHERE user_id = \?/i);
   assert(resultListCall, 'quiz result list query must run');
   assert.deepEqual(resultListCall.params, [100]);
 
@@ -1373,16 +1292,13 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   assert(!db.findCall(/FROM questions q/i), 'anonymous practice load must not read question content');
 
   db.reset();
-  const examSubmitResponse = await request(app.getHttpServer())
+  // 10.44: the old submit route is gone; exams finish with a signed exam token.
+  const oldSubmitResponse = await request(app.getHttpServer())
     .post('/api/quiz-attempts/exam/501/submit')
     .set('Authorization', auth(TOKENS.studentA))
     .send({ answers: { 701: [801] }, userId: 200 });
-  assert.equal(examSubmitResponse.status, 201);
-  const examAttemptInsertCall = db.findCall(/INSERT INTO quiz_attempts/i);
-  assert(examAttemptInsertCall, 'exam submit must create an attempt');
-  assert.equal(examAttemptInsertCall.params[0], 100);
-  assert.equal(examAttemptInsertCall.params[1], 501);
-  assert(!examAttemptInsertCall.params.includes(200), 'exam submit must not accept another student id from the request body');
+  assert.equal(oldSubmitResponse.status, 404);
+  assert(!db.findCall(/INSERT INTO quiz_attempts|UPDATE student_study_summary/i), 'the removed submit route must not write');
 
   db.reset();
   // Student-only surface: staff tokens must not be able to pull practice content.
@@ -1394,12 +1310,12 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   assert(!db.findCall(/FROM questions q/i), 'non-student practice load must not read question content');
 
   db.reset();
-  const staffExamSubmitResponse = await request(app.getHttpServer())
-    .post('/api/quiz-attempts/exam/501/submit')
+  const staffExamFinishResponse = await request(app.getHttpServer())
+    .post('/api/quiz-attempts/exam/501/finish')
     .set('Authorization', auth(TOKENS.contentEditor))
-    .send({ answers: {} });
-  assert.equal(staffExamSubmitResponse.status, 401);
-  assert(!db.findCall(/INSERT INTO quiz_attempts/i), 'non-student exam submit must not create attempts');
+    .send({ examToken: 'x', answers: {} });
+  assert.equal(staffExamFinishResponse.status, 401);
+  assert(!db.findCall(/UPDATE student_study_summary/i), 'non-student exam finish must not write results');
 
   db.reset();
   const lessonResponse = await request(app.getHttpServer())
@@ -1414,10 +1330,10 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
     .set('Authorization', auth(TOKENS.studentA))
     .send({ status: 'completed', progressPercent: 100, userId: 200 });
   assert.equal(progressResponse.status, 200);
-  const progressCall = db.findCall(/INSERT INTO student_lesson_progress/i);
-  assert(progressCall, 'lesson progress upsert must run');
-  assert.equal(progressCall.params[0], 100);
+  // "Done" writes only the authenticated student's summary row (10.15).
+  const progressCall = expectUserScopedCall(/UPDATE student_study_summary SET streak/i, 100, 'lesson Done must update the authenticated student\'s own summary row');
   assert(!progressCall.params.includes(200), 'lesson progress must not accept another student id from the request body');
+  assert(!db.findCall(/INSERT INTO student_lesson_progress/i), 'lesson Done no longer writes per-lesson rows');
 
   db.reset();
   const coursesResponse = await request(app.getHttpServer())
@@ -1426,24 +1342,12 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   assert.equal(coursesResponse.status, 200);
 
   db.reset();
+  // 10.44: bookmarks live on the device; the server routes are gone.
   const bookmarksResponse = await request(app.getHttpServer())
     .get('/api/study-bookmarks')
     .set('Authorization', auth(TOKENS.studentA));
-  assert.equal(bookmarksResponse.status, 200);
-  expectUserScopedCall(/FROM study_bookmarks b/i, 100, 'bookmark list must use authenticated student id');
-
-  db.reset();
-  const bookmarkToggleResponse = await request(app.getHttpServer())
-    .post('/api/study-bookmarks/toggle')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ itemType: 'quiz', itemId: 501, userId: 200 });
-  assert.equal(bookmarkToggleResponse.status, 201);
-  const bookmarkLookupCall = db.findCall(/SELECT id FROM study_bookmarks WHERE user_id = \?/i);
-  assert(bookmarkLookupCall, 'bookmark toggle lookup must use authenticated user id');
-  assert.equal(bookmarkLookupCall.params[0], 100);
-  const bookmarkInsertCall = db.findCall(/INSERT(?: IGNORE)? INTO study_bookmarks/i);
-  assert(bookmarkInsertCall, 'bookmark toggle insert must run for new bookmark');
-  assert.equal(bookmarkInsertCall.params[0], 100);
+  assert.equal(bookmarksResponse.status, 404);
+  assert(!db.findCall(/study_bookmarks/i), 'no bookmark table reads');
 
   db.reset();
   // AI notes moved off the standalone ai_illustrated_notes table (and its
@@ -1465,7 +1369,7 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
     .get('/api/theory-recap/question/55')
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(recapResponse.status, 200);
-  const recapCall = db.findCall(/question_theory_recaps WHERE question_id = \?/i);
+  const recapCall = db.findCall(/SELECT recap_json FROM questions WHERE id = \?/i);
   assert(recapCall, 'theory recap route must query by question id');
   assert.deepEqual(recapCall.params, [55]);
 }
@@ -1497,7 +1401,16 @@ async function testRemainingAdminPermissionBoundaries() {
     // The AI-notes admin surface moved from /api/ai-notes/* onto the lessons
     // controller at /api/lessons/canvas/*. Creation is covered by POST /api/lessons above.
     ['post', '/api/lessons/canvas/generate', { text: 'This request should be blocked before AI execution.' }],
-    ['get', '/api/lessons/canvas/admin'],
+    // The every-lesson admin list was removed with the Lessons page (P4); its
+    // replacements must stay staff-only too.
+    ['get', '/api/lessons/canvas/admin/structure?topicId=1'],
+    ['get', '/api/dashboard/admin/search?q=asthma'],
+    // Subscriptions page (P5): header counts, paid list, student search, lesson titles.
+    ['get', '/api/subscriptions/admin/overview'],
+    ['get', '/api/subscriptions/admin/paid'],
+    ['get', '/api/subscriptions/admin/students?q=ab'],
+    ['get', '/api/subscriptions/admin/lessons?ids=1'],
+    ['get', '/api/subscriptions/admin/payment-totals'],
     ['get', '/api/lessons/canvas/admin/1'],
     ['patch', '/api/lessons/canvas/admin/1', { title: 'Blocked' }],
     ['delete', '/api/lessons/canvas/admin/1'],
@@ -1523,7 +1436,6 @@ async function testRemainingAdminPermissionBoundaries() {
   }
 
   const staffBlockedRoutes: Array<['get' | 'post' | 'patch' | 'put' | 'delete', string, Record<string, unknown>?]> = [
-    ['get', '/api/setup'],
     ['get', '/api/push/admin/status'],
     ['post', '/api/push/admin/send', { title: 'Blocked', body: 'Blocked' }],
     ['get', '/api/announcements/admin'],
@@ -1625,8 +1537,6 @@ async function main() {
     await testStaffWithoutPermissionCannotAccessBillingAdminData();
     await testInactiveStaffCannotAccessPermissionProtectedRoutes();
     await testStudentCannotAccessAnotherStudentsQuizAttemptResultOrReview();
-    await testStudentCannotModifyAnotherStudentsLessonAnnotation();
-    await testStudentCannotAccessAnotherStudentsSmartNote();
     await testCsrfAndCorsControls();
     await testSecurityHeadersPresent();
     await testSqlInjectionPayloadsRemainParameterizedThroughHttpFilters();

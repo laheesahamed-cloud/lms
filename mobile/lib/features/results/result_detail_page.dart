@@ -11,7 +11,7 @@ import '../quizzes/quizzes_repository.dart';
 import '../../data/app_error.dart';
 
 /// Result detail for a single attempt — real, server-graded score
-/// (`GET /quiz-attempts/result/:attemptId`).
+/// (the recent result: `GET /quiz-attempts/recent/:quizId/review`, kept on the phone).
 class ResultDetailPage extends ConsumerWidget {
   final String attemptId;
   const ResultDetailPage({super.key, required this.attemptId});

@@ -8,7 +8,17 @@ export declare class UsersController {
     private readonly usersService;
     private readonly authService;
     constructor(usersService: UsersService, authService: AuthService);
-    findAll(authorization?: string, search?: string, status?: string, role?: string, limit?: string, page?: string, offset?: string): Promise<{
+    findAll(authorization?: string, search?: string, status?: string, role?: string, limit?: string, page?: string, offset?: string, paged?: string, after?: string): Promise<{
+        items: {
+            id: number;
+            fullName: string;
+            email: string;
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            status: "active" | "inactive";
+            createdAt: string | null;
+        }[];
+        next: string | null;
+    } | {
         id: number;
         fullName: string;
         email: string;
@@ -80,10 +90,6 @@ export declare class UsersController {
             percentage: number;
             passStatus: string;
             submittedAt: any;
-        }[];
-        bookmarks: {
-            itemType: string;
-            total: number;
         }[];
     }>;
     create(authorization: string | undefined, createUserDto: CreateUserDto): Promise<{

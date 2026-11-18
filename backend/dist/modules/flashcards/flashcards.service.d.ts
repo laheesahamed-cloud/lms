@@ -1,3 +1,4 @@
+import { StudentCatalogueService } from '../courses/student-catalogue.service';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { LessonsService } from '../lessons/lessons.service';
 import { CardState, FlashcardFsrsSettings, FlashcardSchedulerService } from './flashcard-scheduler.service';
@@ -22,11 +23,14 @@ export declare class FlashcardsService {
     private readonly db;
     private readonly scheduler;
     private readonly aiNotes;
-    constructor(db: Pool, scheduler: FlashcardSchedulerService, aiNotes: LessonsService);
+    private readonly catalogue?;
+    constructor(db: Pool, scheduler: FlashcardSchedulerService, aiNotes: LessonsService, catalogue?: StudentCatalogueService | undefined);
+    private settingsCache;
     getSettings(): Promise<FlashcardFsrsSettings & {
         newPerDay: number;
         reviewsPerDay: number;
     }>;
+    private readSettings;
     updateSettings(patch: Record<string, unknown>): Promise<{
         requestRetention: number;
         maximumInterval: number;
@@ -43,6 +47,32 @@ export declare class FlashcardsService {
             learningCount: number;
             dueCount: number;
         };
+    }>;
+    cardsForLessons(userId: number, lessonIds: number[], appClient?: string): Promise<{
+        cards: never[];
+        settings: FlashcardFsrsSettings & {
+            newPerDay: number;
+            reviewsPerDay: number;
+        };
+        lessonIds?: undefined;
+    } | {
+        settings: FlashcardFsrsSettings & {
+            newPerDay: number;
+            reviewsPerDay: number;
+        };
+        cards: unknown[][];
+        lessonIds: number[];
+    }>;
+    private readonly cardsMemory;
+    private readonly cardsDir;
+    private keptCards;
+    private keepCards;
+    exportReviews(_userId: number): Promise<{
+        settings: FlashcardFsrsSettings & {
+            newPerDay: number;
+            reviewsPerDay: number;
+        };
+        reviews: unknown[];
     }>;
     getQueue(userId: number, token: string, params: {
         noteIds: number[];
@@ -64,14 +94,10 @@ export declare class FlashcardsService {
             previews: ReturnType<FlashcardSchedulerService["preview"]>;
         }[];
     }>;
-    undo(userId: number, cardId: number): Promise<{
+    undo(_userId: number, cardId: number): Promise<{
         cardId: number;
         reverted: boolean;
         state: null;
-    } | {
-        cardId: number;
-        reverted: boolean;
-        state: CardState;
     }>;
     setCardFlags(userId: number, cardId: number, flags: {
         suspended?: boolean;

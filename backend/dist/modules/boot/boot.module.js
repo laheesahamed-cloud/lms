@@ -12,7 +12,6 @@ const auth_module_1 = require("../auth/auth.module");
 const lessons_module_1 = require("../lessons/lessons.module");
 const dashboard_module_1 = require("../dashboard/dashboard.module");
 const quiz_attempts_module_1 = require("../quiz-attempts/quiz-attempts.module");
-const study_bookmarks_module_1 = require("../study-bookmarks/study-bookmarks.module");
 const workspace_module_1 = require("../workspace/workspace.module");
 const boot_controller_1 = require("./boot.controller");
 const boot_service_1 = require("./boot.service");
@@ -21,7 +20,7 @@ let BootModule = class BootModule {
 exports.BootModule = BootModule;
 exports.BootModule = BootModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, dashboard_module_1.DashboardModule, workspace_module_1.WorkspaceModule, quiz_attempts_module_1.QuizAttemptsModule, study_bookmarks_module_1.StudyBookmarksModule, lessons_module_1.LessonsModule],
+        imports: [auth_module_1.AuthModule, dashboard_module_1.DashboardModule, workspace_module_1.WorkspaceModule, quiz_attempts_module_1.QuizAttemptsModule, lessons_module_1.LessonsModule],
         controllers: [boot_controller_1.BootController],
         providers: [boot_service_1.BootService],
     })

@@ -1,0 +1,31 @@
+import { AccessClaims } from './access-token';
+export declare function userFromAccessToken(token: string): {
+    id: number;
+    full_name: string;
+    email: string;
+    role: string;
+    permissions: string | null;
+    status: string;
+    avatar_key: string;
+    needs_profile_setup: 0 | 1;
+    __accessProfile: any;
+    __claims: AccessClaims;
+};
+export declare const NO_FEATURE_ACCESS: {
+    aiNotes: boolean;
+    advancedInsights: boolean;
+    practiceMode: boolean;
+    examMode: boolean;
+    aiQuizGenerator: boolean;
+    resultsTracking: boolean;
+    notesCanvasStudyMode: boolean;
+    performanceAnalytics: boolean;
+    weakAreaAnalysis: boolean;
+    progressTrackingBasic: boolean;
+    progressTrackingAdvanced: boolean;
+    reportQuestion: boolean;
+    pastPaperAccess: boolean;
+    mockPaperAccess: boolean;
+    featureKeys: string[];
+};
+export declare function setFullFeatureAccess(map: Record<string, unknown>): void;

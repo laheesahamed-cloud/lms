@@ -9,7 +9,7 @@ export declare const XP: {
     readonly STREAK_30: 40;
     readonly DAILY_CAP: 100;
     readonly MIN_PERCENT: 30;
-    readonly LESSON_MIN_SECONDS: 60;
+    readonly LESSON_MIN_SECONDS: 120;
     readonly EXAM_MIN_SECONDS_PER_QUESTION: 2;
     readonly LEVEL_SIZE: 300;
 };

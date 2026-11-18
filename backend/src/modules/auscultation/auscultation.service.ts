@@ -215,7 +215,8 @@ export class AuscultationService {
 
   async getTopic(id: number) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT * FROM auscultation_topics WHERE id = ?`, [id]);
+      `SELECT id, category, title, description, position, is_active, created_at, updated_at
+       FROM auscultation_topics WHERE id = ?`, [id]);
     return rows[0] ?? null;
   }
 

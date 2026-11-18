@@ -11,6 +11,7 @@ import 'quizzes_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/subject_pills.dart';
 import '../../data/app_error.dart';
+import '../../widgets/compact_switch.dart';
 
 /// One course's quiz sets — `/app/qbank/course/:courseId`.
 ///
@@ -32,7 +33,8 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
   // course actually has (full course, else subjects, else lessons).
   QuizScope? _scope;
   String? _seriesKey; // the selected full-course series; null = pick for them
-  String? _activeGroup; // null = show every group
+  String? _activeGroup; // the chosen subject; null = the first one
+  String? _shownGroup; // what is on screen (set while building)
   final Set<String> _collapsed = <String>{};
   final ScrollController _shelfScroll = ScrollController();
   // Which series sit on the shelf, in order. Kept as it is while the student
@@ -68,13 +70,6 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
     setState(() {
       _scope = s;
       _activeGroup = null; // a new scope re-groups, so clear the chip filter
-      _collapsed.clear();
-    });
-  }
-
-  void _onChipTap(String? label) {
-    setState(() {
-      _activeGroup = _activeGroup == label ? null : label;
       _collapsed.clear();
     });
   }
@@ -133,9 +128,15 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           final groups = isFull
               ? const <QuizScopeGroup>[]
               : groupQuizzesByScope(scoped, scope, courseName);
-          final visibleGroups = _activeGroup == null
+          // One subject (or lesson group) at a time (step 5): the chosen one,
+          // else the first; full course already shows one series at a time.
+          final active = groups.any((g) => g.label == _activeGroup)
+              ? _activeGroup
+              : (groups.isNotEmpty ? groups.first.label : null);
+          _shownGroup = active;
+          final visibleGroups = active == null
               ? groups
-              : groups.where((g) => g.label == _activeGroup).toList();
+              : groups.where((g) => g.label == active).toList();
 
           // The filter chips are a pinned sliver, so they stay on screen while
           // the sets scroll underneath — a student deep in a long list can
@@ -217,7 +218,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
           QuizScope.lesson => 'Lessons',
           QuizScope.all => 'All',
         };
-    return Container(
+    return CompactSwitch(maxWidth: 480, child: Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: c.surface2,
@@ -264,7 +265,7 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
             ),
         ],
       ),
-    );
+    ));
   }
 
   // ---- Full course: series shelf + continue card + the selected series ----
@@ -568,10 +569,16 @@ class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
   /// also used by the Lessons course screen).
   Widget _filterChips(AppColors c, List<QuizScopeGroup> groups, QuizScope scope) {
     return SubjectPills(
-      allLabel: 'All ${scope.groupingNoun}s',
+      allLabel: '', // one at a time: no "All"
       labels: [for (final g in groups) g.label],
-      selected: _activeGroup,
-      onTap: _onChipTap,
+      selected: _shownGroup,
+      onTap: (label) {
+        if (label == null || label == _shownGroup) return;
+        setState(() {
+          _activeGroup = label;
+          _collapsed.clear();
+        });
+      },
     );
   }
 

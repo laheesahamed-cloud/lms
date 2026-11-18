@@ -1,3 +1,8 @@
+import 'core/perf_log.dart';
+import 'state/practice_sync.dart';
+import 'data/api_client.dart';
+import 'state/saved_first.dart';
+import 'package:dio/dio.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -12,7 +17,6 @@ import 'services/screen_protection.dart';
 import 'theme/app_theme.dart';
 import 'features/shell/blocked_placeholder.dart';
 import 'router/app_router.dart';
-import 'state/auth_controller.dart';
 import 'state/onboarding.dart';
 import 'state/theme_mode.dart';
 
@@ -21,6 +25,7 @@ Future<void> main() async {
   // Don't block runApp() on SharedPreferences — that causes a multi-second
   // hang on the splash screen. Instead render immediately and swap in the
   // real app once prefs are ready (usually <100ms after first frame).
+  PerfLog.mark('main: runApp');
   runApp(const _PrefsBootstrap());
 }
 
@@ -38,6 +43,7 @@ class _PrefsBootstrapState extends State<_PrefsBootstrap> {
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((p) {
+      PerfLog.mark('prefs loaded');
       ReviewedAttempts.init(p);
       if (mounted) setState(() => _prefs = p);
     });
@@ -56,6 +62,13 @@ class _PrefsBootstrapState extends State<_PrefsBootstrap> {
     }
     return ProviderScope(
       overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
+      // Never retry "not signed in" (401) or a signed-out skip: retrying only
+      // repeated the 401s. Other failures keep a short retry.
+      retry: (count, error) {
+        if (error is SignedOutError) return null;
+        if (error is DioException && error.response?.statusCode == 401) return null;
+        return count < 3 ? Duration(milliseconds: 400 * (1 << count)) : null;
+      },
       child: const XyndromeApp(),
     );
   }
@@ -201,8 +214,7 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Coming back from the background: re-check the session so an expired
-    // token sends us to login automatically (no close-and-reopen needed).
+    // Coming back from the background (10.19: no session re-check request).
     if (state == AppLifecycleState.paused) {
       _backgroundedAt = DateTime.now();
     }
@@ -214,9 +226,13 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
           : DateTime.now().difference(_backgroundedAt!);
       _backgroundedAt = null;
       if (away >= const Duration(minutes: 1)) {
-        ref.read(authControllerProvider.notifier).revalidateSession();
-        // Also catches a renewal that happened while we were backgrounded.
+        // 10.19: no session re-check request on return — the signed token
+        // already says who this is; an expired or revoked session answers the
+        // next request with 401 and goes to sign-in as before.
+        // Catches a renewal that happened while we were backgrounded.
         ref.read(iapReconcilerProvider).sync();
+        // 10.28: practices that waited 12 hours with nothing to ride along with.
+        syncPracticesIfOverdue(ref.read(apiClientProvider));
       }
       // Capture protection does not survive the trip — see handleResume().
       ScreenProtection.handleResume();
@@ -266,7 +282,7 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
             // flips still catches it. Structure is the fix, not a check.
             RepaintBoundary(
               key: _shieldBoundary,
-              child: child ?? const SizedBox.shrink(),
+              child: _tabletTopInset(context, child ?? const SizedBox.shrink()),
             ),
             // Painted over the live content, which stays mounted, so scroll
             // offsets and in-progress canvas work are untouched.
@@ -276,4 +292,21 @@ class _XyndromeAppState extends ConsumerState<XyndromeApp>
       ),
     );
   }
+}
+
+/// iPad: its status bar is only 24pt, against a phone's 59pt notch/island,
+/// so page headers sat close under the clock. Every page — tabs, lessons,
+/// flashcards, practice — gets the same 48pt top room there (2026-11-17), so
+/// they all line up. Phones are unchanged.
+Widget _tabletTopInset(BuildContext context, Widget child) {
+  final mq = MediaQuery.of(context);
+  const tabletTop = 48.0;
+  if (mq.size.shortestSide < 600 || mq.padding.top >= tabletTop) return child;
+  return MediaQuery(
+    data: mq.copyWith(
+      padding: mq.padding.copyWith(top: tabletTop),
+      viewPadding: mq.viewPadding.copyWith(top: tabletTop),
+    ),
+    child: child,
+  );
 }

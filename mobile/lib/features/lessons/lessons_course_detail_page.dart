@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
-import '../../widgets/subject_pills.dart';
 import 'lesson_models.dart';
 import 'lessons_repository.dart';
 import '../../data/app_error.dart';
@@ -24,16 +22,48 @@ class LessonsCourseDetailPage extends ConsumerStatefulWidget {
 
 class _NotesCourseDetailPageState
     extends ConsumerState<LessonsCourseDetailPage> {
-  final Set<String> _collapsed = {};
-  String? _subject; // null = All
+  // Step 5 design (2026-11-15): subjects as a shelf of cards, like the Q-Bank
+  // full-course series. One subject is chosen at a time and only its lessons
+  // are built; the shelf starts on the subject of the lesson to continue.
+  String? _subject;
+  final ScrollController _shelfScroll = ScrollController();
+  static const double _cardW = 112;
+  static const double _cardGap = 8;
+  static const double _shelfH = 124;
 
-  void _toggleCollapse(String key) => setState(() {
-        if (_collapsed.contains(key)) {
-          _collapsed.remove(key);
-        } else {
-          _collapsed.add(key);
-        }
-      });
+  @override
+  void dispose() {
+    _shelfScroll.dispose();
+    super.dispose();
+  }
+
+  /// The lesson to continue (OPTIMIZE 10.15): the first open (not locked)
+  /// lesson in the course's own order whose bit is off — finished 1, 5, 7, 10
+  /// → continue 2. Worked out on the phone from the finished-lessons bitmap.
+  static LessonListItem? _nextLesson(List<LessonListItem> lessons) {
+    for (final l in lessons) {
+      if (!l.locked && !l.lessonCompleted) return l;
+    }
+    return null;
+  }
+
+  Color _activeFill(BuildContext context, AppColors c) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Color.alphaBlend(
+        c.primary.withValues(alpha: dark ? 0.26 : 0.14), dark ? c.card : Colors.white);
+  }
+
+  void _select(String subject, int index) {
+    setState(() => _subject = subject);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_shelfScroll.hasClients) return;
+      final target = (index * (_cardW + _cardGap))
+          .clamp(0.0, _shelfScroll.position.maxScrollExtent)
+          .toDouble();
+      _shelfScroll.animateTo(target,
+          duration: const Duration(milliseconds: 420), curve: Curves.easeInOutCubic);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,47 +83,25 @@ class _NotesCourseDetailPageState
         data: (allNotes) {
           final decoded = Uri.decodeComponent(widget.courseKey);
           final lessons = allNotes.where((n) {
-            // Match by numeric courseId string or by decoded course title
-            if (n.courseId.isNotEmpty && n.courseId == widget.courseKey)
-              return true;
+            if (n.courseId.isNotEmpty && n.courseId == widget.courseKey) return true;
             if (n.courseId.isNotEmpty && n.courseId == decoded) return true;
             return n.courseTitle == decoded;
           }).toList();
-
-          final courseTitle = lessons.isNotEmpty
-              ? (lessons.first.courseTitle.isNotEmpty
-                  ? lessons.first.courseTitle
-                  : decoded)
+          final courseTitle = lessons.isNotEmpty && lessons.first.courseTitle.isNotEmpty
+              ? lessons.first.courseTitle
               : decoded;
+          final groups = groupLessonsBySubject(lessons);
+          final next = _nextLesson(lessons);
+          final selected = groups.any((g) => g.subjectName == _subject)
+              ? _subject!
+              : (next?.subjectName ?? (groups.isNotEmpty ? groups.first.subjectName : ''));
+          final group = groups.where((g) => g.subjectName == selected).toList();
 
-          final allGroups = groupLessonsBySubject(lessons);
-          final subjects = allGroups.map((g) => g.subjectName).toList();
-          final groups = _subject == null
-              ? allGroups
-              : allGroups.where((g) => g.subjectName == _subject).toList();
-
-          // Each row's numbered badge counts across every visible subject —
-          // not reset back to 1 at the top of each subject section — so
-          // scanning down the whole course reads as one continuous list
-          // instead of several lists that all start over at "1".
-          final sectionWidgets = <Widget>[];
-          var runningIndex = 0;
-          for (final g in groups) {
-            sectionWidgets.add(_subjectSection(c, g, startIndex: runningIndex));
-            runningIndex += g.lessons.length;
-          }
-
-          // The subject pills are a pinned sliver, as on the Q-bank, so a
-          // student deep in a long course can switch subject without
-          // scrolling back up.
-          final showPills = subjects.length > 1;
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                  // The course name sits in the back-chevron row, like every other
-                  // detail page, instead of under a "LESSONS" label.
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                   child: Row(
                     children: [
                       IconButton(
@@ -105,53 +113,51 @@ class _NotesCourseDetailPageState
                         child: Text(courseTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                                color: c.inkStrong)),
+                            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: c.inkStrong)),
                       ),
                     ],
                   ),
                 ),
               ),
-              if (showPills)
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: PinnedPillsDelegate(
-                    child: SubjectPills(
-                      allLabel: 'All subjects',
-                      labels: subjects,
-                      selected: _subject,
-                      // Tapping the chosen pill again goes back to all.
-                      onTap: (s) =>
-                          setState(() => _subject = (s == _subject) ? null : s),
+              if (lessons.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 30, 16, 0),
+                    child: Text('No lessons available yet.', style: TextStyle(color: c.inkSoft)),
+                  ),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: _shelfH + 6,
+                    child: ListView.separated(
+                      controller: _shelfScroll,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: groups.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: _cardGap),
+                      itemBuilder: (context, i) => SizedBox(
+                        width: _cardW,
+                        height: _shelfH,
+                        child: _subjectCard(c, groups[i], groups[i].subjectName == selected, i),
+                      ),
                     ),
                   ),
                 ),
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, showPills ? 6 : 0, 16, 28),
-                sliver: SliverToBoxAdapter(
-                  child: lessons.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 30),
-                          child: Text('No lessons available yet.',
-                              style: TextStyle(color: c.inkSoft)),
-                        )
-                      : AnimationLimiter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: AnimationConfiguration.toStaggeredList(
-                              duration: const Duration(milliseconds: 320),
-                              childAnimationBuilder: (w) => SlideAnimation(
-                                verticalOffset: 20,
-                                child: FadeInAnimation(child: w),
-                              ),
-                              children: sectionWidgets,
-                            ),
-                          ),
-                        ),
+                if (group.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                      child: _continueCard(c, courseTitle, group.first),
+                    ),
+                  ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+                  sliver: SliverToBoxAdapter(
+                    child: group.isEmpty ? const SizedBox.shrink() : _subjectLessons(c, group.first),
+                  ),
                 ),
-              ),
+              ],
             ],
           );
         },
@@ -159,106 +165,168 @@ class _NotesCourseDetailPageState
     );
   }
 
-  Widget _subjectSection(AppColors c, LessonSubjectGroup g,
-      {required int startIndex}) {
-    final collapsed = _collapsed.contains(g.subjectName);
+  /// Continue card (same look as the Q-Bank one): the picked subject, its next
+  /// open lesson, a Continue / Start button and the subject's progress bar.
+  /// Built from the lesson list already on the phone — no request.
+  Widget _continueCard(AppColors c, String courseTitle, LessonSubjectGroup g) {
+    final total = g.lessons.length;
+    final done = g.lessons.where((l) => l.lessonCompleted).length;
+    final next = _nextLesson(g.lessons);
+    final p = total == 0 ? 0.0 : done / total;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _activeFill(context, c),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (courseTitle.trim().isNotEmpty)
+                      Text(courseTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.inkSoft)),
+                    Text(g.subjectName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
+                    const SizedBox(height: 2),
+                    Text(next != null ? next.title.trim() : (done >= total ? 'All lessons completed' : 'Included with a subscription'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: c.inkSoft)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              if (next != null)
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: c.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => context.push('/app/study/lesson/${next.canvasId}'),
+                  child: Text(done > 0 ? 'Continue' : 'Start',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                )
+              else if (done >= total)
+                Icon(Icons.check_circle_rounded, color: c.success),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: p,
+              minHeight: 5,
+              backgroundColor: Colors.white.withValues(alpha: dark ? 0.14 : 0.75),
+              valueColor: AlwaysStoppedAnimation(c.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    // A divider WHERE THE TOPIC CHANGES, walking the list in the order the
-    // server sent it — not a bucket per topic name.
-    //
-    // Bucketing pulled every lesson sharing a topic back together wherever it
-    // sat, so a topic placed between two other lessons in the admin collapsed
-    // back to one block here and the move looked like it had done nothing.
-    // Walking in order means the server's order is what shows, and a topic
-    // that genuinely appears in two runs gets a heading for each.
-    var globalIndex = startIndex;
-    final lessonWidgets = <Widget>[];
+  /// A subject card on the shelf: progress ring, name, "x of y" done.
+  Widget _subjectCard(AppColors c, LessonSubjectGroup g, bool selected, int index) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final total = g.lessons.length;
+    final done = g.lessons.where((l) => l.lessonCompleted).length;
+    final p = total == 0 ? 0.0 : done / total;
+    final fin = total > 0 && done == total;
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 38,
+              height: 38,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 38,
+                    height: 38,
+                    child: CircularProgressIndicator(
+                      value: p,
+                      strokeWidth: 4,
+                      strokeCap: StrokeCap.round,
+                      backgroundColor: selected
+                          ? Colors.white.withValues(alpha: dark ? 0.14 : 0.75)
+                          : c.surface2,
+                      valueColor: AlwaysStoppedAnimation(fin ? c.success : c.primary),
+                    ),
+                  ),
+                  if (fin) Icon(Icons.check_rounded, size: 17, color: c.success),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(fin ? 'Done' : '${(p * 100).round()}%',
+                  maxLines: 1,
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: c.inkStrong)),
+            ),
+          ],
+        ),
+        const Spacer(),
+        Text(g.subjectName.isEmpty ? 'General' : g.subjectName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12.5, height: 1.2, fontWeight: FontWeight.w800, color: c.inkStrong)),
+        const SizedBox(height: 2),
+        Text('$done of $total', style: TextStyle(fontSize: 11.5, color: c.inkSoft)),
+      ],
+    );
+    return GestureDetector(
+      onTap: () => _select(g.subjectName, index),
+      child: selected
+          ? Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: _activeFill(context, c),
+                borderRadius: BorderRadius.circular(AppRadius.card),
+              ),
+              child: body,
+            )
+          : GlassCard(padding: const EdgeInsets.all(11), child: body),
+    );
+  }
+
+  /// The chosen subject's lessons, with a divider where the topic changes.
+  Widget _subjectLessons(AppColors c, LessonSubjectGroup g) {
+    final widgets = <Widget>[];
     String? shownTopic;
+    var index = 0;
     for (final lesson in g.lessons) {
       final topic = lesson.topicName;
       if (topic != shownTopic) {
         final isFirstRun = shownTopic == null;
         shownTopic = topic;
         if (topic.isNotEmpty) {
-          lessonWidgets.add(_TopicDivider(label: topic, c: c));
+          widgets.add(_TopicDivider(label: topic, c: c));
         } else if (!isFirstRun) {
-          // Lessons with no topic that FOLLOW one need a rule of their own, or
-          // they read as part of the topic above them.
-          lessonWidgets.add(_TopicDivider(label: '', c: c));
+          widgets.add(_TopicDivider(label: '', c: c));
         }
       }
-      final idx = globalIndex++;
-      lessonWidgets.add(Padding(
+      widgets.add(Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: _LessonRow(lesson: lesson, index: idx),
+        child: _LessonRow(lesson: lesson, index: index++),
       ));
     }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Subject header — tap to collapse/expand
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _toggleCollapse(g.subjectName),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 10, top: 2),
-              child: Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: c.primary,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Text(g.subjectName,
-                        style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: c.inkStrong)),
-                  ),
-                  Text(
-                    '${g.lessons.length} lesson${g.lessons.length == 1 ? '' : 's'}',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: c.inkSoft),
-                  ),
-                  const SizedBox(width: 4),
-                  AnimatedRotation(
-                    turns: collapsed ? 0 : 0.25,
-                    duration: AppDur.dropdown,
-                    curve: AppCurves.easeOut,
-                    child: Icon(Icons.chevron_right_rounded,
-                        size: 20, color: c.inkMuted),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Lesson rows with topic dividers — collapse/expand
-          AnimatedCrossFade(
-            firstChild: const SizedBox(width: double.infinity, height: 0),
-            secondChild: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: lessonWidgets,
-            ),
-            crossFadeState: collapsed
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            duration: AppDur.dropdown,
-            sizeCurve: AppCurves.easeOut,
-          ),
-          const SizedBox(height: 6),
-        ],
-      ),
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
   }
 
   Widget _backWrap(BuildContext context, AppColors c, Widget child) =>
@@ -267,8 +335,7 @@ class _NotesCourseDetailPageState
         children: [
           Row(children: [
             IconButton(
-              icon:
-                  const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
               color: c.inkMedium,
               onPressed: () => context.pop(),
             ),

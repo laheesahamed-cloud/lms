@@ -2,8 +2,6 @@ import { AuthService } from '../auth/auth.service';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
-import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
-import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
 export declare class LessonsController {
     private readonly lessonsService;
     private readonly authService;
@@ -85,49 +83,6 @@ export declare class LessonsController {
         topicName: string;
         subtopicName: string;
     }>;
-    findStudentAnnotations(lessonId: number, authorization?: string): Promise<{
-        id: number;
-        lessonId: number;
-        userId: number;
-        type: "note" | "highlight";
-        selectedText: string;
-        startOffset: number;
-        endOffset: number;
-        color: string;
-        noteText: string;
-        createdAt: string | null;
-        updatedAt: string | null;
-    }[]>;
-    createStudentAnnotation(lessonId: number, createLessonAnnotationDto: CreateLessonAnnotationDto, authorization?: string): Promise<{
-        id: number;
-        lessonId: number;
-        userId: number;
-        type: "note" | "highlight";
-        selectedText: string;
-        startOffset: number;
-        endOffset: number;
-        color: string;
-        noteText: string;
-        createdAt: string | null;
-        updatedAt: string | null;
-    }>;
-    updateStudentAnnotation(lessonId: number, annotationId: number, updateLessonAnnotationDto: UpdateLessonAnnotationDto, authorization?: string): Promise<{
-        id: number;
-        lessonId: number;
-        userId: number;
-        type: "note" | "highlight";
-        selectedText: string;
-        startOffset: number;
-        endOffset: number;
-        color: string;
-        noteText: string;
-        createdAt: string | null;
-        updatedAt: string | null;
-    }>;
-    removeStudentAnnotation(lessonId: number, annotationId: number, authorization?: string): Promise<{
-        ok: boolean;
-        id: number;
-    }>;
     create(authorization: string | undefined, createLessonDto: CreateLessonDto): Promise<{
         ok: boolean;
         id: number;
@@ -162,38 +117,26 @@ export declare class LessonsController {
         ok: boolean;
         id: number;
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
-    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<void>;
     canvasRegenerateSection(auth: string, id: number, heading: string): Promise<import("./lessons.service").NoteCanvas>;
     canvasSourcePreview(auth: string, text: string, sourceFormat?: string): Promise<{
         wasHtml: boolean;
@@ -211,38 +154,133 @@ export declare class LessonsController {
         jobId: string;
     }>;
     canvasGenerateStatus(auth: string, jobId: string): Promise<import("./lessons.service").LessonGenerationJob>;
-    canvasAdminList(auth: string, engineKey?: string): Promise<{
+    canvasAdminStructureLessons(auth: string, topicId?: string, engineKey?: string): Promise<{
         id: number;
-        title: string;
-        lessonTitle: string;
-        rawText: string | null;
-        noteData: unknown;
-        engineKey: import("./lessons.service").CanvasEngineKey;
-        courseId: number | null;
-        topicId: number | null;
-        subtopicId: number | null;
+        title: any;
+        lessonTitle: any;
+        status: any;
+        courseId: any;
+        topicId: any;
+        subtopicId: any;
         sortOrder: number;
-        lessonId: number;
-        videoUrl: string;
-        pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
-        isPublic: boolean;
-        courseTitle: string | null;
-        examType: string | null;
-        topicName: string | null;
-        subtopicName: string | null;
-        lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
-        lessonProgressPercent: number;
-        lessonCompletedAt: string | null;
-        lessonCompleted: boolean;
-        approvedFlashcardCount: number;
-        createdAt: string;
-        updatedAt: string;
+        hasNote: boolean;
     }[]>;
-    canvasReorderLessons(auth: string, orderedIds: number[]): Promise<{
+    canvasAdminStructureCountsCheck(auth: string): Promise<{
+        runId: string;
+        courses: {
+            id: number;
+            name: string;
+            lessonCount: number;
+            subjectCount: number;
+        }[];
+        first: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+            courseLessons: Record<number, number>;
+            rowsRead: number;
+        };
+        remaining: number[][];
+        finishWithLast: boolean;
+        done: boolean;
+        finish: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+        } | null;
+    } | {
+        done: boolean;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+    } | {
+        issues: import("../../common/utils/structure-counts").CountIssue[];
+    }>;
+    canvasAdminStructureCountsStart(auth: string, courseId?: number): Promise<{
+        runId: string;
+        courses: {
+            id: number;
+            name: string;
+            lessonCount: number;
+            subjectCount: number;
+        }[];
+        first: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+            courseLessons: Record<number, number>;
+            rowsRead: number;
+        };
+        remaining: number[][];
+        finishWithLast: boolean;
+        done: boolean;
+        finish: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+        } | null;
+    } | {
+        done: boolean;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+    } | {
+        issues: import("../../common/utils/structure-counts").CountIssue[];
+    }>;
+    canvasAdminStructureCountsSet(auth: string, body: Record<string, unknown>): Promise<{
+        runId: string;
+        courses: {
+            id: number;
+            name: string;
+            lessonCount: number;
+            subjectCount: number;
+        }[];
+        first: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+            courseLessons: Record<number, number>;
+            rowsRead: number;
+        };
+        remaining: number[][];
+        finishWithLast: boolean;
+        done: boolean;
+        finish: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+        } | null;
+    } | {
+        done: boolean;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+    } | {
+        issues: import("../../common/utils/structure-counts").CountIssue[];
+    }>;
+    canvasAdminStructureCountsFinish(auth: string, body: Record<string, unknown>): Promise<{
+        runId: string;
+        courses: {
+            id: number;
+            name: string;
+            lessonCount: number;
+            subjectCount: number;
+        }[];
+        first: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+            courseLessons: Record<number, number>;
+            rowsRead: number;
+        };
+        remaining: number[][];
+        finishWithLast: boolean;
+        done: boolean;
+        finish: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+        } | null;
+    } | {
+        done: boolean;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+    } | {
+        issues: import("../../common/utils/structure-counts").CountIssue[];
+    }>;
+    canvasAdminStructureMove(auth: string, body: Record<string, unknown>): Promise<{
         ok: boolean;
+        respread: boolean;
     }>;
     canvasGetCourses(auth: string): Promise<import("mysql2").RowDataPacket[]>;
     canvasGetTopics(auth: string, courseId?: string): Promise<import("mysql2").RowDataPacket[]>;
@@ -269,7 +307,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "completed" | "not_started" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -293,7 +331,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "rejected" | "approved";
+        status: "rejected" | "draft" | "approved";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -310,7 +348,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "rejected" | "approved";
+        status: "rejected" | "draft" | "approved";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -323,7 +361,7 @@ export declare class LessonsController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -337,7 +375,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "rejected" | "approved";
+            status: "rejected" | "draft" | "approved";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;
@@ -355,7 +393,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "rejected" | "approved";
+        status: "rejected" | "draft" | "approved";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -395,7 +433,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "completed" | "not_started" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -403,7 +441,7 @@ export declare class LessonsController {
         createdAt: string;
         updatedAt: string;
     }[]>;
-    canvasStudentFindNote(auth: string, id: number, engineKey?: string, appClient?: string): Promise<{
+    canvasStudentFindNote(auth: string, id: number, engineKey?: string, appClient?: string): Promise<Record<string, unknown> | {
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
@@ -432,7 +470,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "completed" | "not_started" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -459,7 +497,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "rejected" | "approved";
+            status: "rejected" | "draft" | "approved";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;

@@ -35,6 +35,15 @@ let FlashcardsController = class FlashcardsController {
         const student = await this.authService.requireStudent(auth);
         return this.svc.listDecks(student.id, rawToken(auth), appClient);
     }
+    async cards(lessonIds, auth, appClient) {
+        const student = await this.authService.requireStudent(auth);
+        const ids = String(lessonIds || '').split(',').map((v) => Number(v.trim()));
+        return this.svc.cardsForLessons(Number(student.id), ids, appClient);
+    }
+    async exportReviews(auth) {
+        const student = await this.authService.requireStudent(auth);
+        return this.svc.exportReviews(Number(student.id));
+    }
     async queue(noteIds, limit, newLimit, auth, appClient) {
         const student = await this.authService.requireStudent(auth);
         return this.svc.getQueue(student.id, rawToken(auth), {
@@ -80,6 +89,22 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], FlashcardsController.prototype, "decks", null);
+__decorate([
+    (0, common_1.Get)('cards'),
+    __param(0, (0, common_1.Query)('lessonIds')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __param(2, (0, common_1.Headers)('x-app-client')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], FlashcardsController.prototype, "cards", null);
+__decorate([
+    (0, common_1.Get)('reviews/export'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FlashcardsController.prototype, "exportReviews", null);
 __decorate([
     (0, common_1.Get)('queue'),
     __param(0, (0, common_1.Query)('noteIds')),

@@ -15,8 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuizAttemptsController = void 0;
 const common_1 = require("@nestjs/common");
 const quiz_attempts_service_1 = require("./quiz-attempts.service");
-const save_exam_progress_dto_1 = require("./dto/save-exam-progress.dto");
-const submit_exam_dto_1 = require("./dto/submit-exam.dto");
 let QuizAttemptsController = class QuizAttemptsController {
     constructor(quizAttemptsService) {
         this.quizAttemptsService = quizAttemptsService;
@@ -30,20 +28,17 @@ let QuizAttemptsController = class QuizAttemptsController {
     loadQuiz(quizId, mode, questionId, authorization, appClient) {
         return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null, appClient);
     }
-    submitExam(quizId, authorization, submitExamDto, appClient) {
-        return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto, appClient);
+    startExam(quizId, authorization, appClient) {
+        return this.quizAttemptsService.startExam(authorization, quizId, appClient);
     }
-    saveExamProgress(quizId, authorization, saveExamProgressDto, appClient) {
-        return this.quizAttemptsService.saveExamProgress(authorization, quizId, saveExamProgressDto, appClient);
+    finishExam(quizId, authorization, body, appClient) {
+        return this.quizAttemptsService.finishExam(authorization, quizId, body, appClient);
     }
-    result(attemptId, authorization) {
-        return this.quizAttemptsService.result(authorization, attemptId);
+    recentReview(quizId, authorization, appClient, part, lean) {
+        return this.quizAttemptsService.recentReview(authorization, quizId, appClient, part, lean === '1');
     }
-    review(attemptId, authorization, appClient) {
-        return this.quizAttemptsService.review(authorization, attemptId, appClient);
-    }
-    completeReview(attemptId, authorization) {
-        return this.quizAttemptsService.completeReview(authorization, attemptId);
+    markRecentReviewed(quizId, authorization) {
+        return this.quizAttemptsService.markRecentReviewed(authorization, quizId);
     }
 };
 exports.QuizAttemptsController = QuizAttemptsController;
@@ -73,50 +68,43 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], QuizAttemptsController.prototype, "loadQuiz", null);
 __decorate([
-    (0, common_1.Post)('exam/:quizId/submit'),
+    (0, common_1.Post)('exam/:quizId/start'),
     __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __param(2, (0, common_1.Body)()),
-    __param(3, (0, common_1.Headers)('x-app-client')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, submit_exam_dto_1.SubmitExamDto, String]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "submitExam", null);
-__decorate([
-    (0, common_1.Post)('exam/:quizId/save'),
-    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __param(2, (0, common_1.Body)()),
-    __param(3, (0, common_1.Headers)('x-app-client')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, save_exam_progress_dto_1.SaveExamProgressDto, String]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "saveExamProgress", null);
-__decorate([
-    (0, common_1.Get)('result/:attemptId'),
-    __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "result", null);
-__decorate([
-    (0, common_1.Get)('review/:attemptId'),
-    __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Headers)('authorization')),
     __param(2, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String, String]),
+    __metadata("design:paramtypes", [Number, Object, String]),
     __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "review", null);
+], QuizAttemptsController.prototype, "startExam", null);
 __decorate([
-    (0, common_1.Post)('review/:attemptId/complete'),
-    __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),
+    (0, common_1.Post)('exam/:quizId/finish'),
+    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Headers)('x-app-client')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object, Object, String]),
+    __metadata("design:returntype", void 0)
+], QuizAttemptsController.prototype, "finishExam", null);
+__decorate([
+    (0, common_1.Get)('recent/:quizId/review'),
+    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __param(2, (0, common_1.Headers)('x-app-client')),
+    __param(3, (0, common_1.Query)('part')),
+    __param(4, (0, common_1.Query)('lean')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], QuizAttemptsController.prototype, "recentReview", null);
+__decorate([
+    (0, common_1.Post)('recent/:quizId/reviewed'),
+    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, String]),
     __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "completeReview", null);
+], QuizAttemptsController.prototype, "markRecentReviewed", null);
 exports.QuizAttemptsController = QuizAttemptsController = __decorate([
     (0, common_1.Controller)('quiz-attempts'),
     __metadata("design:paramtypes", [quiz_attempts_service_1.QuizAttemptsService])

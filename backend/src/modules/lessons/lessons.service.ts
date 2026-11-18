@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { getContentVersion } from '../../common/utils/content-version';
+import { getScopeRows } from '../../common/auth/subscription-scope';
+import { looksLikeAccessToken } from '../../common/auth/access-token';
+import { userFromAccessToken } from '../../common/auth/token-user';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as fs from 'fs';
@@ -8,10 +12,11 @@ import { normalizePagination, PaginationInput } from '../../common/utils/paginat
 import { AppOnlyContentException } from '../../common/exceptions/app-only-content.exception';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
+import { getCachedSession } from '../auth/session-cache';
+import { isStructureKind, moveStructureItem, RANK_GAP } from '../../common/utils/structure-order';
+import { bumpCounts, checkStructureCounts, CountFixBusyError, finishCountFix, isCountedLesson, moveLessonCounts, runCountFixSet, startCountFix } from '../../common/utils/structure-counts';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
-import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
-import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
 import {
   AI_PROVIDER_LABELS, AiProviderKey, decryptSecret,
   getDefaultBaseUrlForProvider, getDefaultModelForProvider,
@@ -19,9 +24,9 @@ import {
 } from '../../common/utils/ai-provider.utils';
 import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
 import { isMobileAppClient } from '../../common/utils/mobile-client.util';
-import { reshapeTablesForPhone } from './mobile-table-layout';
-import { calmTextForPhone } from './mobile-text-layout';
+import { compactForPhone, scrubPlainTextFieldsForPhone } from './mobile-text-layout';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { finishedLessons } from '../../common/utils/lesson-bits';
 
 type LessonRow = RowDataPacket & {
   id: number;
@@ -70,20 +75,6 @@ type LessonAccessProfile = {
   hasFullAccess: boolean;
   courseIds: Set<number>;
   lessonIds: Set<number>;
-};
-
-type LessonAnnotationRow = RowDataPacket & {
-  id: number;
-  lesson_id: number;
-  user_id: number;
-  type: 'highlight' | 'note';
-  selected_text: string;
-  start_offset: number;
-  end_offset: number;
-  color: string | null;
-  note_text: string | null;
-  created_at: string | null;
-  updated_at: string | null;
 };
 
 type ContentActor = {
@@ -371,7 +362,7 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       ${whereClause}
-      ORDER BY l.sort_order ASC, l.id ASC
+      ORDER BY l.course_id ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC
       LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -403,7 +394,7 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.status = 'active'
-      ORDER BY l.sort_order ASC, l.id ASC`
+      ORDER BY l.course_id ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC`
     );
 
     return rows.map((row) => this.mapStudentLesson(row, accessProfile));
@@ -432,94 +423,6 @@ export class LessonsService {
     };
   }
 
-  async findStudentAnnotations(lessonId: number, authorization?: string) {
-    const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    await this.ensureStudentCanAccessLesson(lessonId, user.id);
-
-    const [rows] = await this.db.execute<LessonAnnotationRow[]>(
-      `
-        SELECT id, lesson_id, user_id, type, selected_text, start_offset, end_offset, color, note_text, created_at, updated_at
-        FROM lesson_annotations
-        WHERE lesson_id = ? AND user_id = ?
-        ORDER BY start_offset ASC, id ASC
-      `,
-      [lessonId, user.id]
-    );
-
-    return rows.map((row) => this.mapAnnotation(row));
-  }
-
-  async createStudentAnnotation(lessonId: number, dto: CreateLessonAnnotationDto, authorization?: string) {
-    const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    const lesson = await this.ensureStudentCanAccessLesson(lessonId, user.id);
-    const lessonText = this.toPlainText(lesson.lessonContent || '');
-    this.validateAnnotationPayload(dto, lessonText.length);
-
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `
-        INSERT INTO lesson_annotations
-          (lesson_id, user_id, type, selected_text, start_offset, end_offset, color, note_text)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        lessonId,
-        user.id,
-        dto.type,
-        dto.selectedText.trim(),
-        dto.startOffset,
-        dto.endOffset,
-        (dto.color || '').trim() || '#fff59d',
-        (dto.noteText || '').trim() || null,
-      ]
-    );
-
-    const created = await this.findAnnotationById(result.insertId);
-    return this.mapAnnotation(created);
-  }
-
-  async updateStudentAnnotation(
-    lessonId: number,
-    annotationId: number,
-    dto: UpdateLessonAnnotationDto,
-    authorization?: string
-  ) {
-    const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    await this.ensureStudentCanAccessLesson(lessonId, user.id);
-    const annotation = await this.findOwnedAnnotation(annotationId, lessonId, user.id);
-
-    await this.db.execute(
-      `
-        UPDATE lesson_annotations
-        SET color = ?, note_text = ?
-        WHERE id = ? AND lesson_id = ? AND user_id = ?
-      `,
-      [
-        typeof dto.color === 'string' ? dto.color.trim() || annotation.color : annotation.color,
-        typeof dto.noteText === 'string' ? dto.noteText.trim() || null : annotation.noteText,
-        annotationId,
-        lessonId,
-        user.id,
-      ]
-    );
-
-    const updated = await this.findAnnotationById(annotationId);
-    return this.mapAnnotation(updated);
-  }
-
-  async removeStudentAnnotation(lessonId: number, annotationId: number, authorization?: string) {
-    const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    await this.ensureStudentCanAccessLesson(lessonId, user.id);
-    await this.findOwnedAnnotation(annotationId, lessonId, user.id);
-
-    await this.db.execute('DELETE FROM lesson_annotations WHERE id = ? AND lesson_id = ? AND user_id = ?', [
-      annotationId,
-      lessonId,
-      user.id,
-    ]);
-
-    return { ok: true, id: annotationId };
-  }
-
   async create(createLessonDto: CreateLessonDto, actor?: ContentActorInput) {
     const snapshot = this.buildLessonSnapshot(createLessonDto);
     this.validateLessonPayload(snapshot);
@@ -527,42 +430,64 @@ export class LessonsService {
     if (snapshot.status === 'active') {
       this.validateLessonPublishReady(snapshot);
     }
-    await this.ensureLessonHierarchyExists(snapshot);
+    // The course, subject and topic are checked inside the save itself: the
+    // count update below reads those rows by id anyway, so a missing one shows
+    // up there (and the save is rolled back) without a separate check query.
+    const validId = (id: unknown) => Number.isInteger(id) && Number(id) > 0;
+    if (!validId(snapshot.courseId)) throw new BadRequestException('Selected course was not found');
+    if (!validId(snapshot.topicId)) throw new BadRequestException('Selected subject was not found');
+    if (snapshot.subtopicId && !validId(snapshot.subtopicId)) throw new BadRequestException('Selected topic was not found');
 
     const connection = await this.db.getConnection();
+    let released = false;
     try {
       await connection.beginTransaction();
-      // New lessons land at the end of the COURSE — the admin then moves them
-      // into position from the list.
-      //
-      // Scoped to the course, not to the subtopic. sort_order is a flat order
-      // across a course now, so a per-subtopic MAX handed the new lesson a
-      // number another subtopic already held: it would appear somewhere in the
-      // middle of the list, and the duplicate would make the boot-time
-      // flattener think the course still needed converting.
+      // New lessons land at the end of their TOPIC (gap ranks). The highest
+      // rank comes straight from idx_lessons_sort (1 row) as a plain read: an
+      // INSERT … SELECT would lock that spot, and two lessons added to one topic
+      // at the same moment then deadlock. If they ever get the same rank, the
+      // newer id still sorts last.
       const [orderRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE course_id <=> ?`,
-        [snapshot.courseId]
+        `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`,
+        [snapshot.topicId ?? null, snapshot.subtopicId || null]
       );
-      const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
       const [result] = await connection.execute<ResultSetHeader>(
         `INSERT INTO lessons
-          (course_id, topic_id, subtopic_id, lesson_title, lesson_content, video_url, is_free, status, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           snapshot.courseId,
           snapshot.topicId,
           snapshot.subtopicId || null,
           snapshot.lessonTitle,
-          snapshot.lessonContent,
           snapshot.videoUrl,
           snapshot.isFree,
           snapshot.status,
-          nextSortOrder,
+          Number(orderRows[0]?.maxOrder || 0) + RANK_GAP,
         ]
       );
 
-      await this.recordContentVersion(connection, 'lesson', result.insertId, snapshot, this.getActorId(actor));
+      // New lessons are public on the default engine, so they count on the
+      // Structure page: +1 on their course and subject (by id). This replaces
+      // the full recount after a create, and doubles as the existence check:
+      // the course and subject must both match (2 rows), and the topic too
+      // when one was picked. Otherwise the save is rolled back.
+      const withTopic = Boolean(snapshot.subtopicId);
+      const [counted] = await connection.execute<ResultSetHeader>(
+        `UPDATE topics t
+         JOIN courses c ON c.id = ?
+         ${withTopic ? 'JOIN subtopics s ON s.id = ?' : ''}
+         SET t.lesson_count = t.lesson_count + 1, c.lesson_count = c.lesson_count + 1
+         WHERE t.id = ?`,
+        withTopic ? [snapshot.courseId, snapshot.subtopicId, snapshot.topicId] : [snapshot.courseId, snapshot.topicId]
+      );
+      if (counted.affectedRows < 2) {
+        // Rare: find which one is missing for the message (throws), then roll back.
+        await this.ensureLessonHierarchyExists(snapshot);
+        throw new BadRequestException('Selected course or subject was not found');
+      }
+      // A brand-new lesson has no versions yet, so it is version 1 (no read).
+      await this.recordContentVersion(connection, 'lesson', result.insertId, snapshot, this.getActorId(actor), { isNew: true });
       await this.setWorkflowState(connection, 'lesson', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
       await this.recordContentAudit(connection, {
         entityType: 'lesson',
@@ -586,9 +511,18 @@ export class LessonsService {
       };
     } catch (error) {
       await connection.rollback();
+      connection.release();
+      released = true;
+      // The lessons table's foreign keys refuse a course or subject that
+      // doesn't exist. Only then look up which one, for a clear message (after
+      // giving the connection back, so this never needs two at once).
+      if ((error as { errno?: number })?.errno === 1452) {
+        await this.ensureLessonHierarchyExists(snapshot);
+        throw new BadRequestException('Selected course or subject was not found');
+      }
       throw error;
     } finally {
-      connection.release();
+      if (!released) connection.release();
     }
   }
 
@@ -655,7 +589,15 @@ export class LessonsService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
+      const [locked] = await connection.execute<RowDataPacket[]>(
+        'SELECT course_id, topic_id, is_public, engine_key FROM lessons WHERE id = ? FOR UPDATE', [id],
+      );
       await connection.execute('DELETE FROM lessons WHERE id = ?', [id]);
+      if (locked[0] && isCountedLesson(locked[0])) {
+        await moveLessonCounts(connection,
+          { course_id: locked[0].course_id, topic_id: locked[0].topic_id, counted: true },
+          { course_id: null, topic_id: null, counted: false });
+      }
       await this.recordContentAudit(connection, {
         entityType: 'lesson',
         entityId: id,
@@ -679,22 +621,9 @@ export class LessonsService {
   }
 
   async listVersions(id: number) {
-    await this.findById(id);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'lesson' AND entity_id = ?
-       ORDER BY version_number DESC`,
-      [id]
-    );
-
-    return rows.map((row) => ({
-      id: Number(row.id),
-      versionNumber: Number(row.version_number),
-      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-      createdAt: row.created_at || null,
-      snapshot: this.parseSnapshotJson(row.snapshot_json),
-    }));
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id;
+    return [];
   }
 
   async markDraft(id: number, actor?: ContentActorInput) {
@@ -729,65 +658,9 @@ export class LessonsService {
   }
 
   async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
-    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-      throw new BadRequestException('Version number is invalid');
-    }
-
-    if (!this.canReviewContent(actor)) {
-      throw new ForbiddenException('Review permission is required to rollback published lesson content');
-    }
-
-    const existing = await this.findById(id);
-    const [versionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'lesson' AND entity_id = ? AND version_number = ?
-       LIMIT 1`,
-      [id, versionNumber]
-    );
-
-    if (!versionRows[0]) {
-      throw new NotFoundException('Content version not found');
-    }
-
-    const snapshot = this.parseLessonSnapshot(versionRows[0].snapshot_json);
-    this.validateLessonPayload(snapshot);
-    if (snapshot.status === 'active') {
-      this.validateLessonPublishReady(snapshot);
-    }
-    await this.ensureLessonHierarchyExists(snapshot);
-
-    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
-    const connection = await this.db.getConnection();
-    try {
-      await connection.beginTransaction();
-      await this.writeLessonSnapshot(connection, id, snapshot);
-      await this.recordContentVersion(connection, 'lesson', id, snapshot, this.getActorId(actor));
-      await this.setWorkflowState(connection, 'lesson', id, workflowState, this.getActorId(actor));
-      await this.recordContentAudit(connection, {
-        entityType: 'lesson',
-        entityId: id,
-        action: 'rolled_back',
-        summary: `Lesson ${id} rolled back to version ${versionNumber}`,
-        actorId: this.getActorId(actor),
-        before: existing,
-        after: snapshot,
-      });
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-
-    return {
-      ok: true,
-      id,
-      rolledBackToVersion: versionNumber,
-      status: snapshot.status,
-      workflowState,
-    };
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id; void versionNumber; void actor;
+    throw new BadRequestException('Version history is not kept any more.');
   }
 
   async uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput) {
@@ -804,10 +677,7 @@ export class LessonsService {
     await this.db.execute('UPDATE lessons SET pdf_url = ? WHERE id = ?', [pdfUrl, id]);
     this.forgetCanvasCatalog();
 
-    await this.db.execute(
-      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
-      ['lesson', id, 'pdf_uploaded', this.getActorId(actor) || null, `PDF uploaded for lesson ${id}`],
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
 
     return { ok: true, id, pdfUrl };
   }
@@ -867,10 +737,7 @@ export class LessonsService {
     await this.db.execute('UPDATE lessons SET pdf_url = NULL WHERE id = ?', [id]);
     this.forgetCanvasCatalog();
 
-    await this.db.execute(
-      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
-      ['lesson', id, 'pdf_removed', this.getActorId(actor) || null, `PDF removed from lesson ${id}`],
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
 
     return { ok: true, id };
   }
@@ -901,10 +768,7 @@ export class LessonsService {
     await this.db.execute('UPDATE lessons SET video_url = ? WHERE id = ?', [videoUrl, id]);
     this.forgetCanvasCatalog();
 
-    await this.db.execute(
-      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
-      ['lesson', id, 'video_uploaded', this.getActorId(actor) || null, `Video uploaded for lesson ${id}`],
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
 
     return { ok: true, id, videoUrl };
   }
@@ -921,10 +785,7 @@ export class LessonsService {
     await this.db.execute('UPDATE lessons SET video_url = NULL WHERE id = ?', [id]);
     this.forgetCanvasCatalog();
 
-    await this.db.execute(
-      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
-      ['lesson', id, 'video_removed', this.getActorId(actor) || null, `Video removed from lesson ${id}`],
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
 
     return { ok: true, id };
   }
@@ -1015,23 +876,45 @@ export class LessonsService {
     });
   }
 
+  // Used by the lesson edit and the version rollback. The lesson row is locked
+  // first; if the save moves it, it goes to the end of its new topic and its
+  // count moves with it (0 counter rows when it stays put).
   private async writeLessonSnapshot(connection: PoolConnection, id: number, lesson: LessonSnapshot) {
+    const [locked] = await connection.execute<RowDataPacket[]>(
+      'SELECT course_id, topic_id, subtopic_id, sort_order, is_public, engine_key FROM lessons WHERE id = ? FOR UPDATE', [id],
+    );
+    const before = locked[0];
+    const same = (a: unknown, b: unknown) => String(a ?? '') === String(b ?? '');
+    let sortOrder = before ? Number(before.sort_order) : 0;
+    if (before && (!same(lesson.topicId, before.topic_id) || !same(lesson.subtopicId || null, before.subtopic_id))) {
+      const [orderRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`,
+        [lesson.topicId ?? null, lesson.subtopicId || null],
+      );
+      sortOrder = Number(orderRows[0]?.maxOrder || 0) + RANK_GAP;
+    }
     await connection.execute(
       `UPDATE lessons
-       SET course_id = ?, topic_id = ?, subtopic_id = ?, lesson_title = ?, lesson_content = ?, video_url = ?, is_free = ?, status = ?
+       SET course_id = ?, topic_id = ?, subtopic_id = ?, lesson_title = ?, video_url = ?, is_free = ?, status = ?, sort_order = ?
        WHERE id = ?`,
       [
         lesson.courseId,
         lesson.topicId,
         lesson.subtopicId || null,
         lesson.lessonTitle,
-        lesson.lessonContent,
         lesson.videoUrl,
         lesson.isFree,
         lesson.status,
+        sortOrder,
         id,
       ]
     );
+    if (before) {
+      const counted = isCountedLesson(before);
+      await moveLessonCounts(connection,
+        { course_id: before.course_id, topic_id: before.topic_id, counted },
+        { course_id: lesson.courseId, topic_id: lesson.topicId, counted });
+    }
   }
 
   private parseSnapshotJson(value: unknown) {
@@ -1070,24 +953,26 @@ export class LessonsService {
     });
   }
 
+  // One query for the course, subject and topic checks (each by primary key,
+  // so 2–3 rows examined) instead of one query per table.
   private async ensureLessonHierarchyExists(lesson: LessonSnapshot) {
-    await this.ensureExists('courses', lesson.courseId, 'Selected course was not found');
-    await this.ensureExists('topics', lesson.topicId, 'Selected subject was not found');
-
-    if (lesson.subtopicId) {
-      await this.ensureExists('subtopics', lesson.subtopicId, 'Selected topic was not found');
-    }
-  }
-
-  private async ensureExists(tableName: 'courses' | 'topics' | 'subtopics', id: number, message: string) {
-    if (!Number.isInteger(id) || id <= 0) {
-      throw new BadRequestException(message);
-    }
-
-    const [rows] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM ${tableName} WHERE id = ? LIMIT 1`, [id]);
-    if (rows.length === 0) {
-      throw new BadRequestException(message);
-    }
+    const validId = (id: unknown) => Number.isInteger(id) && Number(id) > 0;
+    if (!validId(lesson.courseId)) throw new BadRequestException('Selected course was not found');
+    if (!validId(lesson.topicId)) throw new BadRequestException('Selected subject was not found');
+    const wantsTopic = Boolean(lesson.subtopicId);
+    if (wantsTopic && !validId(lesson.subtopicId)) throw new BadRequestException('Selected topic was not found');
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT c.id AS course_id, t.id AS topic_id, ${wantsTopic ? 's.id' : 'NULL'} AS subtopic_id
+       FROM courses c
+       LEFT JOIN topics t ON t.id = ?
+       ${wantsTopic ? 'LEFT JOIN subtopics s ON s.id = ?' : ''}
+       WHERE c.id = ? LIMIT 1`,
+      wantsTopic ? [lesson.topicId, lesson.subtopicId, lesson.courseId] : [lesson.topicId, lesson.courseId],
+    );
+    const row = rows[0];
+    if (!row) throw new BadRequestException('Selected course was not found');
+    if (row.topic_id == null) throw new BadRequestException('Selected subject was not found');
+    if (wantsTopic && row.subtopic_id == null) throw new BadRequestException('Selected topic was not found');
   }
 
   private async recordContentVersion(
@@ -1096,16 +981,10 @@ export class LessonsService {
     entityId: number,
     snapshot: unknown,
     actorId?: number,
+    options: { isNew?: boolean } = {},
   ) {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
-      [entityType, entityId]
-    );
-    const versionNumber = Number(rows[0]?.next_version || 1);
-    await connection.execute(
-      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
-      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void snapshot; void actorId;
   }
 
   private async setWorkflowState(
@@ -1115,15 +994,8 @@ export class LessonsService {
     workflowState: ContentWorkflowState,
     actorId?: number,
   ) {
-    await connection.execute(
-      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`,
-      [entityType, entityId, workflowState, actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void workflowState; void actorId;
   }
 
   private async recordContentAudit(
@@ -1138,20 +1010,7 @@ export class LessonsService {
       after?: unknown;
     }
   ) {
-    await connection.execute(
-      `INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        event.entityType,
-        event.entityId,
-        event.action,
-        event.actorId || null,
-        event.summary,
-        event.before === undefined ? null : JSON.stringify(event.before),
-        event.after === undefined ? null : JSON.stringify(event.after),
-      ]
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
   }
 
   private getActorId(actor?: ContentActorInput) {
@@ -1222,7 +1081,7 @@ export class LessonsService {
         l.topic_id,
         l.subtopic_id,
         l.lesson_title,
-        l.lesson_content,
+        NULL AS lesson_content, -- 10.42: column dropped (old lesson system)
         l.video_url,
         l.pdf_url,
         l.is_free,
@@ -1268,18 +1127,8 @@ export class LessonsService {
   }
 
   private async getLessonAccessProfile(userId: number): Promise<LessonAccessProfile> {
-    const [rows] = await this.db.execute<AccessScopeRow[]>(
-      `
-        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-        FROM user_subscriptions us
-        INNER JOIN plans ON plans.id = us.plan_id
-        WHERE us.user_id = ?
-          AND us.status = 'active'
-          AND us.start_date <= CURDATE()
-          AND us.end_date >= CURDATE() AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-      `,
-      [userId]
-    );
+    // From this request's signed token when present (no SQL), else the database.
+    const rows = await getScopeRows<AccessScopeRow>(this.db, userId);
 
     const profile: LessonAccessProfile = {
       hasAnyPaidLessonAccess: rows.length > 0,
@@ -1335,53 +1184,6 @@ export class LessonsService {
     return profile.courseIds.has(Number(lesson.courseId ?? lesson.course_id)) || profile.lessonIds.has(Number(lesson.id));
   }
 
-  private validateAnnotationPayload(dto: CreateLessonAnnotationDto, lessonLength: number) {
-    if (!dto.selectedText.trim()) {
-      throw new BadRequestException('Selected text is required');
-    }
-
-    if (dto.endOffset <= dto.startOffset) {
-      throw new BadRequestException('Annotation selection range is invalid');
-    }
-
-    if (dto.endOffset > lessonLength) {
-      throw new BadRequestException('Annotation selection is outside the lesson content');
-    }
-
-    if (dto.type === 'note' && !(dto.noteText || '').trim()) {
-      throw new BadRequestException('Note text is required for note annotations');
-    }
-  }
-
-  private async findAnnotationById(id: number) {
-    const [rows] = await this.db.execute<LessonAnnotationRow[]>(
-      `
-        SELECT id, lesson_id, user_id, type, selected_text, start_offset, end_offset, color, note_text, created_at, updated_at
-        FROM lesson_annotations
-        WHERE id = ?
-        LIMIT 1
-      `,
-      [id]
-    );
-
-    const annotation = rows[0];
-    if (!annotation) {
-      throw new NotFoundException('Annotation not found');
-    }
-
-    return annotation;
-  }
-
-  private async findOwnedAnnotation(annotationId: number, lessonId: number, userId: number) {
-    const annotation = await this.findAnnotationById(annotationId);
-
-    if (annotation.lesson_id !== lessonId || annotation.user_id !== userId) {
-      throw new ForbiddenException('You can only edit or delete your own annotations');
-    }
-
-    return this.mapAnnotation(annotation);
-  }
-
   private mapLesson(row: LessonRow) {
     return {
       id: row.id,
@@ -1419,22 +1221,6 @@ export class LessonsService {
     };
   }
 
-  private mapAnnotation(row: LessonAnnotationRow) {
-    return {
-      id: row.id,
-      lessonId: row.lesson_id,
-      userId: row.user_id,
-      type: row.type,
-      selectedText: row.selected_text,
-      startOffset: Number(row.start_offset),
-      endOffset: Number(row.end_offset),
-      color: row.color || '#fff59d',
-      noteText: row.note_text || '',
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null,
-    };
-  }
-
   private extractToken(authorization?: string) {
     const token = extractBearerToken(authorization);
 
@@ -1446,6 +1232,12 @@ export class LessonsService {
   }
 
   private async findActiveStudentByToken(sessionToken: string) {
+    if (looksLikeAccessToken(sessionToken)) {
+      const user = userFromAccessToken(sessionToken);
+      if (user.role !== 'student') throw new UnauthorizedException('Student access required');
+      if (user.status !== 'active') throw new UnauthorizedException('Your student account is not active yet');
+      return user as any;
+    }
     const [rows] = await this.db.execute<UserRow[]>(
       `SELECT id, role, status
        FROM users
@@ -1497,9 +1289,22 @@ export class LessonsService {
 
   private async resolveToken(token: string) {
     if (!token) throw new UnauthorizedException('Missing auth token');
+    // Signed access token: trusted by its signature, no SQL.
+    if (looksLikeAccessToken(token)) {
+      const u = userFromAccessToken(token);
+      return { id: u.id, role: u.role, status: u.status } as UserRow;
+    }
+    const tokenHash = hashSessionToken(token);
+    // The API entrance has usually just looked this session up; reuse that answer
+    // (kept for a few seconds and dropped on logout/deactivation) instead of
+    // asking the database the same question again in the same request.
+    const remembered = getCachedSession<UserRow>(tokenHash);
+    if (remembered) {
+      return { id: remembered.id, role: remembered.role, status: remembered.status } as UserRow;
+    }
     const [rows] = await this.db.execute<UserRow[]>(
       `SELECT id, role, status FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`,
-      [hashSessionToken(token)],
+      [tokenHash],
     );
     if (!rows.length) throw new UnauthorizedException('Invalid or expired session');
     return rows[0];
@@ -1527,46 +1332,97 @@ export class LessonsService {
     `;
   }
 
-  async canvasAdminList(token: string, engineKey: CanvasEngineKey = 'gemini') {
+  /** Structure page: one subject's lessons, with only what the lesson rows show
+   * (no lesson body, no flashcard count). The old "every lesson" admin list
+   * (8,960 rows, 952 KB) was removed with the separate Lessons page (P4). */
+  async canvasAdminStructureLessons(topicId: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
     await this.requireAdminToken(token);
-    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
-      SELECT ${this.canvasLessonSelect(false)},
-             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+    if (!Number.isInteger(topicId) || topicId <= 0) throw new BadRequestException('topicId is required');
+    // No join: the page already holds this subject's topics (with their names),
+    // so each lesson needs only its subtopic id. One row read per lesson listed.
+    const [rows] = await this.db.execute<RowDataPacket[]>(`
+      SELECT l.id, l.lesson_title, l.status, l.is_free, l.course_id, l.topic_id, l.subtopic_id, l.sort_order,
+             (l.note_data IS NOT NULL) AS has_note
       FROM lessons l
-      LEFT JOIN courses c ON c.id = l.course_id
-      LEFT JOIN topics t ON t.id = l.topic_id
-      LEFT JOIN subtopics s ON s.id = l.subtopic_id
-      WHERE l.is_public = 1 AND l.engine_key = ?
-      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
-    return rows.map(r => this.deserializeCanvas(r));
+      WHERE l.is_public = 1 AND l.engine_key = ? AND l.topic_id = ?
+      ORDER BY l.sort_order ASC, l.id ASC`, [engineKey, topicId]);
+    return rows.map((row) => ({
+      id: Number(row.id),
+      title: row.lesson_title,
+      lessonTitle: row.lesson_title,
+      status: row.status ?? 'active',
+      courseId: row.course_id ?? null,
+      topicId: row.topic_id ?? null,
+      subtopicId: row.subtopic_id ?? null,
+      sortOrder: Number(row.sort_order ?? 0),
+      isFree: Number(row.is_free) === 1,
+      hasNote: Number(row.has_note) === 1,
+    }));
   }
 
-  /** Bulk-set lessons.sort_order from a drag/arrow-reordered admin list — each
-   * id gets (its index + 1) * 10, matching the gap-based spacing new lessons
-   * are appended with. Scope (which topic/subtopic) is implicit in whichever
-   * ids the admin UI sent, since it only reorders within one filtered group. */
-  async canvasReorderLessons(orderedIds: number[], token: string) {
+  /** Structure page "Fix counts". Manual only. `check` is cheap (reads no lessons);
+   * the fix runs in small steps driven by the page (start → set … → finish), one
+   * connection for a few ms per request, under ~1,000 rows examined each. */
+  async canvasAdminStructureCounts(
+    token: string,
+    action: { step: 'check' } | { step: 'start'; courseId?: number }
+      | { step: 'set'; runId: string; subjectIds: number[]; finish?: Array<{ id: number; lessons: number; expectedLessons: number; expectedSubjects: number }> }
+      | { step: 'finish'; runId: string; courses: Array<{ id: number; lessons: number; expectedLessons: number; expectedSubjects: number }> },
+  ) {
     await this.requireAdminToken(token);
-    const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
-    if (!ids.length) return { ok: true };
-    await Promise.all(
-      ids.map((id, index) =>
-        this.db.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])
-      )
-    );
-    this.forgetCanvasCatalog();
-    return { ok: true };
+    try {
+      if (action.step === 'check') return { issues: await checkStructureCounts(this.db) };
+      if (action.step === 'start') {
+        const courseId = Number.isInteger(action.courseId) && Number(action.courseId) > 0 ? Number(action.courseId) : undefined;
+        return await startCountFix(this.db, courseId);
+      }
+      if (typeof action.runId !== 'string' || !action.runId) throw new BadRequestException('runId is required');
+      if (action.step === 'set') {
+        if (!Array.isArray(action.subjectIds)) throw new BadRequestException('subjectIds is required');
+        return await runCountFixSet(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
+      }
+      if (!Array.isArray(action.courses)) throw new BadRequestException('courses is required');
+      return await finishCountFix(this.db, action.runId, action.courses);
+    } catch (error) {
+      if (error instanceof CountFixBusyError) throw new ConflictException(error.message);
+      throw error;
+    }
+  }
+
+  /** Structure page: move one course, subject, topic or lesson between two
+   * neighbours. One statement in the normal case (3 rows examined, 1 changed);
+   * no recount, because an order change never changes a count. */
+  async canvasAdminStructureMove(
+    body: { kind?: unknown; id?: unknown; aboveId?: unknown; belowId?: unknown },
+    token: string,
+  ) {
+    await this.requireAdminToken(token);
+    const toId = (v: unknown) => (v == null || v === '' ? null : Number(v));
+    const kind = body.kind;
+    const id = toId(body.id);
+    const aboveId = toId(body.aboveId);
+    const belowId = toId(body.belowId);
+    const valid = (v: number | null) => v == null || (Number.isInteger(v) && v > 0);
+    if (!isStructureKind(kind)) throw new BadRequestException('kind must be course, subject, topic or lesson');
+    if (id == null || !valid(id) || !valid(aboveId) || !valid(belowId)) throw new BadRequestException('Invalid id');
+    if (aboveId == null && belowId == null) throw new BadRequestException('aboveId or belowId is required');
+    if (aboveId === id || belowId === id || (aboveId != null && aboveId === belowId)) throw new BadRequestException('Invalid neighbours');
+    const result = await moveStructureItem(this.db, kind, id, aboveId, belowId);
+    if (!result.ok) throw new ConflictException('The order changed on another screen. Refresh and try again.');
+    if (kind === 'lesson' || kind === 'topic' || kind === 'subject') this.forgetCanvasCatalog();
+    return { ok: true, respread: result.respread };
   }
 
   async canvasAdminFindOne(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
     await this.requireAdminToken(token);
+    // The lesson editor fills its course/subject/topic dropdowns from their own
+    // lists and counts flashcards from its flashcard list, so the lesson is read
+    // alone by id: no name joins, no flashcard-count subquery. One row.
     const [rows] = await this.db.execute<CanvasLessonRow[]>(`
-      SELECT ${this.canvasLessonSelect(true)},
-             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+      SELECT l.id, l.lesson_title, l.engine_key, l.is_free, l.status, l.is_public,
+             l.course_id, l.topic_id, l.subtopic_id, l.sort_order, l.video_url, l.pdf_url,
+             l.created_at, l.updated_at, l.note_data, l.raw_text
       FROM lessons l
-      LEFT JOIN courses c ON c.id = l.course_id
-      LEFT JOIN topics t ON t.id = l.topic_id
-      LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.id = ? AND l.is_public = 1 AND l.engine_key = ?`, [id, engineKey]);
     if (!rows.length) throw new NotFoundException('Lesson not found');
     return this.deserializeCanvas(rows[0]);
@@ -1580,34 +1436,32 @@ export class LessonsService {
   ) {
     await this.requireAdminToken(token);
     const [existing] = await this.db.execute<CanvasLessonRow[]>(
-      'SELECT id FROM lessons WHERE id = ? AND is_public = 1 AND engine_key = ?', [id, engineKey],
+      'SELECT id, course_id, topic_id, subtopic_id FROM lessons WHERE id = ? AND is_public = 1 AND engine_key = ?', [id, engineKey],
     );
     if (!existing.length) throw new NotFoundException('Lesson not found');
+    const current = existing[0];
+    const same = (a: unknown, b: unknown) => String(a ?? '') === String(b ?? '');
 
     // Subtopic (the "Topic" field) is intentionally optional — course + subject is
     // enough. Only fall back to an auto-created bucket when the subject itself
     // ("topicId") is missing; never overwrite an explicit (possibly null) subtopicId.
-    if (patch.courseId && !patch.topicId) {
-      try {
-        const fallback = await this.ensureDefaultLessonHierarchy(Number(patch.courseId));
-        patch.topicId = fallback.topicId;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new BadRequestException(`Could not resolve a default subject for this course: ${message}`);
-      }
-    }
+    const needsFallback = Boolean(patch.courseId && !patch.topicId);
+    // Does this save move the lesson? The editor sends course/subject/topic with
+    // every save, so only a real change counts. A save that doesn't move it
+    // never writes those columns (so it can't undo a move made meanwhile) and
+    // touches no counts.
+    const moves = needsFallback
+      || (patch.courseId !== undefined && !same(patch.courseId ?? null, current.course_id))
+      || (patch.topicId !== undefined && !same(patch.topicId ?? null, current.topic_id))
+      || (patch.subtopicId !== undefined && !same(patch.subtopicId ?? null, current.subtopic_id));
 
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
     if (patch.title      !== undefined) { fields.push('lesson_title = ?'); values.push(patch.title); }
     if (patch.rawText    !== undefined) { fields.push('raw_text = ?');     values.push(patch.rawText); }
     if (patch.status     !== undefined) { fields.push('status = ?');       values.push(patch.status === 'active' ? 'active' : 'inactive'); }
-    if (patch.courseId   !== undefined)  { fields.push('course_id = ?');    values.push(patch.courseId   ?? null); }
-    if (patch.topicId    !== undefined)  { fields.push('topic_id = ?');     values.push(patch.topicId    ?? null); }
-    if (patch.subtopicId !== undefined)  { fields.push('subtopic_id = ?');  values.push(patch.subtopicId ?? null); }
     if (patch.videoUrl   !== undefined)  { fields.push('video_url = ?');    values.push(String(patch.videoUrl || '').trim() || null); }
     if (patch.isFree     !== undefined)  { fields.push('is_free = ?');      values.push(Number(patch.isFree) === 1 ? 1 : 0); }
-
     if (patch.noteData !== undefined) {
       const serialized = JSON.stringify(patch.noteData);
       if (Buffer.byteLength(serialized, 'utf8') > 60 * 1024 * 1024)
@@ -1615,26 +1469,105 @@ export class LessonsService {
       fields.push('note_data = ?');
       values.push(serialized);
     }
-    if (!fields.length) return { id };
+    const tooLarge = (err: unknown) => {
+      const e = err as { code?: string; errno?: number };
+      return e?.code === 'ER_NET_PACKET_TOO_LARGE' || e?.errno === 1153;
+    };
 
-    values.push(id);
+    if (!moves) {
+      if (!fields.length) return { id };
+      values.push(id);
+      try {
+        await this.db.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+        this.forgetCanvasCatalog();
+      } catch (err: unknown) {
+        if (tooLarge(err)) throw new BadRequestException('Lesson data is too large for the database.');
+        throw err;
+      }
+      return { id };
+    }
+
+    // Moving: one transaction for the lesson and its counts. The lesson row is
+    // locked first, so two saves moving the same lesson can't both adjust the
+    // old place's counts.
+    const connection = await this.db.getConnection();
     try {
-      await this.db.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+      await connection.beginTransaction();
+      const [locked] = await connection.execute<RowDataPacket[]>(
+        'SELECT course_id, topic_id, subtopic_id, is_public, engine_key FROM lessons WHERE id = ? AND engine_key = ? FOR UPDATE', [id, engineKey],
+      );
+      if (!locked.length || Number(locked[0].is_public) !== 1) throw new NotFoundException('Lesson not found');
+      const before = locked[0];
+      let topicId = patch.topicId;
+      if (needsFallback) {
+        try {
+          topicId = (await this.ensureDefaultLessonHierarchy(Number(patch.courseId), connection)).topicId;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new BadRequestException(`Could not resolve a default subject for this course: ${message}`);
+        }
+      }
+      const next = {
+        course_id: patch.courseId !== undefined ? (patch.courseId ?? null) : before.course_id,
+        topic_id: topicId !== undefined ? (topicId ?? null) : before.topic_id,
+        subtopic_id: patch.subtopicId !== undefined ? (patch.subtopicId ?? null) : before.subtopic_id,
+      };
+      fields.push('course_id = ?', 'topic_id = ?', 'subtopic_id = ?');
+      values.push(next.course_id, next.topic_id, next.subtopic_id);
+      // Lessons are ranked inside their topic: moved to another topic, the
+      // lesson goes to the end of it (one row read from idx_lessons_sort).
+      if (!same(next.topic_id, before.topic_id) || !same(next.subtopic_id, before.subtopic_id)) {
+        const [orderRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`,
+          [next.topic_id, next.subtopic_id],
+        );
+        fields.push('sort_order = ?');
+        values.push(Number(orderRows[0]?.maxOrder || 0) + RANK_GAP);
+      }
+      values.push(id);
+      await connection.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+      const counted = isCountedLesson(before);
+      await moveLessonCounts(connection,
+        { course_id: before.course_id, topic_id: before.topic_id, counted },
+        { course_id: next.course_id, topic_id: next.topic_id, counted });
+      await connection.commit();
       this.forgetCanvasCatalog();
     } catch (err: unknown) {
-      const e = err as { code?: string; errno?: number };
-      if (e?.code === 'ER_NET_PACKET_TOO_LARGE' || e?.errno === 1153)
-        throw new BadRequestException('Lesson data is too large for the database.');
+      await connection.rollback().catch(() => undefined);
+      if (tooLarge(err)) throw new BadRequestException('Lesson data is too large for the database.');
+      if ((err as { errno?: number })?.errno === 1452) throw new BadRequestException('Selected course or subject was not found');
       throw err;
+    } finally {
+      connection.release();
     }
     return { id };
   }
 
   async canvasAdminRemove(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
     await this.requireAdminToken(token);
-    await this.db.execute(
-      `UPDATE lessons SET note_data = NULL, raw_text = NULL, is_public = 0 WHERE id = ? AND engine_key = ?`, [id, engineKey]
-    );
+    // "Delete" hides the lesson (the row stays). A public lesson on the default
+    // engine is counted on the Structure page, so the same statement takes 1 off
+    // its course and subject: 3 rows examined (lesson, course, subject, all by
+    // id), and no full recount afterwards.
+    let changed = 0;
+    if (engineKey === 'gemini') {
+      const [result] = await this.db.execute<ResultSetHeader>(
+        `UPDATE lessons l
+         LEFT JOIN topics t ON t.id = l.topic_id
+         LEFT JOIN courses c ON c.id = l.course_id
+         SET l.note_data = NULL, l.raw_text = NULL, l.is_public = 0,
+             t.lesson_count = GREATEST(t.lesson_count - 1, 0),
+             c.lesson_count = GREATEST(c.lesson_count - 1, 0)
+         WHERE l.id = ? AND l.engine_key = 'gemini' AND l.is_public = 1`, [id]
+      );
+      changed = result.affectedRows;
+    }
+    if (!changed) {
+      // Already hidden, or another engine: not counted, so just clear it as before.
+      await this.db.execute(
+        `UPDATE lessons SET note_data = NULL, raw_text = NULL, is_public = 0 WHERE id = ? AND engine_key = ?`, [id, engineKey]
+      );
+    }
     this.forgetCanvasCatalog();
     return { deleted: true };
   }
@@ -2709,16 +2642,11 @@ export class LessonsService {
     ].join('\n');
   }
 
-  // Ordered FLAT across the course — by l.sort_order alone, not by topic and
-  // subtopic first.
-  //
-  // Grouping in the ORDER BY welded each topic's lessons into a block that
-  // nothing could break, so a topic heading could never sit between two other
-  // lessons and the admin's move up/down could only shuffle whole blocks past
-  // one another. The heading is now derived from where a lesson's topic
-  // changes, so moving a group really does mean moving its lessons. Existing
-  // rows are renumbered once at boot in their current visible order — see
-  // flattenLessonSortOrder in schema-sync — so nothing moves on deploy.
+  // Ordered subject -> topic -> lesson: each level has its own rank inside its
+  // parent (gap ranks, see common/utils/structure-order.ts), so a lesson always
+  // sits inside its topic and moving a topic moves its lessons with it. The
+  // readers still derive topic headings from where the topic changes; with this
+  // order each topic is one run.
   // The lesson catalog (titles, course/topic names, flashcard counts) is the
   // same for every student, but it used to be read in full, joined to the
   // student's progress, on every launch, Notes and Flashcards load (Flashcards
@@ -2727,7 +2655,7 @@ export class LessonsService {
   // writes below clear it at once; other changes (topic renames, flashcard
   // approvals) show within the TTL.
   private static readonly CANVAS_CATALOG_TTL_MS = 30_000;
-  private readonly canvasCatalogCache = new Map<string, { rows: CanvasLessonRow[]; expiresAt: number }>();
+  private readonly canvasCatalogCache = new Map<string, { rows: CanvasLessonRow[]; expiresAt: number; version?: number }>();
   private readonly canvasCatalogInflight = new Map<string, Promise<CanvasLessonRow[]>>();
 
   private forgetCanvasCatalog() {
@@ -2735,8 +2663,12 @@ export class LessonsService {
   }
 
   private async getCanvasStudentCatalog(engineKey: CanvasEngineKey): Promise<CanvasLessonRow[]> {
+    // Kept until the catalogue version changes (any lesson / flashcard /
+    // course save raises it), not just 30 s: the website's lesson list rebuilt
+    // this ~9,000-row read twice a minute (OPTIMIZE 10 step 6).
+    const version = await getContentVersion(this.db);
     const cached = this.canvasCatalogCache.get(engineKey);
-    if (cached && cached.expiresAt > Date.now()) return cached.rows;
+    if (cached && cached.version === version) return cached.rows;
     const running = this.canvasCatalogInflight.get(engineKey);
     if (running) return running;
     const task = this.db.execute<CanvasLessonRow[]>(`
@@ -2747,9 +2679,9 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey])
+      ORDER BY c.course_title ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC`, [engineKey])
       .then(([rows]) => {
-        this.canvasCatalogCache.set(engineKey, { rows, expiresAt: Date.now() + LessonsService.CANVAS_CATALOG_TTL_MS });
+        this.canvasCatalogCache.set(engineKey, { rows, expiresAt: Date.now() + LessonsService.CANVAS_CATALOG_TTL_MS, version });
         return rows;
       })
       .finally(() => this.canvasCatalogInflight.delete(engineKey));
@@ -2761,34 +2693,72 @@ export class LessonsService {
     const student = await this.requireStudentToken(token);
     const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
     const catalog = await this.getCanvasStudentCatalog(engineKey);
-    // One row per (user_id, lesson_id) — uniq_student_lesson_progress.
-    const [progressRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT lesson_id, status, progress_percent, completed_at
-       FROM student_lesson_progress
-       WHERE user_id = ?`, [student.id]);
-    const progressByLesson = new Map(progressRows.map((p) => [Number(p.lesson_id), p]));
+    // Finished lessons from the student's bitmap (10.15: 1 row by primary key).
+    const done = await finishedLessons(this.db, student.id);
     return catalog.map((row) => {
-      const progress = progressByLesson.get(Number(row.id));
+      const finished = done.has(Number(row.id));
       // A copy per request: the shared catalog rows are never changed.
       const merged = {
         ...row,
-        lesson_progress_status: progress ? progress.status : null,
-        lesson_progress_percent: progress ? progress.progress_percent : null,
-        lesson_completed_at: progress ? progress.completed_at : null,
+        lesson_progress_status: finished ? 'completed' : null,
+        lesson_progress_percent: finished ? 100 : null,
+        lesson_completed_at: null,
       } as CanvasLessonRow;
       return this.mapCanvasStudentNote(merged, accessProfile, false);
     });
   }
 
+  /**
+   * Free lessons and their flashcards for the public sample files (OPTIMIZE
+   * 10.21): built once per content version, then served as files — opening a
+   * free lesson on the website costs no database work. Premium lessons are
+   * never in here (the website just says "+ more in the app", no counting).
+   */
+  async freeSamples() {
+    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
+      SELECT ${this.canvasLessonSelect(true)},
+             NULL AS lesson_progress_status, NULL AS lesson_progress_percent, NULL AS lesson_completed_at,
+             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+        FROM lessons l
+        LEFT JOIN courses c ON c.id = l.course_id
+        LEFT JOIN topics t ON t.id = l.topic_id
+        LEFT JOIN subtopics s ON s.id = l.subtopic_id
+       WHERE l.is_free = 1 AND l.is_public = 1 AND l.status = 'active' AND l.engine_key = 'gemini'
+         AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL)
+       ORDER BY c.course_title ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC`);
+    const profile: CanvasAccessProfile = {
+      hasAnyPaidLessonAccess: false, hasNotesCanvas: false, hasFullAccess: false,
+      courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked: false,
+    };
+    const lessons = rows.map((row) => {
+      const full: any = this.mapCanvasStudentNote(row, profile, true);
+      // The original pasted text is only needed when there is no canvas.
+      if (full.noteData) full.rawText = null;
+      const { noteData: _n, rawText: _r, ...item } = full;
+      return { item, full };
+    });
+    const decks: Array<{ lessonId: number; flashcards: unknown[] }> = [];
+    for (const lesson of lessons) {
+      if (Number(lesson.item.approvedFlashcardCount) > 0) {
+        decks.push({ lessonId: Number(lesson.item.id), flashcards: await this.findApprovedFlashcardsForLesson(Number(lesson.item.id)) });
+      }
+    }
+    return { lessons, decks };
+  }
+
   async canvasStudentFindNote(id: number, token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
     const student = await this.requireStudentToken(token);
     const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
+    if (isMobileAppClient(appClient)) return this.appLessonOpen(id, engineKey, accessProfile);
+    // Finished or not from the student's bitmap (10.15), with the lesson row.
     const [rows] = await this.db.execute<CanvasLessonRow[]>(`
       SELECT ${this.canvasLessonSelect(true)},
-             slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
+             IF(ss.lessons_done IS NOT NULL AND LENGTH(ss.lessons_done) > l.id DIV 8
+                AND (ORD(SUBSTRING(ss.lessons_done, l.id DIV 8 + 1, 1)) & (1 << (l.id % 8))) <> 0, 'completed', NULL) AS lesson_progress_status,
+             NULL AS lesson_progress_percent, NULL AS lesson_completed_at,
              (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
       FROM lessons l
-      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = l.id AND slp.user_id = ?
+      LEFT JOIN student_study_summary ss ON ss.user_id = ?
       LEFT JOIN courses c ON c.id = l.course_id
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
@@ -2812,11 +2782,57 @@ export class LessonsService {
       throw new NotFoundException('Lesson not found');
     }
     const mapped = this.mapCanvasStudentNote(rows[0], accessProfile, true);
-    // Phone app only: wide tables are reshaped and dense text is eased (see mobile-table-layout.ts
-    // and mobile-text-layout.ts). The stored lesson is never changed.
+    // 10.32: the app gets the website's lesson as it is (tables, long text and
+    // sections unchanged — the app fits tables itself). Only leftover ** / ==
+    // markers in fields the app draws as plain text are removed.
     return isMobileAppClient(appClient) && mapped.noteData
-      ? { ...mapped, noteData: calmTextForPhone(reshapeTablesForPhone(mapped.noteData)) }
+      ? { ...mapped, noteData: compactForPhone(scrubPlainTextFieldsForPhone(mapped.noteData)) }
       : mapped;
+  }
+
+  /**
+   * Opening a lesson in the phone app (OPTIMIZE 10 step 5): only what the
+   * lesson screen draws — title, the lesson body (noteData), PDF / video links
+   * and the lock. One row by primary key, only those columns, no joins: the
+   * app already has the course / subject / topic names, progress and
+   * flashcard counts from the catalogue and its progress. The original pasted
+   * source text (raw_text, ~40% of the old reply) is not sent; the app never
+   * used it. The website keeps the full reply.
+   */
+  private async appLessonOpen(id: number, engineKey: CanvasEngineKey, accessProfile: CanvasAccessProfile) {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, lesson_title, is_free, course_id, video_url, pdf_url, note_data
+         FROM lessons
+        WHERE id = ? AND is_public = 1 AND status = 'active' AND engine_key = ?
+        LIMIT 1`,
+      [id, engineKey],
+    );
+    const row = rows[0];
+    if (!row || (!row.note_data && !row.pdf_url)) throw new NotFoundException('Lesson not found');
+    const isFree = Number(row.is_free) === 1;
+    const canAccess = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: Number(row.id) }, accessProfile);
+    const hasStudyMode = accessProfile.hasAnyPaidLessonAccess || isFree;
+    let noteData: unknown = null;
+    if (canAccess && row.note_data) {
+      try { noteData = JSON.parse(String(row.note_data)); } catch { noteData = null; }
+      if (noteData) noteData = compactForPhone(scrubPlainTextFieldsForPhone(noteData)); // 10.32 no reshape · 10.34 compact
+    }
+    // Only what the lesson screen reads; empty fields and lock messages for an
+    // open lesson are left out.
+    const reply: Record<string, unknown> = {
+      id: Number(row.id),
+      lessonTitle: String(row.lesson_title || ''),
+      isFree,
+      accessLocked: !canAccess,
+    };
+    if (noteData) reply.noteData = noteData;
+    if (canAccess && row.pdf_url) reply.pdfUrl = String(row.pdf_url);
+    if (canAccess && row.video_url) reply.videoUrl = String(row.video_url);
+    if (!canAccess) {
+      reply.lockReason = hasStudyMode ? 'Your package only unlocks selected course or lesson content.' : 'Upgrade to access this feature';
+      reply.upgradeLabel = hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan';
+    }
+    return reply;
   }
 
   async canvasStudentFlashcards(id: number, token: string, engineKey: CanvasEngineKey = 'gemini', appClient?: string) {
@@ -2861,19 +2877,24 @@ export class LessonsService {
   // Subtopic ("Topic") is intentionally left for the caller to set or leave null;
   // this never auto-creates one, avoiding the unique_topic_subtopic race that used
   // to throw a raw 500 when two saves for the same course landed concurrently.
-  private async ensureDefaultLessonHierarchy(courseId: number) {
-    const [tr] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM topics WHERE course_id = ? AND topic_name = 'General lessons' LIMIT 1`, [courseId]);
+  private async ensureDefaultLessonHierarchy(courseId: number, connection: PoolConnection) {
+    const [tr] = await connection.execute<RowDataPacket[]>(`SELECT id FROM topics WHERE course_id = ? AND topic_name = 'General lessons' LIMIT 1`, [courseId]);
     let topicId = tr[0]?.id ? Number(tr[0].id) : 0;
     if (!topicId) {
-      const [r] = await this.db.execute<ResultSetHeader>(`INSERT INTO topics (course_id, topic_name, topic_description, status) VALUES (?, 'General lessons', 'Auto-created bucket for course-level lessons.', 'active')`, [courseId]);
+      const [r] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO topics (course_id, topic_name, topic_description, status, sort_order)
+         SELECT ?, 'General lessons', 'Auto-created bucket for course-level lessons.', 'active', COALESCE(MAX(sort_order), 0) + ${RANK_GAP}
+         FROM topics WHERE course_id = ?`, [courseId, courseId]);
       topicId = r.insertId;
+      // A new subject on the course (same transaction as the lesson move).
+      await bumpCounts(connection, 'courses', 'subject_count', [[courseId, 1]]);
     }
     return { topicId };
   }
 
   private async findCanvasLessonRow(id: number) {
     const [rows] = await this.db.execute<CanvasLessonRow[]>(`
-      SELECT l.*, c.course_title, t.topic_name, s.subtopic_name
+      SELECT l.id, l.lesson_title, l.note_data, l.raw_text, c.course_title, t.topic_name, s.subtopic_name
       FROM lessons l
       LEFT JOIN courses c ON c.id = l.course_id
       LEFT JOIN topics t ON t.id = l.topic_id
@@ -2989,11 +3010,8 @@ export class LessonsService {
   }
 
   private async getCanvasAccessProfile(userId: number, appClient?: string): Promise<CanvasAccessProfile> {
-    const [rows] = await this.db.execute<AccessScopeRow[]>(
-      `SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-       FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
-       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE() AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())`, [userId]
-    );
+    // From this request's signed token when present (no SQL), else the database.
+    const rows = await getScopeRows<AccessScopeRow>(this.db, userId);
     const appOnlyBlocked = this.isAppOnlyBlocked(appClient);
     const profile: CanvasAccessProfile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked };
     for (const row of rows) {

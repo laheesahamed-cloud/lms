@@ -9,7 +9,7 @@ import '../theme/tokens.dart';
 ///
 /// [onTap] gets the tapped subject, or null for the "All" pill. It does not
 /// decide what tapping the chosen pill again means; each screen toggles.
-class SubjectPills extends StatelessWidget {
+class SubjectPills extends StatefulWidget {
   /// Text of the first pill, for example "All subjects".
   final String allLabel;
   final List<String> labels;
@@ -26,9 +26,47 @@ class SubjectPills extends StatelessWidget {
   });
 
   @override
+  State<SubjectPills> createState() => _SubjectPillsState();
+}
+
+class _SubjectPillsState extends State<SubjectPills> {
+  // One key per pill, so a chosen pill can be slid into view.
+  final Map<String, GlobalKey> _keys = {};
+  final ScrollController _scroll = ScrollController();
+  final GlobalKey _rowKey = GlobalKey();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+  GlobalKey _keyFor(String label) => _keys.putIfAbsent(label, GlobalKey.new);
+
+  @override
+  void didUpdateWidget(covariant SubjectPills old) {
+    super.didUpdateWidget(old);
+    // Choosing a subject slides the row left until the chosen pill is the
+    // first one in view, like the series cards on the full-course shelf
+    // (2026-11-17).
+    if (widget.selected != old.selected && widget.selected != null) {
+      final key = _keyFor(widget.selected!);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Only the pill row moves — not the page around it.
+        final pill = key.currentContext?.findRenderObject() as RenderBox?;
+        final row = _rowKey.currentContext?.findRenderObject() as RenderBox?;
+        if (pill == null || row == null || !mounted || !_scroll.hasClients) return;
+        final x = pill.localToGlobal(Offset.zero, ancestor: row).dx;
+        _scroll.animateTo(x.clamp(0.0, _scroll.position.maxScrollExtent).toDouble(),
+            duration: const Duration(milliseconds: 420), curve: Curves.easeInOutCubic);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.c;
-    Widget pill(String label, bool active, VoidCallback onTap) => GestureDetector(
+    Widget pill(String label, bool active, VoidCallback onTap, {Key? key}) => GestureDetector(
+          key: key,
           onTap: onTap,
           child: AnimatedContainer(
             duration: AppDur.hover,
@@ -48,12 +86,17 @@ class SubjectPills extends StatelessWidget {
         );
 
     return SingleChildScrollView(
+      controller: _scroll,
       scrollDirection: Axis.horizontal,
       child: Row(
+        key: _rowKey,
         children: [
-          pill(allLabel, selected == null, () => onTap(null)),
-          for (final label in labels)
-            pill(label, selected == label, () => onTap(label)),
+          // An empty allLabel = no "All" pill (one group at a time).
+          if (widget.allLabel.isNotEmpty)
+            pill(widget.allLabel, widget.selected == null, () => widget.onTap(null)),
+          for (final label in widget.labels)
+            pill(label, widget.selected == label, () => widget.onTap(label),
+                key: _keyFor(label)),
         ],
       ),
     );

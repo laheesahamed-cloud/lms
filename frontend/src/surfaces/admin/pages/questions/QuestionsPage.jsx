@@ -4,12 +4,15 @@ import { createPortal } from 'react-dom';
 import {
   createQuestion,
   bulkDeleteQuestions,
-  bulkUpdateQuestionKeywords,
   deleteQuestion,
   exportQuestions,
   fetchQuestion,
   fetchQuestions,
   fetchQuestionsMeta,
+  fetchQuestionSubjectLists,
+  fetchQuestionSubjectListsMany,
+  fixCourseQuestionTotals,
+  fixQuestionLinkCounts,
   importQuestions,
   updateQuestion,
 } from '../../../../shared/api/questions.api.js';
@@ -56,7 +59,7 @@ const tableCheckboxClass =
   'size-5 cursor-pointer rounded border-line-medium accent-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20 max-[767px]:size-11 max-[767px]:rounded-lg';
 const bulkWarningClass =
   'rounded-lg border border-brand-warning/25 bg-[var(--color-warning-light)] px-4 py-3 text-[13px] leading-relaxed text-ink-medium';
-const bulkKeywordGridClass = 'grid gap-3 px-5 py-4';
+const bulkGridClass = 'grid gap-3 px-5 py-4';
 const questionPreviewButtonClass =
   'block w-full rounded-lg border-0 bg-transparent p-0 text-left font-inherit text-inherit transition hover:text-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20';
 const detailMetaGridClass = 'grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3';
@@ -142,7 +145,6 @@ function buildDefaultForm() {
     category: 'mock',
     questionType: 'sba',
     questionText: '',
-    keywordsText: '',
     explanation: '',
     explanationImageUrl: '',
     questionApproach: '',
@@ -165,7 +167,6 @@ function mapQuestionToForm(question) {
     category: question.category || 'mock',
     questionType,
     questionText: question.questionText || '',
-    keywordsText: question.keywordsText || '',
     explanation: question.explanation || '',
     explanationImageUrl: question.explanationImageUrl || '',
     questionApproach: question.questionApproach || '',
@@ -254,15 +255,63 @@ function adminFieldsToRecap(fields) {
   };
 }
 
-const questionInitialFilters = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', missing: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
+const questionInitialFilters = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', missing: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
+
+
+const QUESTION_PAGE_SIZE = 15;
 
 export function QuestionsPage() {
   const navigate = useNavigate();
   const importInputRef = useRef(null);
   const [questions, setQuestions] = useState([]);
-  const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [], keywordSuggestions: [] });
+  const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [] });
+  // Topics and lessons are loaded per subject, only for the subjects picked in
+  // the filters or the form, and remembered for this visit.
+  const [subjectLists, setSubjectLists] = useState({});
+  const subjectRequestsRef = useRef(new Map());
+  const ensureSubjectLists = useCallback((subjectId) => {
+    const key = String(subjectId || '');
+    if (!key || subjectRequestsRef.current.has(key)) return;
+    const request = fetchQuestionSubjectLists(key)
+      .then((data) => setSubjectLists((current) => ({ ...current, [key]: { topics: data?.topics || [], lessons: data?.lessons || [] } })))
+      .catch(() => { subjectRequestsRef.current.delete(key); });
+    subjectRequestsRef.current.set(key, request);
+  }, []);
+  // The subjects on a page of questions, in one request (for their topic and lesson names).
+  const ensureManySubjectLists = useCallback((subjectIds) => {
+    const missing = [...new Set(subjectIds.map((id) => String(id || '')).filter((key) => key && !subjectRequestsRef.current.has(key)))];
+    if (!missing.length) return;
+    const request = fetchQuestionSubjectListsMany(missing)
+      .then((lists) => setSubjectLists((current) => {
+        const next = { ...current };
+        for (const list of lists) next[String(list.topicId)] = { topics: list.topics || [], lessons: list.lessons || [] };
+        return next;
+      }))
+      .catch(() => { missing.forEach((key) => subjectRequestsRef.current.delete(key)); });
+    missing.forEach((key) => subjectRequestsRef.current.set(key, request));
+  }, []);
+  const loadedTopics = useMemo(() => Object.values(subjectLists).flatMap((list) => list.topics), [subjectLists]);
+  const loadedLessons = useMemo(() => Object.values(subjectLists).flatMap((list) => list.lessons), [subjectLists]);
+  useEffect(() => { ensureManySubjectLists(questions.map((question) => question.subjectId)); }, [questions, ensureManySubjectLists]);
+  const questionsWithNames = useMemo(() => {
+    const courseNames = new Map(meta.courses.map((item) => [String(item.id), item.courseTitle]));
+    const subjectNames = new Map(meta.subjects.map((item) => [String(item.id), item.subjectName]));
+    const topicNames = new Map(loadedTopics.map((item) => [String(item.id), item.topicName]));
+    const lessonNames = new Map(loadedLessons.map((item) => [String(item.id), item.lessonTitle]));
+    const paperNames = new Map(meta.papers.map((item) => [String(item.id), item.paperTitle]));
+    return questions.map((question) => ({
+      ...question,
+      courseTitle: question.courseTitle || courseNames.get(String(question.courseId)) || '',
+      subjectName: question.subjectName || subjectNames.get(String(question.subjectId)) || '',
+      topicName: question.topicName || topicNames.get(String(question.topicId)) || '',
+      lessonTitle: question.lessonTitle || lessonNames.get(String(question.lessonId)) || '',
+      paperTitle: question.paperTitle || paperNames.get(String(question.paperId)) || '',
+    }));
+  }, [questions, meta.courses, meta.subjects, meta.papers, loadedTopics, loadedLessons]);
   const [filters, setFilters] = useState(questionInitialFilters);
   const [form, setForm] = useState(buildDefaultForm);
+  useEffect(() => { ensureSubjectLists(filters.subjectId); }, [ensureSubjectLists, filters.subjectId]);
+  useEffect(() => { ensureSubjectLists(form.subjectId); }, [ensureSubjectLists, form.subjectId]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -277,11 +326,8 @@ export function QuestionsPage() {
   const [detailError, setDetailError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [bulkKeywordSaving, setBulkKeywordSaving] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState(() => new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [bulkKeywordOpen, setBulkKeywordOpen] = useState(false);
-  const [bulkKeywordForm, setBulkKeywordForm] = useState({ keywordsText: '', mode: 'append' });
   const [bulkAiOpen, setBulkAiOpen] = useState(false);
   const [bulkAiMode, setBulkAiMode] = useState('skip');
   // Off by default, like the importer and the quiz builder: it is another AI
@@ -327,39 +373,39 @@ export function QuestionsPage() {
   );
 
   const visibleTopics = useMemo(
-    () => meta.topics.filter((topic) => String(topic.subjectId) === String(form.subjectId || '')),
-    [meta.topics, form.subjectId]
+    () => loadedTopics.filter((topic) => String(topic.subjectId) === String(form.subjectId || '')),
+    [loadedTopics, form.subjectId]
   );
 
   const visibleLessons = useMemo(
     () =>
-      meta.lessons.filter(
+      loadedLessons.filter(
         (lesson) =>
           String(lesson.subjectId) === String(form.subjectId || '') &&
           (form.topicId ? String(lesson.topicId || '') === String(form.topicId) : true)
       ),
-    [meta.lessons, form.subjectId, form.topicId]
+    [loadedLessons, form.subjectId, form.topicId]
   );
   const filterSubjects = useMemo(
     () => meta.subjects.filter((subject) => !filters.courseId || String(subject.courseId) === String(filters.courseId)),
     [meta.subjects, filters.courseId]
   );
   const filterTopics = useMemo(
-    () => meta.topics.filter((topic) =>
+    () => loadedTopics.filter((topic) =>
       (!filters.courseId || String(topic.courseId) === String(filters.courseId)) &&
       (!filters.subjectId || String(topic.subjectId) === String(filters.subjectId))
     ),
-    [meta.topics, filters.courseId, filters.subjectId]
+    [loadedTopics, filters.courseId, filters.subjectId]
   );
   const filterLessons = useMemo(
     () =>
-      meta.lessons.filter(
+      loadedLessons.filter(
         (lesson) =>
           (!filters.courseId || String(lesson.courseId) === String(filters.courseId)) &&
           (!filters.subjectId || String(lesson.subjectId) === String(filters.subjectId)) &&
           (!filters.topicId || String(lesson.topicId || '') === String(filters.topicId))
       ),
-    [meta.lessons, filters.courseId, filters.subjectId, filters.topicId]
+    [loadedLessons, filters.courseId, filters.subjectId, filters.topicId]
   );
   const selectedVisibleQuestions = useMemo(
     () => questions.filter((question) => selectedQuestionIds.has(question.id)),
@@ -367,15 +413,6 @@ export function QuestionsPage() {
   );
   const selectedVisibleIds = useMemo(
     () => selectedVisibleQuestions.map((question) => question.id),
-    [selectedVisibleQuestions]
-  );
-  const selectedKeywordPreview = useMemo(
-    () => Array.from(new Set(
-      selectedVisibleQuestions
-        .flatMap((question) => String(question.keywordsText || '').split(','))
-        .map((keyword) => keyword.trim())
-        .filter(Boolean)
-    )).slice(0, 8),
     [selectedVisibleQuestions]
   );
   const questionTypeCounts = useMemo(
@@ -412,15 +449,44 @@ export function QuestionsPage() {
   const selectedLinkedQuestionCount = selectedLinkSummary.questionCount;
   const selectedLinkedQuizCount = selectedLinkSummary.quizCount;
 
-  const loadQuestions = useCallback(async (nextFilters = questionInitialFilters) => {
+  // Pages of 15, newest first (keyset: each page starts after the last id of
+  // the page before, so the server reads ~16 rows a page however deep you go).
+  // One extra row is asked for only to know whether a Next page exists.
+  // Slim rows: names are filled in from lists the page already holds
+  // (questionsWithNames). Reloads after a save keep the current page; new
+  // filters go back to page 1.
+  const [hasMoreQuestions, setHasMoreQuestions] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
+  const pageStartsRef = useRef([0]); // the `after` cursor of each page visited
+  const pageIndexRef = useRef(0);
+  const lastFiltersRef = useRef(questionInitialFilters);
+  const loadQuestions = useCallback(async (nextFilters = questionInitialFilters, targetPage) => {
     setLoading(true);
+    const sameFilters = JSON.stringify(nextFilters) === JSON.stringify(lastFiltersRef.current);
+    lastFiltersRef.current = nextFilters;
+    if (!sameFilters) { pageStartsRef.current = [0]; pageIndexRef.current = 0; }
+    let index = targetPage ?? pageIndexRef.current;
 
     try {
       const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value));
-      const data = await fetchQuestions(params);
-      setQuestions(data);
+      const fetchPage = (i) => {
+        const after = pageStartsRef.current[i] || 0;
+        return fetchQuestions({ ...params, limit: QUESTION_PAGE_SIZE + 1, slim: 1, ...(after ? { after } : {}) });
+      };
+      let data = await fetchPage(index);
+      // A page emptied by deletes falls back to the page before it.
+      while (!data.length && index > 0) {
+        index -= 1;
+        data = await fetchPage(index);
+      }
+      pageIndexRef.current = index;
+      pageStartsRef.current = pageStartsRef.current.slice(0, index + 1);
+      setPageIndex(index);
+      const pageRows = data.slice(0, QUESTION_PAGE_SIZE);
+      setQuestions(pageRows);
+      setHasMoreQuestions(data.length > QUESTION_PAGE_SIZE);
       setSelectedQuestionIds((current) => {
-        const visibleIds = new Set(data.map((question) => question.id));
+        const visibleIds = new Set(pageRows.map((question) => question.id));
         return new Set([...current].filter((id) => visibleIds.has(id)));
       });
       setError('');
@@ -430,6 +496,61 @@ export function QuestionsPage() {
       setLoading(false);
     }
   }, []);
+
+  function goToNextPage() {
+    const last = questions[questions.length - 1];
+    if (!last || loading || !hasMoreQuestions) return;
+    pageStartsRef.current = [...pageStartsRef.current.slice(0, pageIndexRef.current + 1), last.id];
+    loadQuestions(lastFiltersRef.current, pageIndexRef.current + 1);
+  }
+
+  function goToPreviousPage() {
+    if (loading || pageIndexRef.current === 0) return;
+    loadQuestions(lastFiltersRef.current, pageIndexRef.current - 1);
+  }
+
+  // Manual repair of the stored "used in N assessments" numbers (after an SQL
+  // import of assessment links): 400 questions per request, one at a time.
+  const [fixingLinks, setFixingLinks] = useState('');
+  async function handleFixLinkCounts() {
+    const pause = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    let after = 0;
+    let fixedCount = 0;
+    let changedCount = 0;
+    const courseCounts = {};
+    let courseTotals = null;
+    try {
+      for (;;) {
+        const step = await fixQuestionLinkCounts(after);
+        fixedCount += (step?.fixed || []).length;
+        changedCount += (step?.changed || []).length;
+        if (step?.courseTotals) courseTotals = step.courseTotals;
+        for (const [courseId, n] of Object.entries(step?.courseCounts || {})) {
+          courseCounts[courseId] = (courseCounts[courseId] || 0) + Number(n || 0);
+        }
+        after = Number(step?.lastId || after);
+        const pct = step?.maxId ? Math.min(100, Math.round((after / step.maxId) * 100)) : 100;
+        setFixingLinks(`Checking… ${pct}%`);
+        if (step?.done) break;
+        await pause(300);
+      }
+      // Each course's question total (dashboard), from the counts just read.
+      if (courseTotals) {
+        await pause(300);
+        const totals = await fixCourseQuestionTotals(courseCounts, courseTotals);
+        fixedCount += (totals?.fixed || []).length;
+        changedCount += (totals?.changed || []).length;
+      }
+      showToast(fixedCount
+        ? `Fixed ${fixedCount} link count${fixedCount === 1 ? '' : 's'}.${changedCount ? ` ${changedCount} changed meanwhile; run again to check.` : ''}`
+        : 'All link counts are correct.');
+      if (fixedCount) loadQuestions(lastFiltersRef.current);
+    } catch (fixError) {
+      showToast(getErrorMessage(fixError, 'Unable to fix link counts'), 'error');
+    } finally {
+      setFixingLinks('');
+    }
+  }
 
   function resetComposer() {
     setModalOpen(false);
@@ -446,7 +567,8 @@ export function QuestionsPage() {
 
   const loadMeta = useCallback(async () => {
     try {
-      const data = await fetchQuestionsMeta();
+      // Courses, subjects and papers only; topics and lessons load on demand.
+      const data = await fetchQuestionsMeta({ scope: 'folders' });
       setMeta(data);
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load question form metadata'));
@@ -575,8 +697,8 @@ export function QuestionsPage() {
     const correctOption = currentForm.options.find((option) => Number(option.isCorrect) === 1);
     const course = meta.courses.find((item) => String(item.id) === String(currentForm.courseId));
     const subject = meta.subjects.find((item) => String(item.id) === String(currentForm.subjectId));
-    const topic = meta.topics.find((item) => String(item.id) === String(currentForm.topicId));
-    const lesson = meta.lessons.find((item) => String(item.id) === String(currentForm.lessonId));
+    const topic = loadedTopics.find((item) => String(item.id) === String(currentForm.topicId));
+    const lesson = loadedLessons.find((item) => String(item.id) === String(currentForm.lessonId));
 
     return {
       questionText: currentForm.questionText,
@@ -799,7 +921,8 @@ export function QuestionsPage() {
     try {
       const payload = {
         courseId: Number(form.courseId),
-        subjectId: Number(form.subjectId),
+        // null, not 0: a course-wide question has no subject (Number('') is 0).
+        subjectId: form.subjectId ? Number(form.subjectId) : null,
         topicId: form.topicId ? Number(form.topicId) : null,
         lessonId: form.lessonId ? Number(form.lessonId) : null,
         paperId: form.paperId ? Number(form.paperId) : null,
@@ -807,7 +930,6 @@ export function QuestionsPage() {
         category: form.category,
         questionType: form.questionType,
         questionText: form.questionText,
-        keywordsText: form.keywordsText,
         explanation: form.explanation,
         explanationImageUrl: form.explanationImageUrl || null,
         questionApproach: form.questionApproach,
@@ -1036,36 +1158,6 @@ export function QuestionsPage() {
     }
   }
 
-  async function handleBulkKeywordSubmit(event) {
-    event.preventDefault();
-    if (selectedVisibleIds.length === 0) {
-      return;
-    }
-    if (!bulkKeywordForm.keywordsText.trim()) {
-      setError('Enter at least one keyword before updating selected questions.');
-      return;
-    }
-
-    setBulkKeywordSaving(true);
-    setError('');
-    try {
-      const result = await bulkUpdateQuestionKeywords({
-        questionIds: selectedVisibleIds,
-        keywordsText: bulkKeywordForm.keywordsText,
-        mode: bulkKeywordForm.mode,
-      });
-
-      setBulkKeywordOpen(false);
-      setBulkKeywordForm({ keywordsText: '', mode: 'append' });
-      showToast(`${result.updatedCount ?? selectedVisibleIds.length} question(s) updated with ${result.keywords?.length || 0} keyword(s).`);
-      await Promise.all([loadQuestions(filters), loadMeta()]);
-    } catch (keywordError) {
-      setError(getErrorMessage(keywordError, 'Unable to update selected question keywords'));
-    } finally {
-      setBulkKeywordSaving(false);
-    }
-  }
-
   async function handleBulkGenerateAi() {
     const ids = [...selectedVisibleIds];
     if (ids.length === 0) return;
@@ -1128,7 +1220,7 @@ export function QuestionsPage() {
 
         await updateQuestion(id, {
           courseId: Number(mapped.courseId),
-          subjectId: Number(mapped.subjectId),
+          subjectId: mapped.subjectId ? Number(mapped.subjectId) : null,
           topicId: mapped.topicId ? Number(mapped.topicId) : null,
           lessonId: mapped.lessonId ? Number(mapped.lessonId) : null,
           paperId: mapped.paperId ? Number(mapped.paperId) : null,
@@ -1136,7 +1228,6 @@ export function QuestionsPage() {
           category: mapped.category,
           questionType: mapped.questionType,
           questionText: mapped.questionText,
-          keywordsText: mapped.keywordsText,
           explanation,
           explanationImageUrl: mapped.explanationImageUrl || null,
           questionApproach,
@@ -1243,6 +1334,10 @@ export function QuestionsPage() {
                 <button type="button" className={ui.secondaryAction} onClick={() => navigate('/questions/bulk')}>
                   Bulk Add Questions
                 </button>
+                <button type="button" className={ui.secondaryAction} onClick={handleFixLinkCounts} disabled={Boolean(fixingLinks)}
+                        title="Recount how many assessments use each question (after an SQL import)">
+                  {fixingLinks || 'Fix link counts'}
+                </button>
                 <button type="button" className={ui.secondaryAction} onClick={() => navigate('/structure')}>
                   Open Structure
                 </button>
@@ -1264,10 +1359,6 @@ export function QuestionsPage() {
               <label className={ui.formLabel}>
                 Search
                 <input className={ui.input} name="search" value={filters.search} onChange={handleFilterChange} placeholder="Search question, paper, topic" />
-              </label>
-              <label className={ui.formLabel}>
-                Keywords
-                <input className={ui.input} list="question-filter-keyword-suggestions" name="keywords" value={filters.keywords} onChange={handleFilterChange} placeholder="Filter by keyword" />
               </label>
               <label className={ui.formLabel}>
                 Course
@@ -1373,7 +1464,7 @@ export function QuestionsPage() {
                   type="button"
                  
                   onClick={() => {
-                    const next = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', missing: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
+                    const next = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', missing: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
                     setFilters(next);
                     loadQuestions(next);
                   }}
@@ -1382,11 +1473,6 @@ export function QuestionsPage() {
                 </button>
               </div>
             </form>
-            <datalist id="question-filter-keyword-suggestions">
-              {(meta.keywordSuggestions || []).map((keyword) => (
-                <option key={keyword} value={keyword} />
-              ))}
-            </datalist>
 
             <div className={bulkSelectBarClass}>
               <label className={cx(ui.checkboxLabel, 'min-w-0')}>
@@ -1400,13 +1486,6 @@ export function QuestionsPage() {
               </label>
               <div className={cx(ui.buttonRow, 'justify-end')}>
                 <span className={ui.tablePill}>{selectedVisibleIds.length} selected</span>
-                <button className={ui.secondaryAction}
-                  type="button"
-                  onClick={() => setBulkKeywordOpen(true)}
-                  disabled={selectedVisibleIds.length === 0 || bulkKeywordSaving}
-                >
-                  Update keywords
-                </button>
                 <button className={ui.secondaryAction}
                   type="button"
                   onClick={() => { setBulkAiMode('skip'); setBulkAiOpen(true); }}
@@ -1459,7 +1538,7 @@ export function QuestionsPage() {
                       <td colSpan="10" className={ui.tableEmpty}>No questions found.</td>
                     </tr>
                   ) : null}
-                  {!loading && questions.map((question) => (
+                  {!loading && questionsWithNames.map((question) => (
                     <tr key={question.id} className="transition hover:bg-surface-2/70">
                       <td className={ui.tableCell}>
                         <input className={tableCheckboxClass}
@@ -1479,7 +1558,7 @@ export function QuestionsPage() {
                         >
                           <strong>{question.questionText.slice(0, 80)}{question.questionText.length > 80 ? '...' : ''}</strong>
                           <div className={ui.tableSubtext}>
-                            {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.paperTitle ? `Paper: ${question.paperTitle}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
+                            {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.paperTitle ? `Paper: ${question.paperTitle}` : null]
                               .filter(Boolean)
                               .join(' • ')}
                           </div>
@@ -1525,6 +1604,17 @@ export function QuestionsPage() {
                 </tbody>
               </table>
             </div>
+            {pageIndex > 0 || hasMoreQuestions ? (
+              <div className="mt-3 flex items-center justify-center gap-3">
+                <button type="button" className={ui.secondaryAction} onClick={goToPreviousPage} disabled={loading || pageIndex === 0}>
+                  ‹ Previous
+                </button>
+                <span className="text-sm opacity-70">Page {pageIndex + 1}</span>
+                <button type="button" className={ui.secondaryAction} onClick={goToNextPage} disabled={loading || !hasMoreQuestions}>
+                  Next ›
+                </button>
+              </div>
+            ) : null}
           </section>
         </div>
 
@@ -1567,66 +1657,6 @@ export function QuestionsPage() {
           document.body
         )}
 
-        {bulkKeywordOpen && createPortal(
-          <div className={ui.modalBackdrop} onClick={() => !bulkKeywordSaving && setBulkKeywordOpen(false)}>
-            <form className={ui.confirmModal} onSubmit={handleBulkKeywordSubmit} onClick={(event) => event.stopPropagation()}>
-              <div className={ui.confirmModalHead}>
-                <div>
-                  <h2>Update selected keywords</h2>
-                  <p>Apply keywords to {selectedVisibleIds.length} selected question(s).</p>
-                </div>
-              </div>
-              <div className={bulkKeywordGridClass}>
-                {selectedKeywordPreview.length ? (
-                  <div className={bulkWarningClass}>
-                    Current visible keywords include: {selectedKeywordPreview.join(', ')}
-                    {selectedKeywordPreview.length >= 8 ? '...' : ''}
-                  </div>
-                ) : null}
-                <label className={ui.formLabel}>
-                  Mode
-                  <select
-                    className={ui.input}
-                    value={bulkKeywordForm.mode}
-                    onChange={(event) => setBulkKeywordForm((current) => ({ ...current, mode: event.target.value }))}
-                    disabled={bulkKeywordSaving}
-                  >
-                    <option value="append">Append to existing keywords</option>
-                    <option value="replace">Replace existing keywords</option>
-                  </select>
-                </label>
-                <label className={ui.formLabel}>
-                  Keywords
-                  <input
-                    className={ui.input}
-                    list="question-filter-keyword-suggestions"
-                    value={bulkKeywordForm.keywordsText}
-                    onChange={(event) => setBulkKeywordForm((current) => ({ ...current, keywordsText: event.target.value }))}
-                    placeholder="cardiology, murmurs, mock set 1"
-                    disabled={bulkKeywordSaving}
-                  />
-                </label>
-              </div>
-              <div className={ui.modalActions}>
-                <button className={ui.secondaryAction}
-                  type="button"
-                  onClick={() => setBulkKeywordOpen(false)}
-                  disabled={bulkKeywordSaving}
-                >
-                  Cancel
-                </button>
-                <button className={ui.primaryAction}
-                  type="submit"
-                  disabled={bulkKeywordSaving || selectedVisibleIds.length === 0}
-                >
-                  {bulkKeywordSaving ? 'Updating...' : 'Update keywords'}
-                </button>
-              </div>
-            </form>
-          </div>,
-          document.body
-        )}
-
         {bulkAiOpen && createPortal(
           <div className={ui.modalBackdrop} onClick={() => !bulkAiRunning && setBulkAiOpen(false)}>
             <div className={ui.confirmModal} onClick={(event) => event.stopPropagation()}>
@@ -1636,7 +1666,7 @@ export function QuestionsPage() {
                   <p>Generate Explanation, Why Incorrect, Question Approach{bulkAiTheory ? ', and the quick theory card' : ''} for {selectedVisibleIds.length} selected question(s).</p>
                 </div>
               </div>
-              <div className={bulkKeywordGridClass}>
+              <div className={bulkGridClass}>
                 {!bulkAiRunning ? (
                   <>
                     <div className={bulkWarningClass}>
@@ -1853,9 +1883,9 @@ function QuestionDetailModal({ open, question, recap, loading, error, onClose, o
               <section className={detailPanelClass}>
                 <strong className={detailPanelTitleClass}>Question</strong>
                 <MedicalText as="p" className="m-0 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-strong" text={question.questionText} />
-                {(question.topicLabel || question.keywordsText) ? (
+                {question.topicLabel ? (
                   <p className="mb-0 mt-3 text-[13px] leading-relaxed text-ink-soft">
-                    {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
+                    {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null]
                       .filter(Boolean)
                       .join(' • ')}
                   </p>
@@ -2230,8 +2260,8 @@ function QuestionEditModal({
 
             <label className={ui.formLabel}>
               Subject
-              <select className={ui.input} name="subjectId" value={form.subjectId} onChange={onFormChange} required>
-                <option value="">Select subject</option>
+              <select className={ui.input} name="subjectId" value={form.subjectId} onChange={onFormChange}>
+                <option value="">No subject (course-wide)</option>
                 {visibleSubjects.map((subject) => (
                   <option key={subject.id} value={subject.id}>{subject.subjectName}</option>
                 ))}
@@ -2310,22 +2340,6 @@ function QuestionEditModal({
             Question text
             <textarea className={ui.textarea} name="questionText" rows="4" value={form.questionText} onChange={onFormChange} required />
           </label>
-
-          <label className={ui.formLabel}>
-            Keywords
-            <input className={ui.input}
-              list="question-keyword-suggestions"
-              name="keywordsText"
-              value={form.keywordsText}
-              onChange={onFormChange}
-              placeholder="Example: cardiology, murmur, valvular disease, cardiology_quiz_1"
-            />
-          </label>
-          <datalist id="question-keyword-suggestions">
-            {(meta.keywordSuggestions || []).map((keyword) => (
-              <option key={keyword} value={keyword} />
-            ))}
-          </datalist>
 
           <label className={ui.formLabel}>
             Main explanation

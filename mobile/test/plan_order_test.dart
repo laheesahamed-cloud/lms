@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +10,7 @@ import 'package:xyndrome/features/lessons/lessons_repository.dart';
 import 'package:xyndrome/features/planner/plan_generator.dart';
 import 'package:xyndrome/features/planner/planner_repository.dart';
 import 'package:xyndrome/features/quizzes/quizzes_repository.dart';
+import 'package:xyndrome/state/catalogue.dart';
 
 Map<String, dynamic> lesson(int id, String subject) => {
       'id': id,
@@ -62,6 +65,10 @@ ProviderContainer makeContainer() => ProviderContainer(overrides: [
             ResultListItem.fromJson({'attemptId': 1, 'quizId': 101, 'passStatus': 'pass'}),
             ResultListItem.fromJson({'attemptId': 2, 'quizId': 102, 'passStatus': 'fail'}),
           ]),
+      // Passes come from the quiz byte map (10.16): 101 passed, 102 sat only.
+      studentProgressProvider.overrideWith((ref) async => StudentProgress.fromJson({
+            'quizMarks': base64Encode([for (var i = 0; i <= 102; i++) i == 101 ? 128 + 81 : (i == 102 ? 41 : 0)]),
+          })),
       flashDecksProvider.overrideWith((ref) async => DecksResult.fromJson({
             'decks': [
               {
@@ -130,6 +137,7 @@ void main() {
           ]),
       quizListProvider.overrideWith((ref) async => <QuizListItem>[]),
       resultsListProvider.overrideWith((ref) async => <ResultListItem>[]),
+      studentProgressProvider.overrideWith((ref) async => StudentProgress.fromJson(const {})),
       flashDecksProvider.overrideWith((ref) async => DecksResult.fromJson({'decks': []})),
       studentCoursesProvider.overrideWith((ref) async => <CourseCard>[]),
     ]);

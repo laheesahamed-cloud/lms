@@ -28,10 +28,12 @@ export async function fetchQuizzesSummary(params) {
   return response.data;
 }
 
+// options.scope = 'folders': courses and subjects only (the Assessments list page).
 export async function fetchQuizzesMeta(options = {}) {
-  const response = await apiClient.get('/admin/quizzes/meta', {
-    params: options.includeQuestions ? { includeQuestions: '1' } : {},
-  });
+  const params = {};
+  if (options.includeQuestions) params.includeQuestions = '1';
+  if (options.scope) params.scope = options.scope;
+  const response = await apiClient.get('/admin/quizzes/meta', { params });
   return response.data;
 }
 

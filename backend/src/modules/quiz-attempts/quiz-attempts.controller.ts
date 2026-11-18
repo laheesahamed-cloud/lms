@@ -1,7 +1,5 @@
 import { Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { QuizAttemptsService } from './quiz-attempts.service';
-import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
-import { SubmitExamDto } from './dto/submit-exam.dto';
 
 @Controller('quiz-attempts')
 export class QuizAttemptsController {
@@ -28,54 +26,43 @@ export class QuizAttemptsController {
     return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null, appClient);
   }
 
-  // x-app-client is forwarded here for the same reason loadQuiz forwards it:
-  // the access check treats a premium quiz as app-only, and a request without
-  // the header looks like the website. Omitting it meant a student could open
-  // and sit an exam in the app and then be refused at the very end — a 403 on
-  // submit, with the answers still unsaved.
-  @Post('exam/:quizId/submit')
-  submitExam(
+  // Exams on the progress row (OPTIMIZE 10.16): start = 1 statement, submit = 1.
+  @Post('exam/:quizId/start')
+  startExam(
     @Param('quizId', ParseIntPipe) quizId: number,
     @Headers('authorization') authorization: string | undefined,
-    @Body() submitExamDto: SubmitExamDto,
     @Headers('x-app-client') appClient?: string
   ) {
-    return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto, appClient);
+    return this.quizAttemptsService.startExam(authorization, quizId, appClient);
   }
 
-  @Post('exam/:quizId/save')
-  saveExamProgress(
+  @Post('exam/:quizId/finish')
+  finishExam(
     @Param('quizId', ParseIntPipe) quizId: number,
     @Headers('authorization') authorization: string | undefined,
-    @Body() saveExamProgressDto: SaveExamProgressDto,
+    @Body() body: { examToken?: string; answers?: Record<string, unknown>; lean?: boolean },
     @Headers('x-app-client') appClient?: string
   ) {
-    return this.quizAttemptsService.saveExamProgress(authorization, quizId, saveExamProgressDto, appClient);
+    return this.quizAttemptsService.finishExam(authorization, quizId, body, appClient);
   }
 
-  @Get('result/:attemptId')
-  result(
-    @Param('attemptId', ParseIntPipe) attemptId: number,
-    @Headers('authorization') authorization?: string
-  ) {
-    return this.quizAttemptsService.result(authorization, attemptId);
-  }
-
-  @Get('review/:attemptId')
-  review(
-    @Param('attemptId', ParseIntPipe) attemptId: number,
+  @Get('recent/:quizId/review')
+  recentReview(
+    @Param('quizId', ParseIntPipe) quizId: number,
     @Headers('authorization') authorization?: string,
-    @Headers('x-app-client') appClient?: string
+    @Headers('x-app-client') appClient?: string,
+    @Query('part') part?: string,
+    @Query('lean') lean?: string,
   ) {
-    return this.quizAttemptsService.review(authorization, attemptId, appClient);
+    return this.quizAttemptsService.recentReview(authorization, quizId, appClient, part, lean === '1');
   }
 
-  @Post('review/:attemptId/complete')
-  completeReview(
-    @Param('attemptId', ParseIntPipe) attemptId: number,
+  @Post('recent/:quizId/reviewed')
+  markRecentReviewed(
+    @Param('quizId', ParseIntPipe) quizId: number,
     @Headers('authorization') authorization?: string
   ) {
-    return this.quizAttemptsService.completeReview(authorization, attemptId);
+    return this.quizAttemptsService.markRecentReviewed(authorization, quizId);
   }
 
 }

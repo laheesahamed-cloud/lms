@@ -2,11 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchAdminDashboard } from '../../../../shared/api/dashboard.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import {
-  fetchAdminSubscriptionRequests,
-  fetchAdminSubscriptions,
-} from '../../../../shared/api/subscriptions.api.js';
-import { fetchUsersSummary } from '../../../../shared/api/users.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
@@ -44,13 +39,7 @@ const dashboardButtonClass =
 const dashboardButtonSoftClass =
   'inline-flex h-10 min-w-0 items-center justify-center rounded-[16px] border border-brand-primary/25 bg-[color-mix(in_srgb,var(--surface-2)_72%,transparent)] px-4 text-[13px] font-extrabold text-brand-primary no-underline shadow-none transition-[background,border-color,color,transform] duration-150 hover:border-brand-primary/40 hover:bg-brand-primary/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/25 disabled:opacity-50';
 
-const emptyDashboard = {
-  totalUsers: 0,
-  totalCourses: 0,
-  totalQuizzes: 0,
-  totalQuestions: 0,
-  totalLessons: 0,
-};
+const emptyTotals = { courses: 0, lessons: 0, questions: 0, quizzes: 0 };
 
 const emptyUserSummary = {
   totalUsers: 0,
@@ -62,18 +51,20 @@ const emptyUserSummary = {
   newTodayLatest: [],
 };
 
+const emptyFinance = {
+  currency: 'LKR',
+  activeSubscriptions: 0,
+  expiringSoon: 0,
+  todayRevenue: 0,
+  pendingRequests: 0,
+  pendingAmount: 0,
+  approvalQueue: [],
+  pendingPayments: [],
+  recentPayments: [],
+};
+
 function todayKey() {
   return localDateKey(new Date());
-}
-
-function dateKey(value) {
-  if (!value) return '';
-  const raw = String(value);
-  const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (dateOnlyMatch) return `${dateOnlyMatch[1]}-${dateOnlyMatch[2]}-${dateOnlyMatch[3]}`;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return raw.slice(0, 10);
-  return localDateKey(date);
 }
 
 function localDateKey(date) {
@@ -121,35 +112,15 @@ function formatDate(value) {
   }).format(date);
 }
 
-function isCollectedSubscription(subscription) {
-  const paymentStatus = String(subscription?.paymentStatus || '').toLowerCase();
-  return ['paid', 'manual'].includes(paymentStatus) && numberValue(subscription?.amountPaid) > 0;
-}
-
-function subscriptionCollectionDate(subscription) {
-  return subscription?.paymentDate || subscription?.updatedAt || subscription?.createdAt || subscription?.startDate;
-}
-
-function resolveCurrency(subscriptions, requests) {
-  return (
-    subscriptions.find((subscription) => subscription?.planCurrency)?.planCurrency ||
-    requests.find((request) => request?.paymentCurrency || request?.planCurrency)?.paymentCurrency ||
-    requests.find((request) => request?.planCurrency)?.planCurrency ||
-    'LKR'
-  );
-}
-
 function buildApprovalQueue({ pendingUsers, requests }) {
   const subscriptionItems = requests
-    .filter((request) => request?.status === 'pending')
-    .slice(0, 5)
     .map((request) => ({
       id: `request-${request.id}`,
       title: getAdminUserIdentifier(request, 'Student request'),
       subtitle: `${request.planName || 'Subscription'}${request.invoiceId ? ` · Invoice #${request.invoiceId}` : ''}`,
       amount: request.paymentAmount,
       currency: request.paymentCurrency || request.planCurrency || 'LKR',
-      status: request.paymentProofDataUrl ? 'payment proof' : 'pending',
+      status: request.hasProof ? 'payment proof' : 'pending',
       createdAt: request.requestedAt,
       actionPath: '/subscriptions',
     }));
@@ -230,32 +201,26 @@ function ApprovalQueue({ items, onNavigate }) {
   );
 }
 
-function RecentMoney({ subscriptions, requests }) {
+function RecentMoney({ payments, pendingPayments }) {
   const rows = [
-    ...subscriptions
-      .filter(isCollectedSubscription)
-      .slice(0, 4)
-      .map((subscription) => ({
-        id: `sub-${subscription.id}`,
-        title: getAdminUserIdentifier(subscription, 'Paid subscription'),
-        subtitle: subscription.planName || 'Subscription',
-        amount: subscription.amountPaid,
-        currency: subscription.planCurrency || 'LKR',
-        status: subscription.paymentStatus === 'manual' ? 'Manual payment' : formatPaymentStatus(subscription.paymentStatus),
-        createdAt: subscriptionCollectionDate(subscription),
-      })),
-    ...requests
-      .filter((request) => request?.status === 'pending' && numberValue(request?.paymentAmount) > 0)
-      .slice(0, 3)
-      .map((request) => ({
-        id: `req-${request.id}`,
-        title: getAdminUserIdentifier(request, 'Manual payment'),
-        subtitle: request.planName || 'Payment proof uploaded',
-        amount: request.paymentAmount,
-        currency: request.paymentCurrency || request.planCurrency || 'LKR',
-        status: 'awaiting approval',
-        createdAt: request.requestedAt,
-      })),
+    ...payments.map((payment) => ({
+      id: `sub-${payment.id}`,
+      title: getAdminUserIdentifier(payment, 'Paid subscription'),
+      subtitle: payment.planName || 'Subscription',
+      amount: payment.amountPaid,
+      currency: payment.planCurrency || 'LKR',
+      status: payment.paymentStatus === 'manual' ? 'Manual payment' : formatPaymentStatus(payment.paymentStatus),
+      createdAt: payment.collectedAt,
+    })),
+    ...pendingPayments.map((request) => ({
+      id: `req-${request.id}`,
+      title: getAdminUserIdentifier(request, 'Manual payment'),
+      subtitle: request.planName || 'Payment proof uploaded',
+      amount: request.paymentAmount,
+      currency: request.paymentCurrency || request.planCurrency || 'LKR',
+      status: 'awaiting approval',
+      createdAt: request.requestedAt,
+    })),
   ].slice(0, 6);
 
   return (
@@ -289,16 +254,18 @@ function RecentMoney({ subscriptions, requests }) {
   );
 }
 
-function PlatformSnapshot({ dashboard, userSummary, activeSubscriptions, expiringSoon }) {
+function PlatformSnapshot({ totals, userSummary, finance }) {
   const stats = [
     { label: 'Students', value: userSummary.studentUsers || 0 },
     { label: 'Active users', value: userSummary.activeUsers || 0 },
-    { label: 'Courses', value: dashboard.totalCourses || 0 },
-    { label: 'Questions', value: dashboard.totalQuestions || 0 },
-    { label: 'Active subs', value: activeSubscriptions },
-    { label: 'Expiring soon', value: expiringSoon },
-    { label: 'Quizzes', value: dashboard.totalQuizzes || 0 },
-    { label: 'Lessons', value: dashboard.totalLessons || 0 },
+    { label: 'Courses', value: totals.courses || 0 },
+    { label: 'Questions', value: totals.questions || 0 },
+    ...(finance ? [
+      { label: 'Active subs', value: finance.activeSubscriptions },
+      { label: 'Expiring soon', value: finance.expiringSoon },
+    ] : []),
+    { label: 'Quizzes', value: totals.quizzes || 0 },
+    { label: 'Lessons', value: totals.lessons || 0 },
   ];
 
   return (
@@ -323,10 +290,10 @@ function PlatformSnapshot({ dashboard, userSummary, activeSubscriptions, expirin
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
-  const [dashboard, setDashboard] = useState(emptyDashboard);
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [requests, setRequests] = useState([]);
+  const [totals, setTotals] = useState(emptyTotals);
   const [userSummary, setUserSummary] = useState(emptyUserSummary);
+  // null = this staff member cannot see money (no subscriptions permission).
+  const [moneyData, setMoneyData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -335,17 +302,12 @@ export function AdminDashboardPage() {
 
     async function load() {
       try {
-        const [dashboardData, subscriptionRows, requestRows, summaryData] = await Promise.all([
-          fetchAdminDashboard(),
-          fetchAdminSubscriptions(),
-          fetchAdminSubscriptionRequests(),
-          fetchUsersSummary({ today: todayKey() }),
-        ]);
+        // One request: totals, user numbers and (if allowed) money numbers.
+        const data = await fetchAdminDashboard({ today: todayKey() });
         if (!active) return;
-        setDashboard(dashboardData || emptyDashboard);
-        setSubscriptions(Array.isArray(subscriptionRows) ? subscriptionRows : []);
-        setRequests(Array.isArray(requestRows) ? requestRows : []);
-        setUserSummary({ ...emptyUserSummary, ...(summaryData || {}) });
+        setTotals({ ...emptyTotals, ...(data?.totals || {}) });
+        setUserSummary({ ...emptyUserSummary, ...(data?.users || {}) });
+        setMoneyData(data?.finance ? { ...emptyFinance, ...data.finance } : null);
         setError('');
       } catch (loadError) {
         if (!active) return;
@@ -361,32 +323,11 @@ export function AdminDashboardPage() {
     };
   }, []);
 
-  const finance = useMemo(() => {
-    const currency = resolveCurrency(subscriptions, requests);
-    const today = todayKey();
-    const collectedSubscriptions = subscriptions.filter(isCollectedSubscription);
-    const todayCollected = collectedSubscriptions.filter((subscription) => {
-      return dateKey(subscriptionCollectionDate(subscription)) === today;
-    });
-    const pendingRequests = requests.filter((request) => request?.status === 'pending');
-    const pendingManualAmount = pendingRequests.reduce((sum, request) => sum + numberValue(request.paymentAmount), 0);
-    const todayConfirmedRevenue = todayCollected.reduce((sum, subscription) => sum + numberValue(subscription.amountPaid), 0);
-
-    return {
-      currency,
-      totalRevenue: collectedSubscriptions.reduce((sum, subscription) => sum + numberValue(subscription.amountPaid), 0),
-      todayRevenue: todayConfirmedRevenue,
-      todayConfirmedRevenue,
-      pendingRequests: pendingRequests.length,
-      pendingManualAmount,
-      activeSubscriptions: subscriptions.filter((subscription) => subscription?.computedStatus === 'active' || subscription?.status === 'active').length,
-      expiringSoon: subscriptions.filter((subscription) => subscription?.isExpiringSoon).length,
-    };
-  }, [requests, subscriptions]);
+  const finance = moneyData || emptyFinance;
 
   const approvalQueue = useMemo(
-    () => buildApprovalQueue({ pendingUsers: Number(userSummary.pendingUsers || 0), requests }),
-    [requests, userSummary.pendingUsers]
+    () => buildApprovalQueue({ pendingUsers: Number(userSummary.pendingUsers || 0), requests: finance.approvalQueue || [] }),
+    [finance.approvalQueue, userSummary.pendingUsers]
   );
 
   if (loading) {
@@ -445,18 +386,22 @@ export function AdminDashboardPage() {
         </section>
 
         <section className={moneyGridClass}>
-          <MoneyCard
-            label="Today's Earnings"
-            value={finance.todayRevenue > 0 ? formatMoney(finance.todayRevenue, finance.currency) : 'No payments today'}
-            hint="Manual and online subscription payments confirmed today."
-            tone="green"
-          />
-          <MoneyCard
-            label="Awaiting Approval"
-            value={finance.pendingRequests}
-            hint={`${formatMoney(finance.pendingManualAmount, finance.currency)} in pending requests.`}
-            tone="amber"
-          />
+          {moneyData ? (
+            <>
+              <MoneyCard
+                label="Today's Earnings"
+                value={finance.todayRevenue > 0 ? formatMoney(finance.todayRevenue, finance.currency) : 'No payments today'}
+                hint="Manual and online subscription payments confirmed today."
+                tone="green"
+              />
+              <MoneyCard
+                label="Awaiting Approval"
+                value={finance.pendingRequests}
+                hint={`${formatMoney(finance.pendingAmount, finance.currency)} in pending requests.`}
+                tone="amber"
+              />
+            </>
+          ) : null}
           <MoneyCard
             label="Student Approvals"
             value={userSummary.pendingUsers || 0}
@@ -478,15 +423,12 @@ export function AdminDashboardPage() {
 
         <div className={panelGridClass}>
           <ApprovalQueue items={approvalQueue} onNavigate={navigate} />
-          <RecentMoney subscriptions={subscriptions} requests={requests} />
+          {moneyData ? (
+            <RecentMoney payments={finance.recentPayments || []} pendingPayments={finance.pendingPayments || []} />
+          ) : null}
         </div>
 
-        <PlatformSnapshot
-          dashboard={dashboard}
-          userSummary={userSummary}
-          activeSubscriptions={finance.activeSubscriptions}
-          expiringSoon={finance.expiringSoon}
-        />
+        <PlatformSnapshot totals={totals} userSummary={userSummary} finance={moneyData} />
       </section>
     </main>
   );

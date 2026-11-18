@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 
-// ── single drug item returned from batch endpoint ──
+// ── one drug shown in a spin (its text + 3 wrong classes) ──
 class DrugItem {
   final Map<String, dynamic> drug;
   final List<String> distractors;
@@ -20,55 +20,26 @@ class DrugItem {
       );
 }
 
-// ── response from GET /student/drugs/batch ──
-class DrugBatchResult {
-  final List<DrugItem> drugs;
-  final int useCount;
-  final int freeLimit;
-  final bool hasSubscription;
-  final bool blocked;
-  final String? reason;
-
-  const DrugBatchResult({
-    required this.drugs,
-    required this.useCount,
-    required this.freeLimit,
-    required this.hasSubscription,
-    required this.blocked,
-    this.reason,
-  });
-
-  factory DrugBatchResult.fromJson(Map<String, dynamic> j) => DrugBatchResult(
-        blocked: j['blocked'] == true,
-        reason: j['reason'] as String?,
-        drugs: (j['drugs'] as List? ?? [])
-            .map((e) => DrugItem.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        useCount: (j['useCount'] as num?)?.toInt() ?? 0,
-        freeLimit: (j['freeLimit'] as num?)?.toInt() ?? 5,
-        hasSubscription: j['hasSubscription'] == true,
-      );
-}
-
 class DrugRandomizerRepository {
   final ApiClient _client;
   const DrugRandomizerRepository(this._client);
 
-  Future<DrugBatchResult> batch(int count) async {
-    final res = await _client.dio.get(
-      '/student/drugs/batch',
-      queryParameters: {'count': count},
-    );
-    return DrugBatchResult.fromJson(res.data as Map<String, dynamic>);
+  /// 10.19: the light list (id, name, class) + free-spin state. With [have]
+  /// (the list version on the phone) an unchanged list isn't sent again.
+  Future<Map<String, dynamic>> list({int? have}) async {
+    final res = await _client.dio.get('/student/drugs/list', queryParameters: {'have': ?have});
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
-  Future<Map<String, dynamic>?> recordSpin() async {
-    try {
-      final res = await _client.dio.post('/student/drugs/record');
-      return res.data as Map<String, dynamic>?;
-    } catch (_) {
-      return null;
-    }
+  /// 10.19: one drug's full text (kept on the phone afterwards).
+  Future<Map<String, dynamic>> item(int id) async {
+    final res = await _client.dio.get('/student/drugs/item/$id');
+    return Map<String, dynamic>.from((res.data as Map)['drug'] as Map);
+  }
+
+  /// 10.19: one visit's spins in one request (free users only).
+  Future<void> recordSpins(int count) async {
+    await _client.dio.post('/student/drugs/record', data: {'count': count});
   }
 }
 

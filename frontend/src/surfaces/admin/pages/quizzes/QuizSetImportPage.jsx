@@ -98,7 +98,7 @@ export function QuizSetImportPage() {
 
   const defaults = useMemo(() => ({
     courseId, subjectId, topicId: '', lessonId: '', category, questionType: 'sba',
-    paperId, keywordsText: '', courseWide: !subjectId,
+    paperId, courseWide: !subjectId,
   }), [courseId, subjectId, category, paperId]);
 
   const patchSet = (key, patch) => setSets((list) => list.map((s) => (s.key === key ? { ...s, ...patch } : s)));
@@ -208,8 +208,6 @@ export function QuizSetImportPage() {
       quizTitle: title,
       displayTitleMode: 'title',
       quizDescription: '',
-      blueprint: { sections: [] },
-      randomizationMode: 'static',
       timeLimit: Math.max(1, ids.length),
       hideTimeLimit: 0,
       passingMarks: 45,

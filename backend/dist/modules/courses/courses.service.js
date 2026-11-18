@@ -11,25 +11,31 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var CoursesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoursesService = void 0;
+const subscription_scope_1 = require("../../common/auth/subscription-scope");
+const course_structure_service_1 = require("./course-structure.service");
+const lesson_bits_1 = require("../../common/utils/lesson-bits");
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const plans_service_1 = require("../plans/plans.service");
 const xp_service_1 = require("../xp/xp.service");
-let CoursesService = CoursesService_1 = class CoursesService {
-    constructor(db, authService, plansService, xpService) {
+const content_history_1 = require("../../common/utils/content-history");
+const admin_read_cache_1 = require("../../common/utils/admin-read-cache");
+let CoursesService = class CoursesService {
+    constructor(db, authService, plansService, xpService, courseStructure) {
         this.db = db;
         this.authService = authService;
         this.plansService = plansService;
         this.xpService = xpService;
-        this.courseStructureCache = new Map();
-        this.courseStructureInflight = new Map();
+        this.courseStructure = courseStructure;
     }
-    async getLandingSummary() {
+    getLandingSummary() {
+        return (0, admin_read_cache_1.cachedAdminRead)('public.landing-summary', () => this.loadLandingSummary(), 60_000);
+    }
+    async loadLandingSummary() {
         const [topics] = await this.db.execute(`SELECT t.id, t.topic_name, COUNT(q.id) AS question_count
        FROM topics t
        LEFT JOIN questions q ON q.topic_id = t.id
@@ -50,7 +56,7 @@ let CoursesService = CoursesService_1 = class CoursesService {
         };
     }
     async findAll() {
-        const [rows] = await this.db.execute('SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses ORDER BY course_title ASC');
+        const [rows] = await this.db.execute('SELECT id, course_title, course_code, description, exam_type, status, created_at, sort_order, lesson_count, subject_count FROM courses FORCE INDEX (idx_courses_sort) ORDER BY sort_order ASC, id ASC');
         return rows.map((row) => this.mapCourse(row));
     }
     async create(createCourseDto, actor) {
@@ -60,7 +66,8 @@ let CoursesService = CoursesService_1 = class CoursesService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            const [result] = await connection.execute('INSERT INTO courses (course_title, course_code, description, exam_type, status) VALUES (?, ?, ?, ?, ?)', [
+            const [result] = await connection.execute(`INSERT INTO courses (course_title, course_code, description, exam_type, status, sort_order)
+         SELECT ?, ?, ?, ?, ?, COALESCE(MAX(sort_order), 0) + 1000 FROM courses`, [
                 snapshot.courseTitle,
                 snapshot.courseCode,
                 snapshot.description,
@@ -139,6 +146,7 @@ let CoursesService = CoursesService_1 = class CoursesService {
         try {
             await connection.beginTransaction();
             await connection.execute('DELETE FROM courses WHERE id = ?', [id]);
+            await (0, content_history_1.forgetContentHistory)(connection, 'course', [id]);
             await this.recordContentAudit(connection, {
                 entityType: 'course',
                 entityId: id,
@@ -162,18 +170,8 @@ let CoursesService = CoursesService_1 = class CoursesService {
         };
     }
     async listVersions(id) {
-        await this.findById(id);
-        const [rows] = await this.db.execute(`SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'course' AND entity_id = ?
-       ORDER BY version_number DESC`, [id]);
-        return rows.map((row) => ({
-            id: Number(row.id),
-            versionNumber: Number(row.version_number),
-            createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-            createdAt: row.created_at || null,
-            snapshot: this.parseSnapshotJson(row.snapshot_json),
-        }));
+        void id;
+        return [];
     }
     async markDraft(id, actor) {
         return this.transitionWorkflow(id, {
@@ -203,61 +201,14 @@ let CoursesService = CoursesService_1 = class CoursesService {
         });
     }
     async rollback(id, versionNumber, actor) {
-        if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-            throw new common_1.BadRequestException('Version number is invalid');
-        }
-        if (!this.canReviewContent(actor)) {
-            throw new common_1.ForbiddenException('Review permission is required to rollback published course content');
-        }
-        const existing = await this.findById(id);
-        const [versionRows] = await this.db.execute(`SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'course' AND entity_id = ? AND version_number = ?
-       LIMIT 1`, [id, versionNumber]);
-        if (!versionRows[0]) {
-            throw new common_1.NotFoundException('Content version not found');
-        }
-        const snapshot = this.parseCourseSnapshot(versionRows[0].snapshot_json);
-        this.validateCoursePayload(snapshot);
-        const workflowState = snapshot.status === 'active' ? 'published' : 'draft';
-        const connection = await this.db.getConnection();
-        try {
-            await connection.beginTransaction();
-            await this.writeCourseSnapshot(connection, id, snapshot);
-            await this.recordContentVersion(connection, 'course', id, snapshot, this.getActorId(actor));
-            await this.setWorkflowState(connection, 'course', id, workflowState, this.getActorId(actor));
-            await this.recordContentAudit(connection, {
-                entityType: 'course',
-                entityId: id,
-                action: 'rolled_back',
-                summary: `Course ${id} rolled back to version ${versionNumber}`,
-                actorId: this.getActorId(actor),
-                before: existing,
-                after: snapshot,
-            });
-            await connection.commit();
-        }
-        catch (error) {
-            await connection.rollback();
-            throw error;
-        }
-        finally {
-            connection.release();
-        }
-        return {
-            ok: true,
-            id,
-            rolledBackToVersion: versionNumber,
-            status: snapshot.status,
-            workflowState,
-        };
+        void id;
+        void versionNumber;
+        void actor;
+        throw new common_1.BadRequestException('Version history is not kept any more.');
     }
     async findStudentCourses(authorization) {
         const student = await this.authService.requireStudent(authorization);
-        const [courseRows] = await this.db.execute(`SELECT id, course_title, course_code, description, exam_type, status, created_at
-       FROM courses
-       WHERE status = 'active'
-       ORDER BY course_title ASC`);
+        const courseRows = (await this.courseStructure.get()).courses;
         if (courseRows.length === 0) {
             return [];
         }
@@ -279,11 +230,7 @@ let CoursesService = CoursesService_1 = class CoursesService {
     }
     async findStudentCourseDetail(courseId, authorization) {
         const student = await this.authService.requireStudent(authorization);
-        const [courseRows] = await this.db.execute(`SELECT id, course_title, course_code, description, exam_type, status, created_at
-       FROM courses
-       WHERE id = ? AND status = 'active'
-       LIMIT 1`, [courseId]);
-        const courseRow = courseRows[0];
+        const courseRow = (await this.courseStructure.get()).courses.find((c) => Number(c.id) === Number(courseId));
         if (!courseRow) {
             throw new common_1.NotFoundException('Course not found');
         }
@@ -304,52 +251,35 @@ let CoursesService = CoursesService_1 = class CoursesService {
     }
     async updateStudentLessonProgress(lessonId, dto, authorization) {
         const student = await this.authService.requireStudent(authorization);
-        const [lessonRows] = await this.db.execute(`SELECT id, course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status
-       FROM lessons
-       WHERE id = ? AND status = 'active'
-       LIMIT 1`, [lessonId]);
-        const lesson = lessonRows[0];
-        if (!lesson) {
-            throw new common_1.NotFoundException('Lesson not found');
-        }
-        const accessProfile = await this.getLessonAccessProfile(student.id);
-        const hasLessonAccess = this.canAccessLesson(lesson, accessProfile);
-        if (!hasLessonAccess) {
-            throw new common_1.NotFoundException('Upgrade to access this lesson');
-        }
+        if (dto.status === 'completed')
+            return this.completeLesson(student.id, lessonId, dto.readSeconds);
         const normalized = this.normalizeProgressPayload(dto);
-        await this.db.execute(`INSERT INTO student_lesson_progress
-        (user_id, course_id, subject_id, topic_id, lesson_id, status, progress_percent, started_at, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-        course_id = VALUES(course_id),
-        subject_id = VALUES(subject_id),
-        topic_id = VALUES(topic_id),
-        status = VALUES(status),
-        progress_percent = VALUES(progress_percent),
-        started_at = VALUES(started_at),
-        completed_at = VALUES(completed_at),
-        updated_at = CURRENT_TIMESTAMP`, [
-            student.id,
-            lesson.course_id,
-            lesson.topic_id,
-            Number(lesson.subtopic_id || 0),
-            lesson.id,
-            normalized.status,
-            normalized.progressPercent,
-            normalized.startedAt,
-            normalized.completedAt,
-        ]);
-        const xp = normalized.status === 'completed'
-            ? await this.xpService.onLessonCompleted(student.id, lesson.id)
-            : undefined;
         return {
             ok: true,
-            lessonId: lesson.id,
+            lessonId,
             status: normalized.status,
             progressPercent: normalized.progressPercent,
             actionLabel: this.getLessonActionLabel(normalized.status),
+        };
+    }
+    async completeLesson(userId, lessonId, readSeconds) {
+        const structure = await this.courseStructure.get();
+        const lesson = structure.lessons.find((l) => Number(l.id) === lessonId);
+        if (!lesson || lesson.status !== 'active')
+            throw new common_1.NotFoundException('Lesson not found');
+        const profile = await this.getLessonAccessProfile(userId);
+        if (!this.canAccessLesson(lesson, profile)) {
+            throw new common_1.NotFoundException('Upgrade to access this lesson');
+        }
+        const { progressVersion, ...xp } = await this.xpService.onLessonCompleted(userId, lessonId, readSeconds);
+        return {
+            ok: true,
+            lessonId,
+            status: 'completed',
+            progressPercent: 100,
+            actionLabel: this.getLessonActionLabel('completed'),
             xp,
+            ...(progressVersion ? { progressVersion } : {}),
         };
     }
     async markLessonOpened(lessonId, authorization) {
@@ -452,30 +382,21 @@ let CoursesService = CoursesService_1 = class CoursesService {
         });
     }
     async recordContentVersion(connection, entityType, entityId, snapshot, actorId) {
-        const [rows] = await connection.execute('SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?', [entityType, entityId]);
-        const versionNumber = Number(rows[0]?.next_version || 1);
-        await connection.execute('INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)', [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void snapshot;
+        void actorId;
     }
     async setWorkflowState(connection, entityType, entityId, workflowState, actorId) {
-        await connection.execute(`INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`, [entityType, entityId, workflowState, actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void workflowState;
+        void actorId;
     }
     async recordContentAudit(connection, event) {
-        await connection.execute(`INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`, [
-            event.entityType,
-            event.entityId,
-            event.action,
-            event.actorId || null,
-            event.summary,
-            event.before === undefined ? null : JSON.stringify(event.before),
-            event.after === undefined ? null : JSON.stringify(event.after),
-        ]);
+        void 0;
     }
     getActorId(actor) {
         if (typeof actor === 'number')
@@ -523,47 +444,20 @@ let CoursesService = CoursesService_1 = class CoursesService {
         const accessProfile = await this.getLessonAccessProfile(userId);
         const placeholders = (0, sql_safety_1.sqlPlaceholders)(courseIds);
         const { subjectRows, topicRows, lessonRows } = await this.getCourseStructure(courseIds);
-        const [progressRows] = await this.db.execute(`SELECT lesson_id, status, progress_percent, started_at, completed_at
-       FROM student_lesson_progress
-       WHERE user_id = ? AND course_id IN (${placeholders})`, [userId, ...courseIds]);
+        const done = await (0, lesson_bits_1.finishedLessons)(this.db, userId);
+        const progressRows = lessonRows
+            .filter((lesson) => done.has(Number(lesson.id)))
+            .map((lesson) => ({ lesson_id: Number(lesson.id), status: 'completed', progress_percent: 100, started_at: null, completed_at: null }));
         return this.buildHierarchy(courseIds, subjectRows, topicRows, lessonRows, progressRows, accessProfile);
     }
-    getCourseStructure(courseIds) {
-        const key = courseIds.join(',');
-        const cached = this.courseStructureCache.get(key);
-        if (cached && cached.expiresAt > Date.now())
-            return Promise.resolve(cached.value);
-        const running = this.courseStructureInflight.get(key);
-        if (running)
-            return running;
-        const task = this.readCourseStructure(courseIds)
-            .then((value) => {
-            if (this.courseStructureCache.size > 200)
-                this.courseStructureCache.clear();
-            this.courseStructureCache.set(key, { value, expiresAt: Date.now() + CoursesService_1.COURSE_STRUCTURE_TTL_MS });
-            return value;
-        })
-            .finally(() => this.courseStructureInflight.delete(key));
-        this.courseStructureInflight.set(key, task);
-        return task;
-    }
-    async readCourseStructure(courseIds) {
-        const placeholders = (0, sql_safety_1.sqlPlaceholders)(courseIds);
-        const [subjectRows] = await this.db.execute(`SELECT id, course_id, topic_name, status
-       FROM topics
-       WHERE status = 'active' AND course_id IN (${placeholders})
-       ORDER BY sort_order ASC, id ASC`, courseIds);
-        const [topicRows] = await this.db.execute(`SELECT s.id, s.topic_id, s.subtopic_name, s.status
-       FROM subtopics s
-       INNER JOIN topics t ON t.id = s.topic_id
-       WHERE s.status = 'active' AND t.course_id IN (${placeholders})
-       ORDER BY s.sort_order ASC, s.id ASC`, courseIds);
-        const [lessonRows] = await this.db.execute(`SELECT id, course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status
-       FROM lessons
-       WHERE status = 'active' AND is_public = 1 AND (note_data IS NOT NULL OR pdf_url IS NOT NULL)
-         AND course_id IN (${placeholders})
-       ORDER BY sort_order ASC, id ASC`, courseIds);
-        return { subjectRows, topicRows, lessonRows };
+    async getCourseStructure(courseIds) {
+        const wanted = new Set(courseIds.map(Number));
+        const structure = await this.courseStructure.get();
+        return {
+            subjectRows: structure.subjects.filter((row) => wanted.has(Number(row.course_id))),
+            topicRows: structure.topics.filter((row) => wanted.has(Number(row.course_id))),
+            lessonRows: structure.lessons.filter((row) => wanted.has(Number(row.course_id))),
+        };
     }
     buildHierarchy(courseIds, subjectRows, topicRows, lessonRows, progressRows, accessProfile) {
         const progressByLessonId = new Map(progressRows.map((row) => [row.lesson_id, row]));
@@ -626,16 +520,7 @@ let CoursesService = CoursesService_1 = class CoursesService {
         return { courseSummaries, subjectsByCourse };
     }
     async getLessonAccessProfile(userId) {
-        const [rows] = await this.db.execute(`
-        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-        FROM user_subscriptions us
-        INNER JOIN plans ON plans.id = us.plan_id
-        WHERE us.user_id = ?
-          AND us.status = 'active'
-          AND us.start_date <= CURDATE()
-          AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-      `, [userId]);
+        const rows = await (0, subscription_scope_1.getScopeRows)(this.db, userId);
         const profile = {
             hasAnyPaidLessonAccess: rows.length > 0,
             hasFullAccess: false,
@@ -810,16 +695,19 @@ let CoursesService = CoursesService_1 = class CoursesService {
             examType: row.exam_type,
             status: row.status,
             createdAt: row.created_at || null,
+            ...(row.sort_order !== undefined ? { sortOrder: Number(row.sort_order) } : {}),
+            ...(row.lesson_count !== undefined ? { lessonCount: Number(row.lesson_count) } : {}),
+            ...(row.subject_count !== undefined ? { subjectCount: Number(row.subject_count) } : {}),
         };
     }
 };
 exports.CoursesService = CoursesService;
-CoursesService.COURSE_STRUCTURE_TTL_MS = 30_000;
-exports.CoursesService = CoursesService = CoursesService_1 = __decorate([
+exports.CoursesService = CoursesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,
         plans_service_1.PlansService,
-        xp_service_1.XpService])
+        xp_service_1.XpService,
+        course_structure_service_1.CourseStructureService])
 ], CoursesService);
 //# sourceMappingURL=courses.service.js.map

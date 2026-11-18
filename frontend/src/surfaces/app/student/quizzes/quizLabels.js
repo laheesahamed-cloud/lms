@@ -27,11 +27,7 @@ export function getQuizTitleText(quiz, fallback = '') {
   return String(quiz?.studentTitle || quiz?.quizTitle || quiz?.title || fallback || '').trim();
 }
 
+/** A quiz's label: its one name (10.25 — the "• Quiz N" number display is gone). */
 export function getQuizDisplayLabel(quiz) {
-  if (quiz?.displayTitleMode === 'number' && quiz?.quizNumber) {
-    const n = Number(quiz.quizNumber);
-    const parent = quiz.lessonTitle || quiz.topicName || quiz.subjectName || quiz.courseTitle || '';
-    return parent ? `${parent} • Quiz ${n}` : `Quiz ${n}`;
-  }
-  return getQuizNumberLabel(quiz);
+  return getQuizTitleText(quiz) || getQuizNumberLabel(quiz);
 }

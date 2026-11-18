@@ -2,9 +2,15 @@ import { apiClient } from './client.js';
 import { createTimedApiCache } from './cache.js';
 import { claimBootSlice } from './bootChannel.js';
 
+// Admin Hub: totals, user numbers and money numbers in one request. Short
+// cache only: pending requests and approvals must stay fresh (the page used
+// to fetch subscriptions and requests on every open).
+let adminDashboardToday = '';
 const adminDashboardCache = createTimedApiCache({
-  ttlMs: 3600000,
-  load: () => apiClient.get('/admin/dashboard').then((response) => response.data),
+  ttlMs: 30000,
+  load: () => apiClient
+    .get('/admin/dashboard', { params: adminDashboardToday ? { today: adminDashboardToday } : {} })
+    .then((response) => response.data),
 });
 
 const studentDashboardCache = createTimedApiCache({
@@ -17,7 +23,13 @@ const studentDashboardCache = createTimedApiCache({
 
 export const seedStudentDashboard = (data) => studentDashboardCache.seed(data);
 
-export const fetchAdminDashboard = () => adminDashboardCache.get();
+export const fetchAdminDashboard = ({ today } = {}) => {
+  if (today && today !== adminDashboardToday) {
+    adminDashboardToday = today;
+    adminDashboardCache.clear();
+  }
+  return adminDashboardCache.get();
+};
 
 export const fetchStudentDashboard = () => studentDashboardCache.get();
 

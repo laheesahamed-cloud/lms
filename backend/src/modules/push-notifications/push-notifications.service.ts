@@ -1,3 +1,4 @@
+import { Notice, NoticesService } from '../notices/notices.service';
 import { BadRequestException, Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
@@ -6,7 +7,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 import { SettingsService } from '../settings/settings.service';
-import { NativePushSender } from './native-push.sender';
+import { NativePushSender, NativePushSettingsSnapshot } from './native-push.sender';
 
 type DeliveryMode = 'inside' | 'outside' | 'both';
 type AdminDeliveryType = 'inside' | 'outside' | 'both';
@@ -32,18 +33,24 @@ export class PushNotificationsService implements OnModuleDestroy {
   // only (no shared cache) — acceptable on this single-instance deployment;
   // a pending batch is simply lost (not sent) across a process restart.
   private readonly pendingDebounced = new Map<string, { timer: NodeJS.Timeout; count: number }>();
+  // Broadcast batches waiting for their turn (spread sending). Per-process,
+  // like the debounce above: a restart drops batches not yet sent.
+  private readonly spreadTimers = new Set<NodeJS.Timeout>();
+  private readonly runningBatches = new Set<Promise<unknown>>();
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-    private readonly settingsService: SettingsService
+    private readonly settingsService: SettingsService,
+    private readonly notices: NoticesService
   ) {
     this.nativePushSender = new NativePushSender(
       this.configService,
       this.logger,
       () => this.settingsService.getRawApnsSettings(),
-      () => this.settingsService.getRawFcmSettings()
+      () => this.settingsService.getRawFcmSettings(),
+      () => this.settingsService.getRawPushSettings()
     );
   }
 
@@ -56,45 +63,26 @@ export class PushNotificationsService implements OnModuleDestroy {
 
   async getSettings(authorization?: string) {
     const user = await this.authService.requireAuthenticatedUser(authorization);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT delivery_mode, enabled
-       FROM push_subscriptions
-       WHERE user_id = ?
-       ORDER BY updated_at DESC
-       LIMIT 1`,
-      [user.id]
-    );
-
+    // 10.42: browser web push (push_subscriptions) removed; phone push only.
+    const nativeEnabled = await this.hasEnabledNativeToken(user.id);
     return {
       supported: true,
       vapidEnabled: false,
-      deliveryMode: this.normalizeDeliveryMode(rows[0]?.delivery_mode || 'outside'),
-      outsideEnabled: Boolean(rows[0]?.enabled),
-      nativeEnabled: await this.hasEnabledNativeToken(user.id),
+      deliveryMode: 'outside' as const,
+      outsideEnabled: nativeEnabled,
+      nativeEnabled,
     };
   }
 
   async updateSettings(authorization: string | undefined, input: any) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
+    await this.authService.requireAuthenticatedUser(authorization);
     const deliveryMode = this.normalizeDeliveryMode(input?.deliveryMode || 'inside');
-    await this.db.execute(
-      `UPDATE push_subscriptions SET delivery_mode = ?, enabled = ? WHERE user_id = ?`,
-      [deliveryMode, deliveryMode === 'inside' ? 0 : 1, user.id]
-    );
-    return { ok: true, deliveryMode };
+    return { ok: true, deliveryMode }; // 10.42: no web-push row to update
   }
 
   async getAdminStatus(authorization?: string) {
     await this.authService.requireAdmin(authorization);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT
-          COUNT(*) AS totalSubscriptions,
-          SUM(CASE WHEN enabled = 1 THEN 1 ELSE 0 END) AS activeSubscriptions,
-          SUM(CASE WHEN enabled = 1 AND delivery_mode IN ('outside','both') THEN 1 ELSE 0 END) AS phoneSubscriptions,
-          SUM(CASE WHEN delivery_mode = 'inside' THEN 1 ELSE 0 END) AS insideOnlySubscriptions,
-          COUNT(DISTINCT CASE WHEN enabled = 1 AND delivery_mode IN ('outside','both') THEN user_id END) AS phoneUsers
-       FROM push_subscriptions`
-    );
+    const rows: RowDataPacket[] = []; // 10.42: web push removed — its counts are 0
     const [nativeRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT
           COUNT(*) AS totalNativeTokens,
@@ -161,23 +149,9 @@ export class PushNotificationsService implements OnModuleDestroy {
     return { ok: false, reason: 'Web push is disabled. Use native app notifications.' };
   }
 
-  async unsubscribe(authorization: string | undefined, input: any) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
-    const endpoint = String(input?.endpoint || '');
-
-    if (endpoint) {
-      await this.db.execute(
-        `UPDATE push_subscriptions SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND endpoint_hash = ?`,
-        [user.id, this.hashEndpoint(endpoint)]
-      );
-    } else {
-      await this.db.execute(
-        `UPDATE push_subscriptions SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
-        [user.id]
-      );
-    }
-
-    return { ok: true };
+  async unsubscribe(authorization: string | undefined, _input: any) {
+    await this.authService.requireAuthenticatedUser(authorization);
+    return { ok: true }; // 10.42: web push removed
   }
 
   async saveNativeToken(authorization: string | undefined, input: any) {
@@ -246,14 +220,25 @@ export class PushNotificationsService implements OnModuleDestroy {
 
     let inAppCreated = 0;
     let pushResult: { ok: boolean; sent: number; failed: number; reason?: string } = { ok: true, sent: 0, failed: 0 };
+    void admin;
 
     // Admin controls delivery per message. Students only opt their device into phone push.
+    // In-app = a notice in the shared feed (no database rows); phones pick it
+    // up with the start-up reply or from the push itself.
+    let notice: Notice | null = null;
     if (deliveryType === 'inside' || deliveryType === 'both') {
-      inAppCreated = await this.createInAppAnnouncement(payload, targetRole, Number(admin.id));
+      notice = this.notices.addNotice({
+        kind: 'admin',
+        title: payload.title,
+        body: payload.body,
+        url: payload.url,
+        audience: this.normalizeTargetRole(targetRole) as Notice['audience'],
+      });
+      inAppCreated = notice.id;
     }
 
     if (deliveryType === 'outside' || deliveryType === 'both') {
-      pushResult = await this.sendToAudience(payload, { targetRole, userIds });
+      pushResult = await this.sendToAudience(this.withNotice(payload, notice), { targetRole, userIds });
     }
 
     return {
@@ -271,15 +256,19 @@ export class PushNotificationsService implements OnModuleDestroy {
     body: string;
     targetRole: 'all' | 'student' | 'admin';
     url?: string;
+    notice?: Notice | null;
   }) {
     return this.sendToAudience(
-      {
+      this.withNotice({
         title: input.title,
         body: input.body,
         url: input.url || '/notifications',
         tag: `announcement-${Date.now()}`,
-      },
-      { targetRole: input.targetRole }
+      }, input.notice || null),
+      { targetRole: input.targetRole },
+      // Broadcasts are spread over ~3 minutes so every phone doesn't open the
+      // app (and hit the server) in the same second. Callers don't wait for it.
+      { spread: true }
     );
   }
 
@@ -295,17 +284,15 @@ export class PushNotificationsService implements OnModuleDestroy {
       this.logger.warn(`New-content switch lookup failed, notifying anyway: ${error?.message || error}`);
     }
 
+    // In the shared notices feed (a small JSON file), not the database.
+    let notice: Notice | null = null;
     try {
-      await this.db.execute(
-        `INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
-         VALUES (?, ?, 'student', 'published', NULL, NULL)`,
-        [payload.title.slice(0, 180), payload.body]
-      );
+      notice = this.notices.addNotice({ kind: 'content', title: payload.title, body: payload.body, url: payload.url, audience: 'student' });
     } catch (error: any) {
-      this.logger.warn(`New-content in-app announcement insert failed: ${error?.message || error}`);
+      this.logger.warn(`New-content notice not saved: ${error?.message || error}`);
     }
 
-    return this.sendAnnouncementPush({ ...payload, targetRole: 'student' }).catch((error: any) => {
+    return this.sendAnnouncementPush({ ...payload, targetRole: 'student', notice }).catch((error: any) => {
       this.logger.warn(`New-content push failed: ${error?.message || error}`);
     });
   }
@@ -338,23 +325,90 @@ export class PushNotificationsService implements OnModuleDestroy {
   onModuleDestroy() {
     for (const { timer } of this.pendingDebounced.values()) clearTimeout(timer);
     this.pendingDebounced.clear();
+    for (const timer of this.spreadTimers) clearTimeout(timer);
+    this.spreadTimers.clear();
   }
 
-  async sendToAudience(payload: PushPayload, audience: { targetRole?: string; userIds?: number[] } = {}) {
-    if (!(await this.nativePushSender.isConfigured())) {
+  /** Resolves when no spread batch is scheduled or running (tests and measurements). */
+  async waitForPushIdle() {
+    while (this.spreadTimers.size || this.runningBatches.size) {
+      await Promise.all([...this.runningBatches]);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+
+  /**
+   * Phone push to an audience. Database work per broadcast, whatever the
+   * number of phones: 1 settings read + 1 token read, and 1 write per batch
+   * only when some tokens failed. (Before: 2 settings reads per phone, all at
+   * once — 10 phones ≈ 25 statements, 200 phones overflowed the pool queue
+   * and nothing was sent.)
+   *
+   * `spread`: send in batches over PUSH_SPREAD_MS (default 3 minutes) and
+   * return at once; used for broadcasts nobody waits on. Without it (the
+   * admin's own "Send notification"), all are sent now, 25 at a time, and the
+   * result is returned.
+   */
+  async sendToAudience(
+    payload: PushPayload,
+    audience: { targetRole?: string; userIds?: number[] } = {},
+    options: { spread?: boolean } = {},
+  ) {
+    const settings = await this.nativePushSender.loadSettings();
+    if (!(await this.nativePushSender.isConfigured(settings))) {
       this.logger.warn('Skipping native push send because native push credentials are not configured.');
       return { ok: false, sent: 0, failed: 0, reason: 'Native push credentials are not configured' };
     }
 
-    const nativeResult = await this.sendNativeToAudience(payload, audience);
-    return { ok: nativeResult.failed === 0, sent: nativeResult.sent, failed: nativeResult.failed };
-  }
-
-  private async sendNativeToAudience(payload: PushPayload, audience: { targetRole?: string; userIds?: number[] } = {}) {
-    if (!(await this.nativePushSender.isConfigured())) {
-      return { sent: 0, failed: 0 };
+    const rows = await this.loadAudienceTokens(audience);
+    const message = this.withDefaults(payload);
+    if (options.spread) {
+      this.scheduleSpread(rows, message, settings);
+      return { ok: true, sent: 0, failed: 0, queued: rows.length };
     }
 
+    let sent = 0;
+    let failed = 0;
+    for (let i = 0; i < rows.length; i += PushNotificationsService.SEND_CONCURRENCY) {
+      const result = await this.sendBatch(rows.slice(i, i + PushNotificationsService.SEND_CONCURRENCY), message, settings);
+      sent += result.sent;
+      failed += result.failed;
+    }
+    return { ok: failed === 0, sent, failed };
+  }
+
+  private static readonly SEND_CONCURRENCY = 25;
+  private static readonly SPREAD_SLOTS = 18; // 3 minutes → a batch every 10 s
+  private static readonly MIN_SPREAD_BATCH = 10; // a few phones go in one batch, now
+
+  private spreadWindowMs() {
+    const value = Number(this.configService.get<string>('PUSH_SPREAD_MS') ?? 180_000);
+    return Number.isFinite(value) && value >= 0 ? value : 180_000;
+  }
+
+  private scheduleSpread(rows: RowDataPacket[], message: PushPayload, settings: NativePushSettingsSnapshot) {
+    if (!rows.length) return;
+    const slots = PushNotificationsService.SPREAD_SLOTS;
+    const size = Math.max(PushNotificationsService.MIN_SPREAD_BATCH, Math.ceil(rows.length / slots));
+    const batches: RowDataPacket[][] = [];
+    for (let i = 0; i < rows.length; i += size) batches.push(rows.slice(i, i + size));
+    const interval = this.spreadWindowMs() / slots;
+    batches.forEach((batch, index) => {
+      const timer = setTimeout(() => {
+        this.spreadTimers.delete(timer);
+        // One batch at a time per broadcast step; each batch sends ≤ size pushes.
+        const run = this.sendBatch(batch, message, settings)
+          .catch((error: any) => this.logger.warn(`Push batch failed: ${error?.message || error}`))
+          .finally(() => this.runningBatches.delete(run));
+        this.runningBatches.add(run);
+      }, Math.round(index * interval));
+      timer.unref?.();
+      this.spreadTimers.add(timer);
+    });
+  }
+
+  /** One token read for the whole audience (examined = the audience's tokens). */
+  private async loadAudienceTokens(audience: { targetRole?: string; userIds?: number[] }) {
     const params: Array<string | number> = [];
     const where = [`npt.enabled = 1`, `npt.delivery_mode IN ('outside','both')`];
 
@@ -373,28 +427,28 @@ export class PushNotificationsService implements OnModuleDestroy {
        WHERE ${where.join(' AND ')}`,
       params
     );
+    return rows;
+  }
 
+  /** Send to a few phones together; failed tokens are recorded in ONE statement. */
+  private async sendBatch(rows: RowDataPacket[], message: PushPayload, settings: NativePushSettingsSnapshot) {
+    const failures: Array<{ id: number; statusCode: number; message: string }> = [];
     let sent = 0;
-    let failed = 0;
-
     await Promise.all(rows.map(async (row) => {
       const platform = this.normalizeNativePlatform(row.platform);
       try {
-        const result = await this.nativePushSender.send(platform, String(row.token), this.withDefaults(payload));
+        const result = await this.nativePushSender.send(platform, String(row.token), message, settings);
         if (result.ok) {
           sent += 1;
           return;
         }
-
-        failed += 1;
-        await this.markNativeTokenFailure(Number(row.id), result.statusCode || 0, result.error || 'Native push delivery failed');
+        failures.push({ id: Number(row.id), statusCode: result.statusCode || 0, message: result.error || 'Native push delivery failed' });
       } catch (error: any) {
-        failed += 1;
-        await this.markNativeTokenFailure(Number(row.id), 0, error?.message || 'Native push delivery failed');
+        failures.push({ id: Number(row.id), statusCode: 0, message: error?.message || 'Native push delivery failed' });
       }
     }));
-
-    return { sent, failed };
+    if (failures.length) await this.markNativeTokenFailures(failures);
+    return { sent, failed: failures.length };
   }
 
   private normalizePayload(input: any): PushPayload {
@@ -489,15 +543,21 @@ export class PushNotificationsService implements OnModuleDestroy {
     return createHash('sha256').update(endpoint).digest('hex');
   }
 
-  private async markNativeTokenFailure(id: number, statusCode: number, message: string) {
-    await this.db.execute(
+  /** Apple/Google said "this token is gone" (400/404/410): disable it. Any failure: keep the error. One statement for the batch. */
+  private async markNativeTokenFailures(failures: Array<{ id: number; statusCode: number; message: string }>) {
+    const dead = failures.filter((f) => [400, 404, 410].includes(f.statusCode)).map((f) => f.id);
+    const ids = failures.map((f) => f.id);
+    const errorCases = failures.map(() => 'WHEN ? THEN ?').join(' ');
+    const params: Array<string | number> = [];
+    for (const f of failures) params.push(f.id, String(f.message || 'Native push delivery failed').slice(0, 500));
+    await this.db.query(
       `UPDATE native_push_tokens
-       SET enabled = CASE WHEN ? IN (400, 404, 410) THEN 0 ELSE enabled END,
-           last_error = ?,
+       SET enabled = CASE WHEN id IN (?) THEN 0 ELSE enabled END,
+           last_error = CASE id ${errorCases} ELSE last_error END,
            failed_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [statusCode, String(message || 'Native push delivery failed').slice(0, 500), id]
+       WHERE id IN (?)`,
+      [dead.length ? dead : [0], ...params, ids]
     );
   }
 
@@ -509,18 +569,18 @@ export class PushNotificationsService implements OnModuleDestroy {
     return rows.length > 0;
   }
 
-  private async createInAppAnnouncement(payload: PushPayload, targetRole: string, adminId: number) {
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
-       VALUES (?, ?, ?, 'published', NULL, ?)`,
-      [
-        String(payload.title || 'xyndrome').slice(0, 180),
-        payload.body || 'You have a new notification.',
-        this.normalizeTargetRole(targetRole),
-        adminId || null,
-      ]
-    );
-
-    return Number(result.insertId || 0);
+  /** The push carries its notice, so a phone can put it in its inbox at once. */
+  private withNotice(payload: PushPayload, notice: Notice | null): PushPayload {
+    if (!notice) return payload;
+    return {
+      ...payload,
+      data: {
+        ...(payload.data || {}),
+        noticeId: notice.id,
+        noticeKind: notice.kind,
+        noticeAt: notice.createdAt,
+      },
+    };
   }
+
 }

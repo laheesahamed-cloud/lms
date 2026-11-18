@@ -1,3 +1,4 @@
+import { StudyStatsService } from '../study-stats/study-stats.service';
 import { Pool } from 'mysql2/promise';
 export type XpResult = {
     awarded: number;
@@ -6,17 +7,17 @@ export type XpResult = {
 };
 export declare class XpService {
     private readonly db;
+    private readonly studyStats?;
     private readonly logger;
-    constructor(db: Pool);
-    onExamSubmitted(userId: number, attemptId: number): Promise<XpResult>;
-    onLessonCompleted(userId: number, lessonId: number): Promise<XpResult>;
-    markLessonOpened(userId: number, lessonId: number): Promise<void>;
-    getSummary(userId: number): Promise<{
+    constructor(db: Pool, studyStats?: StudyStatsService | undefined);
+    onLessonCompleted(userId: number, lessonId: number, readSeconds?: number): Promise<XpResult & {
+        progressVersion?: number;
+    }>;
+    markLessonOpened(_userId: number, _lessonId: number): Promise<void>;
+    getSummary(userId: number, xpToday?: number, knownTotalXp?: number): Promise<{
         totalXp: number;
         xpToday: number;
         xpDailyCap: 100;
         level: number;
     }>;
-    private streakEntries;
-    private award;
 }

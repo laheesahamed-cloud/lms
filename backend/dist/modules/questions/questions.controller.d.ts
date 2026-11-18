@@ -1,14 +1,13 @@
 import { AuthService } from '../auth/auth.service';
 import { QuestionsService } from './questions.service';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
-import { BulkUpdateQuestionKeywordsDto } from './dto/bulk-update-question-keywords.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 export declare class QuestionsController {
     private readonly questionsService;
     private readonly authService;
     constructor(questionsService: QuestionsService, authService: AuthService);
-    findAll(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, missing?: string, ids?: string, excludeIds?: string, limit?: string, page?: string, offset?: string, random?: string): Promise<{
+    findAll(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, usage?: string, missing?: string, ids?: string, excludeIds?: string, limit?: string, page?: string, offset?: string, random?: string, after?: string, slim?: string): Promise<{
         id: number;
         courseId: number;
         subjectId: number;
@@ -19,13 +18,13 @@ export declare class QuestionsController {
         category: string;
         questionType: "sba" | "true_false";
         questionText: string;
-        keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
         questionApproach: string;
         questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
+        updatedAt: string | Date | null;
         courseTitle: string;
         subjectName: string;
         topicName: string;
@@ -34,7 +33,7 @@ export declare class QuestionsController {
         quizCount: number;
         contentVersion: number | null;
     }[]>;
-    meta(): Promise<{
+    meta(scope?: string): Promise<{
         courses: {
             id: number;
             courseTitle: string;
@@ -64,15 +63,78 @@ export declare class QuestionsController {
             examSource: string;
             keywordsText: string;
         }[];
-        keywordSuggestions: string[];
     }>;
-    counts(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, keywords?: string): Promise<{
+    metaSubject(topicId?: string, topicIds?: string): Promise<{
+        subjects: {
+            topicId: number;
+            topics: {
+                id: number;
+                subjectId: number;
+                courseId: number;
+                topicName: string;
+            }[];
+            lessons: {
+                id: number;
+                courseId: number;
+                subjectId: number;
+                topicId: number | null;
+                lessonTitle: string;
+            }[];
+        }[];
+    }> | Promise<{
+        topicId: number;
+        topics: {
+            id: number;
+            subjectId: number;
+            courseId: number;
+            topicName: string;
+        }[];
+        lessons: {
+            id: number;
+            courseId: number;
+            subjectId: number;
+            topicId: number | null;
+            lessonTitle: string;
+        }[];
+    }>;
+    fixLinkCounts(after?: number): Promise<{
+        lastId: number;
+        done: boolean;
+        maxId: number;
+        fixed: {
+            id: number;
+            stored: number;
+            actual: number;
+        }[];
+        changed: {
+            id: number;
+            stored: number;
+            actual: number;
+        }[];
+        courseCounts: Record<number, number>;
+        courseTotals: Record<number, number> | undefined;
+    }>;
+    fixCourseTotals(counts?: unknown, expected?: unknown): Promise<{
+        fixed: {
+            id: number;
+            name: string;
+            stored: number;
+            actual: number;
+        }[];
+        changed: {
+            id: number;
+            name: string;
+            stored: number;
+            actual: number;
+        }[];
+    }>;
+    counts(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string): Promise<{
         total: number;
         unused: number;
         used: number;
     }>;
-    exportQuestions(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, missing?: string, response?: any): Promise<void>;
-    exportQuestionsLegacy(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, missing?: string, response?: any): Promise<void>;
+    exportQuestions(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, usage?: string, missing?: string, response?: any): Promise<void>;
+    exportQuestionsLegacy(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, usage?: string, missing?: string, response?: any): Promise<void>;
     importQuestions(authorization: string | undefined, file: any): Promise<{
         ok: boolean;
         importedCount: number;
@@ -87,38 +149,26 @@ export declare class QuestionsController {
         importedIds: number[];
         errors: string[];
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
-    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<void>;
     findOne(id: number): Promise<{
         options: {
             id: number;
@@ -137,13 +187,13 @@ export declare class QuestionsController {
         category: string;
         questionType: "sba" | "true_false";
         questionText: string;
-        keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
         questionApproach: string;
         questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
+        updatedAt: string | Date | null;
         courseTitle: string;
         subjectName: string;
         topicName: string;
@@ -155,11 +205,6 @@ export declare class QuestionsController {
     create(authorization: string | undefined, createQuestionDto: CreateQuestionDto): Promise<{
         ok: boolean;
         id: number;
-    }>;
-    bulkUpdateKeywords(authorization: string | undefined, bulkUpdateQuestionKeywordsDto: BulkUpdateQuestionKeywordsDto): Promise<{
-        ok: boolean;
-        updatedCount: number;
-        keywords: string[];
     }>;
     bulkDelete(authorization: string | undefined, bulkDeleteQuestionsDto: BulkDeleteQuestionsDto): Promise<{
         ok: boolean;

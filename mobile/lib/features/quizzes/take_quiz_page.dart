@@ -1,9 +1,14 @@
+import '../../widgets/explanation_text.dart';
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../state/saved_first.dart';
+import '../../state/catalogue.dart';
+import '../../state/study_days.dart';
+import '../../state/practice_queue.dart';
+import '../../state/practice_sync.dart';
+import '../../data/api_client.dart';
 import '../../widgets/quiz_loading_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +20,7 @@ import '../../widgets/locked_view.dart';
 import '../dashboard/dashboard_repository.dart';
 import 'quizzes_repository.dart';
 import 'quiz_dialogs.dart';
+import 'report_question_sheet.dart';
 import 'submit_transition_overlay.dart';
 import '../../data/app_error.dart';
 import '../../widgets/adaptive_sheet.dart';
@@ -354,6 +360,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
   // True/False: questionId -> { optionId -> markedTrue }
   final Map<int, Map<int, bool>> _tf = {};
   final Set<int> _revealed = {}; // questionId (practice reveal)
+  final Set<int> _reported = {}; // questionIds reported this session
 
   // Shuffled questions — initialised once on first data load, never again.
   List<PracticeQuestion>? _shuffled;
@@ -418,6 +425,28 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
 
   int _answeredCount(List<PracticeQuestion> questions) =>
       questions.where(_isAnswered).length;
+
+  /// This practice's mark, % (SBA: the pick is right; true/false: the share of
+  /// statements marked right).
+  int _practicePercent(List<PracticeQuestion> questions) {
+    if (questions.isEmpty) return 0;
+    var score = 0.0;
+    for (final q in questions) {
+      if (q.type == 'true_false') {
+        final marks = _tf[q.id] ?? const <int, bool>{};
+        if (q.options.isEmpty) continue;
+        var right = 0;
+        for (final o in q.options) {
+          final mark = marks[o.id];
+          if (mark != null && mark == q.correctOptionIds.contains(o.id)) right++;
+        }
+        score += right / q.options.length;
+      } else if (q.correctOptionIds.contains(_selected[q.id])) {
+        score += 1;
+      }
+    }
+    return (score * 100 / questions.length).round();
+  }
 
   void _setTf(int questionId, int optionId, bool isTrue) {
     HapticFeedback.selectionClick();
@@ -486,15 +515,17 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       _submitting = true;
       _submitPhase = SubmitPhase.submitting;
     });
-    // Only a fully-answered practice counts toward the daily streak (isolated
-    // event, does not affect scores). Await it (within the submit animation
-    // window) so the event is persisted before we pop — the quiz-list/dashboard
-    // refetch on return then sees this quiz as done and stops recommending it.
+    // 10.28: a fully-answered practice is noted on the phone (no request):
+    // it counts for today's practice goal, and a passed one pays 1 XP. It
+    // rides along with the next main request the app sends.
     final id = int.tryParse(widget.quizId);
     if (id != null && questions.isNotEmpty && answered >= questions.length) {
-      try {
-        await recordPracticeCompletion(ref, id);
-      } catch (_) {}
+      final pass = ref.read(practiceQuizProvider(widget.quizId)).asData?.value.passingMarks ?? 45;
+      final pct = _practicePercent(questions);
+      await PracticeQueue.add(passed: pct >= pass);
+      // 10.29: today's practice goal + its marks for the Readiness bars.
+      await StudyDays.done(StudyDays.practice, pct: pct.round());
+      unawaited(syncPracticesIfOverdue(ref.read(apiClientProvider)));
     }
     // Practice records study activity but does NOT create a graded attempt, so
     // the backend never flips isCompleted. Mark it done in the already-cached
@@ -509,12 +540,9 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
         }
       }
     }
-    // The in-place mark above only reaches screens that happen to rebuild; the
-    // planner and the saved copy need a real refresh.
-    freshNext('quizzes');
-    freshNext('dashboard');
-    ref.invalidate(quizListProvider);
-    ref.invalidate(studentDashboardProvider);
+    // 10.29: a practice changes nothing on the server, so nothing is asked
+    // again; the Study Hub reads today's goals from the phone.
+    ref.invalidate(studyDaysProvider);
     // Practice has nothing to wait on, so just hold the "submitting" phase for
     // the minimum, pop the badge, hold, then leave — same beats as the exam.
     await Future.delayed(const Duration(milliseconds: _submitMinMs));
@@ -524,7 +552,42 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
     if (mounted) context.pop();
   }
 
+  /// "Not so fast" (OPTIMIZE 10.16): the same popup as the lesson Done
+  /// button, shown only when Submit is tapped before the minimum time — the
+  /// exam screen shows nothing else, and nothing is sent.
+  Future<void> _showTooSoonDialog(Duration left) {
+    final c = context.c;
+    final secs = left.inSeconds < 1 ? 1 : left.inSeconds;
+    final leftText = secs >= 60 ? '${secs ~/ 60} min ${(secs % 60).toString().padLeft(2, '0')} s' : '$secs s';
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.cardElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        icon: Icon(Icons.schedule_rounded, size: 34, color: c.warning),
+        title: Text('Not so fast',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w800, color: c.inkStrong)),
+        content: Text('Take a little more time on this exam before submitting ($leftText left).',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, height: 1.4, color: c.inkSoft)),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Okay'))],
+      ),
+    );
+  }
+
   Future<void> _confirmAndSubmitExam(List<PracticeQuestion> questions) async {
+    final load = ref.read(examQuizProvider(widget.quizId)).asData?.value;
+    if (load != null && load.startedAt != null) {
+      final prog = ref.read(studentProgressProvider).asData?.value;
+      final min = minExamTime(prog, int.tryParse(widget.quizId) ?? 0, load.timeLimit);
+      final spent = DateTime.now().difference(load.startedAt!);
+      if (spent < min) {
+        await _showTooSoonDialog(min - spent);
+        return;
+      }
+    }
     final ok = await showQuizFinishDialog(
       context,
       exam: true,
@@ -564,12 +627,11 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       if (!mounted) return;
       // Refresh the list (completed tick), the results history, and the
       // dashboard so the "Continue where you left off" CTA advances at once.
-      freshNext('quizzes');
-      freshNext('results');
-      freshNext('dashboard');
-      ref.invalidate(quizListProvider);
-      ref.invalidate(resultsListProvider);
-      ref.invalidate(studentDashboardProvider);
+      // 10.29: the exam's mark, the recent result and today's exam goal are
+      // already saved on the phone (submitExam): the lists, Results and the
+      // Study Hub are rebuilt from it — no request.
+      ref.invalidate(studentProgressProvider);
+      ref.invalidate(studyDaysProvider);
       setState(() => _submitPhase = SubmitPhase.complete);
       await Future.delayed(const Duration(milliseconds: _completeHoldMs));
       if (!mounted) return;
@@ -689,6 +751,19 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
 
   Widget _buildExam(BuildContext context) {
     final c = context.c;
+    // Free-slot rule (10.18) checked BEFORE the exam loads, from the progress
+    // the phone already holds — the lock card shows at once, no request.
+    if (!_started) {
+      final prog = ref.watch(studentProgressProvider).asData?.value;
+      final blocker = prog?.examBlocker(int.tryParse(widget.quizId) ?? 0);
+      if (blocker != null) {
+        final cat = ref.watch(quizCatalogueProvider).asData?.value;
+        return Scaffold(
+          backgroundColor: c.page,
+          body: SafeArea(child: _examLockedCard(c, ExamLockedException(blocker, examBlockerTitle(cat, blocker), reviewOnly: prog?.examBlockerPassed(blocker) ?? false))),
+        );
+      }
+    }
     final examAsync = ref.watch(examQuizProvider(widget.quizId));
     return Scaffold(
       backgroundColor: c.page,
@@ -766,7 +841,51 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
     );
   }
 
+  /// The 5-result rule (10.16 / 10.18): the centre card, shown when an exam is
+  /// opened while none of the 5 recent results is passed and reviewed.
+  Widget _examLockedCard(AppColors c, ExamLockedException e) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+          decoration: BoxDecoration(color: c.cardElevated, borderRadius: BorderRadius.circular(22)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_outline_rounded, size: 34, color: c.warning),
+              const SizedBox(height: 10),
+              Text(e.reviewOnly ? 'Finish a review first' : 'Pass and review first',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: c.inkStrong)),
+              const SizedBox(height: 8),
+              Text(
+                  e.reviewOnly
+                      ? 'Your 5 recent results are full. You passed ${e.blockingTitle} — open its review and tap Finish review to make room for a new exam.'
+                      : 'Your 5 recent results are full and none is passed yet. Retake and pass one of them (for example ${e.blockingTitle}), then finish its review to make room.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 15, height: 1.4, color: c.inkSoft)),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => e.reviewOnly
+                      ? context.pushReplacement('/app/review/${e.blockingQuizId}')
+                      : context.pushReplacement('/app/quizzes/${e.blockingQuizId}?exam=1'),
+                  child: Text(e.reviewOnly ? 'Review ${e.blockingTitle}' : 'Retake ${e.blockingTitle}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              TextButton(onPressed: () => context.pop(), child: const Text('Not now')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _errorView(AppColors c, Object e) {
+    if (e is ExamLockedException) return _examLockedCard(c, e);
     // Subscription gating surfaces as a 400 ("… is included with selected
     // plans" / "subscription does not include …") — show a lock, not an error.
     final msg = e.toString().toLowerCase();
@@ -874,6 +993,27 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                 ),
                 const SizedBox(width: 10),
               ],
+              // Report the question on screen (2026-11-17): one INSERT.
+              IconButton(
+                tooltip: 'Report question',
+                visualDensity: VisualDensity.compact,
+                onPressed: total == 0
+                    ? null
+                    : () async {
+                        final id = questions[i].id;
+                        if (await showReportQuestionSheet(context, id) && mounted) {
+                          setState(() => _reported.add(id));
+                        }
+                      },
+                icon: Icon(
+                    total > 0 && _reported.contains(questions[i].id)
+                        ? Icons.flag_rounded
+                        : Icons.outlined_flag_rounded,
+                    size: 20,
+                    color: total > 0 && _reported.contains(questions[i].id)
+                        ? c.error
+                        : c.inkSoft),
+              ),
               InkWell(
                 onTap: () => _openQuestionNav(questions),
                 borderRadius: BorderRadius.circular(8),
@@ -1222,7 +1362,7 @@ class _QuestionView extends StatelessWidget {
                       const SizedBox(height: 10),
                   ],
                   if (question.explanation.isNotEmpty)
-                    Text(question.explanation,
+                    ExplanationText(question.explanation, dotColor: c.primary,
                         style: TextStyle(
                             fontSize: 15.5, height: 1.5, color: c.inkMedium)),
                 ],

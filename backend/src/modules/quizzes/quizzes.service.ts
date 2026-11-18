@@ -1,3 +1,6 @@
+import { getScopeRows } from '../../common/auth/subscription-scope';
+import { loadRecentResults } from '../../common/utils/recent-results';
+import { sortByName } from '../../common/utils/general-ci-sort';
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
@@ -28,6 +31,9 @@ import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { BulkDeleteQuizzesDto } from './dto/bulk-delete-quizzes.dto';
 import { BulkQuizStatusDto } from './dto/bulk-quiz-status.dto';
+import { cachedAdminRead } from '../../common/utils/admin-read-cache';
+import { forgetContentHistory } from '../../common/utils/content-history';
+import { applyQuestionTotalChanges, applyQuizCountChanges, bumpQuestionLinkCounts, linkCountsForQuizzes, QuestionCourse, readQuestionCourses, readQuizStates } from '../../common/utils/quiz-counts';
 
 type QuizRow = RowDataPacket & {
   id: number;
@@ -48,8 +54,6 @@ type QuizRow = RowDataPacket & {
   quiz_number: number | null;
   quiz_title: string;
   quiz_description: string | null;
-  blueprint_json: string | null;
-  randomization_mode: 'static' | 'dynamic' | null;
   total_questions: number;
   total_marks: number;
   time_limit: number;
@@ -66,6 +70,8 @@ type QuizRow = RowDataPacket & {
 };
 
 const DEFAULT_PASSING_MARKS = 45;
+
+
 
 @Injectable()
 export class QuizzesService {
@@ -88,9 +94,8 @@ export class QuizzesService {
     const params: Array<string | number> = [];
 
     if (filters.search?.trim()) {
-      where += ' AND (COALESCE(NULLIF(quizzes.admin_name, \'\'), quizzes.quiz_title) LIKE ? OR COALESCE(NULLIF(quizzes.student_title, \'\'), quizzes.quiz_title) LIKE ? OR quizzes.quiz_title LIKE ?)';
-      const like = `%${filters.search.trim()}%`;
-      params.push(like, like, like);
+      where += ' AND quizzes.quiz_title LIKE ?'; // 10.54: one name column
+      params.push(`%${filters.search.trim()}%`);
     }
 
     if (filters.courseId && filters.courseId > 0) {
@@ -119,6 +124,11 @@ export class QuizzesService {
   /// with its assessment counts. Drives the folder view of the Assessment Map,
   /// which only fetches a folder's assessments when it is opened.
   async summary(filters: { search?: string; courseId?: number; topicId?: string; status?: string }) {
+    // Without a title search, the folder counts come from the stored counts
+    // (topics.quiz_total/…, courses.quiz_general_total/…): one row per course
+    // and subject, no counting. A title search has to look at the titles, so it
+    // keeps the counting query below.
+    if (!filters.search?.trim()) return this.summaryFromStoredCounts(filters);
     const { where, params } = this.buildListFilter(filters);
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `
@@ -153,54 +163,113 @@ export class QuizzesService {
     }));
   }
 
-  async findAll(filters: { search?: string; courseId?: number; topicId?: string; status?: string; order?: string } & PaginationInput) {
-    const { limit, offset } = normalizePagination(filters, { defaultLimit: 50, maxLimit: 100 });
+  private async summaryFromStoredCounts(filters: { courseId?: number; topicId?: string; status?: string }) {
+    const courseWhere = filters.courseId && filters.courseId > 0 ? 'WHERE id = ?' : '';
+    const courseParams = courseWhere ? [filters.courseId] : [];
+    const [courses] = await this.db.query<RowDataPacket[]>(
+      `SELECT id, course_title, quiz_general_total, quiz_general_active, quiz_unfiled_total, quiz_unfiled_active FROM courses ${courseWhere}`,
+      courseParams);
+    const subjectFilter = filters.topicId === 'general'
+      ? null
+      : filters.topicId ? { sql: 'WHERE id = ?', params: [Number(filters.topicId)] }
+        : courseWhere ? { sql: 'WHERE course_id = ?', params: courseParams }
+          : { sql: '', params: [] as unknown[] };
+    const [subjects] = subjectFilter
+      ? await this.db.query<RowDataPacket[]>(
+        `SELECT id, course_id, topic_name, quiz_total, quiz_active FROM topics ${subjectFilter.sql}`, subjectFilter.params)
+      : [[] as RowDataPacket[]];
+    // Status filter: active = the active count; draft = total − active.
+    const pick = (total: number, active: number) => (filters.status === 'active'
+      ? { total: active, active }
+      : filters.status === 'inactive' ? { total: total - active, active: 0 } : { total, active });
+    const titleKey = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const out: Array<{ courseId: number; courseTitle: string; isGeneral: boolean; topicId: number | null; subjectName: string; total: number; active: number }> = [];
+    for (const c of courses) {
+      const id = Number(c.id);
+      const title = String(c.course_title || '');
+      // Same order as before: general first, then assessments with no subject, then subjects by name.
+      if (filters.topicId === 'general' || !filters.topicId) {
+        const g = pick(Number(c.quiz_general_total), Number(c.quiz_general_active));
+        if (g.total > 0) out.push({ courseId: id, courseTitle: title, isGeneral: true, topicId: null, subjectName: '', ...g });
+      }
+      if (!filters.topicId) {
+        const u = pick(Number(c.quiz_unfiled_total), Number(c.quiz_unfiled_active));
+        if (u.total > 0) out.push({ courseId: id, courseTitle: title, isGeneral: false, topicId: null, subjectName: '', ...u });
+      }
+      const rows = subjects
+        .filter((t) => Number(t.course_id) === id)
+        .sort((a, b) => (titleKey(a.topic_name) < titleKey(b.topic_name) ? -1 : titleKey(a.topic_name) > titleKey(b.topic_name) ? 1 : Number(a.id) - Number(b.id)));
+      for (const t of rows) {
+        const v = pick(Number(t.quiz_total), Number(t.quiz_active));
+        if (v.total > 0) out.push({ courseId: id, courseTitle: title, isGeneral: false, topicId: Number(t.id), subjectName: String(t.topic_name || ''), ...v });
+      }
+    }
+    // Courses by title, as the counting query ordered them.
+    return out.sort((a, b) => {
+      const x = titleKey(a.courseTitle); const y = titleKey(b.courseTitle);
+      return x < y ? -1 : x > y ? 1 : a.courseId - b.courseId;
+    });
+  }
+
+  async findAll(filters: { search?: string; courseId?: number; topicId?: string; status?: string; order?: string; after?: number; slim?: boolean } & PaginationInput) {
+    const { limit, offset: rawOffset } = normalizePagination(filters, { defaultLimit: 50, maxLimit: 100 });
+    // Pages "after id X" (keyset) read only the rows they return; OFFSET reads
+    // and throws away every earlier row. `after` wins when both are sent.
+    const after = Number.isInteger(filters.after) && Number(filters.after) > 0 ? Number(filters.after) : 0;
+    const offset = after ? 0 : rawOffset;
+    // A folder's list in id order straight from its own index (examined =
+    // returned). Left alone, MariaDB merged two single-column indexes and
+    // sorted (28 rows read for 14).
+    const folderIndexHint = filters.topicId === 'general'
+      ? 'FORCE INDEX (idx_quizzes_course_general)'
+      : filters.topicId ? 'FORCE INDEX (idx_quizzes_topic_general)' : '';
     let sql = `
       SELECT
         quizzes.id,
         quizzes.course_id,
         quizzes.topic_id,
         quizzes.subtopic_id,
-        quizzes.lesson_id,
-        quizzes.paper_id,
+        -- 10.54: the columns no set used were dropped; fixed values keep the admin replies identical.
+        NULL AS lesson_id,
+        NULL AS paper_id,
         quizzes.category,
-        quizzes.collection_tags,
+        '' AS collection_tags,
         quizzes.is_free,
-        quizzes.subtopic,
+        '' AS subtopic,
         quizzes.is_general,
-        quizzes.exam_mode_only,
-        quizzes.admin_name,
-        quizzes.student_title,
-        quizzes.display_title_mode,
+        0 AS exam_mode_only,
+        quizzes.quiz_title AS admin_name,
+        quizzes.quiz_title AS student_title,
+        'title' AS display_title_mode,
         quizzes.quiz_number,
         quizzes.quiz_title,
-        quizzes.quiz_description,
-        NULL AS blueprint_json,
-        quizzes.randomization_mode,
+        '' AS quiz_description,
         quizzes.total_questions,
         quizzes.total_marks,
         quizzes.time_limit,
-        quizzes.hide_time_limit,
+        0 AS hide_time_limit,
         quizzes.passing_marks,
-        quizzes.hide_passing_marks,
+        0 AS hide_passing_marks,
         quizzes.status,
         quizzes.created_at,
-        courses.course_title,
-        topics.topic_name AS subject_name,
-        subtopics.subtopic_name AS topic_name,
-        lessons.lesson_title,
-        papers.paper_title
-      FROM quizzes
-      INNER JOIN courses ON quizzes.course_id = courses.id
+        ${filters.slim
+          // Slim: no name lookups. The Assessments page already holds the
+          // course and subject names, so each row read is a row returned.
+          ? 'NULL AS course_title, NULL AS subject_name, NULL AS topic_name, NULL AS lesson_title, NULL AS paper_title'
+          : 'courses.course_title, topics.topic_name AS subject_name, subtopics.subtopic_name AS topic_name, NULL AS lesson_title, NULL AS paper_title'}
+      FROM quizzes ${folderIndexHint}
+      ${filters.slim ? '' : `INNER JOIN courses ON quizzes.course_id = courses.id
       LEFT JOIN topics ON quizzes.topic_id = topics.id
-      LEFT JOIN subtopics ON quizzes.subtopic_id = subtopics.id
-      LEFT JOIN lessons ON quizzes.lesson_id = lessons.id
-      LEFT JOIN papers ON quizzes.paper_id = papers.id
+      LEFT JOIN subtopics ON quizzes.subtopic_id = subtopics.id`}
       WHERE 1 = 1
     `;
     const listFilter = this.buildListFilter(filters);
     sql += listFilter.where;
     const params: Array<string | number> = [...listFilter.params];
+    if (after) {
+      sql += filters.order === 'asc' ? ' AND quizzes.id > ?' : ' AND quizzes.id < ?';
+      params.push(after);
+    }
 
     sql += filters.order === 'asc' ? ' ORDER BY quizzes.id ASC LIMIT ? OFFSET ?' : ' ORDER BY quizzes.id DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
@@ -209,7 +278,28 @@ export class QuizzesService {
     return rows.map((row) => this.mapQuiz(row));
   }
 
-  async meta(options?: { includeQuestions?: boolean }) {
+  /** The Assessments list page: courses and subjects only (examined = returned). */
+  metaFolders() {
+    return cachedAdminRead('quizzes.meta:folders', async () => {
+      const [courseRows] = await this.db.query<RowDataPacket[]>(
+        "SELECT id, course_title FROM courses WHERE status = 'active'");
+      const [topicRows] = await this.db.query<RowDataPacket[]>(
+        "SELECT id, course_id, topic_name FROM topics WHERE status = 'active'");
+      sortByName(courseRows, (r) => String(r.course_title));
+      sortByName(topicRows, (r) => String(r.topic_name));
+      return {
+        courses: courseRows.map((row) => ({ id: Number(row.id), courseTitle: String(row.course_title) })),
+        subjects: topicRows.map((row) => ({ id: Number(row.id), courseId: Number(row.course_id), subjectName: String(row.topic_name) })),
+      };
+    });
+  }
+
+  // Form dropdowns; remembered, cleared on any content save (admin-read-cache.ts).
+  meta(options?: { includeQuestions?: boolean }) {
+    return cachedAdminRead(`quizzes.meta:${options?.includeQuestions ? 1 : 0}`, () => this.loadMeta(options));
+  }
+
+  private async loadMeta(options?: { includeQuestions?: boolean }) {
     const [courseRows] = await this.db.execute<RowDataPacket[]>(
       "SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC"
     );
@@ -284,7 +374,6 @@ export class QuizzesService {
               q.category,
               q.question_type,
               q.question_text,
-              q.keywords_text,
               c.course_title,
               t.topic_name AS subject_name,
               st.subtopic_name AS topic_name,
@@ -302,7 +391,6 @@ export class QuizzesService {
         ))[0]
       : [];
 
-    const keywordSuggestions = await this.getKeywordSuggestions(questionRows);
 
     const categories = Array.from(new Set(
       (categoryRows.length ? categoryRows : questionRows)
@@ -346,7 +434,6 @@ export class QuizzesService {
         examSource: String(row.exam_source),
         keywordsText: String(row.keywords_text || ''),
       })),
-      keywordSuggestions,
       categories,
       questionTypes,
       usedQuestionIds: Array.from(usageByQuestionId.keys()),
@@ -364,7 +451,6 @@ export class QuizzesService {
           category: String(row.category || ''),
           questionType: String(row.question_type || ''),
           questionText: String(row.question_text || ''),
-          keywordsText: String(row.keywords_text || ''),
           usageCount,
           usedInAnyQuiz: usageCount > 0,
           courseTitle: String(row.course_title || ''),
@@ -385,41 +471,38 @@ export class QuizzesService {
           quizzes.course_id,
           quizzes.topic_id,
           quizzes.subtopic_id,
-          quizzes.lesson_id,
-          quizzes.paper_id,
+          -- 10.54: the columns no set used were dropped; fixed values keep the admin replies identical.
+          NULL AS lesson_id,
+          NULL AS paper_id,
           quizzes.category,
-          quizzes.collection_tags,
+          '' AS collection_tags,
           quizzes.is_free,
-          quizzes.subtopic,
+          '' AS subtopic,
           quizzes.is_general,
-          quizzes.exam_mode_only,
-          quizzes.admin_name,
-          quizzes.student_title,
-          quizzes.display_title_mode,
+          0 AS exam_mode_only,
+          quizzes.quiz_title AS admin_name,
+          quizzes.quiz_title AS student_title,
+          'title' AS display_title_mode,
           quizzes.quiz_number,
           quizzes.quiz_title,
-          quizzes.quiz_description,
-          quizzes.blueprint_json,
-          quizzes.randomization_mode,
+          '' AS quiz_description,
           quizzes.total_questions,
           quizzes.total_marks,
           quizzes.time_limit,
-          quizzes.hide_time_limit,
+          0 AS hide_time_limit,
           quizzes.passing_marks,
-          quizzes.hide_passing_marks,
+          0 AS hide_passing_marks,
           quizzes.status,
           quizzes.created_at,
           courses.course_title,
           topics.topic_name AS subject_name,
           subtopics.subtopic_name AS topic_name,
-          lessons.lesson_title,
-          papers.paper_title
+          NULL AS lesson_title,
+          NULL AS paper_title
         FROM quizzes
         INNER JOIN courses ON quizzes.course_id = courses.id
         LEFT JOIN topics ON quizzes.topic_id = topics.id
         LEFT JOIN subtopics ON quizzes.subtopic_id = subtopics.id
-        LEFT JOIN lessons ON quizzes.lesson_id = lessons.id
-        LEFT JOIN papers ON quizzes.paper_id = papers.id
         WHERE quizzes.id = ?
         LIMIT 1
       `,
@@ -455,54 +538,40 @@ export class QuizzesService {
     try {
       await connection.beginTransaction();
       const questionIds = this.cleanQuestionIds(createQuizDto.questionIds);
-      const linkedQuestionIds = this.resolveRandomizationMode(createQuizDto.randomizationMode) === 'dynamic' ? [] : questionIds;
+      // 10.54: every set is a fixed list (no random/blueprint sets), so all chosen questions are linked.
+      const linkedQuestionIds = questionIds;
       const totalQuestions = this.resolveQuizQuestionCount(createQuizDto, questionIds);
       const totalMarks = totalQuestions;
-
-      const resolvedMode = this.resolveDisplayTitleMode(createQuizDto.displayTitleMode);
-      const newQuizNumber = resolvedMode === 'number'
-        ? await this.resolveNextQuizNumber(connection, createQuizDto)
-        : null;
+      // One name per quiz (10.25): no quiz numbers are given out any more.
+      const newQuizNumber: number | null = null;
 
       const [result] = await connection.execute<ResultSetHeader>(
         `
           INSERT INTO quizzes (
-            course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, display_title_mode, quiz_number, quiz_title,
-            quiz_description, blueprint_json, randomization_mode, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            course_id, topic_id, subtopic_id, category, is_free, is_general, quiz_number, quiz_title,
+            total_questions, total_marks, time_limit, passing_marks, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           createQuizDto.courseId,
           createQuizDto.isGeneral === 1 ? null : createQuizDto.topicId ?? null,
           createQuizDto.isGeneral === 1 ? null : createQuizDto.subtopicId ?? null,
-          createQuizDto.isGeneral === 1 ? null : createQuizDto.lessonId ?? null,
-          createQuizDto.paperId ?? null,
           (createQuizDto.category || '').trim() || null,
-          this.normalizeKeywords(createQuizDto.collectionTags),
           createQuizDto.isFree === 1 ? 1 : 0,
-          (createQuizDto.subtopic || '').trim(),
           createQuizDto.isGeneral,
-          createQuizDto.examModeOnly,
-          this.resolveAdminName(createQuizDto),
-          this.resolveStudentTitle(createQuizDto),
-          resolvedMode,
           newQuizNumber,
           this.resolveStudentTitle(createQuizDto),
-          (createQuizDto.quizDescription || '').trim(),
-          this.stringifyBlueprint(createQuizDto.blueprint),
-          this.resolveRandomizationMode(createQuizDto.randomizationMode),
           totalQuestions,
           totalMarks,
           createQuizDto.timeLimit,
-          createQuizDto.hideTimeLimit,
           this.resolvePassingMarks(createQuizDto.passingMarks),
-          createQuizDto.hidePassingMarks,
           createQuizDto.status,
         ]
       );
 
+      // One more assessment in its folder (subject, or the course's general one).
+      await applyQuizCountChanges(connection, [], await readQuizStates(connection, [result.insertId], false));
       await this.replaceQuestionLinks(connection, result.insertId, linkedQuestionIds);
-      await this.appendKeywordsToQuestions(connection, linkedQuestionIds, createQuizDto.collectionTags);
       const snapshot = this.buildQuizSnapshot(createQuizDto);
       await this.recordContentVersion(connection, 'quiz', result.insertId, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'quiz', result.insertId, createQuizDto.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -545,13 +614,12 @@ export class QuizzesService {
       subtopic: updateQuizDto.subtopic ?? existing.subtopic ?? '',
       isGeneral: updateQuizDto.isGeneral ?? (existing.isGeneral === 1 ? 1 : 0),
       examModeOnly: updateQuizDto.examModeOnly ?? (existing.examModeOnly === 1 ? 1 : 0),
-      adminName: updateQuizDto.adminName ?? existing.adminName,
-      studentTitle: updateQuizDto.studentTitle ?? existing.studentTitle ?? existing.quizTitle,
-      displayTitleMode: this.resolveDisplayTitleMode(updateQuizDto.displayTitleMode ?? existing.displayTitleMode),
-      quizTitle: updateQuizDto.quizTitle ?? existing.studentTitle ?? existing.quizTitle,
+      // One name (10.25): a new name from any of the three fields replaces all three.
+      adminName: this.quizName(updateQuizDto) || this.quizName(existing),
+      studentTitle: this.quizName(updateQuizDto) || this.quizName(existing),
+      displayTitleMode: this.resolveDisplayTitleMode(),
+      quizTitle: this.quizName(updateQuizDto) || this.quizName(existing),
       quizDescription: updateQuizDto.quizDescription ?? existing.quizDescription ?? '',
-      blueprint: updateQuizDto.blueprint ?? existing.blueprint ?? null,
-      randomizationMode: this.resolveRandomizationMode(updateQuizDto.randomizationMode ?? existing.randomizationMode),
       timeLimit: updateQuizDto.timeLimit ?? existing.timeLimit,
       hideTimeLimit: updateQuizDto.hideTimeLimit ?? (existing.hideTimeLimit === 1 ? 1 : 0),
       passingMarks: updateQuizDto.passingMarks ?? this.resolvePassingMarks(existing.passingMarks),
@@ -567,47 +635,31 @@ export class QuizzesService {
 
     try {
       await connection.beginTransaction();
+      // Its folder counts move if the save changes its course, subject, general
+      // flag or status (row locked first).
+      const countsBefore = await readQuizStates(connection, [id], true);
       const questionIds = this.cleanQuestionIds(merged.questionIds);
-      const linkedQuestionIds = this.resolveRandomizationMode(merged.randomizationMode) === 'dynamic' ? [] : questionIds;
+      const linkedQuestionIds = questionIds; // 10.54: fixed lists only
       const totalQuestions = this.resolveQuizQuestionCount(merged, questionIds);
       const totalMarks = totalQuestions;
-      const resolvedMode = this.resolveDisplayTitleMode(merged.displayTitleMode);
-
-      let updatedQuizNumber: number | null;
-      if (resolvedMode === 'number') {
-        updatedQuizNumber = existing.quizNumber ?? await this.resolveNextQuizNumber(connection, merged, id);
-      } else {
-        updatedQuizNumber = null;
-      }
+      const updatedQuizNumber: number | null = null; // no number display (10.25)
 
       await connection.execute(
         `
           UPDATE quizzes SET
+            content_stamp = content_stamp + 1,
             course_id = ?,
             topic_id = ?,
             subtopic_id = ?,
-            lesson_id = ?,
-            paper_id = ?,
             category = ?,
-            collection_tags = ?,
             is_free = ?,
-            subtopic = ?,
             is_general = ?,
-            exam_mode_only = ?,
-            admin_name = ?,
-            student_title = ?,
-            display_title_mode = ?,
             quiz_number = ?,
             quiz_title = ?,
-            quiz_description = ?,
-            blueprint_json = ?,
-            randomization_mode = ?,
             total_questions = ?,
             total_marks = ?,
             time_limit = ?,
-            hide_time_limit = ?,
             passing_marks = ?,
-            hide_passing_marks = ?,
             status = ?
           WHERE id = ?
         `,
@@ -615,35 +667,22 @@ export class QuizzesService {
           merged.courseId,
           merged.isGeneral === 1 ? null : merged.topicId ?? null,
           merged.isGeneral === 1 ? null : merged.subtopicId ?? null,
-          merged.isGeneral === 1 ? null : merged.lessonId ?? null,
-          merged.paperId ?? null,
           (merged.category || '').trim() || null,
-          this.normalizeKeywords(merged.collectionTags),
           merged.isFree === 1 ? 1 : 0,
-          (merged.subtopic || '').trim(),
           merged.isGeneral,
-          merged.examModeOnly,
-          this.resolveAdminName(merged),
-          this.resolveStudentTitle(merged),
-          resolvedMode,
           updatedQuizNumber,
           this.resolveStudentTitle(merged),
-          (merged.quizDescription || '').trim(),
-          this.stringifyBlueprint(merged.blueprint),
-          this.resolveRandomizationMode(merged.randomizationMode),
           totalQuestions,
           totalMarks,
           merged.timeLimit,
-          merged.hideTimeLimit,
           this.resolvePassingMarks(merged.passingMarks),
-          merged.hidePassingMarks,
           merged.status,
           id,
         ]
       );
 
+      await applyQuizCountChanges(connection, countsBefore, await readQuizStates(connection, [id], false));
       await this.replaceQuestionLinks(connection, id, linkedQuestionIds);
-      await this.appendKeywordsToQuestions(connection, linkedQuestionIds, merged.collectionTags);
       const snapshot = this.buildQuizSnapshot(merged);
       await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'quiz', id, merged.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -678,8 +717,13 @@ export class QuizzesService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
+      const countsBefore = await readQuizStates(connection, [id], true);
+      const links = await linkCountsForQuizzes(connection, [id]);
       await connection.execute('DELETE FROM question_quizzes WHERE quiz_id = ?', [id]);
+      await bumpQuestionLinkCounts(connection, [...links].map(([q, n]) => [q, -n] as [number, number]));
       await connection.execute('DELETE FROM quizzes WHERE id = ?', [id]);
+      await forgetContentHistory(connection, 'quiz', [id]);
+      await applyQuizCountChanges(connection, countsBefore, []);
       await this.recordContentAudit(connection, {
         entityType: 'quiz',
         entityId: id,
@@ -730,10 +774,6 @@ export class QuizzesService {
     const sharedSet = new Set(sharedIds);
     const onlyHereIds = questionIds.filter((id) => !sharedSet.has(id));
 
-    const [attemptRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS total FROM quiz_attempts WHERE quiz_id IN (${placeholders})`,
-      ids
-    );
 
     return {
       ids,
@@ -741,18 +781,20 @@ export class QuizzesService {
       questionIds,
       sharedIds,
       onlyHereIds,
-      attempts: Number(attemptRows[0]?.total || 0),
     };
   }
 
   async bulkDeletePreview(dto: BulkDeleteQuizzesDto) {
     const plan = await this.planBulkDelete(dto.quizIds);
+    // 10.44: results students hold for these quizzes (their recent results).
+    const quizIdSet = new Set(plan.ids.map(Number));
+    const attempts = (await loadRecentResults(this.db)).filter((r) => quizIdSet.has(r.quizId)).length;
     return {
       quizzes: plan.ids.length,
       questionsInside: plan.questionIds.length,
       questionsOnlyHere: plan.onlyHereIds.length,
       questionsShared: plan.sharedIds.length,
-      attempts: plan.attempts,
+      attempts,
     };
   }
 
@@ -796,7 +838,9 @@ export class QuizzesService {
       const connection = await this.db.getConnection();
       try {
         await connection.beginTransaction();
-        await connection.execute(`UPDATE quizzes SET status = ? WHERE id IN (${sqlPlaceholders(changedIds)})`, [target, ...changedIds]);
+        const countsBefore = await readQuizStates(connection, changedIds, true);
+        await connection.execute(`UPDATE quizzes SET status = ?, content_stamp = content_stamp + 1 WHERE id IN (${sqlPlaceholders(changedIds)})`, [target, ...changedIds]);
+        await applyQuizCountChanges(connection, countsBefore, await readQuizStates(connection, changedIds, false));
         for (const { id, quiz } of changes) {
           const snapshot = this.buildQuizSnapshot({ ...quiz, status: target });
           await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
@@ -858,8 +902,14 @@ export class QuizzesService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
+      // Lock the assessments first (same order as every assessment save).
+      const countsBefore = await readQuizStates(connection, plan.ids, true);
+      const links = await linkCountsForQuizzes(connection, plan.ids);
       await connection.execute(`DELETE FROM question_quizzes WHERE quiz_id IN (${placeholders})`, plan.ids);
+      await bumpQuestionLinkCounts(connection, [...links].map(([q, n]) => [q, -n] as [number, number]));
       await connection.execute(`DELETE FROM quizzes WHERE id IN (${placeholders})`, plan.ids);
+      await forgetContentHistory(connection, 'quiz', plan.ids);
+      await applyQuizCountChanges(connection, countsBefore, []);
       for (const id of plan.ids) {
         await this.recordContentAudit(connection, {
           entityType: 'quiz',
@@ -872,6 +922,7 @@ export class QuizzesService {
       }
 
       let deletedQuestions = 0;
+      const questionCourses: QuestionCourse[] = [];
       if (deleteQuestions) {
         // Same clean-up the question bank's own bulk delete does, so nothing is left
         // pointing at a question that no longer exists. Questions that another
@@ -879,14 +930,14 @@ export class QuizzesService {
         for (let i = 0; i < plan.onlyHereIds.length; i += 500) {
           const chunk = plan.onlyHereIds.slice(i, i + 500);
           const qp = sqlPlaceholders(chunk);
-          await connection.execute(`DELETE FROM question_theory_recaps WHERE question_id IN (${qp})`, chunk);
-          await connection.execute(`DELETE FROM question_keyword_map WHERE question_id IN (${qp})`, chunk);
-          await connection.execute(`DELETE FROM question_options WHERE question_id IN (${qp})`, chunk);
+          // Already locked by the link-count step above; courses adjusted below.
+          questionCourses.push(...(await readQuestionCourses(connection, chunk)));
           await connection.execute(`DELETE FROM question_reports WHERE question_id IN (${qp})`, chunk);
-          await connection.execute(`DELETE FROM student_answers WHERE question_id IN (${qp})`, chunk);
           const [result] = await connection.execute<ResultSetHeader>(`DELETE FROM questions WHERE id IN (${qp})`, chunk);
+          await forgetContentHistory(connection, 'question', chunk);
           deletedQuestions += result.affectedRows;
         }
+        await applyQuestionTotalChanges(connection, questionCourses, []);
         if (deletedQuestions) {
           await this.recordContentAudit(connection, {
             entityType: 'question',
@@ -915,22 +966,9 @@ export class QuizzesService {
   }
 
   async listVersions(id: number) {
-    await this.findOne(id);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'quiz' AND entity_id = ?
-       ORDER BY version_number DESC`,
-      [id]
-    );
-
-    return rows.map((row) => ({
-      id: Number(row.id),
-      versionNumber: Number(row.version_number),
-      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-      createdAt: row.created_at || null,
-      snapshot: this.parseSnapshotJson(row.snapshot_json),
-    }));
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id;
+    return [];
   }
 
   async markDraft(id: number, actor?: ContentActorInput) {
@@ -964,64 +1002,9 @@ export class QuizzesService {
   }
 
   async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
-    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-      throw new BadRequestException('Version number is invalid');
-    }
-    if (!this.canReviewContent(actor)) {
-      throw new ForbiddenException('Review permission is required to rollback quiz content');
-    }
-
-    const existing = await this.findOne(id);
-    const [versionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'quiz' AND entity_id = ? AND version_number = ?
-       LIMIT 1`,
-      [id, versionNumber]
-    );
-    if (!versionRows[0]) {
-      throw new NotFoundException('Quiz version not found');
-    }
-
-    const snapshot = this.parseQuizSnapshot(versionRows[0].snapshot_json);
-    this.validateQuiz(snapshot);
-    this.assertCanSaveStatus(actor, snapshot.status);
-    const questionIds = this.cleanQuestionIds(snapshot.questionIds);
-    const linkedQuestionIds = this.resolveRandomizationMode(snapshot.randomizationMode) === 'dynamic' ? [] : questionIds;
-    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
-    const connection = await this.db.getConnection();
-
-    try {
-      await connection.beginTransaction();
-      await this.writeQuizSnapshot(connection, id, snapshot);
-      await this.replaceQuestionLinks(connection, id, linkedQuestionIds);
-      await this.appendKeywordsToQuestions(connection, linkedQuestionIds, snapshot.collectionTags);
-      await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
-      await this.setWorkflowState(connection, 'quiz', id, workflowState, this.getActorId(actor));
-      await this.recordContentAudit(connection, {
-        entityType: 'quiz',
-        entityId: id,
-        action: 'rolled_back',
-        summary: `Quiz ${id} rolled back to version ${versionNumber}`,
-        actorId: this.getActorId(actor),
-        before: existing,
-        after: snapshot,
-      });
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-
-    return {
-      ok: true,
-      id,
-      rolledBackToVersion: versionNumber,
-      status: snapshot.status,
-      workflowState,
-    };
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id; void versionNumber; void actor;
+    throw new BadRequestException('Version history is not kept any more.');
   }
 
   private validateQuiz(quiz: CreateQuizDto) {
@@ -1029,12 +1012,8 @@ export class QuizzesService {
       throw new BadRequestException('Please select a course');
     }
 
-    if (!this.resolveAdminName(quiz)) {
-      throw new BadRequestException('Admin name is required');
-    }
-
-    if (!this.resolveStudentTitle(quiz)) {
-      throw new BadRequestException('Student title is required');
+    if (!this.quizName(quiz)) {
+      throw new BadRequestException('Quiz name is required');
     }
 
     if (quiz.subtopicId && (!quiz.topicId || quiz.topicId <= 0)) {
@@ -1046,15 +1025,8 @@ export class QuizzesService {
     }
 
     const questionIds = this.cleanQuestionIds(quiz.questionIds || []);
-    const randomizationMode = this.resolveRandomizationMode(quiz.randomizationMode);
-    const blueprintQuestionCount = this.getBlueprintQuestionCount(quiz.blueprint);
-
-    if (randomizationMode === 'static' && questionIds.length === 0) {
+    if (questionIds.length === 0) {
       throw new BadRequestException('Please add at least one question to the quiz');
-    }
-
-    if (randomizationMode === 'dynamic' && blueprintQuestionCount <= 0) {
-      throw new BadRequestException('Dynamic randomized quizzes need at least one blueprint section with a target count');
     }
   }
 
@@ -1062,20 +1034,8 @@ export class QuizzesService {
     return Array.from(new Set((questionIds || []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
   }
 
-  private resolveRandomizationMode(value?: string | null): 'static' | 'dynamic' {
-    return value === 'dynamic' ? 'dynamic' : 'static';
-  }
-
-  private getBlueprintQuestionCount(blueprint: unknown) {
-    return this.normalizeBlueprintPayload(blueprint).sections.reduce((total, section) => {
-      return total + Math.max(0, Number(section.targetCount || 0));
-    }, 0);
-  }
-
   private resolveQuizQuestionCount(quiz: CreateQuizDto, questionIds = this.cleanQuestionIds(quiz.questionIds)) {
-    return this.resolveRandomizationMode(quiz.randomizationMode) === 'dynamic'
-      ? this.getBlueprintQuestionCount(quiz.blueprint)
-      : questionIds.length;
+    return questionIds.length; // 10.54: fixed lists only
   }
 
   private buildQuizSnapshot(quiz: CreateQuizDto) {
@@ -1086,7 +1046,7 @@ export class QuizzesService {
       lessonId: quiz.lessonId ?? null,
       paperId: quiz.paperId ?? null,
       category: quiz.category || '',
-      collectionTags: this.normalizeKeywords(quiz.collectionTags),
+      collectionTags: '',
       isFree: quiz.isFree === 1 ? 1 : 0,
       subtopic: quiz.subtopic || '',
       isGeneral: quiz.isGeneral,
@@ -1097,14 +1057,12 @@ export class QuizzesService {
       quizNumber: quiz.quizNumber ?? null,
       quizTitle: this.resolveStudentTitle(quiz),
       quizDescription: quiz.quizDescription || '',
-      blueprint: this.normalizeBlueprintPayload(quiz.blueprint),
-      randomizationMode: this.resolveRandomizationMode(quiz.randomizationMode),
       timeLimit: quiz.timeLimit,
       hideTimeLimit: quiz.hideTimeLimit,
       passingMarks: this.resolvePassingMarks(quiz.passingMarks),
       hidePassingMarks: quiz.hidePassingMarks,
       status: quiz.status,
-      questionIds: this.resolveRandomizationMode(quiz.randomizationMode) === 'dynamic' ? [] : this.cleanQuestionIds(quiz.questionIds),
+      questionIds: this.cleanQuestionIds(quiz.questionIds),
     };
   }
 
@@ -1127,8 +1085,6 @@ export class QuizzesService {
       quizNumber: quiz.quizNumber ?? null,
       quizTitle: quiz.quizTitle,
       quizDescription: quiz.quizDescription || '',
-      blueprint: quiz.blueprint || null,
-      randomizationMode: this.resolveRandomizationMode(quiz.randomizationMode),
       timeLimit: Number(quiz.timeLimit),
       hideTimeLimit: quiz.hideTimeLimit === 1 ? 1 : 0,
       passingMarks: this.resolvePassingMarks(quiz.passingMarks),
@@ -1157,7 +1113,9 @@ export class QuizzesService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
-      await connection.execute('UPDATE quizzes SET status = ? WHERE id = ?', [input.status, id]);
+      const countsBefore = await readQuizStates(connection, [id], true);
+      await connection.execute('UPDATE quizzes SET status = ?, content_stamp = content_stamp + 1 WHERE id = ?', [input.status, id]);
+      await applyQuizCountChanges(connection, countsBefore, await readQuizStates(connection, [id], false));
       await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(input.actor));
       await this.setWorkflowState(connection, 'quiz', id, input.workflowState, this.getActorId(input.actor));
       await this.recordContentAudit(connection, {
@@ -1188,34 +1146,24 @@ export class QuizzesService {
   private async writeQuizSnapshot(connection: PoolConnection, id: number, quiz: CreateQuizDto) {
     const questionIds = this.cleanQuestionIds(quiz.questionIds);
     const totalQuestions = this.resolveQuizQuestionCount(quiz, questionIds);
+    // Used by the version rollback: its folder counts follow the restored state.
+    const countsBefore = await readQuizStates(connection, [id], true);
     await connection.execute(
       `
         UPDATE quizzes SET
+          content_stamp = content_stamp + 1,
           course_id = ?,
           topic_id = ?,
           subtopic_id = ?,
-          lesson_id = ?,
-          paper_id = ?,
           category = ?,
-          collection_tags = ?,
           is_free = ?,
-          subtopic = ?,
           is_general = ?,
-          exam_mode_only = ?,
-          admin_name = ?,
-          student_title = ?,
-          display_title_mode = ?,
           quiz_number = ?,
           quiz_title = ?,
-          quiz_description = ?,
-          blueprint_json = ?,
-          randomization_mode = ?,
           total_questions = ?,
           total_marks = ?,
           time_limit = ?,
-          hide_time_limit = ?,
           passing_marks = ?,
-          hide_passing_marks = ?,
           status = ?
         WHERE id = ?
       `,
@@ -1223,32 +1171,20 @@ export class QuizzesService {
         quiz.courseId,
         quiz.isGeneral === 1 ? null : quiz.topicId ?? null,
         quiz.isGeneral === 1 ? null : quiz.subtopicId ?? null,
-        quiz.isGeneral === 1 ? null : quiz.lessonId ?? null,
-        quiz.paperId ?? null,
         (quiz.category || '').trim() || null,
-        this.normalizeKeywords(quiz.collectionTags),
         quiz.isFree === 1 ? 1 : 0,
-        (quiz.subtopic || '').trim(),
         quiz.isGeneral,
-        quiz.examModeOnly,
-        this.resolveAdminName(quiz),
-        this.resolveStudentTitle(quiz),
-        this.resolveDisplayTitleMode(quiz.displayTitleMode),
         quiz.quizNumber ?? null,
         this.resolveStudentTitle(quiz),
-        (quiz.quizDescription || '').trim(),
-        this.stringifyBlueprint(quiz.blueprint),
-        this.resolveRandomizationMode(quiz.randomizationMode),
         totalQuestions,
         totalQuestions,
         quiz.timeLimit,
-        quiz.hideTimeLimit,
         this.resolvePassingMarks(quiz.passingMarks),
-        quiz.hidePassingMarks,
         quiz.status,
         id,
       ]
     );
+    await applyQuizCountChanges(connection, countsBefore, await readQuizStates(connection, [id], false));
   }
 
   private parseSnapshotJson(value: unknown) {
@@ -1293,8 +1229,6 @@ export class QuizzesService {
       quizNumber: snapshot.quizNumber ? Number(snapshot.quizNumber) : null,
       quizTitle: String(snapshot.quizTitle || snapshot.studentTitle || ''),
       quizDescription: String(snapshot.quizDescription || ''),
-      blueprint: this.normalizeBlueprintPayload(snapshot.blueprint),
-      randomizationMode: this.resolveRandomizationMode(snapshot.randomizationMode),
       timeLimit: Math.max(1, Number(snapshot.timeLimit || 1)),
       hideTimeLimit: Number(snapshot.hideTimeLimit) === 1 ? 1 : 0,
       passingMarks: this.resolvePassingMarks(Number(snapshot.passingMarks || DEFAULT_PASSING_MARKS)),
@@ -1313,15 +1247,8 @@ export class QuizzesService {
     snapshot: unknown,
     actorId?: number,
   ) {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
-      [entityType, entityId]
-    );
-    const versionNumber = Number(rows[0]?.next_version || 1);
-    await connection.execute(
-      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
-      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void snapshot; void actorId;
   }
 
   private async setWorkflowState(
@@ -1331,15 +1258,8 @@ export class QuizzesService {
     workflowState: ContentWorkflowState,
     actorId?: number,
   ) {
-    await connection.execute(
-      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`,
-      [entityType, entityId, workflowState, actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void workflowState; void actorId;
   }
 
   private async recordContentAudit(
@@ -1354,20 +1274,7 @@ export class QuizzesService {
       after?: unknown;
     },
   ) {
-    await connection.execute(
-      `INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        event.entityType,
-        event.entityId,
-        event.action,
-        event.actorId || null,
-        event.summary,
-        event.before === undefined ? null : JSON.stringify(event.before),
-        event.after === undefined ? null : JSON.stringify(event.after),
-      ]
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
   }
 
   private getActorId(actor?: ContentActorInput) {
@@ -1393,6 +1300,9 @@ export class QuizzesService {
   }
 
   private async replaceQuestionLinks(connection: PoolConnection, quizId: number, questionIds: number[]) {
+    // Each question's "used in N assessments" changes only for the questions
+    // added to or removed from this assessment.
+    const before = await linkCountsForQuizzes(connection, [quizId]);
     await connection.execute('DELETE FROM question_quizzes WHERE quiz_id = ?', [quizId]);
 
     for (const [index, questionId] of questionIds.entries()) {
@@ -1401,191 +1311,37 @@ export class QuizzesService {
         [questionId, quizId, index + 1]
       );
     }
+    const after = new Set(questionIds.map(Number));
+    const changes: Array<[number, number]> = [];
+    for (const id of before.keys()) if (!after.has(id)) changes.push([id, -1]);
+    for (const id of after) if (!before.has(id)) changes.push([id, 1]);
+    await bumpQuestionLinkCounts(connection, changes);
   }
 
-  private async appendKeywordsToQuestions(connection: PoolConnection, questionIds: number[], rawKeywords?: string) {
-    const keywords = this.normalizeKeywordArray(rawKeywords);
-    if (keywords.length === 0 || questionIds.length === 0) {
-      return;
-    }
-
-    for (const questionId of questionIds) {
-      const [questionRows] = await connection.execute<RowDataPacket[]>(
-        'SELECT keywords_text FROM questions WHERE id = ? LIMIT 1',
-        [questionId]
-      );
-
-      if (!questionRows[0]) {
-        continue;
-      }
-
-      const nextKeywords = Array.from(new Set([
-        ...this.normalizeKeywordArray(String(questionRows[0].keywords_text || '')),
-        ...keywords,
-      ]));
-      const keywordsText = nextKeywords.join(', ');
-
-      await connection.execute(
-        'UPDATE questions SET keywords_text = ? WHERE id = ?',
-        [keywordsText, questionId]
-      );
-
-      await connection.execute('DELETE FROM question_keyword_map WHERE question_id = ?', [questionId]);
-      for (const keyword of nextKeywords) {
-        await connection.execute(
-          'INSERT IGNORE INTO question_keywords (keyword_name) VALUES (?)',
-          [keyword]
-        );
-        const [keywordRows] = await connection.execute<RowDataPacket[]>(
-          'SELECT id FROM question_keywords WHERE keyword_name = ? LIMIT 1',
-          [keyword]
-        );
-        if (!keywordRows[0]) {
-          continue;
-        }
-        await connection.execute(
-          'INSERT IGNORE INTO question_keyword_map (question_id, keyword_id) VALUES (?, ?)',
-          [questionId, Number(keywordRows[0].id)]
-        );
-      }
-    }
+  /**
+   * One name per quiz (OPTIMIZE 10.25): the admin name, the student name and
+   * the quiz title are always the same, saved from whichever the form sent.
+   */
+  private quizName(quiz: Partial<Pick<CreateQuizDto, 'adminName' | 'studentTitle' | 'quizTitle'>>) {
+    return String(quiz.studentTitle || quiz.quizTitle || quiz.adminName || '').trim();
   }
 
-  private normalizeKeywords(raw?: string) {
-    return this.normalizeKeywordArray(raw).join(', ');
+  private resolveAdminName(quiz: Partial<Pick<CreateQuizDto, 'adminName' | 'studentTitle' | 'quizTitle'>>) {
+    return this.quizName(quiz);
   }
 
-  private normalizeKeywordArray(raw?: string) {
-    return Array.from(
-      new Set(
-        String(raw || '')
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean)
-      )
-    );
+  private resolveStudentTitle(quiz: Partial<Pick<CreateQuizDto, 'adminName' | 'studentTitle' | 'quizTitle'>>) {
+    return this.quizName(quiz);
   }
 
-  private resolveAdminName(quiz: Pick<CreateQuizDto, 'adminName' | 'quizTitle'>) {
-    return String(quiz.adminName || quiz.quizTitle || '').trim();
-  }
-
-  private resolveStudentTitle(quiz: Pick<CreateQuizDto, 'studentTitle' | 'quizTitle'>) {
-    return String(quiz.studentTitle || quiz.quizTitle || '').trim();
-  }
-
-  private resolveDisplayTitleMode(value?: string | null) {
-    return value === 'title' ? 'title' : 'number';
-  }
-
-  private async resolveNextQuizNumber(
-    connection: Pool | PoolConnection,
-    dto: { courseId: number; topicId?: number | null; subtopicId?: number | null; lessonId?: number | null; isGeneral?: number },
-    excludeId?: number,
-  ): Promise<number> {
-    const isGeneral = dto.isGeneral === 1;
-    const courseId = dto.courseId;
-    const topicId = isGeneral ? null : (dto.topicId ?? null);
-    const subtopicId = isGeneral ? null : (dto.subtopicId ?? null);
-    const lessonId = isGeneral ? null : (dto.lessonId ?? null);
-
-    let sql = `SELECT COALESCE(MAX(quiz_number), 0) + 1 AS next_number FROM quizzes WHERE display_title_mode = 'number' AND quiz_number IS NOT NULL AND course_id = ?`;
-    const params: (number | null)[] = [courseId];
-
-    if (lessonId) {
-      sql += ' AND lesson_id = ?';
-      params.push(lessonId);
-    } else if (subtopicId) {
-      sql += ' AND subtopic_id = ? AND (lesson_id IS NULL OR lesson_id = 0)';
-      params.push(subtopicId);
-    } else if (topicId) {
-      sql += ' AND topic_id = ? AND (subtopic_id IS NULL OR subtopic_id = 0) AND (lesson_id IS NULL OR lesson_id = 0)';
-      params.push(topicId);
-    } else {
-      sql += ' AND (topic_id IS NULL OR topic_id = 0)';
-    }
-
-    if (excludeId) {
-      sql += ' AND id != ?';
-      params.push(excludeId);
-    }
-
-    const [rows] = await (connection as Pool).execute<RowDataPacket[]>(sql, params);
-    return Number(rows[0]?.next_number || 1);
+  /** Every quiz shows its name (10.25): the "• Quiz 2" number display is gone. */
+  private resolveDisplayTitleMode(_value?: string | null): 'title' {
+    return 'title';
   }
 
   private optionalPositiveId(value: unknown) {
     const numeric = Number(value);
     return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
-  }
-
-  private normalizeBlueprintPayload(blueprint: unknown) {
-    if (!blueprint || typeof blueprint !== 'object') {
-      return { sections: [] };
-    }
-
-    const rawSections = Array.isArray((blueprint as { sections?: unknown[] }).sections)
-      ? (blueprint as { sections: unknown[] }).sections
-      : [];
-
-    const sections = rawSections.slice(0, 30).map((rawSection, index) => {
-      const section = rawSection && typeof rawSection === 'object'
-        ? rawSection as Record<string, unknown>
-        : {};
-      const targetCount = Number(section.targetCount);
-
-      return {
-        id: String(section.id || `section-${index + 1}`).trim().slice(0, 80) || `section-${index + 1}`,
-        title: String(section.title || `Section ${index + 1}`).trim().slice(0, 120),
-        targetCount: Number.isFinite(targetCount) ? Math.min(Math.max(Math.trunc(targetCount), 0), 500) : 0,
-        courseId: this.optionalPositiveId(section.courseId),
-        subjectId: this.optionalPositiveId(section.subjectId),
-        topicId: this.optionalPositiveId(section.topicId),
-        lessonId: this.optionalPositiveId(section.lessonId),
-        paperId: this.optionalPositiveId(section.paperId),
-        category: String(section.category || '').trim().slice(0, 80),
-        questionType: ['sba', 'true_false'].includes(String(section.questionType || ''))
-          ? String(section.questionType)
-          : '',
-      };
-    });
-
-    return { sections };
-  }
-
-  private stringifyBlueprint(blueprint: unknown) {
-    const normalized = this.normalizeBlueprintPayload(blueprint);
-    return normalized.sections.length > 0 ? JSON.stringify(normalized) : null;
-  }
-
-  private parseBlueprint(raw?: string | null) {
-    if (!raw) {
-      return { sections: [] };
-    }
-
-    try {
-      return this.normalizeBlueprintPayload(JSON.parse(raw));
-    } catch {
-      return { sections: [] };
-    }
-  }
-
-  private async getKeywordSuggestions(questionRows: RowDataPacket[]) {
-    const [keywordRows] = await this.db.execute<RowDataPacket[]>(
-      'SELECT keyword_name FROM question_keywords ORDER BY keyword_name ASC'
-    );
-
-    const tableKeywords = keywordRows.map((row) => String(row.keyword_name).trim()).filter(Boolean);
-    if (tableKeywords.length > 0) {
-      return tableKeywords;
-    }
-
-    return Array.from(new Set(
-      questionRows
-        .flatMap((row) => String(row.keywords_text || '').split(','))
-        .map((keyword) => keyword.trim())
-        .filter(Boolean)
-    )).sort((left, right) => left.localeCompare(right));
   }
 
   private mapQuiz(row: QuizRow) {
@@ -1608,8 +1364,6 @@ export class QuizzesService {
       quizNumber: row.quiz_number ? Number(row.quiz_number) : null,
       quizTitle: String(row.student_title || row.quiz_title || ''),
       quizDescription: row.quiz_description || '',
-      blueprint: this.parseBlueprint(row.blueprint_json),
-      randomizationMode: this.resolveRandomizationMode(row.randomization_mode),
       totalQuestions: Number(row.total_questions || 0),
       totalMarks: Number(row.total_marks || 0),
       timeLimit: Number(row.time_limit || 0),
@@ -1640,19 +1394,8 @@ export class QuizzesService {
   }
 
   private async getQuizAccessProfile(userId: number): Promise<QuizAccessProfile> {
-    const [rows] = await this.db.execute<QuizAccessScopeRow[]>(
-      `
-        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json
-        FROM user_subscriptions us
-        INNER JOIN plans ON plans.id = us.plan_id
-        WHERE us.user_id = ?
-          AND us.status = 'active'
-          AND us.start_date <= CURDATE()
-          AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-      `,
-      [userId]
-    );
+    // From this request's signed token when present (no SQL), else the database.
+    const rows = await getScopeRows<QuizAccessScopeRow>(this.db, userId);
 
     const profile: QuizAccessProfile = {
       hasAnyPaidQuizAccess: rows.length > 0,

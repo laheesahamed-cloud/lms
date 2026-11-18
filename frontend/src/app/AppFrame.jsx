@@ -1111,11 +1111,14 @@ export function AppFrame() {
     !isAdminRoute &&
     !allowAdminLogin;
   const shouldShowLaunchMode = showMaintenance || showComingSoon;
+  // The demo page (/try) never shows the popup, so it skips the popup code and its check (OPTIMIZE 10.53).
+  const isDemoRoute = location.pathname === '/try' || location.pathname.startsWith('/try/');
   const shouldSuppressMarketingPopup =
     showMaintenance ||
     showComingSoon ||
     isLaunchPreviewRoute ||
-    isAuthRecoveryRoute;
+    isAuthRecoveryRoute ||
+    isDemoRoute;
 
   useEffect(() => {
     if (shouldSuppressMarketingPopup) {

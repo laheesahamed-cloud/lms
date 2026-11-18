@@ -1,7 +1,6 @@
+import '../../state/catalogue.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/api_client.dart';
 import '../../state/current_user.dart';
-import '../../state/saved_first.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -165,27 +164,74 @@ class CourseDetail {
 /// login/logout/account switch.
 final studentCoursesProvider = FutureProvider<List<CourseCard>>((ref) async {
   ref.watch(userScopeProvider);
-  final api = ref.read(apiClientProvider);
-  return savedFirst(
-    ref,
-    name: 'courses',
-    fetch: () async => (await api.dio.get('/courses/student')).data,
-    parse: (data) async {
-      final rows = (data is List)
-          ? data
-          : (data is Map
-              ? (data['courses'] ?? data['items'] ?? data['data'] ?? const [])
-              : const []);
-      return (rows as List).map(CourseCard.fromJson).toList();
-    },
-  );
+  // Built on the phone from the shared catalogue and the student's progress
+  // (step 5) — the same data the Lessons tab uses, so neither reloads it.
+  final cat = await ref.watch(catalogueProvider.future);
+  final prog = await ref.watch(studentProgressProvider.future);
+  final lessonsByCourse = <int, List<List<dynamic>>>{};
+  for (final l in cat.lessons) {
+    lessonsByCourse.putIfAbsent(l[1] as int, () => []).add(l);
+  }
+  return cat.courses.map((c) {
+    final id = c[0] as int;
+    final lessons = lessonsByCourse[id] ?? const <List<dynamic>>[];
+    final done = lessons.where((l) => prog.lessonDone(l[0] as int)).length;
+    return CourseCard(
+      id: '$id',
+      title: '${c[1]}',
+      code: '${c[2]}',
+      description: '${c[4]}',
+      examType: '${c[3]}',
+      progressPercent: lessons.isEmpty ? 0 : (done * 100 / lessons.length).roundToDouble(),
+      totalLessons: lessons.length,
+      subjectCount: cat.subjects.where((s) => s[1] == id).length,
+    );
+  }).toList();
 });
 
-/// One course's subject-wise detail.
+/// One course's subject-wise detail, from the same catalogue and progress.
 final courseDetailProvider =
     FutureProvider.autoDispose.family<CourseDetail, String>((ref, courseId) async {
   ref.watch(userScopeProvider);
-  final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/courses/student/$courseId');
-  return CourseDetail.fromJson(res.data);
+  final cat = await ref.watch(catalogueProvider.future);
+  final prog = await ref.watch(studentProgressProvider.future);
+  final id = int.tryParse(courseId) ?? 0;
+  final course = cat.courseById[id];
+  int pct(int done, int total) => total == 0 ? 0 : (done * 100 / total).round();
+  final subjects = <SubjectGroup>[];
+  var courseDone = 0, courseTotal = 0;
+  for (final s in cat.subjects.where((s) => s[1] == id)) {
+    final lessons = cat.lessons.where((l) => l[2] == s[0]).map((l) {
+      final lid = l[0] as int;
+      final p = prog.lessons[lid];
+      final status = p == null ? 'not_started' : (p[0] == 2 ? 'completed' : p[0] == 1 ? 'in_progress' : 'not_started');
+      return LessonItem(
+        id: '$lid',
+        title: '${l[4]}',
+        type: l[8] == 1 ? 'Video lesson' : 'Reading lesson',
+        locked: !prog.canOpenLesson(lid, id, l[5] == 1),
+        status: status,
+        progressPercent: (p?[1] ?? 0).toDouble(),
+      );
+    }).toList();
+    final done = lessons.where((l) => l.done).length;
+    courseDone += done;
+    courseTotal += lessons.length;
+    subjects.add(SubjectGroup(
+      id: '${s[0]}',
+      name: '${s[2]}',
+      progressPercent: pct(done, lessons.length).toDouble(),
+      completedLessons: done,
+      totalLessons: lessons.length,
+      lessons: lessons,
+    ));
+  }
+  return CourseDetail(
+    title: '${course?[1] ?? 'Course'}',
+    description: '${course?[4] ?? ''}',
+    progressPercent: pct(courseDone, courseTotal).toDouble(),
+    completedLessons: courseDone,
+    totalLessons: courseTotal,
+    subjects: subjects,
+  );
 });

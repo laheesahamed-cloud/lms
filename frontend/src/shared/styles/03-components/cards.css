@@ -61,7 +61,6 @@
   .study-action-card,
   .study-plan-card,
   .study-analytics-card,
-  .study-exam-countdown-card,
   .study-upcoming-card,
   .student-results-focus,
   .student-results-history
@@ -133,7 +132,6 @@
   .study-plan-card,
   .study-mood-card,
   .study-analytics-card,
-  .study-exam-countdown-card,
   .study-upcoming-card):where(:hover, :focus-visible, :active) {
   transform: none !important;
 }

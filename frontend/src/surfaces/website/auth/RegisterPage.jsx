@@ -11,6 +11,7 @@ import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../sha
 import { PasswordField } from '../../../shared/ui/PasswordField.jsx';
 import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 import { useNativeAuthKeyboardAnchor } from './useNativeAuthKeyboardAnchor.js';
+import { COUNTRIES } from '../../../shared/data/countries.js';
 
 const auth = {
   shell: 'auth-route-scene lms-register-page grid min-h-dvh place-items-center bg-page px-6 py-6',
@@ -90,6 +91,8 @@ export function RegisterPage() {
     const registration = {
       fullName: String(formData.get('fullName') || '').trim(),
       email: String(formData.get('email') || '').trim().toLowerCase(),
+      universityCountry: String(formData.get('universityCountry') || '').trim(),
+      university: String(formData.get('university') || '').trim(),
       password: String(formData.get('password') || ''),
       confirmPassword: String(formData.get('confirmPassword') || ''),
       // No checkbox: pressing Create Profile is the acceptance, and the notice
@@ -168,6 +171,14 @@ export function RegisterPage() {
             Email address
             <input id="register-email" className={`${ui.input} ${auth.inputSize}`} name="email" type="email" placeholder="you@example.com" required autoComplete="email" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
           </label>
+          <div className={ui.formLabel}>
+            <span id="register-university-label">University</span>
+            <select id="register-country" className={`${ui.input} ${auth.inputSize}`} name="universityCountry" required defaultValue="" autoComplete="country-name" aria-labelledby="register-university-label" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId}>
+              <option value="" disabled>Country</option>
+              {COUNTRIES.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+            <input id="register-university" className={`${ui.input} ${auth.inputSize}`} name="university" placeholder="University name" required minLength={2} maxLength={160} autoComplete="organization" aria-label="University name" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
+          </div>
           <PasswordField
             label="Password"
             name="password"

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import 'compact_switch.dart';
 
 /// The two flashcard sections side by side: the course decks and the
 /// student's own. Sits at the top of both pages so each is one tap from the
@@ -36,7 +37,7 @@ class FlashcardsSwitch extends StatelessWidget {
             ),
           ),
         );
-    return Container(
+    return CompactSwitch(child: Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: c.surface2,
@@ -48,6 +49,6 @@ class FlashcardsSwitch extends StatelessWidget {
           tab('My Flashcards', mine, () => onChanged(true)),
         ],
       ),
-    );
+    ));
   }
 }

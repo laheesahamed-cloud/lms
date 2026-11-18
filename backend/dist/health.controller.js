@@ -69,7 +69,8 @@ let HealthController = class HealthController {
         (SELECT COUNT(*) FROM courses) AS courses,
         (SELECT COUNT(*) FROM lessons) AS lessons,
         (SELECT COUNT(*) FROM questions) AS questions,
-        (SELECT COUNT(*) FROM quiz_attempts) AS quiz_attempts
+        -- 10.44: exam results are kept on the students' summary rows.
+        (SELECT COALESCE(SUM(JSON_LENGTH(recent_results)), 0) FROM student_study_summary) AS quiz_attempts
     `);
         const row = rows[0] || {};
         return {

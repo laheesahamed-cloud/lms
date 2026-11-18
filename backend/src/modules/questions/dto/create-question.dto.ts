@@ -75,10 +75,6 @@ export class CreateQuestionDto {
 
   @IsOptional()
   @IsString()
-  keywordsText?: string;
-
-  @IsOptional()
-  @IsString()
   explanation?: string;
 
   @IsOptional()

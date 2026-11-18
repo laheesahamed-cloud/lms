@@ -35,7 +35,7 @@ let SubscriptionsController = class SubscriptionsController {
         return this.subscriptionsService.getAdminMeta();
     }
     async defaultList(authorization, limit, page, offset) {
-        const user = await this.authService.requireAuthenticatedUser(authorization);
+        const user = await this.authService.requireFreshUser(authorization);
         if ((0, role_permissions_1.isStaffRole)(user.role)) {
             if (user.status !== 'active') {
                 throw new common_1.UnauthorizedException('Admin access is required');
@@ -59,13 +59,33 @@ let SubscriptionsController = class SubscriptionsController {
             offset: this.parseNonNegativeNumber(offset),
         });
     }
+    async adminOverview(authorization) {
+        await this.authService.requireAdmin(authorization);
+        return this.subscriptionsService.adminSubscriptionsOverview();
+    }
+    async findAdminPaidList(authorization) {
+        await this.authService.requireAdmin(authorization);
+        return this.subscriptionsService.findAdminPaidList();
+    }
+    async paymentTotals(authorization) {
+        await this.authService.requireAdmin(authorization);
+        return this.subscriptionsService.paymentTotals();
+    }
+    async searchStudents(authorization, q) {
+        await this.authService.requireAdmin(authorization);
+        return this.subscriptionsService.searchStudentsForAssign(q);
+    }
+    async findLessonTitles(authorization, ids) {
+        await this.authService.requireAdmin(authorization);
+        return this.subscriptionsService.findLessonTitles(ids === undefined ? undefined : String(ids).split(',').map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0));
+    }
     async findAdminRequests(authorization) {
         await this.authService.requireAdmin(authorization);
         return this.subscriptionsService.findAdminRequests();
     }
-    async findAuditEvents(authorization) {
+    async findAuditEvents(authorization, limit) {
         await this.authService.requireAdmin(authorization);
-        return this.subscriptionsService.findAuditEvents();
+        return this.subscriptionsService.findAuditEvents(limit ? Number(limit) : undefined);
     }
     async findCoupons(authorization) {
         await this.authService.requireAdmin(authorization);
@@ -101,34 +121,34 @@ let SubscriptionsController = class SubscriptionsController {
         return this.subscriptionsService.assign(dto, admin.id);
     }
     async requestUpgrade(authorization, dto) {
-        const student = await this.authService.requireStudent(authorization);
+        const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.requestUpgrade(student.id, dto);
     }
     async previewCheckoutCoupon(authorization, dto) {
-        const student = await this.authService.requireStudent(authorization);
+        const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.previewCheckoutCoupon(student.id, dto);
     }
     async requestCouponApproval(authorization, dto) {
-        const student = await this.authService.requireStudent(authorization);
+        const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.requestCouponApproval(student.id, dto);
     }
     async initiatePayHereCheckout(authorization, dto) {
-        const student = await this.authService.requireStudent(authorization);
+        const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.initiatePayHereCheckout(student.id, dto.planId, dto);
     }
     async requestManualPayment(authorization, dto) {
-        const student = await this.authService.requireStudent(authorization);
-        return this.subscriptionsService.requestManualPayment(student.id, dto);
+        const student = await this.authService.requireFreshStudent(authorization);
+        return this.subscriptionsService.requestManualPayment(student.id, dto, student);
     }
     async cancelStudentPendingInvoice(authorization, id) {
-        const student = await this.authService.requireStudent(authorization);
+        const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.cancelStudentPendingInvoice(student.id, id);
     }
     async handlePayHereNotify(body) {
         return this.subscriptionsService.handlePayHereNotification(body);
     }
     async redeemAppleTransaction(authorization, dto) {
-        const student = await this.authService.requireStudent(authorization);
+        const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.redeemAppleTransaction(student.id, dto.signedTransaction);
     }
     async listAppleTransactions(authorization, limit, environment, search) {
@@ -167,7 +187,7 @@ let SubscriptionsController = class SubscriptionsController {
         return this.subscriptionsService.updatePayment(id, dto, admin.id);
     }
     async getMine(authorization) {
-        const student = await this.authService.requireStudent(authorization);
+        const student = await this.authService.requireFreshStudent(authorization);
         return this.subscriptionsService.getStudentBilling(student.id);
     }
     parsePositiveNumber(raw) {
@@ -216,6 +236,48 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "findAdminList", null);
 __decorate([
+    (0, common_1.Get)('admin/overview'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "adminOverview", null);
+__decorate([
+    (0, common_1.Get)('admin/paid'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "findAdminPaidList", null);
+__decorate([
+    (0, common_1.Get)('admin/payment-totals'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "paymentTotals", null);
+__decorate([
+    (0, common_1.Get)('admin/students'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('q')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "searchStudents", null);
+__decorate([
+    (0, common_1.Get)('admin/lessons'),
+    (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('ids')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "findLessonTitles", null);
+__decorate([
     (0, common_1.Get)('admin/requests'),
     (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
     __param(0, (0, common_1.Headers)('authorization')),
@@ -227,8 +289,9 @@ __decorate([
     (0, common_1.Get)('admin/audit'),
     (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "findAuditEvents", null);
 __decorate([

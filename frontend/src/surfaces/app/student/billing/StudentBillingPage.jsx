@@ -190,7 +190,12 @@ export function StudentBillingPage() {
 
   async function load() {
     try {
-      const data = await fetchMySubscription();
+      // 10.50 F3: while the saved copy shows a request waiting for the admin,
+      // ask the server (≤ 4 rows) instead of showing the 1-hour saved copy —
+      // so an approval or rejection shows on the next visit or reload.
+      const saved = readMySubscriptionCache();
+      const waiting = Array.isArray(saved?.requests) && saved.requests.some((request) => request?.status === 'pending');
+      const data = await fetchMySubscription({ force: waiting });
       setBilling(normalizeBillingData(data));
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load subscription details'));

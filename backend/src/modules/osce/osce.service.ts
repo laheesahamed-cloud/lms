@@ -817,7 +817,9 @@ export class OsceService {
 
   async getCaseById(id: number) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT c.*, cat.name AS category_name, co.course_title
+      `SELECT c.id, c.course_id, c.category_id, c.title, c.slug, c.summary, c.difficulty, c.station_type,
+              c.status, c.is_public, c.is_free, c.sort_order, c.updated_at, c.case_data,
+              cat.name AS category_name, co.course_title
          FROM osce_cases c
          LEFT JOIN osce_categories cat ON cat.id = c.category_id
          LEFT JOIN courses co ON co.id = c.course_id
@@ -830,7 +832,9 @@ export class OsceService {
 
   async getCaseBySlug(slug: string, publishedOnly = false) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT c.*, cat.name AS category_name, co.course_title
+      `SELECT c.id, c.course_id, c.category_id, c.title, c.slug, c.summary, c.difficulty, c.station_type,
+              c.status, c.is_public, c.is_free, c.sort_order, c.updated_at, c.case_data,
+              cat.name AS category_name, co.course_title
          FROM osce_cases c
          LEFT JOIN osce_categories cat ON cat.id = c.category_id
          LEFT JOIN courses co ON co.id = c.course_id

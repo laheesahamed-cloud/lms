@@ -1,6 +1,8 @@
+import { sortByName } from '../../common/utils/general-ci-sort';
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { getContentVersion } from '../../common/utils/content-version';
 
 export interface DrugsSettings {
   enabled: boolean;
@@ -61,6 +63,69 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
 
   getSettings(): DrugsSettings {
     return { ...this.settingsCache };
+  }
+
+  // ── OPTIMIZE 10.19: the light list + one drug at a time ─────────────────
+  // Every active drug, read ONCE per content version (shared by all students)
+  // and kept in memory: the list is [id, name, class]; a drug's full text is
+  // served from the same copy. Spins and wrong answers are picked on the phone.
+  private drugsCopy: { v: number; list: Array<[number, string, string]>; byId: Map<number, Record<string, unknown>> } | null = null;
+  private drugsLoading: Promise<NonNullable<DrugsService['drugsCopy']>> | null = null;
+
+  private async drugs() {
+    const v = await getContentVersion(this.db);
+    if (this.drugsCopy && this.drugsCopy.v === v) return this.drugsCopy;
+    if (!this.drugsLoading) {
+      this.drugsLoading = (async () => {
+        const [rows] = await this.db.query<RowDataPacket[]>(
+          `SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric,
+                  side_effects, warnings, drug_interactions, pregnancy_info, sl_brand_names
+             FROM drugs WHERE is_active = 1 AND drug_class IS NOT NULL`,
+        );
+        const sorted = [...rows];
+        sortByName(sorted, (r) => String(r.name));
+        const copy = {
+          v,
+          list: sorted.map((r) => [Number(r.id), String(r.name), String(r.drug_class)] as [number, string, string]),
+          byId: new Map(rows.map((r) => [Number(r.id), { ...r } as Record<string, unknown>])),
+        };
+        this.drugsCopy = copy;
+        return copy;
+      })().finally(() => { this.drugsLoading = null; });
+    }
+    return this.drugsLoading;
+  }
+
+  /** The light list (id, name, class) for the current content version. */
+  async drugList() {
+    const copy = await this.drugs();
+    return { v: copy.v, drugs: copy.list };
+  }
+
+  /** One drug's full text (0 statements once the copy is in memory). */
+  async drugItem(id: number) {
+    const copy = await this.drugs();
+    return copy.byId.get(Number(id)) || null;
+  }
+
+  /** Free spins used (1 row by key). */
+  async spinsUsed(userId: number) {
+    const [rows] = await this.db.execute<RowDataPacket[]>('SELECT drug_spins_used AS used FROM users WHERE id = ? LIMIT 1', [userId]);
+    return Number(rows[0]?.used ?? 0);
+  }
+
+  /**
+   * One visit's spins, sent once when the student leaves the Drugs page
+   * (10.19, user). Free users only; never past the free limit. 1 statement.
+   */
+  async recordSpins(userId: number, count: number) {
+    const n = Math.max(0, Math.min(100, Math.trunc(Number(count) || 0)));
+    if (!n) return;
+    const limit = this.settingsCache.freeLimit;
+    await this.db.execute(
+      `UPDATE users SET drug_spins_used = GREATEST(drug_spins_used, LEAST(drug_spins_used + ?, ?)) WHERE id = ?`,
+      [n, limit, userId],
+    );
   }
 
   // Shuffles ids only, then loads the chosen drugs in that shuffled order.
@@ -147,28 +212,57 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
   }
 
   // ── admin list (two parallel queries via Promise.all — no N+1) ──
-  async listDrugs(page: number, limit: number, search: string) {
-    const offset = (page - 1) * limit;
-    const like = `%${search}%`;
+  /**
+   * Admin drug list, 30 per page in name order.
+   * - No search: walks the (name, id) index from the last row shown
+   *   ("after"), so a page reads only its own rows; the total (index count)
+   *   only with the first page. (Before: COUNT + sort of all drugs per page,
+   *   and OFFSET read every earlier page again.)
+   * - Search: "contains" on name / class in one read (no separate count),
+   *   matches sorted by name in the app and sliced by page.
+   */
+  async listDrugs(page: number, limit: number, search: string, after?: { id: number; name: string } | null) {
+    const take = Math.min(100, Math.max(1, Math.trunc(limit) || 30));
+    const pageNo = Math.max(1, Math.trunc(page) || 1);
+    const columns = 'id, name, drug_class, sl_brand_names, is_active, created_at';
+    if (String(search || '').trim()) {
+      // "Contains", not word start: drug names are compounds ("penicillin"
+      // must find "Benzylpenicillin"). The table is small (hundreds of rows);
+      // one read gives the matches and their count.
+      const like = `%${String(search).trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const [rows] = await this.db.query<RowDataPacket[]>(
+        `SELECT ${columns} FROM drugs WHERE name LIKE ? OR drug_class LIKE ? LIMIT 500`, [like, like]);
+      sortByName(rows, (r) => String(r.name)); // same order as ORDER BY name, id
+      return { drugs: rows.slice((pageNo - 1) * take, pageNo * take), total: rows.length, page: pageNo, limit: take };
+    }
+    const keyset = after && Number.isInteger(after.id) && after.id > 0;
+    const [rows] = await this.db.query<RowDataPacket[]>(
+      `SELECT ${columns} FROM drugs FORCE INDEX (idx_drugs_name_id)
+       ${keyset ? 'WHERE name > ? OR (name = ? AND id > ?)' : ''}
+       ORDER BY name ASC, id ASC LIMIT ?`,
+      keyset ? [after!.name, after!.name, after!.id, take] : [take]);
+    let total: number | null = null;
+    if (!keyset) {
+      const [[count]] = await this.db.query<RowDataPacket[]>('SELECT COUNT(*) AS total FROM drugs');
+      total = Number(count?.total || 0);
+    }
+    return { drugs: rows, total, page: pageNo, limit: take };
+  }
 
-    const [[countRows], [rows]] = await Promise.all([
-      this.db.execute<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total FROM drugs WHERE name LIKE ? OR drug_class LIKE ?`,
-        [like, like],
-      ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT id, name, drug_class, sl_brand_names, is_active, created_at
-         FROM drugs WHERE name LIKE ? OR drug_class LIKE ?
-         ORDER BY name ASC LIMIT ? OFFSET ?`,
-        [like, like, limit, offset],
-      ),
-    ]);
-
-    return { drugs: rows, total: Number((countRows[0] as any).total), page, limit };
+  /** "Select all": just the ids (all drugs, or the search's matches). */
+  async listDrugIds(search: string) {
+    const q = String(search || '').trim();
+    const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const [rows] = await this.db.query<RowDataPacket[]>(
+      `SELECT id FROM drugs ${q ? 'WHERE name LIKE ? OR drug_class LIKE ?' : ''}`, q ? [like, like] : []);
+    return { ids: rows.map((r) => Number(r.id)) };
   }
 
   async getDrug(id: number) {
-    const [rows] = await this.db.execute<RowDataPacket[]>(`SELECT * FROM drugs WHERE id = ?`, [id]);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric, side_effects, warnings,
+              drug_interactions, pregnancy_info, sl_brand_names, is_active, created_at, updated_at
+       FROM drugs WHERE id = ?`, [id]);
     return rows[0] ?? null;
   }
 
@@ -177,8 +271,10 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
       `INSERT INTO drugs
          (name,drug_class,uses,dosage_adult,dosage_pediatric,side_effects,warnings,drug_interactions,pregnancy_info,sl_brand_names)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      // Optional fields left out arrive as undefined, which the driver
+      // refuses (it made "create" fail with 500): store them as NULL.
       [data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
-       data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names],
+       data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names].map((v) => v ?? null),
     );
     return { id: result.insertId };
   }
@@ -188,8 +284,8 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
       `UPDATE drugs SET name=?,drug_class=?,uses=?,dosage_adult=?,dosage_pediatric=?,
        side_effects=?,warnings=?,drug_interactions=?,pregnancy_info=?,sl_brand_names=?
        WHERE id=?`,
-      [data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
-       data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names, id],
+      [...[data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
+       data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names].map((v) => v ?? null), id],
     );
   }
 

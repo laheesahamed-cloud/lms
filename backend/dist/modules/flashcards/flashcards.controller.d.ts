@@ -13,6 +13,28 @@ export declare class FlashcardsController {
             dueCount: number;
         };
     }>;
+    cards(lessonIds: string | undefined, auth?: string, appClient?: string): Promise<{
+        cards: never[];
+        settings: import("./flashcard-scheduler.service").FlashcardFsrsSettings & {
+            newPerDay: number;
+            reviewsPerDay: number;
+        };
+        lessonIds?: undefined;
+    } | {
+        settings: import("./flashcard-scheduler.service").FlashcardFsrsSettings & {
+            newPerDay: number;
+            reviewsPerDay: number;
+        };
+        cards: unknown[][];
+        lessonIds: number[];
+    }>;
+    exportReviews(auth?: string): Promise<{
+        settings: import("./flashcard-scheduler.service").FlashcardFsrsSettings & {
+            newPerDay: number;
+            reviewsPerDay: number;
+        };
+        reviews: unknown[];
+    }>;
     queue(noteIds: string, limit: string, newLimit: string, auth?: string, appClient?: string): Promise<{
         cards: import("./flashcards.service").QueueItem[];
         counts: {
@@ -33,10 +55,6 @@ export declare class FlashcardsController {
         cardId: number;
         reverted: boolean;
         state: null;
-    } | {
-        cardId: number;
-        reverted: boolean;
-        state: import("./flashcard-scheduler.service").CardState;
     }>;
     flags(cardId: number, body: {
         suspended?: boolean;

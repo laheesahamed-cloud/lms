@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createCourse, deleteCourse, fetchCourses, updateCourse } from '../../../../shared/api/courses.api.js';
-import { createTopic, deleteTopic, fetchTopic, fetchTopics, reorderTopics, updateTopic } from '../../../../shared/api/topics.api.js';
-import { createSubtopic, deleteSubtopic, fetchSubtopics, reorderSubtopics, updateSubtopic } from '../../../../shared/api/subtopics.api.js';
-import { adminDeleteAiNote, adminListAiNotes } from '../../../../shared/api/aiNotes.api.js';
+import { createTopic, deleteTopic, fetchTopic, fetchTopics, updateTopic } from '../../../../shared/api/topics.api.js';
+import { createSubtopic, deleteSubtopic, fetchSubtopics, updateSubtopic } from '../../../../shared/api/subtopics.api.js';
+import { adminDeleteAiNote, adminFixCountsFinish, adminFixCountsSet, adminFixCountsStart, adminListStructureLessons, adminMoveStructureItem, adminSearch, adminUpdateAiNote } from '../../../../shared/api/aiNotes.api.js';
+import { createLesson } from '../../../../shared/api/lessons.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -139,31 +140,28 @@ const structureUi = {
     'inline-flex min-h-9 items-center justify-center rounded-full border border-line-soft bg-surface-2 px-3 text-[12px] font-extrabold text-ink-soft',
   rowList:
     'grid gap-3',
+  // One row: [index] title/meta … [counts] [status] [↑ ↓ edit delete] [›].
+  // Only very narrow screens drop the buttons onto a second line.
   rowShell:
-    'glass-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-hidden rounded-xl border border-line-soft bg-surface-card pr-3 max-[920px]:grid-cols-1 max-[920px]:pr-0',
+    'glass-card grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 overflow-hidden rounded-xl border border-line-soft bg-surface-card pr-2 max-[560px]:grid-cols-[minmax(0,1fr)_auto] max-[560px]:pr-1',
   folderRow:
-    'grid min-h-[76px] w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-0 bg-transparent px-4 py-3 text-left transition-[background] duration-150 ease-[var(--ease-out)] hover:bg-surface-2/70 active:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 max-[760px]:grid-cols-[auto_minmax(0,1fr)] max-[420px]:gap-3 max-[420px]:px-3',
+    'grid min-h-[64px] w-full min-w-0 cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left transition-[background] duration-150 ease-[var(--ease-out)] hover:bg-surface-2/70 active:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 max-[560px]:col-span-2 max-[560px]:grid-cols-[auto_minmax(0,1fr)] max-[420px]:px-3',
   rowIndex:
     'grid size-9 place-items-center rounded-full border border-line-soft bg-surface-2 text-[12px] font-extrabold text-ink-muted',
   rowBody:
     'grid min-w-0 gap-1 [&_strong]:truncate [&_strong]:text-[15px] [&_strong]:font-extrabold [&_strong]:text-ink-strong [&_span]:truncate [&_span]:text-[12px] [&_span]:font-semibold [&_span]:text-ink-muted',
   rowActions:
-    'flex flex-wrap items-center justify-end gap-2 max-[760px]:col-span-2 max-[760px]:justify-start max-[760px]:pl-[52px] max-[420px]:pl-0',
+    'flex shrink-0 items-center justify-end gap-2 max-[560px]:col-span-2 max-[560px]:justify-start max-[560px]:pl-[48px]',
   inlineActions:
-    'px-3 py-3 max-[920px]:justify-start max-[920px]:border-t max-[920px]:border-line-soft/70 max-[920px]:px-4',
+    'gap-1.5 py-2 max-[560px]:justify-start max-[560px]:px-4 max-[560px]:pb-3 max-[560px]:pt-0',
+  rowChevron:
+    'grid size-9 place-items-center rounded-full border-0 !bg-transparent text-ink-muted shadow-none hover:!bg-surface-2 max-[560px]:pb-3',
+  rowChildren:
+    'col-span-full',
 };
 
 function countActive(items) {
   return items.filter((item) => item.status === 'active').length;
-}
-
-function buildCourseSubjectCounts(subjectItems) {
-  return subjectItems.reduce((counts, subject) => {
-    const key = String(subject.courseId || '');
-    if (!key) return counts;
-    counts[key] = (counts[key] || 0) + 1;
-    return counts;
-  }, {});
 }
 
 function EntityModal({ open, title, subtitle, children, onClose }) {
@@ -187,10 +185,6 @@ function EntityModal({ open, title, subtitle, children, onClose }) {
       </div>
     </div>
   );
-}
-
-function SparkleIcon() {
-  return <svg width="11" height="11" viewBox="0 0 14 14" fill="none" style={{ display:'inline-block', verticalAlign:'middle' }}><path d="M7 1L8.5 5H13L9.5 7.5L11 12L7 9.5L3 12L4.5 7.5L1 5H5.5L7 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/></svg>;
 }
 
 function EditIcon() {
@@ -274,7 +268,7 @@ function StructureBreadcrumb({ items }) {
   );
 }
 
-function FolderToolbar({ title, contextLabel, onBack, countLabel, actionLabel, onAction, breadcrumbItems }) {
+function FolderToolbar({ title, contextLabel, onBack, countLabel, actionLabel, onAction, breadcrumbItems, sorting = false, onToggleSort }) {
   return (
     <div className={structureUi.folderToolbar}>
       <div className={structureUi.folderToolbarMain}>
@@ -288,6 +282,17 @@ function FolderToolbar({ title, contextLabel, onBack, countLabel, actionLabel, o
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start">
           <span className={structureUi.countPill}>{countLabel}</span>
+          {onToggleSort ? (
+            // The move arrows stay hidden until the admin asks to reorder.
+            <button
+              type="button"
+              aria-pressed={sorting}
+              className={cx(ui.secondaryButton, 'min-h-9 px-4', sorting ? 'border-brand-primary text-brand-primary' : '')}
+              onClick={onToggleSort}
+            >
+              {sorting ? 'Done' : 'Sort'}
+            </button>
+          ) : null}
           {actionLabel ? (
             <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
               {actionLabel}
@@ -345,7 +350,7 @@ function FolderCard({ title, meta, count, countLabel, status, onOpen, onEdit, on
   );
 }
 
-function FolderHeader({ eyebrow, title, description, countLabel, actionLabel, onAction, breadcrumbItems }) {
+function FolderHeader({ eyebrow, title, description, countLabel, actionLabel, onAction, breadcrumbItems, secondaryLabel, onSecondary, secondaryBusy = false, secondaryBusyLabel = 'Checking…', progress = null }) {
   return (
     <div className={structureUi.folderHead}>
       <div className={structureUi.folderHeadCopy}>
@@ -358,6 +363,19 @@ function FolderHeader({ eyebrow, title, description, countLabel, actionLabel, on
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start">
         <span className={structureUi.countPill}>{countLabel}</span>
+        {secondaryLabel ? (
+          <button type="button" className={cx(ui.secondaryButton, 'min-h-9 px-4')} onClick={onSecondary} disabled={secondaryBusy}>
+            {secondaryBusy ? secondaryBusyLabel : secondaryLabel}
+          </button>
+        ) : null}
+        {progress ? (
+          <div className="flex w-full min-w-[180px] items-center gap-2" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done} aria-label="Fix counts progress">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-soft">
+              <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${progress.total ? Math.round((progress.done / progress.total) * 100) : 100}%` }} />
+            </div>
+            <span className="shrink-0 text-xs font-semibold text-ink-muted">{progress.fixed} fixed</span>
+          </div>
+        ) : null}
         <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
           {actionLabel}
         </button>
@@ -410,13 +428,13 @@ function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, 
         <span className={structureUi.rowActions}>
           {countLabel ? <span className={structureUi.countPill}>{countLabel}</span> : null}
           <StatusPill status={status} />
-          <span className="grid size-9 place-items-center text-ink-muted" aria-hidden="true">
-            <ChevronIcon />
-          </span>
         </span>
       </button>
       <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} extraAction={moveButtons || extraAction} className={structureUi.inlineActions} />
-      {children}
+      <button type="button" className={structureUi.rowChevron} onClick={onOpen} aria-label={`Open ${title}`}>
+        <ChevronIcon />
+      </button>
+      {children ? <div className={structureUi.rowChildren}>{children}</div> : null}
     </article>
   );
 }
@@ -426,24 +444,49 @@ function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, 
 /// Every level shows them, because drilling three folders deep just to learn
 /// whether a subject has any lessons made the hierarchy hard to read — and
 /// ordering only makes sense when you can see what you are ordering.
-function LessonPeek({ lessons, onOpen }) {
+// A subtopic divider is drawn wherever the subtopic changes while walking the
+// lessons in server order. Lesson order is flat per course, so a subtopic can
+// appear in more than one run; keys carry the position, not just the label.
+function LessonPeek({ lessons, onOpen, showTopics = false }) {
   if (!lessons.length) return null;
+  let previousTopic = null;
   return (
     <ol className="m-0 mx-3 mb-2.5 grid list-none gap-0.5 border-t border-line-soft p-0 pt-2">
-      {lessons.map((lesson, index) => (
-        <li key={lesson.id}>
-          <button type="button"
-                  className="flex w-full items-center gap-2 rounded-md border-0 !bg-transparent px-1.5 py-1 text-left shadow-none hover:!bg-surface-2"
-                  onClick={(event) => stopAndRun(event, () => onOpen(lesson))}>
-            <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-ink-muted">
-              {index + 1}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-soft">
-              {lesson.title || 'Untitled lesson'}
-            </span>
-          </button>
-        </li>
-      ))}
+      {lessons.map((lesson, index) => {
+        const topic = String(lesson.subtopicName || '').trim();
+        const topicChanged = showTopics && (index === 0 ? Boolean(topic) : topic !== previousTopic);
+        previousTopic = topic;
+        return (
+          <Fragment key={lesson.id}>
+            {topicChanged ? (
+              <li
+                className="flex items-center gap-2 px-1.5 pb-1 pt-2.5 before:h-px before:flex-1 before:bg-line-soft after:h-px after:flex-1 after:bg-line-soft"
+                aria-hidden={topic ? undefined : true}
+              >
+                {/* An untitled run after a titled one gets a bare rule, or its
+                    lessons would read as part of the topic above. */}
+                {topic ? (
+                  <span className="max-w-[75%] truncate text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-muted">
+                    {topic}
+                  </span>
+                ) : null}
+              </li>
+            ) : null}
+            <li>
+              <button type="button"
+                      className="flex w-full items-center gap-2 rounded-md border-0 !bg-transparent px-1.5 py-1 text-left shadow-none hover:!bg-surface-2"
+                      onClick={(event) => stopAndRun(event, () => onOpen(lesson))}>
+                <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-ink-muted">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-soft">
+                  {lesson.title || 'Untitled lesson'}
+                </span>
+              </button>
+            </li>
+          </Fragment>
+        );
+      })}
     </ol>
   );
 }
@@ -459,8 +502,25 @@ export function StructurePage() {
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
-  const [aiLessons, setAiLessons] = useState([]);
-  const [courseSubjectCounts, setCourseSubjectCounts] = useState({});
+  // Lessons are fetched one subject at a time — only when that subject is opened —
+  // and kept for the rest of the visit. Nothing loads every lesson any more; the
+  // counts on the cards come from a small request.
+  const [lessonsBySubject, setLessonsBySubject] = useState({}); // { [subjectId]: { status, rows } }
+  // Lessons are managed here (the separate Lessons list was merged in): add in
+  // the open topic, publish / hide in place, and search every lesson by title.
+  const [lessonForm, setLessonForm] = useState(null); // { title, isFree, saving }
+  const [togglingLessonId, setTogglingLessonId] = useState(null);
+  const [lessonQuery, setLessonQuery] = useState('');
+  const [lessonHits, setLessonHits] = useState(null); // null = not searched
+  const lessonRequestsRef = useRef(new Map());
+  // Subjects per course and topics per subject, remembered for this visit so
+  // going back and forth doesn't ask the server again. Every change re-reads.
+  const subjectsCacheRef = useRef(new Map());
+  const topicsCacheRef = useRef(new Map());
+  // Reorder arrows show only after "Sort" is pressed; leaving the level turns it off.
+  const [sorting, setSorting] = useState(false);
+  const [fixingCounts, setFixingCounts] = useState(false);
+  const [fixProgress, setFixProgress] = useState(null); // { done, total, fixed }
 
   // Which folder you are in lives in the address (?course=&subject=&topic=), so
   // opening a lesson and coming back — or refreshing — lands on the same folder
@@ -483,6 +543,26 @@ export function StructurePage() {
   };
   // Handed to the lesson page so its Back button returns to this exact folder.
   const returnState = { returnTo: `/structure${searchParams.toString() ? `?${searchParams.toString()}` : ''}` };
+  // Opening a lesson hands the editor the lists this page already holds, in the
+  // shape its dropdowns use (active items, { id, name }), so it doesn't fetch
+  // them again. Opened any other way, the editor fetches them as before.
+  const lessonNavState = () => ({
+    ...returnState,
+    structureContext: {
+      courseId: selectedCourseId,
+      topicId: selectedSubjectId,
+      courses: courses
+        .filter((course) => course.status === 'active')
+        .map((course) => ({ id: course.id, name: course.courseTitle }))
+        .sort((a, b) => String(a.name).localeCompare(String(b.name))),
+      topics: subjects
+        .filter((subject) => subject.status === 'active')
+        .map((subject) => ({ id: subject.id, name: subject.topicName })),
+      subtopics: topics
+        .filter((topic) => topic.status === 'active')
+        .map((topic) => ({ id: topic.id, name: topic.subtopicName })),
+    },
+  });
 
   const [courseForm, setCourseForm] = useState(courseDefaults);
   const [subjectForm, setSubjectForm] = useState(subjectDefaults);
@@ -514,21 +594,41 @@ export function StructurePage() {
 
   useEffect(() => {
     loadCourses();
-    loadAiLessons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadAiLessons() {
-    setLoading((current) => ({ ...current, lessons: true }));
+  // Re-read the course cards (and their stored counts) without the loading
+  // placeholders, after a change elsewhere on the page.
+  async function refreshCourses() {
     try {
-      const data = await adminListAiNotes();
-      setAiLessons(data);
-    } catch (error) {
-      setFeedback({ error: getErrorMessage(error, 'Unable to load lessons'), success: '' });
-    } finally {
-      setLoading((current) => ({ ...current, lessons: false }));
+      setCourses(await fetchCourses());
+    } catch {
+      // The cards keep their last numbers; the folders still open.
     }
   }
+
+  // One request per subject per visit; `force` re-reads it after a change.
+  function ensureSubjectLessons(subjectId, { force = false } = {}) {
+    const key = String(subjectId || '');
+    if (!key) return Promise.resolve();
+    if (!force && lessonRequestsRef.current.has(key)) return lessonRequestsRef.current.get(key);
+    setLessonsBySubject((current) => ({ ...current, [key]: { status: 'loading', rows: current[key]?.rows || [] } }));
+    const request = adminListStructureLessons(subjectId)
+      .then((rows) => {
+        setLessonsBySubject((current) => ({ ...current, [key]: { status: 'ready', rows: Array.isArray(rows) ? rows : [] } }));
+      })
+      .catch((error) => {
+        lessonRequestsRef.current.delete(key);
+        setLessonsBySubject((current) => ({ ...current, [key]: { status: 'error', rows: [] } }));
+        setFeedback({ error: getErrorMessage(error, 'Unable to load lessons'), success: '' });
+      });
+    lessonRequestsRef.current.set(key, request);
+    return request;
+  }
+
+  useEffect(() => {
+    setSorting(false);
+  }, [activeLevel, selectedCourseId, selectedSubjectId, selectedTopicId]);
 
   useEffect(() => {
     if (!selectedCourseId) {
@@ -536,7 +636,10 @@ export function StructurePage() {
       return;
     }
 
-    loadSubjects(selectedCourseId);
+    // Coming back to a course opened earlier in this visit reuses its subjects.
+    const remembered = subjectsCacheRef.current.get(selectedCourseId);
+    if (remembered) setSubjects(remembered);
+    else loadSubjects(selectedCourseId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCourseId]);
 
@@ -546,7 +649,11 @@ export function StructurePage() {
       return;
     }
 
-    loadTopics(selectedSubjectId);
+    const rememberedTopics = topicsCacheRef.current.get(selectedSubjectId);
+    if (rememberedTopics) setTopics(rememberedTopics);
+    else loadTopics(selectedSubjectId);
+    // Inside a subject its topic rows list their lessons, so load that one subject.
+    ensureSubjectLessons(selectedSubjectId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubjectId]);
 
@@ -592,12 +699,8 @@ export function StructurePage() {
   async function loadCourses() {
     setLoading((current) => ({ ...current, courses: true }));
     try {
-      const [data, allSubjects] = await Promise.all([
-        fetchCourses(),
-        fetchTopics().catch(() => []),
-      ]);
+      const data = await fetchCourses();
       setCourses(data);
-      setCourseSubjectCounts(buildCourseSubjectCounts(allSubjects));
       if (selectedCourseId && !data.some((course) => course.id === selectedCourseId)) goTo({}, { replace: true });
     } catch (error) {
       setFeedback({ error: getErrorMessage(error, 'Unable to load courses'), success: '' });
@@ -606,19 +709,13 @@ export function StructurePage() {
     }
   }
 
-  async function loadCourseSubjectCounts() {
-    try {
-      const allSubjects = await fetchTopics();
-      setCourseSubjectCounts(buildCourseSubjectCounts(allSubjects));
-    } catch {
-      setCourseSubjectCounts({});
-    }
-  }
-
+  // Always reads from the server (used on first open and after every change),
+  // and remembers the answer for this visit.
   async function loadSubjects(courseId) {
     setLoading((current) => ({ ...current, subjects: true }));
     try {
       const data = await fetchTopics(courseId);
+      subjectsCacheRef.current.set(courseId, data);
       setSubjects(data);
       if (selectedSubjectId && !data.some((subject) => subject.id === selectedSubjectId)) goTo({ course: courseId }, { replace: true });
     } catch (error) {
@@ -632,6 +729,7 @@ export function StructurePage() {
     setLoading((current) => ({ ...current, topics: true }));
     try {
       const data = await fetchSubtopics(subjectId);
+      topicsCacheRef.current.set(subjectId, data);
       setTopics(data);
       if (selectedTopicId && !data.some((topic) => topic.id === selectedTopicId)) goTo({ course: selectedCourseId, subject: subjectId }, { replace: true });
     } catch (error) {
@@ -641,32 +739,76 @@ export function StructurePage() {
     }
   }
 
-  async function moveSubject(index, direction) {
-    const target = index + direction;
-    if (target < 0 || target >= subjects.length) return;
-    const reordered = [...subjects];
-    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-    setSubjects(reordered);
+  // Saves one move: the item and the two neighbours it now sits between. The
+  // server changes that one row. If another screen changed the order first,
+  // the list is re-read; any other failure puts the list back as it was.
+  async function saveMove(kind, list, newIndex, undo, reload) {
+    const above = list[newIndex - 1];
+    const below = list[newIndex + 1];
     try {
-      await reorderTopics(reordered.map((subject) => subject.id));
+      await adminMoveStructureItem({ kind, id: list[newIndex].id, aboveId: above?.id ?? null, belowId: below?.id ?? null });
     } catch (error) {
-      flashMessage({ error: getErrorMessage(error, 'Unable to save the new order'), success: '' });
-      loadSubjects(selectedCourseId);
+      if (error?.response?.status === 409) {
+        flashMessage({ error: 'The order changed on another screen, so it was refreshed.', success: '' });
+        reload();
+      } else {
+        undo();
+        flashMessage({ error: getErrorMessage(error, 'Unable to save the new order'), success: '' });
+      }
     }
   }
 
-  async function moveTopic(index, direction) {
+  function moveInList(list, index, direction) {
     const target = index + direction;
-    if (target < 0 || target >= topics.length) return;
-    const reordered = [...topics];
-    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-    setTopics(reordered);
-    try {
-      await reorderSubtopics(reordered.map((topic) => topic.id));
-    } catch (error) {
-      flashMessage({ error: getErrorMessage(error, 'Unable to save the new order'), success: '' });
-      loadTopics(selectedSubjectId);
-    }
+    if (target < 0 || target >= list.length) return null;
+    const next = [...list];
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, moved);
+    return { next, target, moved };
+  }
+
+  async function moveSubject(index, direction) {
+    const result = moveInList(subjects, index, direction);
+    if (!result) return;
+    const previous = subjects;
+    const courseId = selectedCourseId;
+    subjectsCacheRef.current.set(courseId, result.next);
+    setSubjects(result.next);
+    await saveMove('subject', result.next, result.target,
+      () => { subjectsCacheRef.current.set(courseId, previous); setSubjects(previous); },
+      () => loadSubjects(courseId));
+  }
+
+  async function moveTopic(index, direction) {
+    const result = moveInList(topics, index, direction);
+    if (!result) return;
+    const previous = topics;
+    const subjectId = selectedSubjectId;
+    topicsCacheRef.current.set(subjectId, result.next);
+    setTopics(result.next);
+    await saveMove('topic', result.next, result.target,
+      () => { topicsCacheRef.current.set(subjectId, previous); setTopics(previous); },
+      () => loadTopics(subjectId));
+  }
+
+  // Lessons are ranked inside their topic. The page holds the whole subject's
+  // lessons, so the moved lesson is put back into that list just before the
+  // lesson now below it (or just after the one above, at the bottom).
+  async function moveLesson(index, direction) {
+    const result = moveInList(lessons, index, direction);
+    if (!result) return;
+    const key = String(selectedSubjectId || '');
+    const previousRows = openSubjectRows;
+    const below = result.next[result.target + 1];
+    const above = result.next[result.target - 1];
+    const rows = previousRows.filter((row) => row.id !== result.moved.id);
+    const at = below ? rows.findIndex((row) => row.id === below.id) : rows.findIndex((row) => row.id === above?.id) + 1;
+    rows.splice(at < 0 ? rows.length : at, 0, result.moved);
+    const setRows = (nextRows) => setLessonsBySubject((current) => ({ ...current, [key]: { ...(current[key] || { status: 'ready' }), rows: nextRows } }));
+    setRows(rows);
+    await saveMove('lesson', result.next, result.target,
+      () => setRows(previousRows),
+      () => ensureSubjectLessons(selectedSubjectId, { force: true }));
   }
 
   function flashMessage(next) {
@@ -827,7 +969,7 @@ export function StructurePage() {
       closeModal();
       await Promise.all([
         loadSubjects(selectedCourseId),
-        loadCourseSubjectCounts(),
+        refreshCourses(),
       ]);
     } catch (error) {
       flashMessage({ error: getErrorMessage(error, 'Unable to save subject'), success: '' });
@@ -861,9 +1003,109 @@ export function StructurePage() {
     }
   }
 
+  // Deleting a course or subject also deletes every lesson in it, for good
+  // (database cascade), unlike a lesson's own "Delete", which only hides it.
+  // With lessons inside, the admin must type DELETE to go ahead.
+  function confirmPermanentDelete({ kind, name, lessons, children }) {
+    const label = `${kind === 'course' ? 'course' : 'subject'} "${name}"`;
+    if (lessons <= 0) {
+      return window.confirm(`Delete ${label} and its ${children}?\n\nThis can't be undone.`);
+    }
+    const typed = window.prompt(
+      `⚠️ Permanently delete ${label}?\n\n`
+      + `This also PERMANENTLY deletes its ${lessons} lesson${lessons === 1 ? '' : 's'} (plus any hidden ones) and its ${children}. `
+      + 'Their notes, flashcards and student progress are lost.\n\n'
+      + 'This cannot be undone. Type DELETE to confirm.',
+    );
+    if (typed === null) return false;
+    if (typed.trim() !== 'DELETE') {
+      flashMessage({ error: 'Not deleted: type DELETE exactly to confirm.', success: '' });
+      return false;
+    }
+    return true;
+  }
+
+  // Manual repair of the stored counts (after edits made outside the app, such
+  // as an SQL import). Runs in small steps, one request at a time with a short
+  // pause, so each request reads under ~1,000 rows and the database never gets
+  // a burst. Only the wrong numbers are corrected.
+  async function handleFixCounts() {
+    const pause = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    setFixingCounts(true);
+    try {
+      // Request 1: plan + first set (and the finish too when it all fits).
+      const plan = await adminFixCountsStart();
+      const remaining = Array.isArray(plan?.remaining) ? plan.remaining : [];
+      const separateFinish = !plan?.done && !plan?.finishWithLast;
+      const total = 1 + remaining.length + (separateFinish ? 1 : 0);
+      const issues = [...(plan?.first?.fixed || [])];
+      const changed = [...(plan?.first?.changed || [])];
+      const courseLessons = { ...(plan?.first?.courseLessons || {}) };
+      const finishTotals = () => (plan.courses || []).map((course) => ({
+        id: course.id,
+        lessons: courseLessons[course.id] || 0,
+        expectedLessons: course.lessonCount,
+        expectedSubjects: course.subjectCount,
+      }));
+      if (plan?.done) {
+        issues.push(...(plan.finish?.fixed || []));
+        changed.push(...(plan.finish?.changed || []));
+      }
+      setFixProgress({ done: 1, total, fixed: issues.length });
+
+      for (let i = 0; i < remaining.length; i += 1) {
+        await pause(300);
+        const isLast = i === remaining.length - 1;
+        const step = await adminFixCountsSet(plan.runId, remaining[i], isLast && plan.finishWithLast ? finishTotals() : null);
+        issues.push(...(step?.fixed || []));
+        changed.push(...(step?.changed || []));
+        for (const [courseId, n] of Object.entries(step?.courseLessons || {})) {
+          courseLessons[courseId] = (courseLessons[courseId] || 0) + Number(n || 0);
+        }
+        if (step?.finish) {
+          issues.push(...(step.finish.fixed || []));
+          changed.push(...(step.finish.changed || []));
+        }
+        setFixProgress({ done: i + 2, total, fixed: issues.length });
+      }
+      if (separateFinish) {
+        await pause(300);
+        const end = await adminFixCountsFinish(plan.runId, finishTotals());
+        issues.push(...(end?.fixed || []));
+        changed.push(...(end?.changed || []));
+        setFixProgress({ done: total, total, fixed: issues.length });
+      }
+
+      if (issues.length) {
+        subjectsCacheRef.current.clear();
+        await loadCourses();
+        if (selectedCourseId) await loadSubjects(selectedCourseId);
+      }
+      const label = { lesson_count: 'lessons', subject_count: 'subjects', subtopic_count: 'topics' };
+      const shown = issues.slice(0, 3).map((i) => `${i.name} ${label[i.field] || i.field} ${i.stored} → ${i.actual}`).join('; ');
+      const note = changed.length ? ` ${changed.length} changed during the fix; run it again to check them.` : '';
+      flashMessage({
+        error: '',
+        success: issues.length
+          ? `Fixed ${issues.length} count${issues.length === 1 ? '' : 's'}: ${shown}${issues.length > 3 ? '…' : ''}.${note}`
+          : `All counts are correct.${note}`,
+      });
+    } catch (error) {
+      flashMessage({ error: getErrorMessage(error, 'Unable to fix counts'), success: '' });
+    } finally {
+      setFixingCounts(false);
+      window.setTimeout(() => setFixProgress(null), 1500);
+    }
+  }
+
   async function handleCourseDelete(course, event) {
     event.stopPropagation();
-    if (!window.confirm(`Delete "${course.courseTitle}"?`)) {
+    if (!confirmPermanentDelete({
+      kind: 'course',
+      name: course.courseTitle,
+      lessons: Number(course.lessonCount || 0),
+      children: `${Number(course.subjectCount || 0)} subject(s) and all their topics`,
+    })) {
       return;
     }
 
@@ -881,7 +1123,12 @@ export function StructurePage() {
 
   async function handleSubjectDelete(subject, event) {
     event.stopPropagation();
-    if (!window.confirm(`Delete "${subject.topicName}"?`)) {
+    if (!confirmPermanentDelete({
+      kind: 'subject',
+      name: subject.topicName,
+      lessons: Number(subject.lessonCount || 0),
+      children: `${Number(subject.subtopicCount || 0)} topic(s)`,
+    })) {
       return;
     }
 
@@ -892,7 +1139,7 @@ export function StructurePage() {
       }
       await Promise.all([
         loadSubjects(selectedCourseId),
-        loadCourseSubjectCounts(),
+        refreshCourses(),
       ]);
       flashMessage({ error: '', success: 'Subject deleted' });
     } catch (error) {
@@ -919,6 +1166,77 @@ export function StructurePage() {
     }
   }
 
+  // Lesson search across every course (replaces the old Lessons list's search):
+  // up to 10 title matches from the server, 300 ms after typing stops.
+  useEffect(() => {
+    const q = lessonQuery.trim();
+    if (q.length < 2) {
+      setLessonHits(null);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      adminSearch(q, { only: 'lessons', signal: controller.signal })
+        .then((hits) => { if (!controller.signal.aborted) setLessonHits(Array.isArray(hits?.lessons) ? hits.lessons : []); })
+        .catch(() => { if (!controller.signal.aborted) setLessonHits([]); });
+    }, 300);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [lessonQuery]);
+
+  // Open a found lesson; Back from the editor returns to its folder here.
+  function openFoundLesson(hit) {
+    const params = new URLSearchParams();
+    if (hit.courseId) params.set('course', String(hit.courseId));
+    if (hit.courseId && hit.topicId) params.set('subject', String(hit.topicId));
+    if (hit.courseId && hit.topicId && hit.subtopicId) params.set('topic', String(hit.subtopicId));
+    navigate(`/ai-notes/${hit.id}`, { state: { returnTo: `/structure${params.toString() ? `?${params.toString()}` : ''}` } });
+  }
+
+  // New lesson in the open topic, then straight into the editor (as before).
+  // The server adds it to the course and subject counts in the same save.
+  async function handleLessonCreate(event) {
+    event.preventDefault();
+    const title = String(lessonForm?.title || '').trim();
+    if (!title || !selectedCourseId || !selectedSubjectId) return;
+    setLessonForm((current) => ({ ...current, saving: true }));
+    try {
+      const lesson = await createLesson({
+        courseId: Number(selectedCourseId),
+        topicId: Number(selectedSubjectId),
+        subtopicId: selectedTopicId ? Number(selectedTopicId) : null,
+        lessonTitle: title,
+        isFree: lessonForm.isFree ? 1 : 0,
+        status: 'active',
+      });
+      setLessonForm(null);
+      navigate(`/ai-notes/${lesson.id}`, { state: lessonNavState() });
+    } catch (error) {
+      setLessonForm((current) => (current ? { ...current, saving: false } : current));
+      flashMessage({ error: getErrorMessage(error, 'Unable to create lesson'), success: '' });
+    }
+  }
+
+  // Publish / hide in place. Visibility to students only: the stored counts
+  // don't change (they count lessons whatever their status).
+  async function handleLessonToggle(lesson) {
+    const next = lesson.status === 'active' ? 'inactive' : 'active';
+    setTogglingLessonId(lesson.id);
+    try {
+      await adminUpdateAiNote(lesson.id, { status: next });
+      const key = String(lesson.topicId || selectedSubjectId);
+      setLessonsBySubject((current) => (current[key]
+        ? { ...current, [key]: { ...current[key], rows: current[key].rows.map((row) => (row.id === lesson.id ? { ...row, status: next } : row)) } }
+        : current));
+    } catch (error) {
+      flashMessage({ error: getErrorMessage(error, 'Unable to update lesson'), success: '' });
+    } finally {
+      setTogglingLessonId(null);
+    }
+  }
+
   async function handleLessonDelete(lesson, event) {
     event.stopPropagation();
     if (!window.confirm(`Delete lesson "${lesson.title}"?`)) {
@@ -927,20 +1245,35 @@ export function StructurePage() {
 
     try {
       await adminDeleteAiNote(lesson.id);
-      await loadAiLessons();
+      // The server hid the lesson and took 1 off its course and subject counts
+      // in the same statement, so the page does the same on screen instead of
+      // reading the lists again.
+      const subjectId = Number(lesson.topicId || selectedSubjectId);
+      const courseId = Number(lesson.courseId || selectedCourseId);
+      const key = String(subjectId);
+      const minusOne = (value) => Math.max(0, Number(value || 0) - 1);
+      setLessonsBySubject((current) => (current[key]
+        ? { ...current, [key]: { ...current[key], rows: current[key].rows.filter((row) => row.id !== lesson.id) } }
+        : current));
+      const nextSubjects = subjects.map((subject) => (subject.id === subjectId ? { ...subject, lessonCount: minusOne(subject.lessonCount) } : subject));
+      if (selectedCourseId) subjectsCacheRef.current.set(selectedCourseId, nextSubjects);
+      setSubjects(nextSubjects);
+      setCourses((current) => current.map((course) => (course.id === courseId ? { ...course, lessonCount: minusOne(course.lessonCount) } : course)));
       flashMessage({ error: '', success: 'Lesson deleted' });
     } catch (error) {
       flashMessage({ error: getErrorMessage(error, 'Unable to delete lesson'), success: '' });
     }
   }
 
+  // The open subject's lessons (loaded when the subject was opened).
+  const openSubjectLessons = lessonsBySubject[String(selectedSubjectId || '')];
+  const openSubjectRows = useMemo(() => openSubjectLessons?.rows || [], [openSubjectLessons]);
+  const lessonsLoading = Boolean(selectedSubjectId) && (!openSubjectLessons || openSubjectLessons.status === 'loading');
   const lessons = useMemo(
-    () => aiLessons.filter((note) =>
-      String(note.courseId || '') === String(selectedCourseId || '')
-      && String(note.topicId || '') === String(selectedSubjectId || '')
-      && String(note.subtopicId || '') === String(selectedTopicId || '')
+    () => openSubjectRows.filter((note) =>
+      String(note.subtopicId || '') === String(selectedTopicId || '')
     ),
-    [aiLessons, selectedCourseId, selectedSubjectId, selectedTopicId]
+    [openSubjectRows, selectedTopicId]
   );
 
   return (
@@ -953,6 +1286,34 @@ export function StructurePage() {
 
         {feedback.error ? <div className={ui.feedbackError}>{feedback.error}</div> : null}
         {feedback.success ? <div className={ui.feedbackSuccess}>{feedback.success}</div> : null}
+
+        <div className={cx(ui.panelCard, 'grid gap-2 p-3')}>
+          <input
+            className={ui.input}
+            type="search"
+            value={lessonQuery}
+            onChange={(event) => setLessonQuery(event.target.value)}
+            placeholder="Search lessons by title (all courses)"
+            aria-label="Search lessons by title"
+          />
+          {lessonHits ? (
+            lessonHits.length ? (
+              <ul className="m-0 grid list-none gap-1 p-0">
+                {lessonHits.map((hit) => (
+                  <li key={hit.id}>
+                    <button type="button" className="w-full cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1.5 text-left hover:bg-surface-2" onClick={() => openFoundLesson(hit)}>
+                      <strong className="block text-sm text-ink-strong">{hit.title || 'Untitled lesson'}</strong>
+                      <span className="text-xs text-ink-muted">
+                        {[hit.courseTitle, hit.topicName, hit.subtopicName].filter(Boolean).join(' › ')}
+                        {hit.status === 'active' ? '' : ' • Hidden'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : <span className="px-2 text-xs text-ink-muted">No lessons match.</span>
+          ) : null}
+        </div>
 
         <section className={cx(ui.panelCard, structureUi.hero)}>
           <div className={structureUi.heroCopy}>
@@ -998,6 +1359,11 @@ export function StructurePage() {
                 actionLabel="+ Add Course"
                 onAction={openCourseCreate}
                 breadcrumbItems={['Courses']}
+                secondaryLabel="Fix counts"
+                onSecondary={handleFixCounts}
+                secondaryBusy={fixingCounts}
+                secondaryBusyLabel={fixProgress ? `Fixing ${fixProgress.done}/${fixProgress.total}…` : 'Checking…'}
+                progress={fixProgress}
               />
 
               {loading.courses ? <LoadingGrid /> : null}
@@ -1007,7 +1373,6 @@ export function StructurePage() {
                   {courses.map((course) => {
                     const rawSubjectCount = course.subjectCount
                       ?? course.totalSubjectsCount
-                      ?? courseSubjectCounts[String(course.id)]
                       ?? course.topics?.length
                       ?? course.subjects?.length;
                     const subjectCount = rawSubjectCount == null ? 0 : Number(rawSubjectCount);
@@ -1018,7 +1383,7 @@ export function StructurePage() {
                         title={title}
                         meta={[
                           course.description || `${course.examType} • ${course.courseCode}`,
-                          `${aiLessons.filter((note) => String(note.courseId || '') === String(course.id || '')).length} lessons`,
+                          `${Number(course.lessonCount || 0)} lessons`,
                         ].join(' • ')}
                         count={subjectCount}
                         countLabel={subjectCount === 1 ? 'subject' : 'subjects'}
@@ -1041,6 +1406,8 @@ export function StructurePage() {
                 contextLabel={selectedCourse?.courseTitle ? `Inside ${selectedCourse.courseTitle}` : 'Inside selected course'}
                 onBack={goBackFolder}
                 countLabel={loading.subjects ? 'Loading...' : `${subjects.length} subjects`}
+                sorting={sorting}
+                onToggleSort={subjects.length > 1 ? () => setSorting((current) => !current) : undefined}
                 actionLabel="+ Add Subject"
                 onAction={openSubjectCreate}
                 breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Selected course']}
@@ -1051,8 +1418,7 @@ export function StructurePage() {
                 <div className={structureUi.rowList}>
                   {subjects.map((subject, index) => {
                     const topicCount = Number(subject.subtopicCount || 0);
-                    const subjectLessons = aiLessons.filter((note) =>
-                      String(note.topicId || '') === String(subject.id || ''));
+                    const lessonCount = Number(subject.lessonCount || 0);
                     const title = subject.topicName || 'Untitled subject';
                     return (
                       <StructureRow
@@ -1060,16 +1426,14 @@ export function StructurePage() {
                         index={index}
                         title={title}
                         meta={`In ${selectedCourse?.courseTitle || 'course'}`}
-                        countLabel={`${topicCount} topic${topicCount === 1 ? '' : 's'} · ${subjectLessons.length} lesson${subjectLessons.length === 1 ? '' : 's'}`}
+                        countLabel={`${topicCount} topic${topicCount === 1 ? '' : 's'} · ${lessonCount} lesson${lessonCount === 1 ? '' : 's'}`}
                         status={subject.status || 'active'}
                         onOpen={() => openSubjectFolder(subject)}
                         onEdit={(event) => stopAndRun(event, () => openSubjectEdit(subject, event))}
                         onDelete={(event) => stopAndRun(event, () => handleSubjectDelete(subject, event))}
-                        onMoveUp={index > 0 ? () => moveSubject(index, -1) : null}
-                        onMoveDown={index < subjects.length - 1 ? () => moveSubject(index, 1) : null}
-                      >
-                        <LessonPeek lessons={subjectLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`, { state: returnState })} />
-                      </StructureRow>
+                        onMoveUp={sorting && index > 0 ? () => moveSubject(index, -1) : null}
+                        onMoveDown={sorting && index < subjects.length - 1 ? () => moveSubject(index, 1) : null}
+                      />
                     );
                   })}
                 </div>
@@ -1084,6 +1448,8 @@ export function StructurePage() {
                 contextLabel={selectedSubject?.topicName ? `Inside ${selectedSubject.topicName}` : 'Inside selected subject'}
                 onBack={goBackFolder}
                 countLabel={loading.topics ? 'Loading...' : `${topics.length} topics`}
+                sorting={sorting}
+                onToggleSort={topics.length > 1 ? () => setSorting((current) => !current) : undefined}
                 actionLabel="+ Add Topic"
                 onAction={openTopicCreate}
                 breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Selected course', selectedSubject?.topicName || 'Selected subject']}
@@ -1093,10 +1459,8 @@ export function StructurePage() {
               {!loading.topics && topics.length > 0 ? (
                 <div className={structureUi.rowList}>
                   {topics.map((topic, index) => {
-                    const topicLessons = aiLessons.filter((note) =>
-                      String(note.courseId || '') === String(selectedCourseId || '')
-                      && String(note.topicId || '') === String(selectedSubjectId || '')
-                      && String(note.subtopicId || '') === String(topic.id || '')
+                    const topicLessons = openSubjectRows.filter((note) =>
+                      String(note.subtopicId || '') === String(topic.id || '')
                     );
                     const title = topic.subtopicName || 'Untitled topic';
                     return (
@@ -1105,15 +1469,15 @@ export function StructurePage() {
                         index={index}
                         title={title}
                         meta={`In ${selectedSubject?.topicName || 'subject'}`}
-                        countLabel={`${topicLessons.length} lesson${topicLessons.length === 1 ? '' : 's'}`}
+                        countLabel={lessonsLoading ? 'Loading…' : `${topicLessons.length} lesson${topicLessons.length === 1 ? '' : 's'}`}
                         status={topic.status || 'active'}
                         onOpen={() => openTopicFolder(topic)}
                         onEdit={(event) => stopAndRun(event, () => openTopicEdit(topic, event))}
                         onDelete={(event) => stopAndRun(event, () => handleTopicDelete(topic, event))}
-                        onMoveUp={index > 0 ? () => moveTopic(index, -1) : null}
-                        onMoveDown={index < topics.length - 1 ? () => moveTopic(index, 1) : null}
+                        onMoveUp={sorting && index > 0 ? () => moveTopic(index, -1) : null}
+                        onMoveDown={sorting && index < topics.length - 1 ? () => moveTopic(index, 1) : null}
                       >
-                        <LessonPeek lessons={topicLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`, { state: returnState })} />
+                        <LessonPeek lessons={topicLessons} onOpen={(lesson) => navigate(`/ai-notes/${lesson.id}`, { state: lessonNavState() })} />
                       </StructureRow>
                     );
                   })}
@@ -1128,14 +1492,36 @@ export function StructurePage() {
                 title="Lessons"
                 contextLabel={selectedTopic?.subtopicName ? `Inside ${selectedTopic.subtopicName}` : 'Inside selected topic'}
                 onBack={goBackFolder}
-                countLabel={loading.lessons ? 'Loading...' : `${lessons.length} lessons`}
+                countLabel={lessonsLoading ? 'Loading...' : `${lessons.length} lessons`}
+                sorting={sorting}
+                onToggleSort={lessons.length > 1 ? () => setSorting((current) => !current) : undefined}
                 actionLabel="+ Lesson"
-                onAction={() => navigate('/ai-notes')}
+                onAction={() => setLessonForm((current) => current || { title: '', isFree: false, saving: false })}
                 breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Selected course', selectedSubject?.topicName || 'Selected subject', selectedTopic?.subtopicName || 'Selected topic']}
               />
-              {loading.lessons ? <LoadingGrid /> : null}
-              {!loading.lessons && lessons.length === 0 ? <EmptyFolder>No lessons in this topic.</EmptyFolder> : null}
-              {!loading.lessons && lessons.length > 0 ? (
+              {lessonForm ? (
+                <form className={cx(ui.panelCard, 'mb-3 grid gap-3 p-4')} onSubmit={handleLessonCreate}>
+                  <label className={ui.formLabel}>
+                    New lesson in {selectedTopic?.subtopicName || 'this topic'}
+                    <input className={ui.input} autoFocus value={lessonForm.title} maxLength={200} placeholder="Lesson title"
+                           onChange={(event) => setLessonForm((current) => ({ ...current, title: event.target.value }))} />
+                  </label>
+                  <label className={ui.checkboxLabel}>
+                    <input type="checkbox" checked={lessonForm.isFree}
+                           onChange={(event) => setLessonForm((current) => ({ ...current, isFree: event.target.checked }))} />
+                    Free lesson (students without a plan can open it)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button className={ui.primaryAction} type="submit" disabled={lessonForm.saving || !lessonForm.title.trim()}>
+                      {lessonForm.saving ? 'Creating…' : 'Create and open editor'}
+                    </button>
+                    <button className={ui.secondaryAction} type="button" onClick={() => setLessonForm(null)} disabled={lessonForm.saving}>Cancel</button>
+                  </div>
+                </form>
+              ) : null}
+              {lessonsLoading ? <LoadingGrid /> : null}
+              {!lessonsLoading && lessons.length === 0 ? <EmptyFolder>No lessons in this topic.</EmptyFolder> : null}
+              {!lessonsLoading && lessons.length > 0 ? (
                 <div className={structureUi.rowList}>
                   {lessons.map((lesson, index) => {
                     const title = lesson.title || 'Untitled lesson';
@@ -1144,23 +1530,28 @@ export function StructurePage() {
                         key={lesson.id}
                         index={index}
                         title={title}
-                        meta={`${lesson.status === 'active' ? 'Published' : 'Inactive'} • ${selectedTopic?.subtopicName || 'Topic'}`}
+                        meta={[
+                          lesson.status === 'active' ? 'Published' : 'Hidden',
+                          lesson.isFree ? 'Free' : null,
+                          lesson.hasNote ? null : 'Draft (no notes yet)',
+                          selectedTopic?.subtopicName || 'Topic',
+                        ].filter(Boolean).join(' • ')}
                         status={lesson.status || 'active'}
-                        onOpen={() => navigate(`/ai-notes/${lesson.id}`, { state: returnState })}
-                        onEdit={(event) => stopAndRun(event, () => navigate(`/ai-notes/${lesson.id}`, { state: returnState }))}
+                        onOpen={() => navigate(`/ai-notes/${lesson.id}`, { state: lessonNavState() })}
+                        onEdit={(event) => stopAndRun(event, () => navigate(`/ai-notes/${lesson.id}`, { state: lessonNavState() }))}
                         onDelete={(event) => stopAndRun(event, () => handleLessonDelete(lesson, event))}
+                        onMoveUp={sorting && index > 0 ? () => moveLesson(index, -1) : null}
+                        onMoveDown={sorting && index < lessons.length - 1 ? () => moveLesson(index, 1) : null}
                         extraAction={(
                           <button
-                            className={cx(ui.squareIconButton, 'border-brand-primary text-brand-primary')}
+                            className={cx(ui.secondaryButton, 'min-h-8 px-3 text-xs')}
                             type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              navigate(`/ai-notes/${lesson.id}`, { state: returnState });
-                            }}
-                            aria-label={`Open ${title}`}
-                            title="Open lesson"
+                            disabled={togglingLessonId === lesson.id}
+                            onClick={(event) => stopAndRun(event, () => handleLessonToggle(lesson))}
+                            aria-label={`${lesson.status === 'active' ? 'Hide' : 'Publish'} ${title}`}
+                            title={lesson.status === 'active' ? 'Hide from students' : 'Show to students'}
                           >
-                            <SparkleIcon />
+                            {togglingLessonId === lesson.id ? '…' : lesson.status === 'active' ? 'Hide' : 'Publish'}
                           </button>
                         )}
                       />

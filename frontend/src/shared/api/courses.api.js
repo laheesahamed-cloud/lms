@@ -51,11 +51,21 @@ export function readStudentCourseDetailCache(courseId) {
   return studentCourseDetailCache.peek(courseId);
 }
 
+// 10.21: the website's lessons are free samples; finishing one is kept in this
+// browser only (no request, no database write).
+const LOCAL_DONE_KEY = 'lms.sample.lessonsDone';
+
+export function readLocalDoneLessons() {
+  try { return new Set((JSON.parse(window.localStorage.getItem(LOCAL_DONE_KEY) || '[]') || []).map(Number)); } catch { return new Set(); }
+}
+
 export async function updateStudentLessonProgress(lessonId, payload) {
-  const response = await apiClient.patch(`/student/courses/lessons/${lessonId}/progress`, payload);
-  clearStudentCoursesCache();
-  clearStudentCourseDetailCache();
-  return response.data;
+  if (payload?.status === 'completed') {
+    const done = readLocalDoneLessons();
+    done.add(Number(lessonId));
+    try { window.localStorage.setItem(LOCAL_DONE_KEY, JSON.stringify([...done])); } catch { /* storage blocked */ }
+  }
+  return { ok: true, lessonId: Number(lessonId), status: payload?.status || 'completed', progressPercent: 100, local: true };
 }
 
 export async function createCourse(payload) {

@@ -23,6 +23,10 @@ export type NativePushPayload = {
     channelId?: string;
     data?: Record<string, unknown>;
 };
+export type NativePushSettingsSnapshot = {
+    apns: ApnsRuntimeSettings;
+    fcm: FcmRuntimeSettings;
+};
 export type NativePushSendResult = {
     ok: boolean;
     statusCode?: number;
@@ -33,14 +37,21 @@ export declare class NativePushSender {
     private readonly logger;
     private readonly getApnsRuntimeSettings?;
     private readonly getFcmRuntimeSettings?;
+    private readonly getPushRuntimeSettings?;
     private fcmAccessToken;
     private apnsJwt;
-    constructor(configService: ConfigService, logger: Logger, getApnsRuntimeSettings?: (() => Promise<ApnsRuntimeSettings>) | undefined, getFcmRuntimeSettings?: (() => Promise<FcmRuntimeSettings>) | undefined);
-    isConfigured(): Promise<boolean>;
+    constructor(configService: ConfigService, logger: Logger, getApnsRuntimeSettings?: (() => Promise<ApnsRuntimeSettings>) | undefined, getFcmRuntimeSettings?: (() => Promise<FcmRuntimeSettings>) | undefined, getPushRuntimeSettings?: (() => Promise<{
+        apns: ApnsRuntimeSettings;
+        fcm: FcmRuntimeSettings;
+    }>) | undefined);
+    loadSettings(): Promise<NativePushSettingsSnapshot>;
+    isConfigured(snapshot?: NativePushSettingsSnapshot): Promise<boolean>;
     isConfiguredFor(platform: NativePlatform): Promise<boolean>;
-    send(platform: NativePlatform, token: string, payload: NativePushPayload): Promise<NativePushSendResult>;
+    send(platform: NativePlatform, token: string, payload: NativePushPayload, snapshot?: NativePushSettingsSnapshot): Promise<NativePushSendResult>;
     private isApnsConfigured;
+    private apnsReady;
     private isFcmConfigured;
+    private fcmReady;
     private sendApns;
     private sendFcm;
     private sendFcmLegacy;

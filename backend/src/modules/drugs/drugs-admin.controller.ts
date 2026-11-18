@@ -41,9 +41,14 @@ export class DrugsAdminController {
     @Query('limit') limit = '30',
     @Query('search') search = '',
     @Headers('authorization') auth?: string,
+    @Query('afterId') afterId?: string,
+    @Query('afterName') afterName?: string,
+    @Query('idsOnly') idsOnly?: string,
   ) {
     await this.requireAdmin(auth);
-    return this.svc.listDrugs(Number(page), Number(limit), search);
+    if (idsOnly === '1') return this.svc.listDrugIds(search);
+    const after = afterId && afterName !== undefined ? { id: Number(afterId), name: String(afterName) } : null;
+    return this.svc.listDrugs(Number(page), Number(limit), search, after);
   }
 
   @Post('ai-lookup')

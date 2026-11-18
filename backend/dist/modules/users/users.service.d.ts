@@ -1,4 +1,5 @@
-import { Pool } from 'mysql2/promise';
+import { AuthService } from '../auth/auth.service';
+import { Pool, PoolConnection } from 'mysql2/promise';
 import { PaginationInput } from '../../common/utils/pagination';
 import { UserRole } from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -12,7 +13,8 @@ type UserManagementActor = {
 };
 export declare class UsersService {
     private readonly db;
-    constructor(db: Pool);
+    private readonly authService?;
+    constructor(db: Pool, authService?: AuthService | undefined);
     findAll(actor: UserManagementActor, filters: {
         search?: string;
         status?: string;
@@ -21,11 +23,27 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
-    summary(actor: UserManagementActor, today?: string): Promise<{
+    findPage(actor: UserManagementActor, filters: {
+        search?: string;
+        status?: string;
+        role?: string;
+        after?: string;
+    }): Promise<{
+        items: {
+            id: number;
+            fullName: string;
+            email: string;
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
+            status: "active" | "inactive";
+            createdAt: string | null;
+        }[];
+        next: string | null;
+    }>;
+    summary(actor: UserManagementActor, today?: string, db?: Pick<Pool, 'query'> | Pick<PoolConnection, 'query'>): Promise<{
         totalUsers: number;
         pendingUsers: number;
         activeUsers: number;
@@ -41,7 +59,7 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
@@ -51,7 +69,7 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         status: "active" | "inactive";
         createdAt: string | null;
         permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
@@ -62,7 +80,7 @@ export declare class UsersService {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
             status: "active" | "inactive";
             createdAt: string | null;
         };
@@ -90,29 +108,25 @@ export declare class UsersService {
             passStatus: string;
             submittedAt: any;
         }[];
-        bookmarks: {
-            itemType: string;
-            total: number;
-        }[];
     }>;
     create(actor: UserManagementActor, createUserDto: CreateUserDto): Promise<{
         ok: boolean;
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         status: string;
     }>;
     update(actor: UserManagementActor, id: number, updateUserDto: UpdateUserDto): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         status: "active" | "inactive";
         createdAt: string | null;
     } | {
         status: "active" | "inactive";
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff";
         email: string;
         fullName: string;
         ok: boolean;

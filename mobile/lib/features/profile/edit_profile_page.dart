@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
@@ -21,6 +20,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   late final TextEditingController _name;
   late String _avatarKey;
   bool _saving = false;
+  bool _saved = false; // button shows "Saved" for a moment (option B)
   String? _error;
 
   @override
@@ -54,10 +54,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     if (!mounted) return;
     setState(() => _saving = false);
     if (err == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated')),
-      );
-      context.pop();
+      // Option B (2026-11-17): stay on the page; the button says "Saved".
+      setState(() => _saved = true);
+      Future<void>.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _saved = false);
+      });
     } else {
       setState(() => _error = err);
     }
@@ -86,11 +87,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             ),
             const SizedBox(height: 20),
             AuthField(
-              label: 'Full name',
+              label: 'Nickname',
               controller: _name,
               keyboardType: TextInputType.name,
               validator: (v) =>
-                  (v == null || v.trim().length < 2) ? 'Enter your name' : null,
+                  (v == null || v.trim().length < 2) ? 'Enter your nickname' : null,
             ),
             const SizedBox(height: 18),
             Text('AVATAR',
@@ -100,29 +101,36 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     letterSpacing: 1.2,
                     color: c.inkSoft)),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                for (final a in kProfileAvatars)
-                  _AvatarChoice(
-                    avatar: a,
-                    selected: a.key == _avatarKey,
-                    onTap: () => setState(() => _avatarKey = a.key),
-                  ),
-              ],
-            ),
+            // All avatars on one line (user, 2026-11-17): sized to the width.
+            LayoutBuilder(builder: (context, box) {
+              const gap = 8.0;
+              final n = kProfileAvatars.length;
+              final tile = ((box.maxWidth - gap * (n - 1)) / n).clamp(36.0, 64.0);
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  for (final a in kProfileAvatars)
+                    _AvatarChoice(
+                      avatar: a,
+                      size: tile - 10,
+                      selected: a.key == _avatarKey,
+                      onTap: () => setState(() => _avatarKey = a.key),
+                    ),
+                ],
+              );
+            }),
             if (_error != null) ...[
               const SizedBox(height: 14),
               Text(_error!,
                   style: TextStyle(color: c.error, fontSize: 13)),
             ],
             const SizedBox(height: 24),
-            AppButton('Save changes',
+            AppButton(_saved ? 'Saved' : 'Save changes',
                 kind: AppButtonKind.primary,
                 expand: true,
                 loading: _saving,
-                onPressed: _save),
+                leading: _saved ? const Icon(Icons.check_rounded, size: 18) : null,
+                onPressed: _saved ? () {} : _save),
           ],
         ),
       ),
@@ -134,8 +142,10 @@ class _AvatarChoice extends StatelessWidget {
   final AvatarSpec avatar;
   final bool selected;
   final VoidCallback onTap;
+  final double size;
   const _AvatarChoice({
     required this.avatar,
+    this.size = 52,
     required this.selected,
     required this.onTap,
   });
@@ -155,7 +165,7 @@ class _AvatarChoice extends StatelessWidget {
             width: selected ? 2 : 1,
           ),
         ),
-        child: ProfileAvatar(avatar: avatar, size: 52, radius: 16),
+        child: ProfileAvatar(avatar: avatar, size: size, radius: size * 0.3),
       ),
     );
   }

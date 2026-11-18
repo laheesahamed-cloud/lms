@@ -6,7 +6,7 @@ import '../../theme/tokens.dart';
 import 'bookmarks_repository.dart';
 
 /// A reusable save/bookmark toggle. Reflects the live saved state (from the
-/// bookmarks list) and flips it on tap via `POST /study-bookmarks/toggle`.
+/// bookmarks list) and flips it on tap — saved on the phone, no API call (10.25).
 class BookmarkButton extends ConsumerWidget {
   final String itemType; // 'quiz' | 'ai_note' | 'question'
   final int itemId;

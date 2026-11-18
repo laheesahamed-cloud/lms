@@ -10,6 +10,7 @@ exports.FlashcardsModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
 const lessons_module_1 = require("../lessons/lessons.module");
+const courses_module_1 = require("../courses/courses.module");
 const flashcards_controller_1 = require("./flashcards.controller");
 const flashcards_service_1 = require("./flashcards.service");
 const flashcard_scheduler_service_1 = require("./flashcard-scheduler.service");
@@ -18,7 +19,7 @@ let FlashcardsModule = class FlashcardsModule {
 exports.FlashcardsModule = FlashcardsModule;
 exports.FlashcardsModule = FlashcardsModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, lessons_module_1.LessonsModule],
+        imports: [auth_module_1.AuthModule, lessons_module_1.LessonsModule, courses_module_1.CoursesModule],
         controllers: [flashcards_controller_1.FlashcardsController],
         providers: [flashcards_service_1.FlashcardsService, flashcard_scheduler_service_1.FlashcardSchedulerService],
         exports: [flashcards_service_1.FlashcardsService],

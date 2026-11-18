@@ -182,7 +182,7 @@ class AppCurves {
 /// Responsive breakpoints (px).
 class Breakpoints {
   static const tightPhone = 380.0;
-  static const phoneTablet = 900.0; // <=900 bottom tabs, >=901 sidebar
+  static const phoneTablet = 900.0; // sidebar only when >=901 wide AND landscape (app_shell)
   static const desktop = 901.0;
 }
 

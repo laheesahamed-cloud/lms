@@ -12,12 +12,14 @@ import {
   createSubscriptionCoupon,
   deleteSubscriptionCoupon,
   extendSubscription,
+  fetchAdminPaidSubscriptions,
   fetchAdminSubscriptionRequests,
-  fetchAdminSubscriptions,
   fetchAppleTransactions,
   fetchSubscriptionCoupons,
-  fetchSubscriptionAdminMeta,
   fetchSubscriptionAudit,
+  fetchSubscriptionLessonTitles,
+  fetchSubscriptionsOverview,
+  searchSubscriptionStudents,
   fetchSubscriptionInvoice,
   fetchSubscriptionPaymentProof,
   renewSubscription,
@@ -364,30 +366,44 @@ function BankTransferProofPreview({ request }) {
   );
 }
 
-function StudentSearchSelect({ students, value, onChange }) {
-  const selectedStudent = students.find((student) => String(student.id) === String(value));
+// Students come from the server as you type (name or e-mail, up to 20),
+// instead of the page downloading every student when it opens.
+function StudentSearchSelect({ value, onChange }) {
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  // The form was reset (value cleared): clear the picker too.
+  useEffect(() => {
+    if (!value) setSelectedStudent(null);
+    if (!value && selectedStudent) setQuery('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   useEffect(() => {
-    setQuery(selectedStudent ? formatAdminUserIdentifier(selectedStudent) : '');
-  }, [selectedStudent]);
-
-  const filteredStudents = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle || selectedStudent && query === formatAdminUserIdentifier(selectedStudent)) {
-      return students.slice(0, 20);
+    const needle = query.trim();
+    if (needle.length < 2 || (selectedStudent && query === formatAdminUserIdentifier(selectedStudent))) {
+      setFilteredStudents([]);
+      setSearching(false);
+      return undefined;
     }
-
-    return students
-      .filter((student) => {
-        const haystack = `${student.fullName || ''} ${student.email || ''}`.toLowerCase();
-        return haystack.includes(needle);
-      })
-      .slice(0, 20);
-  }, [query, selectedStudent, students]);
+    const controller = new AbortController();
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      searchSubscriptionStudents(needle, { signal: controller.signal })
+        .then((rows) => { if (!controller.signal.aborted) { setFilteredStudents(rows); setSearching(false); } })
+        .catch(() => { if (!controller.signal.aborted) { setFilteredStudents([]); setSearching(false); } });
+    }, 250);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [query, selectedStudent]);
 
   function selectStudent(student) {
+    setSelectedStudent(student);
     onChange(String(student.id));
     setQuery(formatAdminUserIdentifier(student));
     setOpen(false);
@@ -433,7 +449,9 @@ function StudentSearchSelect({ students, value, onChange }) {
               <span className={subscriptionUi.studentOptionEmail}>{getAdminUserSecondaryIdentifier(student) || student.status}</span>
             </button>
           )) : (
-            <div className={ui.tableSubtext}>No students match that search.</div>
+            <div className={ui.tableSubtext}>
+              {query.trim().length < 2 ? 'Type 2 or more letters of a name or e-mail.' : searching ? 'Searching…' : 'No students match that search.'}
+            </div>
           )}
         </div>
       ) : null}
@@ -441,6 +459,8 @@ function StudentSearchSelect({ students, value, onChange }) {
     </div>
   );
 }
+
+const asList = (value) => (Array.isArray(value) ? value : []);
 
 const STATUS_ORDER = { active: 0, pending: 1, expired: 2, cancelled: 3 };
 
@@ -669,7 +689,14 @@ export function AdminSubscriptionsPage() {
   const [coupons, setCoupons] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
   const [appleTransactions, setAppleTransactions] = useState([]);
-  const [meta, setMeta] = useState({ students: [], plans: [], courses: [], lessons: [] });
+  // Header counts + course list (one small request); lesson titles on demand.
+  const [overview, setOverview] = useState(null);
+  const [lessonTitles, setLessonTitles] = useState([]);
+  const allLessonsLoadedRef = useRef(false);
+  // Tabs load their data the first time they are opened; after an action the
+  // page re-reads the overview and only the tabs already opened.
+  const loadedRef = useRef(new Set());
+  const [ready, setReady] = useState({});
   const [planForm, setPlanForm] = useState(emptyPlanForm);
   const [assignForm, setAssignForm] = useState(emptyAssignForm);
   const [couponForm, setCouponForm] = useState(emptyCouponForm);
@@ -702,6 +729,7 @@ export function AdminSubscriptionsPage() {
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const safePlans = useMemo(() => (Array.isArray(plans) ? plans : []).filter(Boolean), [plans]);
@@ -709,9 +737,8 @@ export function AdminSubscriptionsPage() {
   const safeRequests = useMemo(() => (Array.isArray(requests) ? requests : []).filter(Boolean), [requests]);
   const safeCoupons = useMemo(() => (Array.isArray(coupons) ? coupons : []).filter(Boolean), [coupons]);
   const safeAuditEvents = useMemo(() => (Array.isArray(auditEvents) ? auditEvents : []).filter(Boolean), [auditEvents]);
-  const safeStudents = useMemo(() => (Array.isArray(meta.students) ? meta.students : []).filter(Boolean), [meta.students]);
-  const safeCourses = useMemo(() => (Array.isArray(meta.courses) ? meta.courses : []).filter(Boolean), [meta.courses]);
-  const safeLessons = useMemo(() => (Array.isArray(meta.lessons) ? meta.lessons : []).filter(Boolean), [meta.lessons]);
+  const safeCourses = useMemo(() => (Array.isArray(overview?.courses) ? overview.courses : []).filter(Boolean), [overview]);
+  const safeLessons = useMemo(() => lessonTitles.filter(Boolean), [lessonTitles]);
 
   const courseTitleById = useMemo(
     () => new Map(safeCourses.map((course) => [Number(course.id), course.courseTitle])),
@@ -748,53 +775,61 @@ export function AdminSubscriptionsPage() {
   );
   // Open on the first thing that needs doing: pending requests, else the subscriptions list.
   useEffect(() => {
-    if (loading || tabTouched.current) return;
-    if (pendingRequests.length === 0) setTab('subscriptions');
-  }, [loading, pendingRequests.length]);
+    if (!overview || tabTouched.current) return;
+    if (!overview.pendingRequests) setTab('subscriptions');
+  }, [overview]);
 
   const detailSubscription = detailId ? safeSubscriptions.find((item) => item.id === detailId) || null : null;
   const subPageCount = Math.max(1, Math.ceil(filteredSubscriptions.length / SUB_PAGE_SIZE));
   const subCurrentPage = Math.min(subPage, subPageCount);
   const pagedSubscriptions = filteredSubscriptions.slice((subCurrentPage - 1) * SUB_PAGE_SIZE, subCurrentPage * SUB_PAGE_SIZE);
-  const expiringSoonCount = useMemo(
-    () => safeSubscriptions.filter((subscription) => subscription?.isExpiringSoon).length,
-    [safeSubscriptions]
-  );
+  const expiringSoonCount = Number(overview?.expiringSoon || 0);
 
-  async function loadAll() {
-    setLoading(true);
-    setError('');
-
-    try {
-      const [planRows, metaData, subscriptionRows, requestRows, couponRows, auditRows] = await Promise.all([
-        fetchAdminPlans(),
-        fetchSubscriptionAdminMeta(),
-        fetchAdminSubscriptions(),
-        fetchAdminSubscriptionRequests(),
-        fetchSubscriptionCoupons(),
-        fetchSubscriptionAudit(),
-      ]);
-      setPlans(Array.isArray(planRows) ? planRows : []);
-      setMeta({
-        students: Array.isArray(metaData?.students) ? metaData.students : [],
-        plans: Array.isArray(metaData?.plans) ? metaData.plans : [],
-        courses: Array.isArray(metaData?.courses) ? metaData.courses : [],
-        lessons: Array.isArray(metaData?.lessons) ? metaData.lessons : [],
-      });
-      setSubscriptions(Array.isArray(subscriptionRows) ? subscriptionRows : []);
-      setRequests(Array.isArray(requestRows) ? requestRows : []);
-      setCoupons(Array.isArray(couponRows) ? couponRows : []);
-      setAuditEvents(Array.isArray(auditRows) ? auditRows : []);
-
-      // Loaded separately and deliberately swallowed on failure: this panel is
-      // a debugging aid, and an older backend that lacks the endpoint should
-      // not blank out plans and subscriptions with an error.
+  const tabLoaders = {
+    requests: async () => setRequests(asList(await fetchAdminSubscriptionRequests())),
+    subscriptions: async () => setSubscriptions(asList(await fetchAdminPaidSubscriptions())),
+    // The tab shows the newest 24 events.
+    audit: async () => setAuditEvents(asList(await fetchSubscriptionAudit(24))),
+    coupons: async () => setCoupons(asList(await fetchSubscriptionCoupons())),
+    // A debugging aid: an older backend without the endpoint must not blank the page.
+    apple: async () => {
       try {
-        const appleData = await fetchAppleTransactions();
-        setAppleTransactions(Array.isArray(appleData?.items) ? appleData.items : []);
+        const appleData = await fetchAppleTransactions({ limit: 50 });
+        setAppleTransactions(asList(appleData?.items));
       } catch {
         setAppleTransactions([]);
       }
+    },
+  };
+
+  async function loadTab(key) {
+    const load = tabLoaders[key];
+    if (!load) return;
+    await load();
+    setReady((current) => (current[key] ? current : { ...current, [key]: true }));
+  }
+
+  function ensureTab(key) {
+    if (!tabLoaders[key] || loadedRef.current.has(key)) return;
+    loadedRef.current.add(key);
+    loadTab(key).catch((loadError) => {
+      loadedRef.current.delete(key);
+      setError(getErrorMessage(loadError, 'Unable to load subscription data'));
+    });
+  }
+
+  // First open: the counts, the plans and (via the tab effect) the tab shown.
+  // After an action: the counts, the plans and the tabs already opened.
+  async function loadAll() {
+    setError('');
+    try {
+      const [overviewData, planRows] = await Promise.all([
+        fetchSubscriptionsOverview(),
+        fetchAdminPlans(),
+        ...[...loadedRef.current].map((key) => loadTab(key)),
+      ]);
+      setOverview(overviewData || null);
+      setPlans(asList(planRows));
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load subscription data'));
     } finally {
@@ -1191,8 +1226,8 @@ export function AdminSubscriptionsPage() {
   const manageToolsVisible = subscriptionView === 'manage';
 
   const studentTabs = [
-    { key: 'requests', label: 'Requests', count: pendingRequests.length, alert: pendingRequests.length > 0 },
-    { key: 'subscriptions', label: 'Subscriptions', count: safeSubscriptions.filter((item) => !isFreePlanSubscription(item)).length },
+    { key: 'requests', label: 'Requests', count: Number(overview?.pendingRequests || 0), alert: Number(overview?.pendingRequests || 0) > 0 },
+    { key: 'subscriptions', label: 'Subscriptions', count: Number(overview?.paidTotal || 0) },
     { key: 'apple', label: 'Apple purchases', count: appleTransactions.length || null },
     { key: 'audit', label: 'Audit log', count: null },
   ];
@@ -1202,6 +1237,37 @@ export function AdminSubscriptionsPage() {
   ];
   const visibleTabs = manageToolsVisible ? manageTabs : studentTabs;
   const activeTab = manageToolsVisible ? manageTab : tab;
+  // A tab's data loads the first time it is shown (Manage also shows the coupon count).
+  useEffect(() => {
+    if (!overview) return;
+    ensureTab(activeTab);
+    if (manageToolsVisible) ensureTab('coupons');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, manageToolsVisible, overview]);
+
+  // Lesson titles only when needed: all of them for the assign form's lesson
+  // scope, or just a subscription's own lessons for its details popup.
+  useEffect(() => {
+    if (assignForm.accessScope !== 'lessons' || allLessonsLoadedRef.current) return;
+    allLessonsLoadedRef.current = true;
+    fetchSubscriptionLessonTitles()
+      .then((rows) => setLessonTitles(rows))
+      .catch((loadError) => {
+        allLessonsLoadedRef.current = false;
+        setError(getErrorMessage(loadError, 'Unable to load lessons'));
+      });
+  }, [assignForm.accessScope]);
+
+  useEffect(() => {
+    const wanted = detailSubscription?.accessScope === 'lessons' ? (detailSubscription.lessonIds || []).map(Number) : [];
+    const known = new Set(lessonTitles.map((lesson) => Number(lesson.id)));
+    const missing = wanted.filter((id) => id > 0 && !known.has(id));
+    if (!missing.length) return;
+    fetchSubscriptionLessonTitles(missing)
+      .then((rows) => setLessonTitles((current) => [...current, ...rows.filter((row) => !known.has(Number(row.id)))]))
+      .catch(() => {});
+  }, [detailSubscription, lessonTitles]);
+
   const selectTab = (key) => {
     tabTouched.current = true;
     if (manageToolsVisible) setManageTab(key); else setTab(key);
@@ -1221,7 +1287,6 @@ export function AdminSubscriptionsPage() {
             <form className={ui.stackForm} onSubmit={handleAssignSubmit}>
               <div className={subscriptionUi.metaGrid}>
                 <StudentSearchSelect
-                  students={safeStudents}
                   value={assignForm.userId}
                   onChange={handleAssignStudentChange}
                 />
@@ -1562,7 +1627,8 @@ export function AdminSubscriptionsPage() {
           </form>
 
           <div className="mt-5">
-            {!loading && safeCoupons.length === 0 ? <div className={ui.emptyBox}>No coupon codes created yet.</div> : null}
+            {!ready.coupons ? <div className={ui.emptyBox}>Loading coupons…</div> : null}
+            {ready.coupons && safeCoupons.length === 0 ? <div className={ui.emptyBox}>No coupon codes created yet.</div> : null}
             {safeCoupons.length ? (
               <div className={ui.tableShell}>
                 <table className={ui.modernTable}>
@@ -1662,11 +1728,11 @@ export function AdminSubscriptionsPage() {
           {[
             manageToolsVisible
               ? { label: 'Plans', value: safePlans.length, hint: 'Subscription plans currently configured in the LMS.' }
-              : { label: 'Students', value: safeStudents.length, hint: 'Student accounts available for subscription assignment.' },
+              : { label: 'Students', value: Number(overview?.students || 0), hint: 'Student accounts available for subscription assignment.' },
             manageToolsVisible
               ? { label: 'Coupons', value: safeCoupons.length, hint: 'Bank-transfer coupon codes currently configured.' }
               : { label: 'Pending requests', value: pendingRequests.length, hint: 'Student requests waiting for admin decision.', alert: pendingRequests.length > 0 },
-            { label: 'Active subs', value: safeSubscriptions.filter((subscription) => subscription?.status === 'active' && !isFreePlanSubscription(subscription)).length, hint: 'Paid or assigned subscriptions that are active right now (the free plan is not counted).' },
+            { label: 'Active subs', value: Number(overview?.activePaid || 0), hint: 'Paid or assigned subscriptions that are active right now (the free plan is not counted).' },
             { label: 'Expiring soon', value: expiringSoonCount, hint: 'Subscriptions ending within 7 days.', alert: expiringSoonCount > 0 },
           ].map((card) => (
             <article key={card.label} className={subscriptionUi.overviewCard} title={card.hint}>
@@ -1807,7 +1873,8 @@ export function AdminSubscriptionsPage() {
             </div>
           </div>
 
-          {!loading && appleTransactions.length === 0 ? (
+          {!ready.apple ? <div className={ui.emptyBox}>Loading Apple purchases…</div> : null}
+          {ready.apple && appleTransactions.length === 0 ? (
             <div className={ui.emptyBox}>No Apple purchases recorded yet.</div>
           ) : null}
           {appleTransactions.length ? (
@@ -1886,7 +1953,8 @@ export function AdminSubscriptionsPage() {
             </div>
           </div>
 
-          {!loading && safeRequests.length === 0 ? <div className={ui.emptyBox}>No upgrade requests yet.</div> : null}
+          {!ready.requests ? <div className={ui.emptyBox}>Loading requests…</div> : null}
+          {ready.requests && safeRequests.length === 0 ? <div className={ui.emptyBox}>No upgrade requests yet.</div> : null}
           {safeRequests.length ? (
             <div className={ui.tableShell}>
               <table className={ui.modernTable}>
@@ -2007,17 +2075,17 @@ export function AdminSubscriptionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
+                  {!ready.subscriptions ? (
                     <tr>
                       <td colSpan="5" className={ui.tableEmpty}>Loading subscriptions...</td>
                     </tr>
                   ) : null}
-                  {!loading && filteredSubscriptions.length === 0 ? (
+                  {ready.subscriptions && filteredSubscriptions.length === 0 ? (
                     <tr>
                       <td colSpan="5" className={ui.tableEmpty}>No subscriptions match the current filters.</td>
                     </tr>
                   ) : null}
-                    {!loading && pagedSubscriptions.map((subscription) => (
+                    {ready.subscriptions && pagedSubscriptions.map((subscription) => (
                       <tr key={subscription.id} className="cursor-pointer transition hover:bg-surface-2/60 [&>td]:!py-2.5" onClick={() => setDetailId(subscription.id)}>
                         <td className={cx(ui.tableCell, 'min-w-[170px]')}>
                           <button
@@ -2063,7 +2131,8 @@ export function AdminSubscriptionsPage() {
             </div>
           </div>
 
-          {!loading && safeAuditEvents.length === 0 ? <div className={ui.emptyBox}>No subscription audit events yet.</div> : null}
+          {!ready.audit ? <div className={ui.emptyBox}>Loading audit log…</div> : null}
+          {ready.audit && safeAuditEvents.length === 0 ? <div className={ui.emptyBox}>No subscription audit events yet.</div> : null}
           {safeAuditEvents.length ? (
             <div className="grid gap-2.5">
               {safeAuditEvents.slice(0, 24).map((event) => (

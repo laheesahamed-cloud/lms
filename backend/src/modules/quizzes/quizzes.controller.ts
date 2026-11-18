@@ -26,9 +26,13 @@ export class QuizzesController {
     @Query('limit') limit?: string,
     @Query('page') page?: string,
     @Query('offset') offset?: string,
-    @Query('order') order?: string
+    @Query('order') order?: string,
+    @Query('after') after?: string,
+    @Query('slim') slim?: string
   ) {
     return this.quizzesService.findAll({
+      after: this.parsePositiveNumber(after),
+      slim: slim === '1' || slim === 'true',
       search,
       courseId: courseId ? parseInt(courseId, 10) : undefined,
       topicId: topicId || undefined,
@@ -60,7 +64,9 @@ export class QuizzesController {
   @Get('meta')
   @UseGuards(AdminGuard)
   @RequirePermissions('quizzes.manage')
-  meta(@Query('includeQuestions') includeQuestions?: string) {
+  meta(@Query('includeQuestions') includeQuestions?: string, @Query('scope') scope?: string) {
+    // `scope=folders`: the Assessments list page only shows courses and subjects.
+    if (scope === 'folders') return this.quizzesService.metaFolders();
     return this.quizzesService.meta({
       includeQuestions: includeQuestions === '1' || includeQuestions === 'true',
     });

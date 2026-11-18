@@ -25,9 +25,27 @@ class FakeDb {
       const quizzes = params.slice(questionCount);
       return [[...new Set(LINKS.filter(([quiz, question]) => questions.includes(question) && !quizzes.includes(quiz)).map(([, question]) => question))].map((question_id) => ({ question_id })), []];
     }
-    if (q.includes('FROM quiz_attempts')) return [[{ total: 7 }], []];
+    // 10.44: results students hold, from their summary rows (quiz 1 ×2, quiz 2 ×1, quiz 3 ×4 → 3 for quizzes 1+2).
+    if (q.startsWith('SELECT user_id, recent_results FROM student_study_summary')) {
+      const at = '2026-11-17T10:00:00.000Z';
+      return [[
+        { user_id: 100, recent_results: JSON.stringify([{ k: '1', quizId: 1, pct: 50, at }, { k: '3', quizId: 3, pct: 50, at }]) },
+        { user_id: 101, recent_results: JSON.stringify([{ k: '1', quizId: 1, pct: 80, at }, { k: '2', quizId: 2, pct: 80, at }, { k: '3', quizId: 3, pct: 80, at }]) },
+        { user_id: 102, recent_results: JSON.stringify([{ k: '3', quizId: 3, pct: 10, at }, { k: '3', quizId: 3, pct: 10, at }]) },
+      ], []];
+    }
     if (q.includes('AS active_count')) return [[{ active_count: 0 }], []];
     if (q.startsWith('DELETE FROM questions')) return [{ affectedRows: params.length }, []];
+    return [{ affectedRows: 0 }, []];
+  }
+  async query(sql: string, params: any[] = []): Promise<[any, any]> {
+    const q = sql.replace(/\s+/g, ' ').trim();
+    const flat = params.flat();
+    this.statements.push({ sql: q, params: flat });
+    if (q.startsWith('SELECT id, course_id, topic_id, is_general, status FROM quizzes')) {
+      return [flat.filter((id) => this.quizStatus[id]).map((id) => ({ id, course_id: 10, topic_id: 20, is_general: 0, status: this.quizStatus[id] })), []];
+    }
+    if (q.startsWith('SELECT')) return [[], []];
     return [{ affectedRows: 0 }, []];
   }
   async getConnection() {
@@ -38,6 +56,8 @@ class FakeDb {
       rollback: async () => {},
       release: () => {},
       execute: (sql: string, params?: any[]) => db.execute(sql, params),
+      // Stored counts (quiz-counts.ts) use query() with `IN (?)` array params.
+      query: (sql: string, params?: any[]) => db.query(sql, params),
     };
   }
 }
@@ -49,7 +69,7 @@ async function main() {
   // Preview changes nothing and counts correctly.
   const previewDb = new FakeDb();
   const preview = await make(previewDb).bulkDeletePreview({ quizIds: [1, 2] });
-  assert.deepEqual(preview, { quizzes: 2, questionsInside: 3, questionsOnlyHere: 2, questionsShared: 1, attempts: 7 });
+  assert.deepEqual(preview, { quizzes: 2, questionsInside: 3, questionsOnlyHere: 2, questionsShared: 1, attempts: 3 });
   assert.equal(deletedTables(previewDb).length, 0, 'preview must not delete anything');
 
   // Assessments only: no question is deleted, all 3 stay.

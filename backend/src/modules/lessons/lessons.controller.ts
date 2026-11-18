@@ -48,8 +48,6 @@ import { RequirePermissions } from '../auth/permissions.decorator';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
-import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
-import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
 
 /**
  * Multer throws its own error type when a file exceeds `limits.fileSize`, and
@@ -127,42 +125,6 @@ export class LessonsController {
     @Headers('x-app-client') appClient?: string
   ) {
     return this.lessonsService.findStudentLesson(id, authorization, appClient);
-  }
-
-  @Get(':lessonId/annotations')
-  findStudentAnnotations(
-    @Param('lessonId', ParseIntPipe) lessonId: number,
-    @Headers('authorization') authorization?: string
-  ) {
-    return this.lessonsService.findStudentAnnotations(lessonId, authorization);
-  }
-
-  @Post(':lessonId/annotations')
-  createStudentAnnotation(
-    @Param('lessonId', ParseIntPipe) lessonId: number,
-    @Body() createLessonAnnotationDto: CreateLessonAnnotationDto,
-    @Headers('authorization') authorization?: string
-  ) {
-    return this.lessonsService.createStudentAnnotation(lessonId, createLessonAnnotationDto, authorization);
-  }
-
-  @Patch(':lessonId/annotations/:annotationId')
-  updateStudentAnnotation(
-    @Param('lessonId', ParseIntPipe) lessonId: number,
-    @Param('annotationId', ParseIntPipe) annotationId: number,
-    @Body() updateLessonAnnotationDto: UpdateLessonAnnotationDto,
-    @Headers('authorization') authorization?: string
-  ) {
-    return this.lessonsService.updateStudentAnnotation(lessonId, annotationId, updateLessonAnnotationDto, authorization);
-  }
-
-  @Delete(':lessonId/annotations/:annotationId')
-  removeStudentAnnotation(
-    @Param('lessonId', ParseIntPipe) lessonId: number,
-    @Param('annotationId', ParseIntPipe) annotationId: number,
-    @Headers('authorization') authorization?: string
-  ) {
-    return this.lessonsService.removeStudentAnnotation(lessonId, annotationId, authorization);
   }
 
   @Post()
@@ -372,14 +334,51 @@ export class LessonsController {
     return this.lessonsService.getCanvasGenerateJob(jobId, this.bearerToken(auth));
   }
 
-  @Get('canvas/admin')
-  canvasAdminList(@Headers('authorization') auth: string, @Query('engineKey') engineKey?: string) {
-    return this.lessonsService.canvasAdminList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  // Structure page: one subject's lessons, titles only (no lesson body). Declared
+  // before 'canvas/admin/:id' so "structure" is never read as a lesson id.
+  @Get('canvas/admin/structure')
+  canvasAdminStructureLessons(
+    @Headers('authorization') auth: string,
+    @Query('topicId') topicId?: string,
+    @Query('engineKey') engineKey?: string,
+  ) {
+    return this.lessonsService.canvasAdminStructureLessons(
+      Number(topicId),
+      this.bearerToken(auth),
+      this.lessonsService.normalizeEngineKey(engineKey),
+    );
   }
 
-  @Patch('canvas/admin/reorder')
-  canvasReorderLessons(@Headers('authorization') auth: string, @Body('orderedIds') orderedIds: number[]) {
-    return this.lessonsService.canvasReorderLessons(Array.isArray(orderedIds) ? orderedIds.map(Number) : [], this.bearerToken(auth));
+  // Structure page "Fix counts": GET checks (cheap); the fix runs in small steps.
+  @Get('canvas/admin/structure/counts')
+  canvasAdminStructureCountsCheck(@Headers('authorization') auth: string) {
+    return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'check' });
+  }
+
+  @Post('canvas/admin/structure/counts/fix/start')
+  canvasAdminStructureCountsStart(@Headers('authorization') auth: string, @Body('courseId') courseId?: number) {
+    return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'start', courseId: courseId != null ? Number(courseId) : undefined });
+  }
+
+  @Post('canvas/admin/structure/counts/fix/set')
+  canvasAdminStructureCountsSet(@Headers('authorization') auth: string, @Body() body: Record<string, unknown>) {
+    return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), {
+      step: 'set', runId: String(body?.runId || ''), subjectIds: Array.isArray(body?.subjectIds) ? (body.subjectIds as unknown[]).map(Number) : (undefined as any),
+      finish: Array.isArray(body?.finish) ? (body.finish as any[]) : undefined,
+    });
+  }
+
+  @Post('canvas/admin/structure/counts/fix/finish')
+  canvasAdminStructureCountsFinish(@Headers('authorization') auth: string, @Body() body: Record<string, unknown>) {
+    return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), {
+      step: 'finish', runId: String(body?.runId || ''), courses: Array.isArray(body?.courses) ? (body.courses as any[]) : (undefined as any),
+    });
+  }
+
+  // Structure page: move one item between two neighbours (gap ranks).
+  @Post('canvas/admin/structure/move')
+  canvasAdminStructureMove(@Headers('authorization') auth: string, @Body() body: Record<string, unknown>) {
+    return this.lessonsService.canvasAdminStructureMove(body || {}, this.bearerToken(auth));
   }
 
   @Get('canvas/hierarchy/courses')

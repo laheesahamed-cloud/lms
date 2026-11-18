@@ -590,7 +590,15 @@ export function LoginPage() {
       if (PLATFORM.isNative && PLATFORM.isIos) {
         showNativeDocument();
       }
-      setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in'), success: '' });
+      // One plain message for a wrong or badly typed email / password (never the
+      // server's field messages such as "email must be an email").
+      const code = Number(err?.response?.status || 0);
+      const message = code === 400 || code === 401 || code === 404
+        ? 'Incorrect email or password.'
+        : code === 429
+          ? 'Too many tries. Wait a few minutes and try again.'
+          : getErrorMessage(err, 'Unable to sign in');
+      setStatus({ loading: false, error: message, success: '' });
     }
   }
 
@@ -846,6 +854,21 @@ export function LoginPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleSdk, googleClientId, googleConfigStatus.error]);
+
+  // ?start=google (the demo page's "Get started" sheet): start the same Google
+  // sign-in as the button, once, as soon as the page opens.
+  const autoGoogleRef = useRef(false);
+  useEffect(() => {
+    if (autoGoogleRef.current || googleReturnPending || appleReturnPending) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('start') !== 'google') return;
+    autoGoogleRef.current = true;
+    params.delete('start');
+    const rest = params.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
+    handleGoogleButtonClick();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Apple redirect return (?apple=success): the backend already set the session
   // cookie. Strip the marker, hydrate the user from it, then land on the dashboard

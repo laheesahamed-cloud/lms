@@ -4,7 +4,10 @@
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "frontend",
       "port": 5174,
       "autoPort": false
@@ -12,7 +15,10 @@
     {
       "name": "backend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start:dev"],
+      "runtimeArgs": [
+        "run",
+        "start:dev"
+      ],
       "cwd": "backend",
       "port": 3000,
       "autoPort": true
@@ -20,8 +26,105 @@
     {
       "name": "dashmock",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4599", "--directory", "/tmp/dash_mock"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4599",
+        "--directory",
+        "/tmp/dash_mock"
+      ],
       "port": 4599
+    },
+    {
+      "name": "monitor",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/dev-monitor/server.mjs"
+      ],
+      "port": 4700,
+      "autoPort": false
+    },
+    {
+      "name": "mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4710",
+        "--directory",
+        "tools/mockups"
+      ],
+      "port": 4710,
+      "autoPort": false
+    },
+    {
+      "name": "frontend-traced",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "DEV_API_TARGET=http://localhost:3200",
+        "VITE_API_BASE_URL=http://localhost:3200/api",
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5175",
+        "--strictPort"
+      ],
+      "cwd": "frontend",
+      "port": 5175,
+      "autoPort": false
+    },
+    {
+      "name": "monitor-all",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "MONITOR_CLIENT=all",
+        "node",
+        "tools/dev-monitor/server.mjs"
+      ],
+      "port": 4700,
+      "autoPort": false
+    },
+    {
+      "name": "frontend-student-traced",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "DEV_API_TARGET=http://127.0.0.1:3200",
+        "VITE_API_BASE_URL=http://127.0.0.1:3200/api",
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5177",
+        "--strictPort"
+      ],
+      "cwd": "frontend",
+      "port": 5177,
+      "autoPort": false
+    },
+    {
+      "name": "web-build-preview",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "DEV_API_TARGET=http://127.0.0.1:3200",
+        "npx",
+        "vite",
+        "preview",
+        "--outDir",
+        "/private/tmp/claude-501/-Applications-XAMPP-xamppfiles-htdocs-lms/5b8b6cd1-53cd-49ae-ab31-60d977498ed8/scratchpad/webdist",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "cwd": "frontend",
+      "port": 4173,
+      "autoPort": false
     }
   ]
 }

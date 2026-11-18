@@ -37,6 +37,8 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
 
   (IconData, Color) _visual(AppColors c, String kind) {
     switch (kind) {
+      case 'new-content':
+        return (Icons.library_add_outlined, c.primary);
       case 'subscription':
         return (Icons.workspace_premium_outlined, c.primary);
       case 'weak':

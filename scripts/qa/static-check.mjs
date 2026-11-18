@@ -27,7 +27,7 @@ if (!backendPackage.scripts?.build) failures.push('backend/package.json is missi
 if (!frontendPackage.scripts?.build) failures.push('frontend/package.json is missing scripts.build');
 
 const appModule = readProjectFile('backend/src/app.module.ts');
-for (const moduleName of ['AuthModule', 'CoursesModule', 'QuizAttemptsModule', 'ResultsModule', 'DashboardModule']) {
+for (const moduleName of ['AuthModule', 'CoursesModule', 'QuizAttemptsModule', 'DashboardModule', 'AppStartModule']) { // ResultsModule retired (results come from the student summary row)
   if (!appModule.includes(moduleName)) {
     failures.push(`AppModule is missing ${moduleName}`);
   }

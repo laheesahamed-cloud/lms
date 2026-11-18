@@ -1,3 +1,10 @@
+import '../../state/content_files.dart';
+import 'dart:convert';
+import 'dart:async';
+import '../../core/perf_log.dart';
+import '../../state/catalogue.dart';
+import '../../state/study_days.dart';
+import '../../state/weak_topics.dart';
 import '../../services/xp_gain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
@@ -95,17 +102,14 @@ class QuizListItem {
   }
 
   /// The student-facing name shown consistently everywhere a quiz is named
-  /// (Q-Bank list, the dashboard "Continue" card, …) — mirrors the web
-  /// frontend label: "Quiz N" in number mode, otherwise the real title.
+  /// (Q-Bank list, the dashboard "Continue" card, …): its one name (10.25).
   String get displayName {
-    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
     return title.trim().isNotEmpty ? title.trim() : 'Quiz';
   }
 
   /// The row label, mirroring the web `getQuizRowLabel`: [displayName] with a
   /// positional fallback ("Practice set N") when a set has no title.
   String rowLabel(int index) {
-    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
     return title.trim().isNotEmpty ? title.trim() : 'Practice set ${index + 1}';
   }
 
@@ -269,11 +273,13 @@ class PracticeQuiz {
   final String title;
   final int totalQuestions;
   final int timeLimit; // minutes (exam mode)
+  final int passingMarks; // % needed to pass (10.28: a passed practice pays 1 XP)
   final List<PracticeQuestion> questions;
   PracticeQuiz(
       {required this.title,
       required this.totalQuestions,
       required this.timeLimit,
+      this.passingMarks = 45,
       required this.questions});
 
   factory PracticeQuiz.fromJson(dynamic raw) {
@@ -286,6 +292,7 @@ class PracticeQuiz {
       title: _s(quiz['studentTitle'] ?? quiz['quizTitle'] ?? 'Quiz'),
       totalQuestions: _i(quiz['totalQuestions'] ?? qs.length),
       timeLimit: _i(quiz['timeLimit']),
+      passingMarks: _i(quiz['passingMarks']) > 0 ? _i(quiz['passingMarks']) : 45,
       questions: qs,
     );
   }
@@ -442,39 +449,207 @@ List<QuizScopeGroup> groupQuizzesByScope(
 /// data refreshes in the background while the last result stays on screen.
 /// Safe to retain: resetUserScopedData() invalidates all of these on
 /// login/logout/account switch.
+/// Every active quiz set with this student's done / lock state. Built on the
+/// phone from the shared catalogue and the student's progress (step 5): no
+/// quiz-list request.
 final quizListProvider = FutureProvider<List<QuizListItem>>((ref) async {
   ref.watch(userScopeProvider);
-  final api = ref.read(apiClientProvider);
-  return savedFirst(
-    ref,
-    name: 'quizzes',
-    fetch: () async => (await api.dio.get('/quiz-attempts/quizzes')).data,
-    parse: (data) async {
-      final rows = (data is List)
-          ? data
-          : (data is Map ? (data['quizzes'] ?? data['items'] ?? data['data'] ?? const []) : const []);
-      return (rows as List).map(QuizListItem.fromJson).toList();
-    },
-  );
+  final cat = await ref.watch(quizCatalogueProvider.future);
+  final prog = await ref.watch(studentProgressProvider.future);
+  final items = buildQuizItems(cat, prog);
+  PerfLog.mark('quiz list built (${items.length})');
+  return items;
 });
 
+const _generalLabel = 'General / Full Course Revision';
+
+List<QuizListItem> buildQuizItems(Catalogue cat, StudentProgress prog) {
+  final out = <QuizListItem>[];
+  for (final q in cat.quizzes) {
+    final id = q[0] as int, courseId = q[1] as int;
+    final course = cat.courseById[courseId];
+    final subject = '${cat.subjectById[q[2]]?[2] ?? ''}';
+    final topic = '${cat.topicById[q[3]]?[2] ?? ''}';
+    final isGeneral = q[5] == 1, isFree = q[7] == 1, isDynamic = q[15] == 1;
+    final general = isGeneral && subject.isEmpty ? _generalLabel : '';
+    final can = prog.canOpenQuiz(courseId, isFree);
+    final canDynamic = !isDynamic || isFree || prog.features;
+    final p = prog.quizzes[id];
+    final studentTitle = '${q[8]}'.isNotEmpty ? '${q[8]}' : '${q[9]}';
+    out.add(QuizListItem.fromJson(<String, dynamic>{
+      'id': id,
+      'courseId': courseId,
+      'topicId': q[2],
+      'subtopicId': q[3] == 0 ? null : q[3],
+      'lessonId': q[4] == 0 ? null : q[4],
+      'isGeneral': isGeneral,
+      'examModeOnly': q[6] == 1,
+      'quizTitle': '${q[9]}',
+      'studentTitle': studentTitle,
+      'displayTitleMode': q[10] == 1 ? 'number' : 'title',
+      'quizNumber': q[11] == 0 ? null : q[11],
+      'quizDescription': '',
+      'totalQuestions': q[12],
+      'timeLimit': q[13],
+      'passingMarks': q[14],
+      'courseTitle': '${course?[1] ?? ''}',
+      'examType': '${course?[3] ?? ''}',
+      'subjectName': subject.isNotEmpty ? subject : general,
+      'topicName': topic.isNotEmpty ? topic : (general.isNotEmpty ? '\u3000$general' : ''),
+      'subtopicName': topic,
+      'lessonTitle': '${cat.lessonById[q[4]]?[4] ?? ''}',
+      'isCompleted': p != null && (p[0] > 0 || p[1] > 0),
+      'isFree': isFree,
+      'accessLocked': !(can && canDynamic),
+      'canPracticeMode': can && canDynamic && (prog.features || isFree),
+      'canExamMode': can && canDynamic && (prog.features || isFree),
+    }));
+  }
+  return out;
+}
+
 /// Load a quiz in practice mode (answers + explanations inline for the reveal).
+/// Step 5: a downloaded practice quiz is kept on the phone (a file) and reused
+/// until the catalogue version changes (any admin content save), so practising
+/// it again or reopening it costs no request. Only quizzes this student may
+/// open are kept/used.
 final practiceQuizProvider =
     FutureProvider.autoDispose.family<PracticeQuiz, String>((ref, quizId) async {
   ref.watch(userScopeProvider);
   final api = ref.read(apiClientProvider);
+  final info = await _quizInfo(_readerOf(ref), quizId);
+  final file = 'quiz_$quizId.json';
+  if (info.canOpen) {
+    final saved = await _savedPracticeData(quizId, info.stamp);
+    if (saved != null) return PracticeQuiz.fromJson(saved);
+  }
   final res = await api.dio.get(
     '/quiz-attempts/quiz/$quizId',
     queryParameters: const {'mode': 'practice'},
   );
+  if (info.canOpen && res.data is Map) {
+    unawaited(ContentFiles.write(file, jsonEncode({'s': info.stamp, 'v': catalogueVersion, 'data': res.data})));
+  }
   return PracticeQuiz.fromJson(res.data);
 });
+
+/// The two lists a quiz check needs, read through a provider [Ref] or a
+/// widget's [WidgetRef] (both already loaded; no request).
+typedef _Read = ({Future<Catalogue> Function() cat, Future<StudentProgress> Function() prog});
+_Read _readerOf(Ref ref) => (cat: () => ref.read(quizCatalogueProvider.future), prog: () => ref.read(studentProgressProvider.future));
+_Read _readerOfWidget(WidgetRef ref) => (cat: () => ref.read(quizCatalogueProvider.future), prog: () => ref.read(studentProgressProvider.future));
+
+/// What the phone knows about a quiz from the Q-Bank list (no request):
+/// whether this student can open it, its content stamp (10.27 R3) and whether
+/// it is a dynamic set (a new mix of questions each open).
+Future<({bool canOpen, int? stamp, bool dynamic})> _quizInfo(_Read read, String quizId) async {
+  try {
+    final cat = await read.cat();
+    final prog = await read.prog();
+    final id = int.tryParse(quizId) ?? 0;
+    for (final q in cat.quizzes) {
+      if (q[0] == id) {
+        final canOpen = prog.canOpenQuiz(q[1] as int, q[7] == 1) && (q[15] == 0 || q[7] == 1 || prog.features);
+        final stamp = q.length > 16 ? (q[16] as num?)?.toInt() : null;
+        return (canOpen: canOpen, stamp: stamp, dynamic: q[15] == 1);
+      }
+    }
+  } catch (_) {}
+  return (canOpen: false, stamp: null, dynamic: false);
+}
+
+/// The saved practice quiz when it is still this quiz's current content:
+/// same quiz stamp (10.27 R3: kept until THIS quiz changes), or — from a
+/// server without stamps — the same list version.
+Future<Map<String, dynamic>?> _savedPracticeData(String quizId, int? stamp) async {
+  final saved = await ContentFiles.read('quiz_$quizId.json');
+  if (saved == null) return null;
+  try {
+    final m = jsonDecode(saved) as Map;
+    final ok = stamp != null
+        ? (m['s'] as num?)?.toInt() == stamp
+        : catalogueVersion != null && (m['v'] as num?)?.toInt() == catalogueVersion;
+    return ok && m['data'] is Map ? Map<String, dynamic>.from(m['data'] as Map) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 10.31: a Question of the Day picked from the practice sets already saved
+/// on this phone — no request. Only sets this student can open and that are
+/// still current; single-best-answer questions with exactly 5 options and one
+/// right. Sets with the lowest best mark come first (revision), questions in
+/// [skip] (recently shown) are left out. Null when nothing is saved.
+Future<Map<String, dynamic>?> pickSavedPracticeQuestion(Ref ref, Set<int> skip) async {
+  final read = _readerOf(ref);
+  final files = await ContentFiles.names('quiz_');
+  final ids = <int>[
+    for (final f in files)
+      if (RegExp(r'^quiz_(\d+)\.json$').firstMatch(f) case final m?) int.parse(m.group(1)!),
+  ];
+  if (ids.isEmpty) return null;
+  StudentProgress? prog;
+  try {
+    prog = await read.prog();
+  } catch (_) {}
+  // Lowest best mark first; not-yet-marked sets after; ties shuffled.
+  ids.shuffle();
+  int rank(int id) => prog?.quizBest(id) ?? 101;
+  ids.sort((a, b) => rank(a).compareTo(rank(b)));
+  for (final id in ids) {
+    final info = await _quizInfo(read, '$id');
+    if (!info.canOpen) continue;
+    final data = await _savedPracticeData('$id', info.stamp);
+    if (data == null) continue;
+    final quiz = PracticeQuiz.fromJson(data);
+    final pool = quiz.questions
+        .where((q) => q.type == 'sba' && q.options.length == 5 && q.correctOptionIds.length == 1 && !skip.contains(q.id))
+        .toList()
+      ..shuffle();
+    if (pool.isEmpty) continue;
+    final q = pool.first;
+    return {
+      'id': q.id,
+      'questionType': q.type,
+      'questionText': q.text,
+      'courseTitle': '',
+      'subjectName': quiz.title,
+      'topicName': '',
+      'options': [
+        for (final o in q.options)
+          {'id': o.id, 'optionLabel': o.label, 'optionText': o.text, 'isCorrect': q.correctOptionIds.contains(o.id)},
+      ],
+    };
+  }
+  return null;
+}
+
+/// 10.27 R4: a full review carries the practice header — keep its questions
+/// as this quiz's practice copy too, so they're never downloaded twice.
+Future<void> _keepPracticeFromReview(_Read read, String quizId, Map<String, dynamic> m) async {
+  final header = m['practiceQuiz'];
+  final questions = (m['review'] is Map) ? (m['review'] as Map)['questions'] : null;
+  if (header is! Map || questions is! List || questions.isEmpty) return;
+  final info = await _quizInfo(read, quizId);
+  if (!info.canOpen || info.dynamic || info.stamp == null) return;
+  const keys = ['id', 'questionType', 'questionText', 'explanation', 'explanationImageUrl',
+    'questionApproach', 'questionApproachHighlights', 'options', 'theoryRecap'];
+  final practice = {
+    'mode': 'practice',
+    'quiz': header,
+    'questions': [
+      for (final q in questions)
+        if (q is Map) {for (final k in keys) if (q.containsKey(k)) k: q[k]},
+    ],
+  };
+  await ContentFiles.write('quiz_$quizId.json', jsonEncode({'s': info.stamp, 'v': catalogueVersion, 'data': practice}));
+}
 
 // ---------------------------------------------------------------------------
 // EXAM MODE — real exam sessions submitted to the DB (mirrors the web LMS).
 // ---------------------------------------------------------------------------
 
-/// One server-side exam session (`GET /quiz-attempts/quiz/:id?mode=exam`).
+/// The exam in progress, built from the start reply (`POST /quiz-attempts/exam/:id/start`).
 class ExamSession {
   final int id;
   final String status; // in_progress | submitted | expired
@@ -518,6 +693,9 @@ class ExamLoad {
   final int timeLimit; // minutes
   final ExamSession session;
   final List<PracticeQuestion> questions;
+  /// The signed exam token (OPTIMIZE 10.16) and when the exam started.
+  final String examToken;
+  final DateTime? startedAt;
 
   ExamLoad({
     required this.title,
@@ -525,7 +703,39 @@ class ExamLoad {
     required this.timeLimit,
     required this.session,
     required this.questions,
+    this.examToken = '',
+    this.startedAt,
   });
+
+  /// From the start reply (`POST /quiz-attempts/exam/:id/start`), new or kept on the phone.
+  factory ExamLoad.fromStart(dynamic raw) {
+    final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final quiz = (m['quiz'] is Map) ? Map<String, dynamic>.from(m['quiz']) : <String, dynamic>{};
+    final qs = (m['questions'] is List)
+        ? (m['questions'] as List).map(PracticeQuestion.fromJson).toList()
+        : <PracticeQuestion>[];
+    final started = DateTime.tryParse('${m['startedAt'] ?? ''}');
+    final deadline = DateTime.tryParse('${m['deadlineAt'] ?? ''}');
+    final limit = _i(quiz['timeLimit']);
+    return ExamLoad(
+      title: _s(quiz['studentTitle'] ?? quiz['quizTitle'] ?? 'Exam'),
+      totalQuestions: _i(quiz['totalQuestions'] ?? qs.length),
+      timeLimit: limit,
+      session: ExamSession(
+        id: 0,
+        status: 'in_progress',
+        secondsRemaining: limit > 0 && deadline != null
+            ? deadline.difference(DateTime.now()).inSeconds.clamp(0, limit * 60)
+            : null,
+        lastQuestionIndex: 0,
+        answers: const {},
+        submittedAttemptId: null,
+      ),
+      questions: qs,
+      examToken: _s(m['examToken']),
+      startedAt: started,
+    );
+  }
 
   factory ExamLoad.fromJson(dynamic raw) {
     final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
@@ -544,50 +754,220 @@ class ExamLoad {
   }
 }
 
-/// Load a quiz in exam mode — creates/returns the server exam session.
+// ── Exams on the progress row (OPTIMIZE 10.16) ──────────────────────────────
+// Start = 1 request (1 statement on the server), answering / resuming = on the
+// phone, submit = 1 request (1 statement). The running exam is kept on the
+// phone (`exam_<id>.json`) until it is submitted or its time is up.
+
+String _examFile(String quizId) => 'exam_$quizId.json';
+String _resultFile(String quizId) => 'result_$quizId.json';
+
+/// This quiz's questions from the practice file on the phone (current quiz
+/// stamp only, 10.27 R3), by question id — or null when the phone doesn't have it.
+Future<Map<int, Map<String, dynamic>>?> _practiceQuestions(_Read read, String quizId) async {
+  final info = await _quizInfo(read, quizId);
+  final data = await _savedPracticeData(quizId, info.stamp);
+  if (data == null) return null;
+  final qs = (data['questions'] as List?) ?? const [];
+  return {
+    for (final q in qs)
+      if (q is Map) _i(q['id']): Map<String, dynamic>.from(q),
+  };
+}
+
+/// A lean review (10.26 P2: answer states only) joined with the question
+/// text, options, explanation and recap from the practice file. Null when a
+/// question isn't in the file (the caller then asks for the full review).
+Map<String, dynamic>? _widenReview(Map<String, dynamic> m, Map<int, Map<String, dynamic>>? practice) {
+  if (m['lean'] != true) return m;
+  if (practice == null) return null;
+  final review = Map<String, dynamic>.from(m['review'] as Map? ?? const {});
+  final merged = <Map<String, dynamic>>[];
+  for (final q in (review['questions'] as List? ?? const [])) {
+    final answer = Map<String, dynamic>.from(q as Map);
+    final question = practice[_i(answer['id'])];
+    if (question == null) return null;
+    merged.add({...question, ...answer});
+  }
+  review['questions'] = merged;
+  return {...m, 'review': review}..remove('lean');
+}
+
+/// Starting this exam would push out a recent result that is not yet reviewed
+/// and passed (the 5-result rule): the screen shows the lock card instead.
+class ExamLockedException implements Exception {
+  final int blockingQuizId;
+  final String blockingTitle;
+  /// The blocking result is passed: reviewing it is all that is needed.
+  final bool reviewOnly;
+  const ExamLockedException(this.blockingQuizId, this.blockingTitle, {this.reviewOnly = false});
+  @override
+  String toString() => 'Review and pass $blockingTitle first';
+}
+
+/// The recent result that blocks a new exam, or null (phone only, no request).
+Future<({int quizId, String title, bool reviewOnly})?> examLockFor(Ref ref, int quizId) async {
+  final prog = await ref.read(studentProgressProvider.future);
+  final id = prog.examBlocker(quizId); // free-slot rule (10.18)
+  if (id == null) return null;
+  Catalogue? cat;
+  try {
+    cat = await ref.read(quizCatalogueProvider.future);
+  } catch (_) {}
+  return (quizId: id, title: examBlockerTitle(cat, id), reviewOnly: prog.examBlockerPassed(id));
+}
+
+/// The blocking result's quiz name for the lock card.
+String examBlockerTitle(Catalogue? cat, int id) {
+  for (final q in cat?.quizzes ?? const <List>[]) {
+    if (q[0] == id) return '${q[8]}'.isNotEmpty ? '${q[8]}' : '${q[9]}';
+  }
+  return 'your oldest result';
+}
+
+/// Load a quiz in exam mode: the exam already running on this phone (until its
+/// time is up), else a new one from the server.
 final examQuizProvider =
     FutureProvider.autoDispose.family<ExamLoad, String>((ref, quizId) async {
   ref.watch(userScopeProvider);
+  final saved = await ContentFiles.read(_examFile(quizId));
+  if (saved != null && saved.isNotEmpty) {
+    try {
+      final m = jsonDecode(saved) as Map;
+      final deadline = DateTime.tryParse('${(m['start'] as Map?)?['deadlineAt'] ?? ''}');
+      if (deadline != null && DateTime.now().isBefore(deadline)) return ExamLoad.fromStart(m['start']);
+    } catch (_) {}
+  }
+  final lock = await examLockFor(ref, int.tryParse(quizId) ?? 0);
+  if (lock != null) throw ExamLockedException(lock.quizId, lock.title, reviewOnly: lock.reviewOnly);
   final api = ref.read(apiClientProvider);
-  final res = await api.dio.get(
-    '/quiz-attempts/quiz/$quizId',
-    queryParameters: const {'mode': 'exam'},
-  );
-  return ExamLoad.fromJson(res.data);
+  final res = await api.dio.post('/quiz-attempts/exam/$quizId/start');
+  await ContentFiles.write(_examFile(quizId), jsonEncode({'start': res.data}));
+  return ExamLoad.fromStart(res.data);
 });
 
-/// Submit an exam attempt. `answers` is `{questionId: optionId | {optId:0|1}}`.
-/// Returns the created attempt id.
+/// Minimum time before an exam can be submitted (phone only, user rule):
+/// first try = quiz time ÷ 10, redo of a failed quiz = ÷ 20, passed = 1 minute.
+Duration minExamTime(StudentProgress? prog, int quizId, int timeLimitMinutes) {
+  final total = Duration(minutes: timeLimitMinutes);
+  if (prog == null || timeLimitMinutes <= 0) return Duration.zero;
+  if (prog.quizPassed(quizId)) return const Duration(minutes: 1);
+  if (prog.quizBest(quizId) != null) return total ~/ 20;
+  return total ~/ 10;
+}
+
+/// Submit an exam (`POST /quiz-attempts/exam/:id/finish` with the token).
+/// The result and the review come back in the reply and are kept on the phone;
+/// the quiz byte and the recent entry are updated locally. Returns the id the
+/// result screen opens with (the quiz id: one recent entry per quiz).
 Future<int> submitExam(
   WidgetRef ref,
   String quizId,
   Map<String, dynamic> answers,
 ) async {
   final api = ref.read(apiClientProvider);
+  final id = int.tryParse(quizId) ?? 0;
+  String token = '';
+  final saved = await ContentFiles.read(_examFile(quizId));
+  if (saved != null && saved.isNotEmpty) {
+    try {
+      token = _s(((jsonDecode(saved) as Map)['start'] as Map)['examToken']);
+    } catch (_) {}
+  }
+  // 10.26 P2: with the practice file on the phone, the reply carries only
+  // the answers; the questions are joined here.
+  final practice = await _practiceQuestions(_readerOfWidget(ref), quizId);
   final res = await api.dio.post(
-    '/quiz-attempts/exam/$quizId/submit',
-    data: {'answers': answers},
+    '/quiz-attempts/exam/$quizId/finish',
+    data: {'examToken': token, 'answers': answers, if (practice != null) 'lean': true},
   );
-  final m = (res.data is Map) ? Map<String, dynamic>.from(res.data) : {};
-  final attemptId = _i(m['attemptId']);
-  // The result screen shows what this attempt paid. The server decides it.
+  final reply = (res.data is Map) ? Map<String, dynamic>.from(res.data) : <String, dynamic>{};
+  await ContentFiles.delete(_examFile(quizId));
+  if (reply['duplicate'] == true) return id; // already saved: keep what the phone has
+  final m = _widenReview(reply, practice) ?? reply;
+  if (m['lean'] == true) {
+    // A question wasn't in the practice file: the result is saved, so fetch
+    // the full review once when it's opened (no result file written now).
+    await ContentFiles.delete(_resultFile(quizId));
+  } else {
+    await ContentFiles.write(_resultFile(quizId), jsonEncode({'result': m['result'], 'review': m['review']}));
+    if (practice == null) await _keepPracticeFromReview(_readerOfWidget(ref), quizId, m);
+  }
+  final resultMap = m['result'] is Map ? m['result'] as Map : const {};
+  final correct = m['correct'] ?? resultMap['correctAnswers'];
+  final total = m['total'] ?? resultMap['totalQuestions'];
+  final wrong = resultMap['wrongAnswers'] ?? (correct != null && total != null ? _i(total) - _i(correct) : null);
+  await applyExamLocally(id, _i(m['percentage']), m['passed'] == true, (m['progressVersion'] as num?)?.toInt(),
+      correct: correct == null ? null : _i(correct), wrong: wrong == null ? null : _i(wrong));
+  await StudyDays.done(StudyDays.exam, pct: _i(m['percentage']));
+  // Weak topics are counted on the phone from the marked answers (10.17);
+  // full-course papers are left out.
+  bool fullPaper = false;
+  try {
+    final cat = await ref.read(quizCatalogueProvider.future);
+    for (final q in cat.quizzes) {
+      if (q[0] == id) {
+        fullPaper = q[5] == 1;
+        break;
+      }
+    }
+  } catch (_) {}
+  await WeakTopics.addExam(m['review'] is Map ? Map<String, dynamic>.from(m['review']) : null, fullPaper: fullPaper);
+  ref.invalidate(studentProgressProvider);
+  // The result screen shows what this exam paid. The server decides it.
   final gain = XpGain.fromJson(m['xp']);
-  if (gain != null && gain.worthShowing) XpGains.exams[attemptId] = gain;
-  return attemptId;
+  if (gain != null && gain.worthShowing) XpGains.exams[id] = gain;
+  return id;
 }
 
-/// Record that the student finished a practice quiz. This writes an isolated
-/// study-activity event (NOT a quiz attempt), so it counts toward the daily
-/// streak without touching avg score / results / weak topics. Fire-and-forget.
-Future<void> recordPracticeCompletion(WidgetRef ref, int quizId) async {
+/// Whether a saved result file matches the student's latest attempt at this
+/// quiz (the recent entry on the progress row: % and correct count).
+Future<bool> _savedResultIsCurrent(Ref ref, String quizId, Map result) async {
+  try {
+    final prog = await ref.read(studentProgressProvider.future);
+    for (final e in prog.recentResults) {
+      if ('${e['k']}' != quizId) continue;
+      final samePct = _i(e['pct']) == _i(result['percentage']);
+      final sameCorrect = e['c'] == null || _i(e['c']) == _i(result['correctAnswers']);
+      return samePct && sameCorrect;
+    }
+  } catch (_) {}
+  return true; // not in the recent list (or offline): keep what the phone has
+}
+
+/// One recent entry's result + review: kept on the phone after the exam, else
+/// fetched once (`GET /quiz-attempts/recent/:id/review`) and kept.
+Future<Map<String, dynamic>> _recentPayload(Ref ref, String quizId) async {
+  final saved = await ContentFiles.read(_resultFile(quizId));
+  if (saved != null && saved.isNotEmpty) {
+    try {
+      final m = Map<String, dynamic>.from(jsonDecode(saved) as Map);
+      // 2026-11-18: use the saved copy only when it is the LATEST attempt —
+      // a retake on another phone left an old copy here (0 % shown for 60 %).
+      if (m['result'] is Map && m['review'] is Map && await _savedResultIsCurrent(ref, quizId, m['result'] as Map)) {
+        return m;
+      }
+    } catch (_) {}
+  }
   final api = ref.read(apiClientProvider);
-  await api.dio.post(
-    '/student/dashboard/activity',
-    data: {'activityType': 'practice_completed', 'itemId': quizId},
-  );
+  // 10.26 P2: the questions are already on the phone (practice file) → ask
+  // only for the answers; else (or a question missing) the full review.
+  final practice = await _practiceQuestions(_readerOf(ref), quizId);
+  Map<String, dynamic>? m;
+  if (practice != null) {
+    final res = await api.dio.get('/quiz-attempts/recent/$quizId/review', queryParameters: const {'lean': '1'});
+    m = _widenReview((res.data is Map) ? Map<String, dynamic>.from(res.data) : <String, dynamic>{}, practice);
+  }
+  if (m == null) {
+    final res = await api.dio.get('/quiz-attempts/recent/$quizId/review');
+    m = (res.data is Map) ? Map<String, dynamic>.from(res.data) : <String, dynamic>{};
+    await _keepPracticeFromReview(_readerOf(ref), quizId, m);
+  }
+  await ContentFiles.write(_resultFile(quizId), jsonEncode({'result': m['result'], 'review': m['review']}));
+  return m;
 }
 
-/// The result of a single attempt (`GET /quiz-attempts/result/:attemptId`).
+/// One recent result (`GET /quiz-attempts/recent/:quizId/review`).
 class AttemptResult {
   final int attemptId;
   final int quizId;
@@ -607,7 +987,6 @@ class AttemptResult {
   final num passingMarks;
 
   String get displayName {
-    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
     return quizTitle.trim().isNotEmpty ? quizTitle.trim() : 'Quiz';
   }
 
@@ -656,12 +1035,11 @@ class AttemptResult {
   }
 }
 
+/// [attemptId] is the quiz id (one recent entry per quiz, 10.16).
 final attemptResultProvider =
     FutureProvider.autoDispose.family<AttemptResult, String>((ref, attemptId) async {
   ref.watch(userScopeProvider);
-  final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/quiz-attempts/result/$attemptId');
-  return AttemptResult.fromJson(res.data);
+  return AttemptResult.fromJson((await _recentPayload(ref, attemptId))['result']);
 });
 
 /// One row in the results history (`GET /quiz-attempts/results`).
@@ -681,9 +1059,8 @@ class ResultListItem {
   final String submittedAt;
   final bool reviewed;
 
-  /// Display name matching the quiz list: "Quiz N" in number mode, else the title.
+  /// Display name matching the quiz list: the quiz's one name (10.25).
   String get displayName {
-    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
     return quizTitle.trim().isNotEmpty ? quizTitle.trim() : 'Quiz';
   }
 
@@ -736,18 +1113,43 @@ class ResultListItem {
 /// login/logout/account switch.
 final resultsListProvider = FutureProvider<List<ResultListItem>>((ref) async {
   ref.watch(userScopeProvider);
-  final api = ref.read(apiClientProvider);
-  return savedFirst(
-    ref,
-    name: 'results',
-    fetch: () async => (await api.dio.get('/quiz-attempts/results')).data,
-    parse: (data) async {
-      final rows = (data is List)
-          ? data
-          : (data is Map ? (data['results'] ?? data['items'] ?? const []) : const []);
-      return (rows as List).map(ResultListItem.fromJson).toList();
-    },
-  );
+  // The 5 recent results from the progress row (10.16), newest first, named
+  // from the catalogue — no request.
+  final prog = await ref.watch(studentProgressProvider.future);
+  final cat = await ref.watch(quizCatalogueProvider.future);
+  final byId = {for (final q in cat.quizzes) q[0] as int: q};
+  final out = <ResultListItem>[];
+  // Order (user, 10.18): failed and not reviewed first, then failed and
+  // reviewed, then passed at the bottom; newest first inside each group.
+  int group(Map e) => e['passed'] == true ? 2 : (e['reviewed'] == true ? 1 : 0);
+  final newestFirst = prog.recentResults.reversed.toList();
+  final ordered = [
+    for (final g in const [0, 1, 2]) ...newestFirst.where((e) => group(e) == g),
+  ];
+  for (final e in ordered) {
+    final id = _i(e['quizId']);
+    final q = byId[id];
+    final subject = q == null ? '' : '${cat.subjectById[q[2]]?[2] ?? ''}';
+    out.add(ResultListItem.fromJson({
+      'attemptId': id,
+      'quizId': id,
+      'quizTitle': q == null ? 'Quiz' : ('${q[8]}'.isNotEmpty ? '${q[8]}' : '${q[9]}'),
+      'displayTitleMode': q != null && q[10] == 1 ? 'number' : 'title',
+      'quizNumber': q == null || q[11] == 0 ? null : q[11],
+      'courseTitle': q == null ? '' : '${cat.courseById[q[1]]?[1] ?? ''}',
+      'topicDisplay': q != null && q[5] == 1 && subject.isEmpty ? _generalLabel : subject,
+      'score': e['pct'],
+      'percentage': e['pct'],
+      // The saved correct / wrong counts (2026-11-17: they were never read,
+      // so every result said "0 correct").
+      'correctAnswers': e['c'],
+      'wrongAnswers': e['w'],
+      'passStatus': e['passed'] == true ? 'pass' : 'fail',
+      'submittedAt': e['at'] ?? '',
+      'reviewedAt': e['reviewed'] == true ? 'yes' : null,
+    }));
+  }
+  return out;
 });
 
 /// How a student has done on one Q-bank set, from their exam attempts.
@@ -761,15 +1163,12 @@ class QuizOutcome {
 /// that did not reach the pass mark is shown as "give it another go". Practice
 /// leaves no entry here.
 final quizOutcomesProvider = Provider<Map<int, QuizOutcome>>((ref) {
-  final results = ref.watch(resultsListProvider).value ?? const <ResultListItem>[];
+  // From the quiz byte map (10.16): best whole % and passed-once per quiz.
+  final prog = ref.watch(studentProgressProvider).value;
   final out = <int, QuizOutcome>{};
-  for (final r in results) {
-    final pct = r.percentage.round();
-    final prev = out[r.quizId];
-    out[r.quizId] = QuizOutcome(
-      prev == null || pct > prev.best ? pct : prev.best,
-      (prev?.passed ?? false) || r.passed,
-    );
+  if (prog == null) return out;
+  for (final e in prog.quizMarks.entries) {
+    out[e.key] = QuizOutcome((e.value & 127) - 1, (e.value & 128) != 0);
   }
   return out;
 });
@@ -853,10 +1252,18 @@ ExamAverage computeExamAverage(List<ResultListItem> attempts) {
   );
 }
 
-/// Derived from [resultsListProvider], so it reuses that cache rather than
-/// fetching again.
+/// AVG MARKS (10.29): the average of the best % of every exam taken, from the
+/// quiz marks on the phone (one byte per exam) — no request.
 final examAverageProvider = Provider<AsyncValue<ExamAverage>>((ref) {
-  return ref.watch(resultsListProvider).whenData(computeExamAverage);
+  return ref.watch(studentProgressProvider).whenData((prog) {
+    var n = 0, sum = 0;
+    prog.quizMarks.forEach((id, b) {
+      if (b == 0) return;
+      n++;
+      sum += (b & 127) - 1;
+    });
+    return n == 0 ? ExamAverage.empty : ExamAverage(average: sum / n, previous: null, attempts: n);
+  });
 });
 
 /// A reviewed question — the practice question plus the student's answer.
@@ -938,7 +1345,6 @@ class AttemptReview {
 final attemptReviewProvider =
     FutureProvider.autoDispose.family<AttemptReview, String>((ref, attemptId) async {
   ref.watch(userScopeProvider);
-  final api = ref.read(apiClientProvider);
-  final res = await api.dio.get('/quiz-attempts/review/$attemptId');
-  return AttemptReview.fromJson(res.data);
+  // Kept on the phone from the exam's reply (10.16), else fetched once.
+  return AttemptReview.fromJson((await _recentPayload(ref, attemptId))['review']);
 });

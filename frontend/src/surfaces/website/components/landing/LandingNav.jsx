@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { label: 'Subjects', href: '#subjects' },
   { label: 'Features', href: '#features' },
   { label: 'About', href: '#about' },
+  { label: 'Give it a try', to: '/try' }, // the free demo page
 ];
 
 export function LandingNav({ ctaTo = '/register', signInTo = '/login', overDark = true }) {
@@ -51,15 +52,12 @@ export function LandingNav({ ctaTo = '/register', signInTo = '/login', overDark 
         </Link>
 
         <nav className="hidden flex-1 justify-center gap-8 md:flex">
-          {NAV_LINKS.map((l) => (
-            <a
-              key={l.label}
-              href={l.href}
-              className={['relative text-[14px] font-semibold no-underline transition-colors duration-200 after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#2563eb] after:transition-transform after:duration-300 hover:after:scale-x-100', linkColor].join(' ')}
-            >
-              {l.label}
-            </a>
-          ))}
+          {NAV_LINKS.map((l) => {
+            const cls = ['relative text-[14px] font-semibold no-underline transition-colors duration-200 after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#2563eb] after:transition-transform after:duration-300 hover:after:scale-x-100', linkColor].join(' ');
+            return l.to
+              ? <Link key={l.label} to={l.to} className={cls}>{l.label}</Link>
+              : <a key={l.label} href={l.href} className={cls}>{l.label}</a>;
+          })}
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-3 md:ml-0">

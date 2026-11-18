@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubtopicsService = void 0;
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
+const structure_counts_1 = require("../../common/utils/structure-counts");
+const content_history_1 = require("../../common/utils/content-history");
 let SubtopicsService = class SubtopicsService {
     constructor(db) {
         this.db = db;
@@ -42,8 +44,9 @@ let SubtopicsService = class SubtopicsService {
         try {
             await connection.beginTransaction();
             const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM subtopics WHERE topic_id = ?`, [snapshot.topicId]);
-            const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
+            const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 1000;
             const [result] = await connection.execute('INSERT INTO subtopics (topic_id, subtopic_name, status, sort_order) VALUES (?, ?, ?, ?)', [snapshot.topicId, snapshot.subtopicName, snapshot.status, nextSortOrder]);
+            await (0, structure_counts_1.bumpCounts)(connection, 'topics', 'subtopic_count', [[snapshot.topicId, 1]]);
             await this.recordContentVersion(connection, 'subtopic', result.insertId, snapshot, this.getActorId(actor));
             await this.setWorkflowState(connection, 'subtopic', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
             await this.recordContentAudit(connection, {
@@ -114,7 +117,11 @@ let SubtopicsService = class SubtopicsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const [locked] = await connection.execute('SELECT topic_id FROM subtopics WHERE id = ? FOR UPDATE', [id]);
             await connection.execute('DELETE FROM subtopics WHERE id = ?', [id]);
+            await (0, content_history_1.forgetContentHistory)(connection, 'subtopic', [id]);
+            if (locked[0])
+                await (0, structure_counts_1.bumpCounts)(connection, 'topics', 'subtopic_count', [[Number(locked[0].topic_id), -1]]);
             await this.recordContentAudit(connection, {
                 entityType: 'subtopic',
                 entityId: id,
@@ -138,18 +145,8 @@ let SubtopicsService = class SubtopicsService {
         };
     }
     async listVersions(id) {
-        await this.findById(id);
-        const [rows] = await this.db.execute(`SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'subtopic' AND entity_id = ?
-       ORDER BY version_number DESC`, [id]);
-        return rows.map((row) => ({
-            id: Number(row.id),
-            versionNumber: Number(row.version_number),
-            createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-            createdAt: row.created_at || null,
-            snapshot: this.parseSnapshotJson(row.snapshot_json),
-        }));
+        void id;
+        return [];
     }
     async markDraft(id, actor) {
         return this.transitionWorkflow(id, {
@@ -179,55 +176,10 @@ let SubtopicsService = class SubtopicsService {
         });
     }
     async rollback(id, versionNumber, actor) {
-        if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-            throw new common_1.BadRequestException('Version number is invalid');
-        }
-        if (!this.canReviewContent(actor)) {
-            throw new common_1.ForbiddenException('Review permission is required to rollback published subtopic content');
-        }
-        const existing = await this.findById(id);
-        const [versionRows] = await this.db.execute(`SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'subtopic' AND entity_id = ? AND version_number = ?
-       LIMIT 1`, [id, versionNumber]);
-        if (!versionRows[0]) {
-            throw new common_1.NotFoundException('Content version not found');
-        }
-        const snapshot = this.parseSubtopicSnapshot(versionRows[0].snapshot_json);
-        this.validateSubtopicPayload(snapshot);
-        await this.ensureTopicExists(snapshot.topicId);
-        const workflowState = snapshot.status === 'active' ? 'published' : 'draft';
-        const connection = await this.db.getConnection();
-        try {
-            await connection.beginTransaction();
-            await this.writeSubtopicSnapshot(connection, id, snapshot);
-            await this.recordContentVersion(connection, 'subtopic', id, snapshot, this.getActorId(actor));
-            await this.setWorkflowState(connection, 'subtopic', id, workflowState, this.getActorId(actor));
-            await this.recordContentAudit(connection, {
-                entityType: 'subtopic',
-                entityId: id,
-                action: 'rolled_back',
-                summary: `Subtopic ${id} rolled back to version ${versionNumber}`,
-                actorId: this.getActorId(actor),
-                before: existing,
-                after: snapshot,
-            });
-            await connection.commit();
-        }
-        catch (error) {
-            await connection.rollback();
-            throw error;
-        }
-        finally {
-            connection.release();
-        }
-        return {
-            ok: true,
-            id,
-            rolledBackToVersion: versionNumber,
-            status: snapshot.status,
-            workflowState,
-        };
+        void id;
+        void versionNumber;
+        void actor;
+        throw new common_1.BadRequestException('Version history is not kept any more.');
     }
     async transitionWorkflow(id, input) {
         const existing = await this.findById(id);
@@ -281,11 +233,32 @@ let SubtopicsService = class SubtopicsService {
         });
     }
     async writeSubtopicSnapshot(connection, id, subtopic) {
-        await connection.execute('UPDATE subtopics SET topic_id = ?, subtopic_name = ?, status = ? WHERE id = ?', [
-            subtopic.topicId,
-            subtopic.subtopicName,
-            subtopic.status,
-            id,
+        const [current] = await connection.execute('SELECT topic_id FROM subtopics WHERE id = ?', [id]);
+        const moving = current[0] && Number(current[0].topic_id) !== Number(subtopic.topicId);
+        if (!moving) {
+            await connection.execute('UPDATE subtopics SET subtopic_name = ?, status = ? WHERE id = ?', [subtopic.subtopicName, subtopic.status, id]);
+            return;
+        }
+        const [counted] = await connection.execute(`SELECT topic_id, course_id, SUM(${structure_counts_1.COUNTED_LESSON}) AS n FROM lessons WHERE subtopic_id = ? GROUP BY topic_id, course_id FOR UPDATE`, [id]);
+        const [locked] = await connection.execute('SELECT topic_id FROM subtopics WHERE id = ? FOR UPDATE', [id]);
+        const oldSubject = Number(locked[0].topic_id);
+        const [target] = await connection.execute('SELECT course_id FROM topics WHERE id = ?', [subtopic.topicId]);
+        if (!target[0])
+            throw new common_1.BadRequestException('Selected subject was not found');
+        const newCourse = Number(target[0].course_id);
+        await connection.execute('UPDATE lessons SET topic_id = ?, course_id = ? WHERE subtopic_id = ?', [subtopic.topicId, newCourse, id]);
+        await connection.execute(`UPDATE subtopics SET topic_id = ?, subtopic_name = ?, status = ?,
+         sort_order = (SELECT next_rank FROM (SELECT COALESCE(MAX(sort_order), 0) + 1000 AS next_rank FROM subtopics WHERE topic_id = ?) r)
+       WHERE id = ?`, [subtopic.topicId, subtopic.subtopicName, subtopic.status, subtopic.topicId, id]);
+        const moved = counted.reduce((t, r) => t + Number(r.n || 0), 0);
+        await (0, structure_counts_1.bumpCounts)(connection, 'topics', 'subtopic_count', [[oldSubject, -1], [subtopic.topicId, 1]]);
+        await (0, structure_counts_1.bumpCounts)(connection, 'topics', 'lesson_count', [
+            ...counted.map((r) => [Number(r.topic_id), -Number(r.n || 0)]),
+            [subtopic.topicId, moved],
+        ]);
+        await (0, structure_counts_1.bumpCounts)(connection, 'courses', 'lesson_count', [
+            ...counted.map((r) => [Number(r.course_id), -Number(r.n || 0)]),
+            [newCourse, moved],
         ]);
     }
     parseSnapshotJson(value) {
@@ -316,30 +289,21 @@ let SubtopicsService = class SubtopicsService {
         });
     }
     async recordContentVersion(connection, entityType, entityId, snapshot, actorId) {
-        const [rows] = await connection.execute('SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?', [entityType, entityId]);
-        const versionNumber = Number(rows[0]?.next_version || 1);
-        await connection.execute('INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)', [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void snapshot;
+        void actorId;
     }
     async setWorkflowState(connection, entityType, entityId, workflowState, actorId) {
-        await connection.execute(`INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`, [entityType, entityId, workflowState, actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void workflowState;
+        void actorId;
     }
     async recordContentAudit(connection, event) {
-        await connection.execute(`INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`, [
-            event.entityType,
-            event.entityId,
-            event.action,
-            event.actorId || null,
-            event.summary,
-            event.before === undefined ? null : JSON.stringify(event.before),
-            event.after === undefined ? null : JSON.stringify(event.after),
-        ]);
+        void 0;
     }
     getActorId(actor) {
         if (typeof actor === 'number')
@@ -368,13 +332,6 @@ let SubtopicsService = class SubtopicsService {
         if (!subtopic.subtopicName) {
             throw new common_1.BadRequestException('Subtopic name is required');
         }
-    }
-    async reorder(orderedIds) {
-        const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
-        if (!ids.length)
-            return { ok: true };
-        await Promise.all(ids.map((id, index) => this.db.execute(`UPDATE subtopics SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])));
-        return { ok: true };
     }
     async findById(id) {
         const [rows] = await this.db.execute('SELECT id, topic_id, subtopic_name, status, sort_order, created_at FROM subtopics WHERE id = ? LIMIT 1', [id]);

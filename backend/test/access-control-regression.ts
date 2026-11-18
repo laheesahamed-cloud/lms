@@ -14,11 +14,24 @@ import { SubtopicsService } from '../src/modules/subtopics/subtopics.service';
 import { PapersService } from '../src/modules/papers/papers.service';
 import { WorkspaceService } from '../src/modules/workspace/workspace.service';
 import { TheoryRecapService } from '../src/modules/theory-recap/theory-recap.service';
-import { StudyBookmarksService } from '../src/modules/study-bookmarks/study-bookmarks.service';
 import { AppOnlyContentException } from '../src/common/exceptions/app-only-content.exception';
 
 // XP is saved by its own service; these checks are about access, so it is
 // stood in for here and never pays anything.
+const studyStatsStub = {
+  ensureBuilt: async () => undefined,
+  recordExam: async () => ({ examAttempts: 1, xpBase: 0, xpAwarded: 0 }),
+  recordActivity: async () => undefined,
+};
+const structureStub = {
+  get: async () => ({
+    version: 1, builtAt: 't',
+    courses: [{ id: 10, course_title: 'Medicine' }],
+    subjects: [{ id: 20, course_id: 10, topic_name: 'Cardiology' }],
+    topics: [{ id: 30, topic_id: 20, course_id: 10, subtopic_name: 'Heart Failure' }],
+    lessons: [],
+  }),
+};
 const xpStub = {
   onExamSubmitted: async () => ({ awarded: 0, capped: false }),
   onLessonCompleted: async () => ({ awarded: 0, capped: false }),
@@ -32,12 +45,10 @@ const xpStub = {
 class QuizAccessMockPool {
   accessRows: any[];
   quizRows: any[];
-  attemptRows: any[];
   questionQueryCount = 0;
 
-  constructor(input: { accessRows?: any[]; quizRows?: any[]; attemptRows?: any[] }) {
+  constructor(input: { accessRows?: any[]; quizRows?: any[] }) {
     this.accessRows = input.accessRows || [];
-    this.attemptRows = input.attemptRows || [];
     this.quizRows = input.quizRows || [{
       id: 99,
       course_id: 55,
@@ -81,6 +92,17 @@ class QuizAccessMockPool {
       return [this.accessRows as T, []];
     }
 
+    // Questions load as ONE joined statement (OPTIMIZE 10.16): one row per
+    // question, its options packed in as JSON.
+    if (normalizedSql.includes('AS options_json') && normalizedSql.includes('FROM questions q')) {
+      this.questionQueryCount += 1;
+      return [[{
+        id: 1, course_id: 55, topic_id: null, subtopic: null, category: null, question_type: 'sba', question_text: 'Q',
+        explanation: 'E', explanation_image_url: null, status: 'active',
+        options_json: JSON.stringify([{ id: 11, label: 'A', text: 'Answer', correct: 1, why: null }]),
+      }] as T, []];
+    }
+
     if (normalizedSql.includes('FROM questions q INNER JOIN question_quizzes qq ON qq.question_id = q.id')) {
       this.questionQueryCount += 1;
       return [[{ id: 1, course_id: 55, topic_id: null, subtopic: null, category: null, question_type: 'sba', question_text: 'Q', explanation: 'E', explanation_image_url: null, status: 'active' }] as T, []];
@@ -96,11 +118,6 @@ class QuizAccessMockPool {
 
     if (normalizedSql.includes("FROM content_versions WHERE entity_type = 'question'")) {
       return [[] as T, []];
-    }
-
-    if (normalizedSql.includes('FROM quiz_attempts qa INNER JOIN quizzes q ON qa.quiz_id = q.id')) {
-      assert.equal(params[1], 10);
-      return [this.attemptRows as T, []];
     }
 
     if (normalizedSql.includes('FROM questions q WHERE q.id IN')) {
@@ -129,8 +146,32 @@ class DashboardQuestionMockPool {
     this.allEligibleCount = input.allEligibleCount;
   }
 
+  async query<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
+    return this.execute<T>(sql, params);
+  }
+
   async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
+
+    if (normalizedSql.includes("setting_key = 'content_version'")) {
+      return [[{ setting_value: '1' }] as T, []];
+    }
+    // App pick (by index): the first active single-best-answer question from
+    // the day's start id, then its options (5, one right).
+    if (normalizedSql.startsWith('SELECT id, question_text, question_type, course_id, topic_id, subtopic_id FROM questions')) {
+      return [(this.allEligibleCount > 0
+        ? [{ id: 49, question_text: 'Q', question_type: 'sba', course_id: 10, topic_id: 20, subtopic_id: 30 }]
+        : []) as T, []];
+    }
+    // App pick in ONE statement (OPTIMIZE 10.17): the question with its 5
+    // options (one right).
+    // 10.43: the options are the question row's own options_json.
+    if (normalizedSql.startsWith('SELECT id, question_text, question_type, course_id, topic_id, subtopic_id, options_json FROM questions')) {
+      return [(this.allEligibleCount > 0
+        ? [{ id: 49, question_text: 'Q', question_type: 'sba', course_id: 10, topic_id: 20, subtopic_id: 30,
+            options_json: JSON.stringify(['A', 'B', 'C', 'D', 'E'].map((label, i) => ({ id: i + 1, option_label: label, option_text: label, is_correct: i === 0 ? 1 : 0, why_incorrect: null }))) }]
+        : []) as T, []];
+    }
 
     // Website pool: eligible questions reached through free quizzes only.
     if (normalizedSql.startsWith('SELECT DISTINCT q.id FROM quizzes free_quiz')) {
@@ -190,39 +231,17 @@ class TheoryRecapMockPool {
       return [(this.hasPlan ? [{ plan_slug: 'complete-prep-3m', access_scope: 'all', course_ids_json: null }] : []) as T, []];
     }
 
-    if (normalizedSql.includes('FROM question_theory_recaps')) {
-      return [[{
-        id: 7, question_id: 203, concept_name: 'HFrEF', hierarchy_course: 'Medicine', hierarchy_subject: 'Cardiology',
+    // OPTIMIZE 10.43: the recap lives in questions.recap_json.
+    if (normalizedSql.startsWith('SELECT recap_json FROM questions WHERE id = ?')) {
+      return [[{ recap_json: JSON.stringify({
+        id: 7, concept_name: 'HFrEF', hierarchy_course: 'Medicine', hierarchy_subject: 'Cardiology',
         hierarchy_topic: 'Heart Failure', hierarchy_lesson: 'Heart failure', etiology: '[]', pathophysiology: '[]',
         clinical_features: '[]', investigations: '[]', treatment: '[]', key_points: '[]', mnemonic: null,
-        generated_by: 'manual', reviewed_status: 'reviewed', created_at: new Date(), updated_at: new Date(),
-      }] as T, []];
+        generated_by: 'manual', reviewed_status: 'reviewed', created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      }) }] as T, []];
     }
 
     throw new Error(`Unexpected SQL in theory recap regression test: ${normalizedSql}`);
-  }
-}
-
-// A bookmarked question is premium content too — this pins the fix that
-// blanks the text preview (title stays generic) instead of leaking it.
-class StudyBookmarksMockPool {
-  rows: any[];
-
-  constructor(rows: any[]) {
-    this.rows = rows;
-  }
-
-  async execute<T = any>(sql: string, params: unknown[] = []): Promise<[T, any]> {
-    const normalizedSql = sql.replace(/\s+/g, ' ').trim();
-    if (normalizedSql.includes('FROM study_bookmarks b')) {
-      return [this.rows as T, []];
-    }
-    // The list asks what the student's plans unlock so a premium question's text
-    // is only shown to someone entitled to it. These students hold no plan.
-    if (normalizedSql.includes('FROM user_subscriptions us')) {
-      return [[] as T, []];
-    }
-    throw new Error(`Unexpected SQL in study bookmarks regression test: ${normalizedSql}`);
   }
 }
 
@@ -382,18 +401,15 @@ class QuestionGovernanceMockPool {
         status: this.questionStatus,
         created_at: null,
         content_version: 1,
+        // OPTIMIZE 10.43: options live in the question row.
+        options_json: JSON.stringify(publishReadyQuestionPayload.options.map((option, index) => ({
+          id: index + 1,
+          option_label: option.optionLabel,
+          option_text: option.optionText,
+          is_correct: option.isCorrect,
+          why_incorrect: option.whyIncorrect || null,
+        }))),
       }] as T, []];
-    }
-
-    if (normalizedSql.startsWith('SELECT id, question_id, option_label, option_text, is_correct, why_incorrect FROM question_options')) {
-      return [publishReadyQuestionPayload.options.map((option, index) => ({
-        id: index + 1,
-        question_id: params[0],
-        option_label: option.optionLabel,
-        option_text: option.optionText,
-        is_correct: option.isCorrect,
-        why_incorrect: option.whyIncorrect || null,
-      })) as T, []];
     }
 
     return this.executeWrite<T>(sql, params);
@@ -408,6 +424,8 @@ class QuestionGovernanceMockPool {
 
     if (
       normalizedSql.startsWith('UPDATE questions SET status = ? WHERE id = ?') ||
+      // OPTIMIZE 10.27 R1: the quizzes holding the question get a new content stamp.
+      normalizedSql.startsWith('UPDATE quizzes SET content_stamp = content_stamp + 1') ||
       normalizedSql.startsWith('INSERT INTO content_versions') ||
       normalizedSql.startsWith('INSERT INTO content_workflow_states') ||
       normalizedSql.startsWith('INSERT INTO content_audit_events')
@@ -446,7 +464,7 @@ const STUDENT_ID = 112;
 
 async function testQuizContentDeniedWithoutCourseAccess() {
   const db = new QuizAccessMockPool({});
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, studyStatsStub as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT),
     BadRequestException
@@ -463,7 +481,7 @@ async function testQuizContentAllowedForOwnedCourse() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, studyStatsStub as any);
   const result = await service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT);
   assert.equal(result.questions.length, 1);
   assert.equal(db.questionQueryCount, 1);
@@ -479,7 +497,7 @@ async function testQuizContentDeniedForCourseOutsideSubscriptionScope() {
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, studyStatsStub as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice', null, MOBILE_CLIENT),
     BadRequestException
@@ -499,7 +517,7 @@ async function testPremiumQuizContentDeniedWithoutMobileHeaderEvenWithFullAccess
       lesson_ids_json: null,
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, studyStatsStub as any);
   await assert.rejects(
     () => service.loadQuiz('Bearer student-token', 99, 'practice'),
     AppOnlyContentException
@@ -534,63 +552,10 @@ async function testFreeQuizContentAllowedWithoutMobileHeader() {
       status: 'active',
     }],
   });
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
+  const service = new QuizAttemptsService(db as any, plansService as any, studyStatsStub as any);
   const result = await service.loadQuiz('Bearer student-token', 99, 'practice');
   assert.equal(result.questions.length, 1, 'free content stays reachable from the website with no header at all');
 }
-
-// A student who takes a premium quiz on the app, then opens the *review*
-// screen on the website afterward, must not get the full question-by-question
-// breakdown there either — reviewing is just as much "premium content" as
-// taking the quiz was. This regression pins that specific gap (review() used
-// to check nothing but attempt ownership).
-function premiumReviewAttemptRow(overrides: Record<string, unknown> = {}) {
-  return [{
-    id: 501,
-    quiz_id: 99,
-    score: 100,
-    percentage: 100,
-    correct_answers: 1,
-    wrong_answers: 0,
-    unanswered_questions: 0,
-    question_ids_json: '[1]',
-    pass_status: 'pass',
-    submitted_at: new Date(),
-    created_at: new Date(),
-    quiz_title: 'Locked Quiz',
-    lesson_id: null,
-    is_general: 0,
-    is_free: 0,
-    course_title: 'Medicine',
-    topic_name: 'Cardiology',
-    ...overrides,
-  }];
-}
-
-async function testPremiumQuizReviewDeniedWithoutMobileHeader() {
-  const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow() });
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
-  await assert.rejects(
-    () => service.review('Bearer student-token', 501),
-    AppOnlyContentException
-  );
-  assert.equal(db.questionQueryCount, 0, 'a premium quiz review must not read question content for a website request');
-}
-
-async function testPremiumQuizReviewAllowedWithMobileHeader() {
-  const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow() });
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
-  const result = await service.review('Bearer student-token', 501, MOBILE_CLIENT);
-  assert.equal(result.questions.length, 1);
-}
-
-async function testFreeQuizReviewAllowedWithoutMobileHeader() {
-  const db = new QuizAccessMockPool({ attemptRows: premiumReviewAttemptRow({ is_free: 1 }) });
-  const service = new QuizAttemptsService(db as any, plansService as any, xpStub as any);
-  const result = await service.review('Bearer student-token', 501);
-  assert.equal(result.questions.length, 1, 'free quiz reviews stay reachable from the website with no header at all');
-}
-
 async function testTheoryRecapDeniedForPremiumOnlyQuestionWithoutMobileHeader() {
   const db = new TheoryRecapMockPool({ isFreeLinked: false });
   const service = new TheoryRecapService(db as any, {} as any);
@@ -625,42 +590,16 @@ async function testTheoryRecapAllowedForFreeLinkedQuestionWithoutMobileHeader() 
   assert.equal(recap?.questionId, 203, 'a question that also appears in a free quiz stays reachable from the website');
 }
 
-async function testBookmarkedPremiumQuestionTextHiddenWithoutMobileHeader() {
-  const db = new StudyBookmarksMockPool([{
-    id: 34, user_id: 112, item_type: 'question', item_id: 203, created_at: new Date(),
-    quiz_title: null, exam_mode_only: null, note_title: null, note_engine_key: null,
-    question_text: 'Which medication improves mortality in heart failure with reduced ejection fraction?',
-    question_quiz_id: 23, question_is_free: 0, course_title: 'Medicine', topic_name: 'Cardiology',
-  }]);
-  const service = new StudyBookmarksService(db as any);
-  const [bookmark] = await service.list(112);
-  assert.equal(bookmark.title, 'Premium question', 'a premium question bookmark must not leak its text on the website');
-  assert.equal(bookmark.appOnly, true);
-}
-
-async function testBookmarkedFreeLinkedQuestionTextShownWithoutMobileHeader() {
-  const db = new StudyBookmarksMockPool([{
-    id: 35, user_id: 112, item_type: 'question', item_id: 206, created_at: new Date(),
-    quiz_title: null, exam_mode_only: null, note_title: null, note_engine_key: null,
-    question_text: 'What is the most common cause of mitral stenosis?',
-    question_quiz_id: 18, question_is_free: 1, course_title: 'Medicine', topic_name: 'Cardiology',
-  }]);
-  const service = new StudyBookmarksService(db as any);
-  const [bookmark] = await service.list(112);
-  assert.equal(bookmark.title, 'What is the most common cause of mitral stenosis?');
-  assert.equal(bookmark.appOnly, false);
-}
-
 async function testDashboardQuestionOfDayExcludesPremiumOnlyPoolWithoutMobileHeader() {
   const db = new DashboardQuestionMockPool({ freeEligibleCount: 0, allEligibleCount: 5 });
-  const service = new DashboardService(db as any, {} as any, {} as any, xpStub as any);
+  const service = new DashboardService(db as any, {} as any, {} as any, xpStub as any, {} as any, {} as any, studyStatsStub as any, structureStub as any, { get: async () => ({ quizCount: 0 }) } as any);
   const question = await (service as any).getRandomDashboardQuestion(112);
   assert.equal(question, null, 'website must not surface a "question of the day" drawn only from premium quizzes');
 }
 
 async function testDashboardQuestionOfDayUsesFullPoolWithMobileHeader() {
   const db = new DashboardQuestionMockPool({ freeEligibleCount: 0, allEligibleCount: 5 });
-  const service = new DashboardService(db as any, {} as any, {} as any, xpStub as any);
+  const service = new DashboardService(db as any, {} as any, {} as any, xpStub as any, {} as any, {} as any, studyStatsStub as any, structureStub as any, { get: async () => ({ quizCount: 0 }) } as any);
   const question = await (service as any).getRandomDashboardQuestion(112, MOBILE_CLIENT);
   assert.equal(question?.id, 49);
 }
@@ -668,7 +607,7 @@ async function testDashboardQuestionOfDayUsesFullPoolWithMobileHeader() {
 async function testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission() {
   const controller = new SubscriptionsController(
     { findAdminList: async () => [], getStudentBilling: async () => ({}) } as any,
-    { requireAuthenticatedUser: async () => ({ id: 20, role: 'content_editor', status: 'active' }) } as any,
+    { requireFreshUser: async () => ({ id: 20, role: 'content_editor', status: 'active' }), requireAuthenticatedUser: async () => ({ id: 20, role: 'content_editor', status: 'active' }) } as any,
   );
   await assert.rejects(() => controller.defaultList('Bearer staff-token'), ForbiddenException);
 }
@@ -685,7 +624,7 @@ async function testSubscriptionDefaultRouteAllowsFinanceAdminList() {
         throw new Error('Finance staff must not be treated as a student');
       },
     } as any,
-    { requireAuthenticatedUser: async () => ({ id: 21, role: 'finance', status: 'active' }) } as any,
+    { requireFreshUser: async () => ({ id: 21, role: 'finance', status: 'active' }), requireAuthenticatedUser: async () => ({ id: 21, role: 'finance', status: 'active' }) } as any,
   );
   const result = await controller.defaultList('Bearer finance-token') as any[];
   assert.equal(adminListCalled, true);
@@ -702,7 +641,7 @@ async function testSubscriptionDefaultRouteDeniesInactiveStaffSession() {
         throw new Error('Inactive staff must not be treated as a student');
       },
     } as any,
-    { requireAuthenticatedUser: async () => ({ id: 23, role: 'finance', status: 'inactive' }) } as any,
+    { requireFreshUser: async () => ({ id: 23, role: 'finance', status: 'inactive' }), requireAuthenticatedUser: async () => ({ id: 23, role: 'finance', status: 'inactive' }) } as any,
   );
   await assert.rejects(() => controller.defaultList('Bearer inactive-finance-token'), UnauthorizedException);
 }
@@ -719,7 +658,7 @@ async function testSubscriptionDefaultRouteScopesStudentsToSelf() {
         return { userId };
       },
     } as any,
-    { requireAuthenticatedUser: async () => ({ id: 22, role: 'student', status: 'active' }) } as any,
+    { requireFreshUser: async () => ({ id: 22, role: 'student', status: 'active' }), requireAuthenticatedUser: async () => ({ id: 22, role: 'student', status: 'active' }) } as any,
   );
   const result = await controller.defaultList('Bearer student-token') as unknown as { userId: number };
   assert.equal(billingUserId, 22);
@@ -728,7 +667,7 @@ async function testSubscriptionDefaultRouteScopesStudentsToSelf() {
 
 async function testPermissionGuardDeniesInactiveStaffSession() {
   const guard = new PermissionGuard(
-    { requireAuthenticatedUser: async () => ({ id: 24, role: 'finance', status: 'inactive' }) } as any,
+    { requireFreshUser: async () => ({ id: 24, role: 'finance', status: 'inactive' }), requireAuthenticatedUser: async () => ({ id: 24, role: 'finance', status: 'inactive' }) } as any,
     { getAllAndOverride: () => ['subscriptions.manage'] } as any,
   );
   const context = {
@@ -813,7 +752,8 @@ async function testReviewerCanPublishQuestionWithAuditTrail() {
   const result = await service.publish(77, { id: 302, role: 'reviewer', permissions: ['content.review'] });
   assert.equal(result.workflowState, 'published');
   assert(db.calls.some((call) => /^UPDATE questions SET status = \? WHERE id = \?/i.test(call.sql) && call.params[0] === 'active' && call.params[1] === 77), 'publish must activate the question row');
-  assert(db.calls.some((call) => /INSERT INTO content_audit_events/i.test(call.sql) && call.params.includes(302)), 'publish must record the reviewing actor');
+  // content_audit_events was dropped in OPTIMIZE 10.37 (written, never read): no audit row to check.
+  assert(!db.calls.some((call) => /content_audit_events/i.test(call.sql)), 'the dropped audit table must not be written');
 }
 
 async function testContentEditorCannotCreatePublishedQuiz() {
@@ -825,7 +765,7 @@ async function testContentEditorCannotCreatePublishedQuiz() {
 }
 
 async function testContentEditorCannotCreatePublishedCourse() {
-  const service = new CoursesService({} as any, {} as any, {} as any, xpStub as any);
+  const service = new CoursesService({} as any, {} as any, {} as any, xpStub as any, {} as any);
   await assert.rejects(
     () => service.create(publishReadyCoursePayload, { id: 304, role: 'content_editor', permissions: ['content.manage'] }),
     ForbiddenException
@@ -914,22 +854,28 @@ function testQuestionImportDetectsInFileDuplicates() {
   assert(errors.some((error) => error.includes('Duplicate question content matches row 2')));
 }
 
-function testDashboardFeedRedactsLearnerPiiWithoutStudentPermission() {
-  const service = new DashboardService({} as any, {} as any, {} as any, xpStub as any);
-  const feed = (service as any).buildAdminActivityFeed([
-    {
-      item_type: 'user',
-      item_id: 100,
-      title: 'Student A',
-      subtitle: 'student@example.test',
-      status: 'active',
-      created_at: '2026-05-31',
-    },
-  ], false) as Array<{ title: string; subtitle: string }>;
-
-  assert.notEqual(feed[0].title, 'Student A');
-  assert.equal(feed[0].subtitle, '');
-  assert.match(feed[0].title, /^Learner [A-F0-9]{10}$/);
+// The Admin Hub no longer lists learner activity (no learner PII at all); its
+// money numbers must stay hidden from staff without subscriptions.manage.
+async function testDashboardHidesMoneyWithoutBillingPermission() {
+  let financeCalls = 0;
+  const conn = { query: async () => [[{ lesson_count: 2, question_total: 3, quiz_total: 1 }]], release: () => {} };
+  const make = (actor: Record<string, unknown>) => new DashboardService(
+    { getConnection: async () => conn } as any,
+    { requireAdmin: async () => actor } as any,
+    {} as any,
+    xpStub as any,
+    { summary: async () => ({ totalUsers: 1 }) } as any,
+    { adminDashboardFinance: async () => { financeCalls += 1; return { todayRevenue: 990 }; } } as any,
+    studyStatsStub as any,
+    structureStub as any,
+    { get: async () => ({ quizCount: 0 }) } as any,
+  );
+  const editor = await make({ id: 401, role: 'content_editor', permissions: ['reports.view'], status: 'active' }).getAdminDashboard('Bearer t');
+  assert.equal(editor.finance, null, 'staff without subscriptions.manage must not get money numbers');
+  assert.equal(financeCalls, 0, 'money queries must not even run for them');
+  const billing = await make({ id: 402, role: 'staff', permissions: ['reports.view', 'subscriptions.manage'], status: 'active' }).getAdminDashboard('Bearer t');
+  assert.equal((billing.finance as any)?.todayRevenue, 990);
+  assert.equal(billing.totals.questions, 3);
 }
 
 async function testReportsOnlyStaffCannotFilterSpecificLearner() {
@@ -945,6 +891,8 @@ async function testReportsOnlyStaffCannotFilterSpecificLearner() {
     // dependency and this call was never updated, so the whole suite failed to
     // COMPILE — every assertion in this file was silently not running.
     {} as any,
+    // noticesService (notifications without the database, step 4)
+    {} as any,
   );
 
   await assert.rejects(
@@ -959,15 +907,10 @@ async function main() {
   await testQuizContentDeniedForCourseOutsideSubscriptionScope();
   await testPremiumQuizContentDeniedWithoutMobileHeaderEvenWithFullAccess();
   await testFreeQuizContentAllowedWithoutMobileHeader();
-  await testPremiumQuizReviewDeniedWithoutMobileHeader();
-  await testPremiumQuizReviewAllowedWithMobileHeader();
-  await testFreeQuizReviewAllowedWithoutMobileHeader();
   await testTheoryRecapDeniedForPremiumOnlyQuestionWithoutMobileHeader();
   await testTheoryRecapAllowedForPremiumOnlyQuestionWithMobileHeader();
   await testTheoryRecapDeniedForUnentitledStudentEvenWithMobileHeader();
   await testTheoryRecapAllowedForFreeLinkedQuestionWithoutMobileHeader();
-  await testBookmarkedPremiumQuestionTextHiddenWithoutMobileHeader();
-  await testBookmarkedFreeLinkedQuestionTextShownWithoutMobileHeader();
   await testDashboardQuestionOfDayExcludesPremiumOnlyPoolWithoutMobileHeader();
   await testDashboardQuestionOfDayUsesFullPoolWithMobileHeader();
   await testSubscriptionDefaultRouteDeniesStaffWithoutBillingPermission();
@@ -993,7 +936,7 @@ async function main() {
   testQuestionImportRejectsInvalidHeaders();
   testQuestionImportRejectsEmbeddedMediaPayloads();
   testQuestionImportDetectsInFileDuplicates();
-  testDashboardFeedRedactsLearnerPiiWithoutStudentPermission();
+  await testDashboardHidesMoneyWithoutBillingPermission();
   await testReportsOnlyStaffCannotFilterSpecificLearner();
   console.log('Access control regression checks passed.');
 }

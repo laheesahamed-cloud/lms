@@ -22,6 +22,7 @@ exports.SubscriptionsModule = SubscriptionsModule = __decorate([
         imports: [auth_module_1.AuthModule, plans_module_1.PlansModule, settings_module_1.SettingsModule],
         controllers: [subscriptions_controller_1.SubscriptionsController],
         providers: [subscriptions_service_1.SubscriptionsService, apple_iap_service_1.AppleIapService],
+        exports: [subscriptions_service_1.SubscriptionsService],
     })
 ], SubscriptionsModule);
 //# sourceMappingURL=subscriptions.module.js.map

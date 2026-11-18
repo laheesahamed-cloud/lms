@@ -1,3 +1,4 @@
+import '../../utils/count_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -8,6 +9,7 @@ import '../../widgets/glass_card.dart';
 import 'quizzes_repository.dart';
 import '../../widgets/shell_insets.dart';
 import '../../data/app_error.dart';
+import '../../widgets/compact_switch.dart';
 
 class QuizzesPage extends ConsumerStatefulWidget {
   final bool examMode;
@@ -187,7 +189,7 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
             ),
           ),
         );
-    return Container(
+    return CompactSwitch(child: Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: c.surface2,
@@ -201,7 +203,7 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
               () => setState(() => _exam = true)),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -245,9 +247,11 @@ class _CourseCard extends StatelessWidget {
                         color: c.inkStrong)),
                 const SizedBox(height: 3),
                 Text(
-                  '${group.subjectCount} subject${group.subjectCount == 1 ? '' : 's'} · ${group.quizzes.length} ${exam ? 'exam' : 'set'}${group.quizzes.length == 1 ? '' : 's'}',
+                  // 2026-11-18 (user): "170+ Practice papers" — one below the
+                  // real count, then a plus; Exam tab says "Exam papers".
+                  '${countPlus(group.quizzes.length)} ${exam ? 'Exam' : 'Practice'} paper${group.quizzes.length == 1 ? '' : 's'}',
                   style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: c.inkSoft),
                 ),

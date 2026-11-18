@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
+import '../../state/kept_content.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -729,40 +730,45 @@ class OsceRepository {
   OsceRepository(this._client);
 
   Future<List<OsceCourse>> courses() async {
-    final res = await _client.dio.get('/osce/courses');
-    return _l(_m(res.data)['courses']).map(OsceCourse.fromJson).toList();
+    final data = await keptPerVersion('osce_courses', () async => (await _client.dio.get('/osce/courses')).data);
+    return _l(_m(data)['courses']).map(OsceCourse.fromJson).toList();
   }
 
   Future<List<OsceRegion>> regions() async {
-    final res = await _client.dio.get('/osce/regions');
-    return _l(_m(res.data)['regions']).map(OsceRegion.fromJson).toList();
+    final data = await keptPerVersion('osce_regions', () async => (await _client.dio.get('/osce/regions')).data);
+    return _l(_m(data)['regions']).map(OsceRegion.fromJson).toList();
   }
 
   Future<List<OsceSystem>> systems({int? courseId}) async {
-    final res = await _client.dio.get('/osce/systems',
-        queryParameters: courseId == null ? null : {'course': courseId});
-    return _l(_m(res.data)['systems']).map(OsceSystem.fromJson).toList();
+    final data = await keptPerVersion('osce_systems_${courseId ?? 'all'}', () async => (await _client.dio.get('/osce/systems',
+        queryParameters: courseId == null ? null : {'course': courseId})).data);
+    return _l(_m(data)['systems']).map(OsceSystem.fromJson).toList();
   }
 
   Future<List<OsceCaseSummary>> cases(String systemKey) async {
     // systemKey is the subject's topic id
-    final res = await _client.dio.get('/osce/cases', queryParameters: {'system': systemKey});
-    return _l(_m(res.data)['cases']).map(OsceCaseSummary.fromJson).toList();
+    final data = await keptPerVersion('osce_cases_$systemKey',
+        () async => (await _client.dio.get('/osce/cases', queryParameters: {'system': systemKey})).data);
+    return _l(_m(data)['cases']).map(OsceCaseSummary.fromJson).toList();
   }
 
   /// One request draws the whole case — the server has already resolved every
   /// image slot and every ECG/auscultation reference into a URL.
   Future<OsceCase> caseBySlug(String slug) async {
-    final res = await _client.dio.get('/osce/cases/$slug');
-    return OsceCase.fromJson(res.data);
+    return OsceCase.fromJson(await _caseData(slug));
   }
 
   /// Same endpoint as a short case — the document just carries a history
   /// instead of scenes, so it's parsed into a different shape.
   Future<OsceLongCase> longCaseBySlug(String slug) async {
-    final res = await _client.dio.get('/osce/cases/$slug');
-    return OsceLongCase.fromJson(res.data);
+    return OsceLongCase.fromJson(await _caseData(slug));
   }
+
+  /// One case's document, kept per content version (10.19; premium: only
+  /// read from the phone while the student has a plan).
+  Future<dynamic> _caseData(String slug) => keptPerVersion(
+      'osce_case_$slug', () async => (await _client.dio.get('/osce/cases/$slug')).data,
+      needsPlan: true);
 
   /// Only the fields passed are sent — the server leaves the rest of the row
   /// alone, so favouriting a station can't wipe its ticked checklist.

@@ -20,7 +20,6 @@ import { FeatureDeepDives } from '../components/landing/FeatureDeepDives.jsx';
 import { TextRevealManifesto } from '../components/landing/TextRevealManifesto.jsx';
 import { SubjectGallery3D } from '../components/landing/SubjectGallery3D.jsx';
 import { StatsSection } from '../components/landing/StatsSection.jsx';
-import { TestimonialsMarquee } from '../components/landing/TestimonialsMarquee.jsx';
 import { FeatureComparison } from '../components/landing/FeatureComparison.jsx';
 import { FaqSection } from '../components/landing/FaqSection.jsx';
 import { FAQ_ITEMS } from '../components/landing/faqData.js';
@@ -175,7 +174,6 @@ export function LandingPage() {
       <TextRevealManifesto />
       <SubjectGallery3D darkModeActive={subjectDarkModeActive} onDarkModeChange={handleSubjectDarkModeChange} />
       <StatsSection />
-      {/* <TestimonialsMarquee /> */}
       <FeatureComparison />
       <FaqSection />
       <FinalCTA primaryTo="/register" />

@@ -1,5 +1,8 @@
 import { Body, Controller, Delete, Get, Headers, HttpException, InternalServerErrorException, Logger, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
+import { progressOptions } from '../courses/student-catalogue.service';
+import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
@@ -20,13 +23,39 @@ export class AuthController {
 
   constructor(
     private readonly authService: AuthService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  /**
+   * Phone sign-in = one request (OPTIMIZE 10 step 5): the reply also carries
+   * what the first screen needs (Study Hub top, notices, announcements,
+   * catalogue version), so the app does not follow up with the token renewal,
+   * notices and Study Hub requests. The feature list is left out of the phone's
+   * copy of the user (the app never reads it).
+   */
+  private async withAppStart(result: any, appClient?: string, lastNoticeId?: string, request?: any) {
+    if (!isMobileAppClient(appClient) || !result?.accessToken || !result?.user) return result;
+    const { featureAccess: _f, ...user } = result.user;
+    try {
+      const startPayload: any = this.moduleRef.get('START_PAYLOAD', { strict: false });
+      // The phone's finished-lessons bitmap version (10.14), sent as headers.
+      const headers = request?.headers || {};
+      const progressOpts = progressOptions(headers['x-progress-format'], headers['x-progress-version']);
+      const start = await startPayload.build(String(user.role), result.accessToken, Number(lastNoticeId) || 0, Number(user.id) || 0, progressOpts);
+      return { ...result, user, start };
+    } catch (error: any) {
+      this.logger.warn(`Sign-in start payload skipped: ${error?.message || error}`);
+      return { ...result, user };
+    }
+  }
 
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Headers('x-app-client') appClient: string | undefined,
+    @Headers('x-last-notice-id') lastNoticeId: string | undefined,
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
@@ -36,10 +65,10 @@ export class AuthController {
       this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     }
     if (this.shouldExposeSessionToken(nativeHeader)) {
-      return result;
+      return this.withAppStart(result, appClient, lastNoticeId, request);
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
-    return safeResult;
+    return this.withAppStart(safeResult, appClient, lastNoticeId, request);
   }
 
   @Post('register')
@@ -65,16 +94,18 @@ export class AuthController {
   async verifyEmailOtp(
     @Body() verifyEmailOtpDto: VerifyEmailOtpDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Headers('x-app-client') appClient: string | undefined,
+    @Headers('x-last-notice-id') lastNoticeId: string | undefined,
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
     const result: any = await this.authService.verifyEmailOtp(verifyEmailOtpDto);
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
-      return result;
+      return this.withAppStart(result, appClient, lastNoticeId, request);
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
-    return safeResult;
+    return this.withAppStart(safeResult, appClient, lastNoticeId, request);
   }
 
   @Post('resend-email-otp')
@@ -86,16 +117,18 @@ export class AuthController {
   async googleLogin(
     @Body() googleLoginDto: GoogleLoginDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Headers('x-app-client') appClient: string | undefined,
+    @Headers('x-last-notice-id') lastNoticeId: string | undefined,
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
     const result = await this.authService.loginWithGoogle(googleLoginDto);
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
-      return result;
+      return this.withAppStart(result, appClient, lastNoticeId, request);
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
-    return safeResult;
+    return this.withAppStart(safeResult, appClient, lastNoticeId, request);
   }
 
   @Post('google/code')
@@ -129,6 +162,8 @@ export class AuthController {
   async appleLogin(
     @Body() appleLoginDto: AppleLoginDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Headers('x-app-client') appClient: string | undefined,
+    @Headers('x-last-notice-id') lastNoticeId: string | undefined,
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
@@ -143,10 +178,10 @@ export class AuthController {
     }
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
-      return result;
+      return this.withAppStart(result, appClient, lastNoticeId, request);
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
-    return safeResult;
+    return this.withAppStart(safeResult, appClient, lastNoticeId, request);
   }
 
   // Web "Sign in with Apple" (same-page redirect flow, like Google). Apple
@@ -243,6 +278,18 @@ export class AuthController {
     return this.authService.me(authorization || this.authorizationFromCookie(cookie));
   }
 
+  /**
+   * Renew the signed access token (1 h) with the session token. Checks the
+   * account once (one indexed row); the app also uses it as the cold-open check.
+   */
+  @Post('token')
+  renewAccessToken(
+    @Headers('authorization') authorization?: string,
+    @Headers('cookie') cookie?: string
+  ) {
+    return this.authService.renewAccessToken(authorization || this.authorizationFromCookie(cookie));
+  }
+
   @Post('logout')
   async logout(
     @Headers('authorization') authorization: string | undefined,
@@ -277,7 +324,13 @@ export class AuthController {
   }
 
   @Patch('profile')
-  updateProfile(@Headers('authorization') authorization: string | undefined, @Body() updateProfileDto: UpdateProfileDto) {
+  updateProfile(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() updateProfileDto: UpdateProfileDto,
+    @Headers('x-app-client') appClient?: string,
+  ) {
+    // Phone app (2026-11-17): one UPDATE, the app keeps its own copy of the user.
+    if (isMobileAppClient(appClient)) return this.authService.updateProfileLean(authorization, updateProfileDto);
     return this.authService.updateProfile(authorization, updateProfileDto);
   }
 

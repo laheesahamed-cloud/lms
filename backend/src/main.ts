@@ -1,3 +1,10 @@
+import { isMobileAppClient } from './common/utils/mobile-client.util';
+import { requestContextMiddleware } from './common/auth/subscription-scope';
+import { RideAlongInterceptor } from './common/interceptors/ride-along.interceptor';
+import type { Pool } from 'mysql2/promise';
+import { DATABASE_CONNECTION } from './database/database.tokens';
+import { bumpContentVersion, isCatalogueWrite, watchContentVersion } from './common/utils/content-version';
+import { queryTraceEnabled, queryTraceMiddleware } from './common/dev/query-trace';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +15,8 @@ const { json, urlencoded } = express;
 const path = require('path');
 import { AppModule } from './app.module';
 import { DatabaseExceptionFilter, isDatabaseUnavailableError } from './common/filters/database-exception.filter';
+import { DeadlockRetryInterceptor } from './common/interceptors/deadlock-retry.interceptor';
+import { clearAdminReadCache, isContentWrite } from './common/utils/admin-read-cache';
 import { AuthService } from './modules/auth/auth.service';
 import { recordApiRequestMetric } from './performance-metrics';
 import { isValidMediaSignature, uploadResource } from './common/utils/signed-media.util';
@@ -330,7 +339,7 @@ function rewriteApiBoundary(path: string, method: string) {
     if (resource === 'ecg') return `/api/admin/ecg${restPath}`;
     if (resource === 'auscultation') return `/api/admin/auscultation${restPath}`;
     if (resource === 'osce') return `/api/admin/osce${restPath}`;
-    if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'setup', 'papers', 'theory-recap', 'smart-notes', 'ai'].includes(resource)) {
+    if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'papers', 'theory-recap', 'ai'].includes(resource)) {
       return `/api/${resource}${restPath}`;
     }
   }
@@ -338,9 +347,21 @@ function rewriteApiBoundary(path: string, method: string) {
   if (path.startsWith('/api/student/')) {
     if (resource === 'dashboard') {
       if (rest[0] === 'activity') return '/api/dashboard/student/activity';
+      if (rest[0] === 'sync') return '/api/dashboard/student/sync'; // 10.28: practices after 12 h
+      // Study Hub in two parts (design A): the top, and the lower cards.
+      if (rest[0] === 'top') return '/api/dashboard/student/top';
+      if (rest[0] === 'more') return '/api/dashboard/student/more';
+      if (rest[0] === 'question') return '/api/dashboard/student/question'; // 10.31
       return '/api/dashboard/student';
     }
     if (resource === 'boot') return '/api/boot/student';
+    // Shared catalogue + the student's own progress (OPTIMIZE 10 step 5).
+    if (resource === 'catalogue') {
+      if (rest[0] === 'index') return '/api/catalogue/student/index';
+      if (rest[0] === 'parts') return '/api/catalogue/student/parts';
+      return '/api/catalogue/student';
+    }
+    if (resource === 'progress') return '/api/catalogue/student/progress';
     if (resource === 'courses') {
       if (rest[0] === 'lessons' && rest[2] === 'progress') return `/api/courses/student/lessons/${rest[1]}/progress`;
       return `/api/courses/student${restPath}`;
@@ -370,7 +391,6 @@ function rewriteApiBoundary(path: string, method: string) {
     if (resource === 'drugs') return `/api/drugs${restPath}`;
     if (resource === 'ecg') return `/api/ecg${restPath}`;
     if (resource === 'auscultation') return `/api/auscultation${restPath}`;
-    if (resource === 'bookmarks') return `/api/study-bookmarks${restPath}`;
     if (resource === 'notifications') return `/api/notifications${restPath}`;
     if (resource === 'planner') return `/api/study-planner${restPath}`;
     if (resource === 'question-reports') return `/api/question-reports${restPath}`;
@@ -423,6 +443,13 @@ export function resolveTrustProxy(raw: string | undefined): boolean | number | s
 }
 
 export async function configureApp(app: INestApplication) {
+  // One small context per request (signed-token subscription scopes).
+  app.use(requestContextMiddleware);
+  // Dev load monitor only (DEV_QUERY_TRACE=1, never in production).
+  if (queryTraceEnabled) app.use(queryTraceMiddleware);
+  const contentDb = app.get<Pool>(DATABASE_CONNECTION);
+  // Pick up catalogue changes saved by another process or by SQL (2026-11-18).
+  watchContentVersion(contentDb);
   const configService = app.get(ConfigService);
   const authService = app.get(AuthService);
   (app.getHttpAdapter().getInstance() as any).set(
@@ -467,6 +494,17 @@ export async function configureApp(app: INestApplication) {
         'Content-Disposition',
         INLINE_SAFE_UPLOAD_EXTENSIONS.has(extension) ? 'inline' : 'attachment'
       );
+      // 10.26 P1: lesson pictures are kept by browsers and the app. A
+      // content-hashed name (16 hex, how the editor saves images) never
+      // changes, so it's kept for a year; other lesson pictures for a day,
+      // then re-checked with their ETag (304, no body when unchanged).
+      const file = String(filePath || '').replace(/\\/g, '/');
+      if (/\/lesson-notes\//.test(file) && ['webp', 'png', 'jpg', 'jpeg', 'gif'].includes(extension)) {
+        res.setHeader(
+          'Cache-Control',
+          /\/[0-9a-f]{16}\.[a-z]+$/i.test(file) ? 'public, max-age=31536000, immutable' : 'public, max-age=86400',
+        );
+      }
     },
   };
   // Payment proofs are financial documents and must only ever be reachable through
@@ -515,15 +553,40 @@ export async function configureApp(app: INestApplication) {
 
   app.use(restoreApiPrefixForMountedApp);
 
+  // Admin reads that scan the question bank are remembered briefly
+  // (admin-read-cache.ts). Any content save forgets them once it has finished,
+  // so admins see their change at once.
+  // (Structure-page counts are no longer recounted here: each save adjusts its
+  // own counts in its transaction — see common/utils/structure-counts.ts.)
+  app.use((req: any, res: any, next: any) => {
+    const path = String(req.path || req.url || '').split('?')[0];
+    const method = String(req.method || 'GET').toUpperCase();
+    if (isContentWrite(method, path)) {
+      res.on('finish', () => clearAdminReadCache());
+    }
+    // Phones' saved lists follow the catalogue version (admin saves only).
+    if (isCatalogueWrite(method, path)) {
+      res.on('finish', () => {
+        if (res.statusCode < 400) bumpContentVersion(contentDb).catch(() => {});
+      });
+    }
+    next();
+  });
+
   app.use((req: any, res: any, next: any) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+    // The phone app's JSON replies get the short API policy (OWASP REST
+    // guidance): nothing may load and nothing may frame it. The full page
+    // policy (~765 bytes listing allowed sites) only matters to web pages, and
+    // was sent on every phone reply (OPTIMIZE 10 step 5: data sent).
+    const appJson = isMobileAppClient(req.headers?.['x-app-client']) && !/^\/api\/embed(?:\/|$)/.test(String(req.path || ''));
     res.setHeader(
       'Content-Security-Policy',
-      contentSecurityPolicy
+      appJson ? "default-src 'none'; frame-ancestors 'none'" : contentSecurityPolicy
     );
     res.removeHeader('X-Powered-By');
     next();
@@ -913,6 +976,10 @@ export async function configureApp(app: INestApplication) {
     credentials: true,
   });
   app.useGlobalFilters(new DatabaseExceptionFilter(app.get(HttpAdapterHost)));
+  // A save that loses a database deadlock is undone by MariaDB; run it again.
+  app.useGlobalInterceptors(new DeadlockRetryInterceptor());
+  // 10.28: practices riding along with any student request.
+  app.useGlobalInterceptors(new RideAlongInterceptor(app.get(DATABASE_CONNECTION)));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

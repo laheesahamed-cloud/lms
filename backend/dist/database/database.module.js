@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var DatabaseWarmupService_1, DatabaseShutdownService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseModule = void 0;
+const query_trace_1 = require("../common/dev/query-trace");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const mysql = require("mysql2/promise");
@@ -77,7 +78,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                 provide: database_tokens_1.DATABASE_CONNECTION,
                 inject: [config_1.ConfigService],
                 useFactory: (configService) => {
-                    return mysql.createPool({
+                    return (0, query_trace_1.traceQueries)(mysql.createPool({
                         host: configService.get('database.host'),
                         port: configService.get('database.port'),
                         user: configService.get('database.user'),
@@ -91,7 +92,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                         queueLimit: configService.get('database.queueLimit') || 100,
                         enableKeepAlive: true,
                         keepAliveInitialDelay: 0,
-                    });
+                    }));
                 },
             },
             DatabaseWarmupService,

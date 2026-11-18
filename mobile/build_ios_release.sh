@@ -38,7 +38,7 @@ fi
 echo "   using $DEVICE"
 
 echo "== 4. Build (release only — debug builds get killed at launch on iOS 26.5)"
-"$FLUTTER" build ios --release --dart-define=API_BASE_URL="$API"
+"$FLUTTER" build ios --release --dart-define=API_BASE_URL="$API" ${EXTRA_DART_DEFINES:-}
 
 APP="build/ios/iphoneos/Runner.app"
 [ -d "$APP" ] || APP="build/ios/Release-iphoneos/Runner.app"

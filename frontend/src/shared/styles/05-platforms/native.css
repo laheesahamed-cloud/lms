@@ -496,7 +496,7 @@ html[data-lms-runtime="native"] :where(
   .lms-page-header-card, .lms-hero-card, .lms-form-card, .lms-floating-panel, .lms-alert,
   .study-card, .study-continue-card, .study-streak-card,
   .study-mood-card, .study-action-card, .study-plan-card, .study-analytics-card,
-  .study-exam-countdown-card, .study-upcoming-card) {
+  .study-upcoming-card) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }

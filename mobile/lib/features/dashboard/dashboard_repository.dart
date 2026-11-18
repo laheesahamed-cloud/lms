@@ -1,9 +1,13 @@
+import '../quizzes/quizzes_repository.dart';
+import '../../state/catalogue.dart';
+import '../../state/weak_topics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
 import '../../state/saved_first.dart';
+import '../../state/study_days.dart';
 
 int _i(dynamic v) =>
     v is int ? v : (v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 0);
@@ -119,7 +123,6 @@ class RecentAttempt {
   /// Mirrors QuizListItem.displayName. Empty when the server has not supplied
   /// the number yet, so callers can fall back to the raw title.
   String get displayName {
-    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
     return quizTitle.trim();
   }
 
@@ -317,6 +320,8 @@ class StudentDashboard {
   final int totalQuizzes;
   final int dailyGoalsCompleted;
   final int dailyGoalsTotal;
+  /// Today's 4 goals as the server has them (lesson 1 · exam 2 · practice 4 · flashcards 8), 10.28.
+  final int todayBits;
   final List<WeakTopic> weakTopics;
   final List<WeakTopic> strongTopics;
   final List<CourseProgress> courseProgress;
@@ -344,6 +349,7 @@ class StudentDashboard {
     required this.totalQuizzes,
     required this.dailyGoalsCompleted,
     required this.dailyGoalsTotal,
+    this.todayBits = 0,
     required this.weakTopics,
     required this.strongTopics,
     required this.courseProgress,
@@ -375,6 +381,88 @@ class StudentDashboard {
   int get levelProgressPct =>
       clampPct(((earnedXp - (level - 1) * 300) / 300) * 100);
 
+  /// The top part (start-up reply) with the lower cards' answer laid over
+  /// it: the plan, the last 5 attempts, the question of the day, the
+  /// strongest subjects.
+  StudentDashboard withMore(StudentDashboard more) => StudentDashboard(
+        todayBits: todayBits,
+        fullName: fullName,
+        quizDayStreak: quizDayStreak,
+        quizDoneToday: quizDoneToday,
+        streakGraceActive: streakGraceActive,
+        savedXp: savedXp,
+        xpToday: xpToday,
+        xpDailyCap: xpDailyCap,
+        recentActiveDays: recentActiveDays,
+        avgScore: avgScore,
+        passRate: passRate,
+        totalAttempts: totalAttempts,
+        totalPassed: totalPassed,
+        totalCourses: totalCourses,
+        totalQuizzes: totalQuizzes,
+        dailyGoalsCompleted: dailyGoalsCompleted,
+        dailyGoalsTotal: dailyGoalsTotal,
+        weakTopics: weakTopics,
+        // Strong subjects are worked out on the phone (10.17); the server sends none.
+        strongTopics: more.strongTopics.isNotEmpty ? more.strongTopics : strongTopics,
+        courseProgress: courseProgress,
+        courseProgressSummary: courseProgressSummary,
+        recentAttempts: more.recentAttempts.isNotEmpty ? more.recentAttempts : recentAttempts,
+        performanceSnapshot: performanceSnapshot,
+        adaptivePlan: more.adaptivePlan,
+        questionOfDay: more.questionOfDay,
+        progressNote: progressNote,
+      );
+
+  /// The lite top from the server (step 5) completed with what the phone
+  /// already holds: course progress (catalogue + progress) and the latest
+  /// attempts (its results list).
+  StudentDashboard withLocal({
+    List<CourseProgress>? courses,
+    CourseProgressSummary? summary,
+    List<RecentAttempt>? attempts,
+    List<WeakTopic>? weak,
+    List<WeakTopic>? strong,
+    int localBits = 0,
+  }) {
+    // 10.29: today's goals done on this phone count at once (lesson, exam,
+    // practice, flashcards), and so does the streak when the 4th goal is
+    // ticked — the server saves the same goals in the writes it already gets.
+    final bits = todayBits | (localBits & 15);
+    final dayCompletes = bits == 15 && todayBits != 15 && !quizDoneToday;
+    final today = StudyDays.today();
+    return StudentDashboard(
+        todayBits: bits,
+        fullName: fullName,
+        quizDayStreak: dayCompletes ? quizDayStreak + 1 : quizDayStreak,
+        quizDoneToday: quizDoneToday || dayCompletes,
+        streakGraceActive: streakGraceActive,
+        savedXp: savedXp,
+        xpToday: xpToday,
+        xpDailyCap: xpDailyCap,
+        recentActiveDays: dayCompletes && !recentActiveDays.contains(today)
+            ? [...recentActiveDays, today]
+            : recentActiveDays,
+        avgScore: avgScore,
+        passRate: passRate,
+        totalAttempts: totalAttempts,
+        totalPassed: totalPassed,
+        totalCourses: totalCourses,
+        totalQuizzes: totalQuizzes,
+        dailyGoalsCompleted: [1, 2, 4, 8].where((b) => bits & b != 0).length,
+        dailyGoalsTotal: dailyGoalsTotal,
+        weakTopics: weak ?? weakTopics,
+        strongTopics: strong ?? strongTopics,
+        courseProgress: courses ?? courseProgress,
+        courseProgressSummary: summary ?? courseProgressSummary,
+        recentAttempts: attempts ?? recentAttempts,
+        performanceSnapshot: performanceSnapshot,
+        adaptivePlan: adaptivePlan,
+        questionOfDay: questionOfDay,
+        progressNote: progressNote,
+      );
+  }
+
   factory StudentDashboard.fromJson(dynamic raw) {
     final m = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final user =
@@ -401,7 +489,8 @@ class StudentDashboard {
       totalCourses: _i(m['totalCourses']),
       totalQuizzes: _i(m['totalQuizzes']),
       dailyGoalsCompleted: _i(m['dailyGoalsCompleted']),
-      dailyGoalsTotal: goals.isEmpty ? 3 : goals.length,
+      dailyGoalsTotal: goals.isEmpty ? 4 : goals.length,
+      todayBits: _i(m['todayBits']),
       weakTopics: topics('weakTopics'),
       strongTopics: topics('strongTopics'),
       courseProgress: (m['courseProgress'] is List)
@@ -434,7 +523,7 @@ StudentDashboard _parseDashboard(dynamic raw) => StudentDashboard.fromJson(raw);
 /// Safe to retain: resetUserScopedData() invalidates all of these on
 /// login/logout/account switch.
 Future<StudentDashboard> fetchStudentDashboard(ApiClient api) async {
-  final res = await api.dio.get('/student/dashboard');
+  final res = await api.dio.get('/student/dashboard/top');
   return compute(_parseDashboard, res.data);
 }
 
@@ -465,6 +554,13 @@ class DashboardPrefetch {
   /// Begin a prefetch. The token is already set on [api] at this point, but has
   /// not yet been validated by `me()`. That is safe: the server authorises the
   /// request itself, so a stale token yields a 401 and nothing else.
+  /// Use the dashboard that came with the start-up reply (no extra request).
+  static void seed(Object? raw) {
+    if (raw == null) return;
+    _inFlight = compute(_parseDashboard, raw);
+    _startedAt = DateTime.now();
+  }
+
   static void start(ApiClient api) {
     final future = fetchStudentDashboard(api);
     _inFlight = future;
@@ -498,15 +594,141 @@ class DashboardPrefetch {
   }
 }
 
-final studentDashboardProvider = FutureProvider<StudentDashboard>((ref) async {
+/// The Study Hub's server part only (the start-up reply's dashboard, or
+/// `/student/dashboard/top`). Nothing the student does on the phone asks for it
+/// again (10.29): the screen is [studentDashboardProvider], rebuilt on the phone.
+final hubTopProvider = FutureProvider<StudentDashboard>((ref) async {
   ref.watch(userScopeProvider);
   final warm = DashboardPrefetch.take();
-  if (warm != null) return warm;
+  final api = ref.read(apiClientProvider);
+  final top = warm != null
+      ? await warm
+      : await savedFirst(
+          ref,
+          name: 'dashboard',
+          fetch: () async => (await api.dio.get('/student/dashboard/top')).data,
+          parse: (raw) => compute(_parseDashboard, raw),
+        );
+  return top;
+});
+
+/// The Study Hub as shown (10.29): the server part with everything the phone
+/// already holds laid over it — course progress, recent results, weak topics,
+/// and today's 4 goals + streak from the study days. Rebuilding it (after a
+/// lesson, exam, practice or flashcards) asks the server for nothing.
+final studentDashboardProvider = FutureProvider<StudentDashboard>((ref) async {
+  ref.watch(userScopeProvider);
+  final top = await ref.watch(hubTopProvider.future);
+  return completeLocally(ref, top);
+});
+
+/// The study days kept on the phone (today's goals, the Readiness bars).
+/// Reading it is a file read; the first read fills it from the recent exams.
+final studyDaysProvider = FutureProvider<List<StudyDay>>((ref) async {
+  ref.watch(userScopeProvider);
+  List<Map<String, dynamic>> recent = const [];
+  try {
+    recent = (await ref.read(studentProgressProvider.future)).recentResults;
+  } catch (_) {}
+  return StudyDays.read(recent: recent);
+});
+
+/// Course progress from the catalogue + the student's progress, and the
+/// latest attempts from the results list — what the lite top leaves out.
+Future<StudentDashboard> completeLocally(Ref ref, StudentDashboard top) async {
+  List<CourseProgress>? courses;
+  CourseProgressSummary? summary;
+  List<RecentAttempt>? attempts;
+  try {
+    final cat = await ref.watch(catalogueProvider.future);
+    final prog = await ref.watch(studentProgressProvider.future);
+    final lessonsByCourse = <int, List<List<dynamic>>>{};
+    for (final l in cat.lessons) {
+      lessonsByCourse.putIfAbsent(l[1] as int, () => []).add(l);
+    }
+    var done = 0, total = 0;
+    courses = cat.courses.map((c) {
+      final id = c[0] as int;
+      final ls = lessonsByCourse[id] ?? const <List<dynamic>>[];
+      final d = ls.where((l) => prog.lessonDone(l[0] as int)).length;
+      done += d;
+      total += ls.length;
+      final pct = ls.isEmpty ? 0 : (d * 100 / ls.length).round();
+      return CourseProgress(
+        id: id,
+        courseTitle: '${c[1]}',
+        courseCode: '${c[2]}',
+        examType: '${c[3]}',
+        subjectCount: cat.subjects.where((s) => s[1] == id).length,
+        progressPercent: pct,
+        completedLessonsCount: d,
+        totalLessonsCount: ls.length,
+        actionLabel: pct > 0 && pct < 100 && ls.isNotEmpty ? 'Continue' : 'View Course',
+      );
+    }).toList();
+    summary = CourseProgressSummary(
+      visibleCourses: courses.length,
+      completedLessons: done,
+      totalLessons: total,
+      overallProgressPercent: total == 0 ? 0 : (done * 100 / total).round(),
+    );
+  } catch (_) {}
+  if (top.recentAttempts.isEmpty) {
+    try {
+      final results = await ref.watch(resultsListProvider.future);
+      attempts = results.take(5).map((r) => RecentAttempt(
+            id: r.attemptId,
+            quizTitle: r.quizTitle,
+            courseTitle: r.courseTitle,
+            topicName: r.topicDisplay,
+            score: r.score,
+            totalQuestions: r.correctAnswers + r.wrongAnswers,
+            percentage: r.percentage,
+            passStatus: r.passStatus,
+            submittedAt: r.submittedAt,
+            quizNumber: r.quizNumber,
+            displayTitleMode: r.displayTitleMode,
+          )).toList();
+    } catch (_) {}
+  }
+  // Weak / strong subjects from the phone's own counts (10.17).
+  List<WeakTopic>? weak, strong;
+  try {
+    final cat = await ref.watch(catalogueProvider.future);
+    final ranked = await WeakTopics.ranked(cat);
+    WeakTopic toTopic(({String subject, String course, int pct, int answered}) r) =>
+        WeakTopic(topicName: r.subject, courseTitle: r.course, averagePercentage: r.pct, attemptsCount: r.answered);
+    weak = ranked.take(3).map(toTopic).toList();
+    final weakNames = weak.map((w) => w.topicName).toSet();
+    strong = ranked.reversed.where((r) => !weakNames.contains(r.subject)).take(3).map(toTopic).toList();
+  } catch (_) {}
+  var localBits = 0;
+  try {
+    localBits = StudyDays.bitsToday(await ref.watch(studyDaysProvider.future));
+  } catch (_) {}
+  return top.withLocal(courses: courses, summary: summary, attempts: attempts, weak: weak, strong: strong, localBits: localBits);
+}
+
+/// Study Hub lower cards (design A): plan, analytics, question of the day,
+/// weak areas, recent results — one request, made only when those cards are
+/// first built, i.e. when the list scrolls near them (ListView builds lazily).
+/// Follows the top part: whenever the top is reloaded this is asked again,
+/// and the saved copy answers unless the Hub was marked fresh (freshNext).
+final hubMoreProvider = FutureProvider<StudentDashboard>((ref) async {
+  ref.watch(userScopeProvider);
+  await ref.watch(hubTopProvider.future);
   final api = ref.read(apiClientProvider);
   return savedFirst(
     ref,
-    name: 'dashboard',
-    fetch: () async => (await api.dio.get('/student/dashboard')).data,
+    name: 'dashboard_more',
+    fetch: () async => (await api.dio.get('/student/dashboard/more')).data,
     parse: (raw) => compute(_parseDashboard, raw),
   );
+});
+
+/// The whole Study Hub for the lower cards: the top with the lower part laid over it.
+final hubFullProvider = FutureProvider<StudentDashboard>((ref) async {
+  final top = await ref.watch(studentDashboardProvider.future);
+  final more = await ref.watch(hubMoreProvider.future);
+  return top.withMore(more);
 });

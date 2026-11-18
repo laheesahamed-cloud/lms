@@ -71,14 +71,6 @@ export class CreateQuizDto {
   @IsString()
   quizDescription?: string;
 
-  @IsOptional()
-  blueprint?: Record<string, unknown> | null;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(['static', 'dynamic'])
-  randomizationMode?: 'static' | 'dynamic';
-
   @IsInt()
   @Min(1)
   timeLimit!: number;

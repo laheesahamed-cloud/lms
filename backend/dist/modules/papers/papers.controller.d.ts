@@ -41,36 +41,24 @@ export declare class PapersController {
         ok: boolean;
         id: number;
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
-    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<void>;
 }

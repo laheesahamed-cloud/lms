@@ -505,7 +505,9 @@ let OsceService = OsceService_1 = class OsceService {
         return `${base}-${Date.now()}`;
     }
     async getCaseById(id) {
-        const [rows] = await this.db.execute(`SELECT c.*, cat.name AS category_name, co.course_title
+        const [rows] = await this.db.execute(`SELECT c.id, c.course_id, c.category_id, c.title, c.slug, c.summary, c.difficulty, c.station_type,
+              c.status, c.is_public, c.is_free, c.sort_order, c.updated_at, c.case_data,
+              cat.name AS category_name, co.course_title
          FROM osce_cases c
          LEFT JOIN osce_categories cat ON cat.id = c.category_id
          LEFT JOIN courses co ON co.id = c.course_id
@@ -515,7 +517,9 @@ let OsceService = OsceService_1 = class OsceService {
         return { ...this.mapCaseRow(rows[0]), caseData: this.parseDoc(rows[0].case_data) };
     }
     async getCaseBySlug(slug, publishedOnly = false) {
-        const [rows] = await this.db.execute(`SELECT c.*, cat.name AS category_name, co.course_title
+        const [rows] = await this.db.execute(`SELECT c.id, c.course_id, c.category_id, c.title, c.slug, c.summary, c.difficulty, c.station_type,
+              c.status, c.is_public, c.is_free, c.sort_order, c.updated_at, c.case_data,
+              cat.name AS category_name, co.course_title
          FROM osce_cases c
          LEFT JOIN osce_categories cat ON cat.id = c.category_id
          LEFT JOIN courses co ON co.id = c.course_id

@@ -1,6 +1,4 @@
 import { QuizAttemptsService } from './quiz-attempts.service';
-import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
-import { SubmitExamDto } from './dto/submit-exam.dto';
 export declare class QuizAttemptsController {
     private readonly quizAttemptsService;
     constructor(quizAttemptsService: QuizAttemptsService);
@@ -33,32 +31,18 @@ export declare class QuizAttemptsController {
         lessonTitle: string;
         examAttemptCount: number;
         latestAttemptId: number | null;
+        bestPercentage: any;
+        passed: boolean;
         isCompleted: boolean;
         isFree: boolean;
-        randomizationMode: "static" | "dynamic";
+        randomizationMode: string;
         canAccess: boolean;
         accessLocked: boolean;
         accessMessage: string;
-        canPracticeMode: boolean;
-        canExamMode: boolean;
+        canPracticeMode: any;
+        canExamMode: any;
     }[]>;
-    listResults(authorization?: string): Promise<{
-        attemptId: number;
-        quizId: number;
-        quizTitle: string;
-        displayTitleMode: string;
-        quizNumber: number | null;
-        subtopic: string;
-        courseTitle: string;
-        topicDisplay: string;
-        score: number;
-        percentage: number;
-        correctAnswers: number;
-        wrongAnswers: number;
-        passStatus: string;
-        submittedAt: any;
-        reviewedAt: any;
-    }[]>;
+    listResults(authorization?: string): Promise<any[]>;
     loadQuiz(quizId: number, mode: string, questionId?: string, authorization?: string, appClient?: string): Promise<{
         mode: string;
         quiz: {
@@ -75,7 +59,7 @@ export declare class QuizAttemptsController {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
-            randomizationMode: "static" | "dynamic";
+            randomizationMode: string;
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;
@@ -86,29 +70,40 @@ export declare class QuizAttemptsController {
             hidePassingMarks: boolean;
             subtopic: string;
         };
-        examSession: {
-            id: number;
-            status: "in_progress" | "submitted" | "expired";
-            startedAt: string | null;
-            deadlineAt: string | null;
-            serverTime: string | null;
-            secondsRemaining: number | null;
-            lastQuestionIndex: number;
-            answers: Record<string, unknown>;
-            flaggedQuestionIds: number[];
-            submittedAttemptId: number | null;
-        };
         questions: {
             id: number;
             questionType: "sba" | "true_false";
             questionText: string;
+            explanation: string;
+            explanationImageUrl: string;
+            questionApproach: string;
+            questionApproachHighlights: string[];
             options: {
                 id: number;
                 optionLabel: string;
                 optionText: string;
+                isCorrect: number;
+                whyIncorrect: string;
             }[];
+            theoryRecap: {
+                conceptName: string;
+                hierarchy: {
+                    course: string;
+                    subject: string;
+                    topic: string;
+                    lesson: string;
+                };
+                etiology: string[];
+                pathophysiology: string[];
+                clinicalFeatures: string[];
+                investigations: string[];
+                treatment: string[];
+                keyPoints: string[];
+                mnemonic: string;
+            } | null;
         }[];
-    } | {
+    }>;
+    startExam(quizId: number, authorization: string | undefined, appClient?: string): Promise<{
         mode: string;
         quiz: {
             id: number;
@@ -124,7 +119,7 @@ export declare class QuizAttemptsController {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
-            randomizationMode: "static" | "dynamic";
+            randomizationMode: string;
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;
@@ -136,196 +131,231 @@ export declare class QuizAttemptsController {
             subtopic: string;
         };
         questions: {
-            canRevealAnswer: boolean;
             id: number;
             questionType: "sba" | "true_false";
             questionText: string;
-            explanation: string;
-            explanationImageUrl: string;
-            questionApproach: string;
-            questionApproachHighlights: string[];
-            contentTrace: {
-                source: string;
-                sourceId: number;
-                version: number;
-                versionLabel: string;
-                versionedAt: string | Date | null;
-            };
             options: {
                 id: number;
                 optionLabel: string;
                 optionText: string;
-                isCorrect: number;
-                whyIncorrect: string;
             }[];
-            answerKey: {
-                type: string;
-                statements: {
-                    optionId: number;
-                    label: string;
-                    text: string;
-                    answer: string;
-                }[];
-                correctOptions?: undefined;
-            } | {
-                type: string;
-                correctOptions: {
-                    optionId: number;
-                    label: string;
-                    text: string;
-                }[];
-                statements?: undefined;
-            };
-            theoryRecap: {
-                conceptName: string;
-                hierarchy: {
-                    course: string;
-                    subject: string;
-                    topic: string;
-                    lesson: string;
-                };
-                etiology: string[];
-                pathophysiology: string[];
-                clinicalFeatures: string[];
-                investigations: string[];
-                treatment: string[];
-                keyPoints: string[];
-                mnemonic: string;
-            } | null;
         }[];
-        examSession?: undefined;
+        examToken: string;
+        startedAt: string;
+        deadlineAt: string;
+        timeLimitSeconds: number;
     }>;
-    submitExam(quizId: number, authorization: string | undefined, submitExamDto: SubmitExamDto, appClient?: string): Promise<{
+    finishExam(quizId: number, authorization: string | undefined, body: {
+        examToken?: string;
+        answers?: Record<string, unknown>;
+        lean?: boolean;
+    }, appClient?: string): Promise<{
         success: boolean;
-        attemptId: number;
-        xp?: undefined;
+        duplicate: boolean;
     } | {
-        success: boolean;
-        attemptId: number;
-        xp: import("../xp/xp.service").XpResult;
-    }>;
-    saveExamProgress(quizId: number, authorization: string | undefined, saveExamProgressDto: SaveExamProgressDto, appClient?: string): Promise<{
-        success: boolean;
-        submitted: boolean;
-        attemptId: number | null;
-        serverTime: string | null;
-        deadlineAt: string | null;
-        secondsRemaining: number;
-        timeExpired?: undefined;
-    } | {
-        success: boolean;
-        timeExpired: boolean;
-        submitted: boolean;
-        attemptId: number;
-        serverTime: string | null;
-        deadlineAt: string | null;
-        secondsRemaining: number;
-    } | {
-        success: boolean;
-        serverTime: string | null;
-        deadlineAt: string | null;
-        secondsRemaining: number | null;
-        submitted?: undefined;
-        attemptId?: undefined;
-        timeExpired?: undefined;
-    }>;
-    result(attemptId: number, authorization?: string): Promise<{
-        attemptId: number;
-        quizId: number;
-        quizTitle: string;
-        displayTitleMode: string;
-        quizNumber: number | null;
-        courseTitle: string;
-        topicDisplay: string;
-        passStatus: string;
-        totalQuestions: number;
-        totalMarks: number;
-        correctAnswers: number;
-        wrongAnswers: number;
-        unansweredQuestions: number;
-        score: number;
-        percentage: number;
-        passingMarks: number;
-    }>;
-    review(attemptId: number, authorization?: string, appClient?: string): Promise<{
-        attempt: {
+        practiceQuiz?: {
+            id: number;
+            courseId: number;
+            topicId: number | null;
+            subtopicId: number | null;
+            lessonId: number | null;
+            courseTitle: string;
+            subjectName: string;
+            topicName: string;
+            subtopicName: string;
+            lessonTitle: string;
+            isGeneral: boolean;
+            isFree: boolean;
+            examModeOnly: boolean;
+            randomizationMode: string;
+            quizTitle: string;
+            quizDescription: string;
+            totalQuestions: number;
+            totalMarks: number;
+            timeLimit: number;
+            hideTimeLimit: boolean;
+            passingMarks: number;
+            hidePassingMarks: boolean;
+            subtopic: string;
+        } | undefined;
+        lean?: boolean | undefined;
+        result: {
             attemptId: number;
             quizId: number;
-            lessonId: number | null;
             quizTitle: string;
+            displayTitleMode: string;
+            quizNumber: number | null;
             courseTitle: string;
             topicDisplay: string;
+            passStatus: string;
+            totalQuestions: number;
+            totalMarks: number;
+            correctAnswers: number;
+            wrongAnswers: number;
+            unansweredQuestions: number;
             score: number;
             percentage: number;
-            passStatus: string;
+            passingMarks: number;
         };
-        questions: {
-            answerState: {
-                selectedIds: number[];
-                tfMap: Record<number, number>;
+        review: {
+            attempt: {
+                attemptId: number;
+                quizId: number;
+                lessonId: number | null;
+                quizTitle: string;
+                courseTitle: string;
+                topicDisplay: string;
+                score: number;
+                percentage: number;
+                passStatus: string;
             };
-            answerStatus: string;
-            questionScore: number;
-            maxQuestionScore: number;
-            id: number;
-            questionType: "sba" | "true_false";
-            questionText: string;
-            explanation: string;
-            explanationImageUrl: string;
-            questionApproach: string;
-            questionApproachHighlights: string[];
-            contentTrace: {
-                source: string;
-                sourceId: number;
-                version: number;
-                versionLabel: string;
-                versionedAt: string | Date | null;
-            };
-            options: {
-                id: number;
-                optionLabel: string;
-                optionText: string;
-                isCorrect: number;
-                whyIncorrect: string;
-            }[];
-            answerKey: {
-                type: string;
-                statements: {
-                    optionId: number;
-                    label: string;
-                    text: string;
-                    answer: string;
-                }[];
-                correctOptions?: undefined;
-            } | {
-                type: string;
-                correctOptions: {
-                    optionId: number;
-                    label: string;
-                    text: string;
-                }[];
-                statements?: undefined;
-            };
-            theoryRecap: {
-                conceptName: string;
-                hierarchy: {
-                    course: string;
-                    subject: string;
-                    topic: string;
-                    lesson: string;
-                };
-                etiology: string[];
-                pathophysiology: string[];
-                clinicalFeatures: string[];
-                investigations: string[];
-                treatment: string[];
-                keyPoints: string[];
-                mnemonic: string;
-            } | null;
-        }[];
+            questions: Record<string, unknown>[];
+        };
+        success: boolean;
+        quizId: number;
+        percentage: number;
+        score: number;
+        passed: boolean;
+        correct: number;
+        wrong: number;
+        unanswered: number;
+        total: number;
+        xp: {
+            reason?: "low_score" | undefined;
+            awarded: number;
+            capped: boolean;
+        };
+        progressVersion: number;
+        answers: Record<string, unknown>;
+        duplicate?: undefined;
     }>;
-    completeReview(attemptId: number, authorization?: string): Promise<{
-        attemptId: number;
+    recentReview(quizId: number, authorization?: string, appClient?: string, part?: string, lean?: string): Promise<{
+        result: {
+            attemptId: number;
+            quizId: number;
+            quizTitle: string;
+            displayTitleMode: string;
+            quizNumber: number | null;
+            courseTitle: string;
+            topicDisplay: string;
+            passStatus: string;
+            totalQuestions: number;
+            totalMarks: number;
+            correctAnswers: number;
+            wrongAnswers: number;
+            unansweredQuestions: number;
+            score: number;
+            percentage: number;
+            passingMarks: number;
+        };
         reviewed: boolean;
+        at: any;
+    } | {
+        reviewed: boolean;
+        at: any;
+        practiceQuiz: {
+            id: number;
+            courseId: number;
+            topicId: number | null;
+            subtopicId: number | null;
+            lessonId: number | null;
+            courseTitle: string;
+            subjectName: string;
+            topicName: string;
+            subtopicName: string;
+            lessonTitle: string;
+            isGeneral: boolean;
+            isFree: boolean;
+            examModeOnly: boolean;
+            randomizationMode: string;
+            quizTitle: string;
+            quizDescription: string;
+            totalQuestions: number;
+            totalMarks: number;
+            timeLimit: number;
+            hideTimeLimit: boolean;
+            passingMarks: number;
+            hidePassingMarks: boolean;
+            subtopic: string;
+        };
+        lean?: boolean | undefined;
+        result: {
+            attemptId: number;
+            quizId: number;
+            quizTitle: string;
+            displayTitleMode: string;
+            quizNumber: number | null;
+            courseTitle: string;
+            topicDisplay: string;
+            passStatus: string;
+            totalQuestions: number;
+            totalMarks: number;
+            correctAnswers: number;
+            wrongAnswers: number;
+            unansweredQuestions: number;
+            score: number;
+            percentage: number;
+            passingMarks: number;
+        };
+        review: {
+            attempt: {
+                attemptId: number;
+                quizId: number;
+                lessonId: number | null;
+                quizTitle: string;
+                courseTitle: string;
+                topicDisplay: string;
+                score: number;
+                percentage: number;
+                passStatus: string;
+            };
+            questions: Record<string, unknown>[];
+        };
+    } | {
+        reviewed: boolean;
+        at: any;
+        practiceQuiz?: undefined;
+        lean?: boolean | undefined;
+        result: {
+            attemptId: number;
+            quizId: number;
+            quizTitle: string;
+            displayTitleMode: string;
+            quizNumber: number | null;
+            courseTitle: string;
+            topicDisplay: string;
+            passStatus: string;
+            totalQuestions: number;
+            totalMarks: number;
+            correctAnswers: number;
+            wrongAnswers: number;
+            unansweredQuestions: number;
+            score: number;
+            percentage: number;
+            passingMarks: number;
+        };
+        review: {
+            attempt: {
+                attemptId: number;
+                quizId: number;
+                lessonId: number | null;
+                quizTitle: string;
+                courseTitle: string;
+                topicDisplay: string;
+                score: number;
+                percentage: number;
+                passStatus: string;
+            };
+            questions: Record<string, unknown>[];
+        };
+    }>;
+    markRecentReviewed(quizId: number, authorization?: string): Promise<{
+        ok: boolean;
+        progressVersion: number;
+        alreadyReviewed?: undefined;
+    } | {
+        ok: boolean;
+        alreadyReviewed: boolean;
+        progressVersion?: undefined;
     }>;
 }

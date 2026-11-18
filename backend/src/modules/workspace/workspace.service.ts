@@ -1,3 +1,5 @@
+import { NoticesService, Popup } from '../notices/notices.service';
+import { cachedAdminRead } from '../../common/utils/admin-read-cache';
 import { runInBatches } from '../../common/utils/run-in-batches';
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
@@ -7,6 +9,10 @@ import { allowedSqlFragment } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { getScopeRows } from '../../common/auth/subscription-scope';
+import { finishedLessons, lessonIdsFromBits } from '../../common/utils/lesson-bits';
+import { RecentResult, loadQuizInfo, loadRecentResults, mostMissedQuestions } from '../../common/utils/recent-results';
+import { PLAN_ROW_TITLE, PlannerItem, newPlannerIds, readPlanItems } from '../../common/utils/planner-doc';
 
 /// Ceiling on one generated plan. A plan covering every course is in the low
 /// hundreds of items; this is clear of that and still stops a single request
@@ -72,15 +78,12 @@ type PlannerQuizAccessProfile = {
 };
 
 const ADMIN_REPORT_FILTER_COLUMNS = [
-  'COALESCE(qa.submitted_at, qa.created_at)',
-  'qa.user_id',
   'q.course_id',
   'slp.updated_at',
   'slp.user_id',
   'slp.course_id',
   'sae.created_at',
   'sae.user_id',
-  'COALESCE(q.course_id, quiz.course_id)',
   'u.id',
   'c.id',
   'us.updated_at',
@@ -95,340 +98,179 @@ export class WorkspaceService {
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly authService: AuthService,
     private readonly plansService: PlansService,
-    private readonly pushNotificationsService: PushNotificationsService
+    private readonly pushNotificationsService: PushNotificationsService,
+    private readonly notices: NoticesService
   ) {}
 
-  async listAdminAnnouncements(authorization?: string) {
+  /**
+   * Admin announcements = the in-app popups (OPTIMIZE 10 step 4): a centre
+   * card or a Study Hub banner with a start/end time, a priority and an
+   * audience, kept in a small JSON file (no database). Apps show one at a
+   * time, highest priority first, once per device.
+   */
+  async listAdminAnnouncements(authorization?: string, _after?: number) {
     await this.authService.requireAdmin(authorization);
-    const [rows] = await this.db.execute<RowDataPacket[]>(`
-      SELECT a.*, u.full_name AS created_by_name
-      FROM announcements a
-      LEFT JOIN users u ON u.id = a.created_by
-      ORDER BY a.created_at DESC
-      LIMIT 100
-    `);
-    return rows.map((row) => this.mapAnnouncement(row));
+    return { items: this.notices.listPopups().map((p) => this.mapPopup(p)), next: null };
   }
 
   async createAnnouncement(authorization: string | undefined, input: any) {
-    const admin = await this.authService.requireAdmin(authorization);
-    const payload = this.normalizeAnnouncementInput(input);
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [payload.title, payload.body, payload.targetRole, payload.status, payload.publishAt, admin.id]
-    );
-    if (payload.status === 'published' && !payload.publishAt) {
-      this.pushNotificationsService.sendAnnouncementPush({
-        title: payload.title,
-        body: payload.body,
-        targetRole: payload.targetRole,
-        url: '/notifications',
-      }).catch((error) => {
-        // The in-app announcement is already saved; push delivery is best-effort.
-        // Invalid subscriptions are cleaned up inside PushNotificationsService.
-        console.warn(`Announcement push failed: ${error?.message || error}`);
-      });
-    }
-    return { ok: true, id: result.insertId };
+    await this.authService.requireAdmin(authorization);
+    const popup = this.notices.createPopup(input);
+    return { ok: true, id: popup.id, overlapping: this.overlappingPopups(popup) };
   }
 
   async updateAnnouncement(authorization: string | undefined, id: number, input: any) {
     await this.authService.requireAdmin(authorization);
-    const payload = this.normalizeAnnouncementInput(input);
-    await this.db.execute(
-      `UPDATE announcements SET title = ?, body = ?, target_role = ?, status = ?, publish_at = ? WHERE id = ?`,
-      [payload.title, payload.body, payload.targetRole, payload.status, payload.publishAt, id]
-    );
-    return { ok: true, id };
+    const popup = this.notices.updatePopup(id, input);
+    return { ok: true, id, overlapping: this.overlappingPopups(popup) };
   }
 
   async deleteAnnouncement(authorization: string | undefined, id: number) {
     await this.authService.requireAdmin(authorization);
-    await this.db.execute('DELETE FROM announcement_reads WHERE announcement_id = ?', [id]);
-    await this.db.execute('DELETE FROM announcements WHERE id = ?', [id]);
+    this.notices.deletePopup(id);
     return { ok: true, id };
   }
 
+  /** Other active announcements whose time window overlaps this one (the page advises keeping one). */
+  private overlappingPopups(popup: Popup) {
+    if (popup.status !== 'active') return 0;
+    const now = Date.now();
+    // No start = shown from now; no end = shown for good. Only windows still
+    // to come or running count, and only for people who would see both.
+    const start = (p: Popup) => Math.max(now, p.startAt ? new Date(p.startAt).getTime() : now);
+    const end = (p: Popup) => (p.endAt ? new Date(p.endAt).getTime() : Number.MAX_SAFE_INTEGER);
+    const shared = (a: Popup, b: Popup) => a.audience === 'all' || b.audience === 'all' || a.audience === b.audience;
+    return this.notices.listPopups().filter((p) => p.id !== popup.id && p.status === 'active'
+      && shared(p, popup) && start(p) < end(popup) && start(popup) < end(p)).length;
+  }
+
+  private mapPopup(p: Popup) {
+    return {
+      id: p.id,
+      style: p.style,
+      title: p.title,
+      body: p.body,
+      imageUrl: p.imageUrl,
+      actionLabel: p.actionLabel,
+      actionPath: p.actionPath,
+      startAt: p.startAt,
+      endAt: p.endAt,
+      priority: p.priority,
+      audience: p.audience,
+      targetRole: p.audience,
+      status: p.status,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    };
+  }
+
+  /**
+   * The notices list from the shared feed (no database): new content and
+   * admin messages, newest first. Read and cleared state live on the device
+   * (the app's inbox, the website's browser storage), so the endpoints below
+   * that used to write it keep nothing.
+   */
   async listNotifications(authorization?: string) {
     const user = await this.authService.requireAuthenticatedUser(authorization);
-    const dismissed = await this.loadDismissedKeys(user.id);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `
-        SELECT a.*, ar.id AS read_id
-        FROM announcements a
-        LEFT JOIN announcement_reads ar ON ar.announcement_id = a.id AND ar.user_id = ?
-        WHERE a.status = 'published'
-          AND (a.publish_at IS NULL OR a.publish_at <= NOW())
-          AND (a.target_role = 'all' OR a.target_role = ?)
-          AND COALESCE(a.publish_at, a.created_at) >= COALESCE(
-            (SELECT u.created_at FROM users u WHERE u.id = ?),
-            '1970-01-01 00:00:00'
-          )
-        ORDER BY a.created_at DESC
-        LIMIT 80
-      `,
-      [user.id, user.role, user.id]
-    );
-    const announcements = rows
-      .map((row) => ({
-        ...this.mapAnnouncement(row),
-        kind: 'announcement',
-        read: Boolean(row.read_id),
-        actionPath: '',
-      }))
-      .filter((item) => !dismissed.has(String(item.id)));
-
-    if (user.role !== 'student') {
-      return announcements;
-    }
-
-    const [subscriptionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT us.status, us.payment_status, us.end_date, p.name AS plan_name, us.updated_at
-       FROM user_subscriptions us
-       LEFT JOIN plans p ON p.id = us.plan_id
-       WHERE us.user_id = ?
-       ORDER BY us.updated_at DESC, us.id DESC
-       LIMIT 3`,
-      [user.id]
-    );
-    const [weakRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT t.topic_name, c.course_title, AVG(qa.percentage) AS average_percentage, MAX(COALESCE(qa.submitted_at, qa.created_at)) AS latest_at
-       FROM quiz_attempts qa
-       INNER JOIN quizzes q ON q.id = qa.quiz_id
-       LEFT JOIN topics t ON t.id = q.topic_id
-       LEFT JOIN courses c ON c.id = q.course_id
-       WHERE qa.user_id = ? AND qa.status = 'submitted'
-       GROUP BY q.topic_id, t.topic_name, c.course_title
-       HAVING average_percentage < 55
-       ORDER BY average_percentage ASC, latest_at DESC
-       LIMIT 1`,
-      [user.id]
-    );
-
-    const derived = [
-      ...subscriptionRows.map((row) => {
-        const isFreePlan = this.isFreePlanPaymentStatus(row.payment_status);
-        return {
-          id: `subscription-${String(row.status)}-${String(row.updated_at)}`,
-          kind: 'subscription',
-          title: `${String(row.plan_name || 'Subscription')} ${String(row.status || 'updated')}`,
-          body: `Payment: ${this.formatPaymentStatusLabel(row.payment_status)}${!isFreePlan && row.end_date ? ` · Valid until ${String(row.end_date).slice(0, 10)}` : ''}`,
-          read: true,
-          createdAt: row.updated_at || null,
-          actionPath: '/subscriptions',
-        };
-      }),
-      ...weakRows.map((row) => ({
-        id: `weak-${String(row.course_title || '')}-${String(row.topic_name || '')}`,
-        kind: 'weak-topic',
-        title: `Review ${String(row.topic_name || 'a weak topic')}`,
-        body: `${String(row.course_title || 'Course')} is averaging ${Number(row.average_percentage || 0).toFixed(1)}%. Add one focused practice round today.`,
-        read: true,
-        createdAt: row.latest_at || null,
-        actionPath: '/dashboard',
-      })),
-    ];
-
-    return [...announcements, ...derived.filter((item) => !dismissed.has(item.id))]
-      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
-      .slice(0, 80);
+    return this.notices.noticesFor(String(user.role)).items.map((n) => ({
+      id: n.id,
+      kind: n.kind === 'content' ? 'new-content' : 'announcement',
+      title: n.title,
+      body: n.body,
+      targetRole: n.audience,
+      status: 'published',
+      createdAt: n.createdAt,
+      updatedAt: n.createdAt,
+      read: false,
+      actionPath: n.url === '/notifications' ? '' : n.url,
+    }));
   }
 
-  private async loadDismissedKeys(userId: number) {
-    try {
-      const [rows] = await this.db.execute<RowDataPacket[]>(
-        `SELECT notification_key FROM notification_dismissals WHERE user_id = ?`,
-        [userId]
-      );
-      return new Set(rows.map((row) => String(row.notification_key)));
-    } catch {
-      // A server that has not run the migration yet should still serve the
-      // list — it just cannot hide anything.
-      return new Set<string>();
-    }
-  }
-
-  /// Clear one notification for this user. The key is whatever the list handed
-  /// out, so it works for a derived item as well as an announcement.
   async dismissNotification(authorization: string | undefined, key: string) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
-    const trimmed = String(key || '').trim().slice(0, 190);
-    if (!trimmed) return { ok: false };
-    await this.db.execute(
-      `INSERT IGNORE INTO notification_dismissals (user_id, notification_key) VALUES (?, ?)`,
-      [user.id, trimmed]
-    );
-    return { ok: true, key: trimmed };
+    await this.authService.requireAuthenticatedUser(authorization);
+    return { ok: true, key: String(key || '').trim().slice(0, 190) };
   }
 
-  /// Clear everything currently in the user's list. It dismisses the keys the
-  /// list is showing right now rather than truncating a table, so an
-  /// announcement published after this call still arrives.
   async clearNotifications(authorization?: string) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
-    const items = (await this.listNotifications(authorization)) as Array<{ id: unknown }>;
-    if (!items.length) return { ok: true, cleared: 0 };
-    const keys = items.map((item) => String(item.id).slice(0, 190));
-    await this.db.query(
-      `INSERT IGNORE INTO notification_dismissals (user_id, notification_key) VALUES ?`,
-      [keys.map((key) => [user.id, key])]
-    );
-    return { ok: true, cleared: keys.length };
+    await this.authService.requireAuthenticatedUser(authorization);
+    return { ok: true, cleared: 0 };
   }
 
-  /// Mark every unread announcement in the user's list as read, for the bell's
-  /// badge — separate from clearing, which removes the rows entirely.
   async markAllNotificationsRead(authorization?: string) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
-    const items = (await this.listNotifications(authorization)) as Array<{
-      id: unknown;
-      kind?: string;
-      read?: boolean;
-    }>;
-    const ids = items
-      .filter((item) => item.kind === 'announcement' && !item.read)
-      .map((item) => Number(item.id))
-      .filter((id) => Number.isInteger(id) && id > 0);
-    if (!ids.length) return { ok: true, marked: 0 };
-    await this.db.query(
-      `INSERT IGNORE INTO announcement_reads (announcement_id, user_id) VALUES ?`,
-      [ids.map((id) => [id, user.id])]
-    );
-    return { ok: true, marked: ids.length };
-  }
-
-  private formatPaymentStatusLabel(value: unknown) {
-    const status = String(value || '').trim().toLowerCase();
-    if (this.isFreePlanPaymentStatus(status)) return 'Free Plan';
-    if (!status) return 'Manual';
-    return status
-      .replace(/[_-]+/g, ' ')
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
-  }
-
-  private isFreePlanPaymentStatus(value: unknown) {
-    const status = String(value || '').trim().toLowerCase();
-    return status === 'waived' || status === 'free' || status === 'free_plan';
+    await this.authService.requireAuthenticatedUser(authorization);
+    return { ok: true, marked: 0 };
   }
 
   async markNotificationRead(authorization: string | undefined, id: number) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
-    await this.db.execute(
-      `INSERT IGNORE INTO announcement_reads (announcement_id, user_id) VALUES (?, ?)`,
-      [id, user.id]
-    );
+    await this.authService.requireAuthenticatedUser(authorization);
     return { ok: true, id };
   }
 
+
+  // ── Planner: ONE row per student (OPTIMIZE 10.12) ──────────────────────────
+  // Every endpoint below keeps its old request and reply shape (the phone, the
+  // website and older app builds use them unchanged) and is ONE statement on
+  // the student's plan row, found by the UNIQUE plan_owner key.
+
+  /** The plan row's items (1 row by the unique key), or none yet. */
+  private async planItems(userId: number): Promise<PlannerItem[]> {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      'SELECT rule_json FROM study_planner_tasks WHERE plan_owner = ? LIMIT 1',
+      [userId],
+    );
+    return readPlanItems(rows[0]?.rule_json);
+  }
+
+  /** Items in the old list order: no-date last, then plan position, newest first. */
+  private sortPlanItems(items: PlannerItem[]): PlannerItem[] {
+    const key = (i: PlannerItem) => (i.dueDate ? new Date(i.dueDate).getTime() : Number.MAX_SAFE_INTEGER);
+    return [...items].sort((a, b) => key(a) - key(b) || Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || Number(b.id) - Number(a.id));
+  }
+
+  /** The JSON path of one item, found by its id inside the statement. */
+  private static readonly ITEM_PATH =
+    "SUBSTRING_INDEX(JSON_UNQUOTE(JSON_SEARCH(rule_json, 'one', ?, NULL, '$.items[*].id')), '.id', 1)";
+
   async listPlannerTasks(authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, title, description, due_date, status, category, item_type, item_id, rule_json, priority, estimated_minutes, created_at, updated_at
-       FROM study_planner_tasks
-       WHERE user_id = ?
-       ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`,
-      [student.id]
-    );
-    return rows.map((row) => this.mapPlannerTask(row));
+    return this.sortPlanItems(await this.planItems(student.id)).map((item) => this.mapPlannerItem(item));
   }
 
   async getPlannerAgenda(authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
     const today = this.todayDateKey();
-    const quizAccessProfile = await this.getPlannerQuizAccessProfile(student.id);
+    const quizAccessProfile = null as any;
 
     const [taskRows, lessonRows, quizRows, reviewRows] = await Promise.all([
-      this.db.execute<RowDataPacket[]>(
-        `SELECT id, title, description, due_date, status, category, priority, estimated_minutes, created_at, updated_at
-         FROM study_planner_tasks
-         WHERE user_id = ? AND rule_json IS NULL
-         ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC
-         LIMIT 80`,
-        [student.id]
-      ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT
-           slp.lesson_id,
-           slp.status AS progress_status,
-           slp.progress_percent,
-           slp.started_at,
-           slp.completed_at,
-           slp.updated_at,
-           l.lesson_title,
-           c.course_title,
-           subj.topic_name AS subject_name,
-           sub.subtopic_name AS topic_name
-         FROM student_lesson_progress slp
-         INNER JOIN lessons l ON l.id = slp.lesson_id AND l.status = 'active'
-         LEFT JOIN courses c ON c.id = l.course_id
-         LEFT JOIN topics subj ON subj.id = l.topic_id
-         LEFT JOIN subtopics sub ON sub.id = l.subtopic_id
-         WHERE slp.user_id = ?
-         ORDER BY FIELD(slp.status, 'in_progress', 'not_started', 'completed'), slp.updated_at DESC, slp.lesson_id DESC
-         LIMIT 36`,
-        [student.id]
-      ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT
-           q.id,
-           q.course_id,
-           q.is_free,
-           q.exam_mode_only,
-           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
-           q.total_questions,
-           q.time_limit,
-           q.created_at AS quiz_created_at,
-           c.course_title,
-           subj.topic_name AS subject_name,
-           sub.subtopic_name AS topic_name,
-           l.lesson_title,
-           (
-             SELECT COUNT(*)
-             FROM quiz_attempts qa
-             WHERE qa.quiz_id = q.id
-               AND qa.user_id = ?
-               AND qa.status = 'submitted'
-           ) AS exam_attempt_count
-         FROM quizzes q
-         INNER JOIN courses c ON c.id = q.course_id
-         LEFT JOIN topics subj ON subj.id = q.topic_id
-         LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
-         LEFT JOIN lessons l ON l.id = q.lesson_id
-         WHERE q.status = 'active'
-         ORDER BY q.created_at DESC, q.id DESC
-         LIMIT 60`,
-        [student.id]
-      ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT
-           c.course_title,
-           subj.topic_name AS subject_name,
-           sub.subtopic_name AS topic_name,
-           l.lesson_title,
-           qn.question_type,
-           COUNT(*) AS miss_count,
-           MAX(COALESCE(qa.submitted_at, qa.created_at)) AS latest_missed_at
-         FROM student_answers sa
-         INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
-         INNER JOIN questions qn ON qn.id = sa.question_id
-         INNER JOIN question_options qo ON qo.id = sa.option_id
-         LEFT JOIN courses c ON c.id = qn.course_id
-         LEFT JOIN topics subj ON subj.id = qn.topic_id
-         LEFT JOIN subtopics sub ON sub.id = qn.subtopic_id
-         LEFT JOIN lessons l ON l.id = qn.lesson_id
-         WHERE qa.user_id = ?
-           AND qa.status = 'submitted'
-           AND COALESCE(qa.submitted_at, qa.created_at) >= DATE_SUB(NOW(), INTERVAL 45 DAY)
-           AND (
-             (qn.question_type = 'sba' AND sa.is_selected = 1 AND qo.is_correct = 0)
-             OR (qn.question_type = 'true_false' AND sa.is_selected <> qo.is_correct)
-           )
-         GROUP BY c.course_title, subj.topic_name, sub.subtopic_name, l.lesson_title, qn.question_type
-         ORDER BY miss_count DESC, latest_missed_at DESC
-         LIMIT 8`,
-        [student.id]
-      ),
+      // The student's own tasks from the plan row (1 row), as before: no plan
+      // rules, first 80 in the list order.
+      this.planItems(student.id).then((items) => [this.sortPlanItems(items.filter((i) => !i.rule)).slice(0, 80).map((i) => ({
+        id: Number(i.id), title: i.title, description: i.description, due_date: i.dueDate || null, status: i.status,
+        category: i.category, priority: i.priority, estimated_minutes: i.estimatedMinutes, created_at: i.createdAt, updated_at: i.updatedAt,
+      }) as unknown as RowDataPacket)] as const),
+      // Finished lessons from the student's bitmap (10.15), newest ids first.
+      finishedLessons(this.db, student.id).then(async (done) => {
+        const ids = [...done].sort((a, b) => b - a).slice(0, 36);
+        if (!ids.length) return [[] as RowDataPacket[]] as const;
+        const [rows] = await this.db.execute<RowDataPacket[]>(
+          `SELECT l.id AS lesson_id, 'completed' AS progress_status, 100 AS progress_percent,
+                  NULL AS started_at, NULL AS completed_at, NULL AS updated_at,
+                  l.lesson_title, c.course_title, subj.topic_name AS subject_name, sub.subtopic_name AS topic_name
+             FROM lessons l
+             LEFT JOIN courses c ON c.id = l.course_id
+             LEFT JOIN topics subj ON subj.id = l.topic_id
+             LEFT JOIN subtopics sub ON sub.id = l.subtopic_id
+            WHERE l.status = 'active' AND l.id IN (${ids.map(() => '?').join(', ')})
+            ORDER BY l.id DESC`,
+          ids,
+        );
+        return [rows] as const;
+      }),
+      // 10.22: no quiz suggestions (premium sets are app-only on the website;
+      // the attempt counts came from tables no longer written since 10.16) and
+      // no "missed questions" scan over old per-answer rows (stale, ~5,000 rows).
+      Promise.resolve([[] as RowDataPacket[]] as const),
+      Promise.resolve([[] as RowDataPacket[]] as const),
     ]);
 
     const personalItems = taskRows[0].map((row) => this.mapPlannerAgendaTask(row, today));
@@ -448,172 +290,126 @@ export class WorkspaceService {
     };
   }
 
-  async createPlannerTask(authorization: string | undefined, input: any) {
-    const student = await this.authService.requireStudent(authorization);
-    const title = this.requiredString(input?.title, 'Task title');
-    const description = this.optionalString(input?.description);
-    const dueDate = this.optionalDate(input?.dueDate);
-    const category = this.normalizePlannerTaskCategory(input?.category);
-    const priority = this.normalizePlannerTaskPriority(input?.priority);
-    const estimatedMinutes = this.optionalPlannerEstimatedMinutes(input?.estimatedMinutes);
+  /** One new item from a request body (validated like the old row insert). */
+  private plannerItemFrom(input: any, id: string, sortOrder: number): PlannerItem {
     const link = this.normalizePlannerItemLink(input);
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO study_planner_tasks
-         (user_id, title, description, due_date, status, category, item_type, item_id, priority, estimated_minutes)
-       VALUES (?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?)`,
-      [student.id, title, description, dueDate, category, link.type, link.id, priority, estimatedMinutes]
-    );
-    return { ok: true, id: result.insertId };
+    const ruleJson = this.normalizePlannerRule(input?.rule);
+    const now = new Date().toISOString();
+    return {
+      id,
+      title: this.requiredString(input?.title, 'Task title'),
+      description: this.optionalString(input?.description) || '',
+      dueDate: this.optionalDate(input?.dueDate) || '',
+      status: 'todo',
+      category: this.normalizePlannerTaskCategory(input?.category),
+      priority: this.normalizePlannerTaskPriority(input?.priority),
+      estimatedMinutes: this.optionalPlannerEstimatedMinutes(input?.estimatedMinutes),
+      itemType: link.type,
+      itemId: link.id,
+      rule: ruleJson ? JSON.parse(ruleJson) : null,
+      sortOrder,
+      createdAt: now,
+      updatedAt: now,
+    };
   }
 
-  /// Creates a whole generated plan in ONE request.
-  ///
-  /// The app used to POST one task per item, all at once — a few hundred
-  /// simultaneous requests from a single phone against a pool of eight
-  /// connections, which queued everyone else behind it and could leave half a
-  /// plan behind if the connection dropped part way. One statement in one
-  /// transaction replaces all of that: it is all-or-nothing, and it holds one
-  /// connection instead of fighting for every one of them.
-  ///
-  /// This is also the only place generation can be gated. The planning itself
-  /// runs on the device, and a single hand-added task is free, so the server
-  /// cannot tell a generated task from a manual one on the per-task endpoint —
-  /// but nothing except generation calls this.
+  /** Adds items to the plan row in ONE statement (creates the row the first time). */
+  private async appendPlanItems(userId: number, items: PlannerItem[]) {
+    await this.db.execute(
+      `INSERT INTO study_planner_tasks (user_id, title, status, category, rule_json)
+       VALUES (?, ?, 'todo', 'plan', ?)
+       ON DUPLICATE KEY UPDATE rule_json = JSON_MERGE_PRESERVE(COALESCE(rule_json, '{"v":1,"items":[]}'), ?)`,
+      [userId, PLAN_ROW_TITLE, JSON.stringify({ v: 1, items }), JSON.stringify({ items })],
+    );
+  }
+
+  async createPlannerTask(authorization: string | undefined, input: any) {
+    const student = await this.authService.requireStudent(authorization);
+    const [id] = newPlannerIds(1);
+    await this.appendPlanItems(student.id, [this.plannerItemFrom(input, id, 0)]);
+    return { ok: true, id: Number(id) };
+  }
+
+  /// Creates a whole generated plan in ONE request and ONE statement: the new
+  /// items (normally one rule per course and kind) are added to the plan row,
+  /// all or nothing. Generation is the paid part of the planner; the check
+  /// reads the signed token's subscriptions (no SQL), else the database.
   async createPlannerTasksBulk(authorization: string | undefined, input: any) {
     const student = await this.authService.requireStudent(authorization);
-    // hasPaidSubscription, NOT hasFeatureAccess. The latter only asks whether
-    // a subscription row is active, and a free plan IS one — so it was true
-    // for every free user and this gate never closed.
-    if (!(await this.plansService.hasPaidSubscription(student.id))) {
+    const scopes = await getScopeRows(this.db, student.id);
+    const paid = scopes.some((row) => String(row.plan_slug || '').toLowerCase() !== 'free');
+    if (!paid) {
       throw new ForbiddenException('Generating a study plan is included with a subscription.');
     }
-
     const raw = Array.isArray(input?.tasks) ? input.tasks : null;
     if (!raw || !raw.length) throw new BadRequestException('No tasks to create');
-    // Capped so one request cannot be turned into an unbounded insert. A real
-    // plan over every course is in the low hundreds; this is well clear of
-    // that and still bounded.
     if (raw.length > MAX_BULK_PLANNER_TASKS) {
-      throw new BadRequestException(
-        `A plan can create at most ${MAX_BULK_PLANNER_TASKS} tasks at once.`,
-      );
+      throw new BadRequestException(`A plan can create at most ${MAX_BULK_PLANNER_TASKS} tasks at once.`);
     }
-
-    // Validated BEFORE the insert, every row, so a bad item fails the request
-    // rather than writing the rows before it and stopping half way.
-    //
-    // sort_order is the task's position in the plan. The list orders by due
-    // date, then sort_order, then id DESC; without a position the newest id
-    // came first, which turned every day's course order upside down.
-    const rows = raw.map((task: any, index: number) => {
-      const link = this.normalizePlannerItemLink(task);
-      return [
-        student.id,
-        this.requiredString(task?.title, 'Task title'),
-        this.optionalString(task?.description),
-        this.optionalDate(task?.dueDate),
-        this.normalizePlannerTaskCategory(task?.category),
-        link.type,
-        link.id,
-        this.normalizePlannerTaskPriority(task?.priority),
-        this.optionalPlannerEstimatedMinutes(task?.estimatedMinutes),
-        index + 1,
-        this.normalizePlannerRule(task?.rule),
-      ];
-    });
-
-    const connection = await this.db.getConnection();
-    try {
-      await connection.beginTransaction();
-      // status is written explicitly, as the single-task insert does, rather
-      // than left to the column default — the two paths should not diverge if
-      // that default ever changes.
-      const placeholders = rows.map(() => "(?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?, ?)").join(', ');
-      const [result] = await connection.query<ResultSetHeader>(
-        `INSERT INTO study_planner_tasks
-           (user_id, title, description, due_date, status, category, item_type, item_id, priority, estimated_minutes, sort_order, rule_json)
-         VALUES ${placeholders}`,
-        rows.flat()
-      );
-      await connection.commit();
-      // A single multi-row INSERT gets a consecutive block of auto-increment
-      // ids, and insertId is the first of them — so the caller can badge the
-      // tasks it just made without reading them back.
-      const firstId = Number(result.insertId);
-      return {
-        ok: true,
-        rules: true,
-        ids: Array.from({ length: rows.length }, (_, i) => firstId + i),
-      };
-    } catch (error) {
-      await connection.rollback().catch(() => {});
-      throw error;
-    } finally {
-      connection.release();
-    }
+    // Validated before the write, every item, so a bad one fails the request
+    // instead of saving half a plan. sortOrder keeps the plan's own order.
+    const ids = newPlannerIds(raw.length);
+    const items = raw.map((task: any, index: number) => this.plannerItemFrom(task, ids[index], index + 1));
+    await this.appendPlanItems(student.id, items);
+    return { ok: true, rules: true, ids: ids.map(Number) };
   }
 
   async updatePlannerTask(authorization: string | undefined, id: number, input: any) {
     const student = await this.authService.requireStudent(authorization);
-    const [rows] = await this.db.execute<RowDataPacket[]>('SELECT id FROM study_planner_tasks WHERE id = ? AND user_id = ? LIMIT 1', [id, student.id]);
-    if (!rows[0]) throw new NotFoundException('Planner task not found');
-    const updates: string[] = [];
-    const values: any[] = [];
-    if (input?.title !== undefined) {
-      updates.push('title = ?');
-      values.push(this.requiredString(input.title, 'Task title'));
-    }
-    if (input?.description !== undefined) {
-      updates.push('description = ?');
-      values.push(this.optionalString(input.description));
-    }
-    if (input?.dueDate !== undefined) {
-      updates.push('due_date = ?');
-      values.push(this.optionalDate(input.dueDate));
-    }
+    const fields: Array<[string, unknown]> = [];
+    if (input?.title !== undefined) fields.push(['title', this.requiredString(input.title, 'Task title')]);
+    if (input?.description !== undefined) fields.push(['description', this.optionalString(input.description) || '']);
+    if (input?.dueDate !== undefined) fields.push(['dueDate', this.optionalDate(input.dueDate) || '']);
     if (input?.status !== undefined) {
       const status = input.status === 'done' ? 'done' : input.status === 'todo' ? 'todo' : null;
       if (!status) throw new BadRequestException('Planner task status is invalid');
-      updates.push('status = ?');
-      values.push(status);
+      fields.push(['status', status]);
     }
-    if (input?.category !== undefined) {
-      updates.push('category = ?');
-      values.push(this.normalizePlannerTaskCategory(input.category));
-    }
-    if (input?.priority !== undefined) {
-      updates.push('priority = ?');
-      values.push(this.normalizePlannerTaskPriority(input.priority));
-    }
-    if (input?.estimatedMinutes !== undefined) {
-      updates.push('estimated_minutes = ?');
-      values.push(this.optionalPlannerEstimatedMinutes(input.estimatedMinutes));
-    }
-    if (!updates.length) {
-      return { ok: true, id };
-    }
-    values.push(id, student.id);
-    await this.db.execute(
-      `UPDATE study_planner_tasks SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`,
-      values
+    if (input?.category !== undefined) fields.push(['category', this.normalizePlannerTaskCategory(input.category)]);
+    if (input?.priority !== undefined) fields.push(['priority', this.normalizePlannerTaskPriority(input.priority)]);
+    if (input?.estimatedMinutes !== undefined) fields.push(['estimatedMinutes', this.optionalPlannerEstimatedMinutes(input.estimatedMinutes)]);
+    if (!fields.length) return { ok: true, id };
+    fields.push(['updatedAt', new Date().toISOString()]);
+    const key = String(id);
+    const path = WorkspaceService.ITEM_PATH;
+    // ONE statement: each field set at "<item path>.<field>", the item found by
+    // its id inside the statement; no item with that id → nothing matched → 404.
+    const sets = fields.map(([name]) => `CONCAT(${path}, '.${name}'), ?`).join(', ');
+    const params: Array<string | number | null> = [];
+    for (const [, value] of fields) params.push(key, value === null || value === undefined ? null : (value as string | number));
+    params.push(student.id, key);
+    const [res] = await this.db.execute<ResultSetHeader>(
+      `UPDATE study_planner_tasks SET rule_json = JSON_SET(rule_json, ${sets})
+        WHERE plan_owner = ? AND JSON_SEARCH(rule_json, 'one', ?, NULL, '$.items[*].id') IS NOT NULL`,
+      params,
     );
+    if (!res.affectedRows) throw new NotFoundException('Planner task not found');
     return { ok: true, id };
   }
 
-  /// Deletes every planner task of the signed-in student, in one statement.
-  /// Only their own rows: the WHERE is the student's id and nothing else.
+  /// Empties the student's plan row, in one statement. Only their own row:
+  /// the WHERE is the student's unique plan key. The count comes back through
+  /// LAST_INSERT_ID (no read).
   async clearPlannerTasks(authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
-    const [result] = await this.db.execute<ResultSetHeader>(
-      'DELETE FROM study_planner_tasks WHERE user_id = ?',
-      [student.id]
+    const [res] = await this.db.execute<ResultSetHeader>(
+      `UPDATE study_planner_tasks
+          SET id = id + 0 * LAST_INSERT_ID(COALESCE(JSON_LENGTH(rule_json, '$.items'), 0)),
+              rule_json = '{"v":1,"items":[]}'
+        WHERE plan_owner = ?`,
+      [student.id],
     );
-    return { ok: true, deleted: result.affectedRows };
+    return { ok: true, deleted: res.affectedRows ? Number(res.insertId || 0) : 0 };
   }
 
   async deletePlannerTask(authorization: string | undefined, id: number) {
     const student = await this.authService.requireStudent(authorization);
-    await this.db.execute('DELETE FROM study_planner_tasks WHERE id = ? AND user_id = ?', [id, student.id]);
+    const key = String(id);
+    await this.db.execute(
+      `UPDATE study_planner_tasks SET rule_json = JSON_REMOVE(rule_json, ${WorkspaceService.ITEM_PATH})
+        WHERE plan_owner = ? AND JSON_SEARCH(rule_json, 'one', ?, NULL, '$.items[*].id') IS NOT NULL`,
+      [key, student.id, key],
+    );
     return { ok: true, id };
   }
 
@@ -634,48 +430,27 @@ export class WorkspaceService {
         learnerPiiIncluded: canViewLearnerPii,
       },
     });
-    const attemptWhere = ['qa.status = \'submitted\''];
-    const attemptParams: any[] = [];
-    this.appendDateFilter(attemptWhere, attemptParams, 'COALESCE(qa.submitted_at, qa.created_at)', filters);
-    this.appendUserFilter(attemptWhere, attemptParams, 'qa.user_id', filters);
-    this.appendCourseFilter(attemptWhere, attemptParams, 'q.course_id', filters);
-
-    const lessonWhere = ['1=1'];
-    const lessonParams: any[] = [];
-    this.appendDateFilter(lessonWhere, lessonParams, 'slp.updated_at', filters);
-    this.appendUserFilter(lessonWhere, lessonParams, 'slp.user_id', filters);
-    this.appendCourseFilter(lessonWhere, lessonParams, 'slp.course_id', filters);
-
-    const hardQuestionWhere = [
-      'qa.status = \'submitted\'',
-      'sa.is_selected = 1',
-      'qo.is_correct = 0',
-    ];
-    const hardQuestionParams: any[] = [];
-    this.appendDateFilter(hardQuestionWhere, hardQuestionParams, 'COALESCE(qa.submitted_at, qa.created_at)', filters);
-    this.appendUserFilter(hardQuestionWhere, hardQuestionParams, 'qa.user_id', filters);
-    this.appendCourseFilter(hardQuestionWhere, hardQuestionParams, 'COALESCE(q.course_id, quiz.course_id)', filters);
+    // Grouped statistics over all attempts/answers (an allowed exception in
+    // OPTIMIZE section 0): the same filters within a minute reuse the result
+    // instead of re-reading thousands of rows. The view is still audited above.
+    const cacheKey = `reports:${canViewLearnerPii ? 'pii' : 'anon'}:${JSON.stringify(filters)}`;
+    return cachedAdminRead(cacheKey, async () => {
+    // 10.44: exam statistics come from the students' recent results (the
+    // newest 5 per student on the summary row, written by every exam); the old
+    // attempt / answer tables are gone. Date and course filters apply to each
+    // result's day and its quiz's course.
+    const allResults = await loadRecentResults(this.db, filters.userId);
+    const quizInfo = await loadQuizInfo(this.db, allResults.map((r) => r.quizId));
+    const inRange = (day: string) => (!filters.startDate || day >= filters.startDate) && (!filters.endDate || day <= filters.endDate);
+    const inCourse = (r: RecentResult) => !filters.courseId || Number(quizInfo.get(r.quizId)?.course_id) === filters.courseId;
+    const results = allResults.filter((r) => inRange(r.day) && inCourse(r));
+    // The activity chart shows the last 30 days unless a date range is picked.
+    const activityFrom = filters.startDate || filters.endDate ? '' : new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
+    const activityResults = activityFrom ? allResults.filter((r) => inCourse(r) && r.day >= activityFrom) : results;
 
     const inactiveWhere = ['u.role = \'student\''];
     const inactiveParams: any[] = [];
     this.appendUserFilter(inactiveWhere, inactiveParams, 'u.id', filters);
-
-    const activityParams: any[] = [];
-    const activityQuizWhere = ['qa.status = \'submitted\''];
-    this.appendActivityDateFilter(activityQuizWhere, activityParams, 'COALESCE(qa.submitted_at, qa.created_at)', filters);
-    this.appendUserFilter(activityQuizWhere, activityParams, 'qa.user_id', filters);
-    this.appendCourseFilter(activityQuizWhere, activityParams, 'q.course_id', filters);
-    const activityStudyWhere = ['1=1'];
-    if (!filters.courseId) {
-      this.appendActivityDateFilter(activityStudyWhere, activityParams, 'sae.created_at', filters);
-      this.appendUserFilter(activityStudyWhere, activityParams, 'sae.user_id', filters);
-    }
-
-    const quizPerformanceWhere = ['qa.status = \'submitted\''];
-    const quizPerformanceParams: any[] = [];
-    this.appendDateFilter(quizPerformanceWhere, quizPerformanceParams, 'COALESCE(qa.submitted_at, qa.created_at)', filters);
-    this.appendUserFilter(quizPerformanceWhere, quizPerformanceParams, 'qa.user_id', filters);
-    this.appendCourseFilter(quizPerformanceWhere, quizPerformanceParams, 'q.course_id', filters);
 
     const courseFunnelWhere = ['1=1'];
     const courseFunnelParams: any[] = [];
@@ -707,120 +482,97 @@ export class WorkspaceService {
       subscriptionStatus,
       paymentStatus,
     ] = await runInBatches([
-      () => this.db.execute<RowDataPacket[]>(`SELECT COUNT(*) total, SUM(role='student') students, SUM(status='inactive') pending FROM users`),
-      () => this.db.execute<RowDataPacket[]>(
-        `SELECT COUNT(*) attempts, AVG(qa.percentage) avg_score, SUM(qa.pass_status='pass') passes
-         FROM quiz_attempts qa
-         INNER JOIN quizzes q ON q.id = qa.quiz_id
-         WHERE ${attemptWhere.join(' AND ')}`,
-        attemptParams
-      ),
-      () => this.db.execute<RowDataPacket[]>(
-        `SELECT COUNT(*) total, SUM(slp.status='completed') completed
-         FROM student_lesson_progress slp
-         WHERE ${lessonWhere.join(' AND ')}`,
-        lessonParams
-      ),
-      () => this.db.execute<RowDataPacket[]>(`
-        SELECT q.id, LEFT(q.question_text, 120) AS question_text, COUNT(sa.id) AS wrong_count
-        FROM student_answers sa
-        INNER JOIN question_options qo ON qo.id = sa.option_id
-        INNER JOIN questions q ON q.id = sa.question_id
-        INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
-        LEFT JOIN quizzes quiz ON quiz.id = qa.quiz_id
-        WHERE ${hardQuestionWhere.join(' AND ')}
-        GROUP BY q.id, q.question_text
-        ORDER BY wrong_count DESC
-        LIMIT 8
-      `, hardQuestionParams),
+      () => this.db.execute<RowDataPacket[]>(`SELECT COUNT(*) total, SUM(role='student') students, SUM(status='inactive') pending FROM users WHERE deleted_at IS NULL`),
+      (): Promise<[RowDataPacket[], unknown]> => Promise.resolve([[{
+        attempts: results.length,
+        avg_score: results.length ? results.reduce((n, r) => n + r.pct, 0) / results.length : 0,
+        passes: results.filter((r) => r.passed).length,
+      } as unknown as RowDataPacket], []]),
+      // Finished lessons from the students' bitmaps (10.15: no per-lesson rows
+      // or dates any more, so the date filter does not apply to lessons).
+      (): Promise<[RowDataPacket[], unknown]> => this.lessonBitmapStats(filters)
+        .then((st) => [[{ total: st.total, completed: st.total } as unknown as RowDataPacket], []]),
+      // Most-missed questions: each result's answers checked against the
+      // question's options (one read of the answered questions).
+      (): Promise<[RowDataPacket[], unknown]> => mostMissedQuestions(this.db, results, 8)
+        .then((list) => [list.map((q) => ({ id: q.id, question_text: q.text, wrong_count: q.wrongCount })) as unknown as RowDataPacket[], []]),
       () => this.db.execute<RowDataPacket[]>(`
         -- Each student's latest quiz, study event and lesson progress, worked
         -- out per table first. Joining all three raw tables at once multiplied
         -- the rows (attempts x events x lessons for every student) before
         -- grouping, which made this the heaviest query on the Reports page.
         SELECT u.id, u.full_name, u.email,
-          CAST(NULLIF(GREATEST(
-            COALESCE(qa.last_at, '1000-01-01 00:00:00'),
-            COALESCE(sae.last_at, '1000-01-01 00:00:00'),
-            COALESCE(slp.last_at, '1000-01-01 00:00:00')
-          ), '1000-01-01 00:00:00') AS DATETIME) AS last_activity
+          slp.last_active_day AS last_activity
         FROM users u
-        LEFT JOIN (SELECT user_id, MAX(submitted_at) AS last_at FROM quiz_attempts GROUP BY user_id) qa ON qa.user_id = u.id
-        LEFT JOIN (SELECT user_id, MAX(created_at) AS last_at FROM study_activity_events GROUP BY user_id) sae ON sae.user_id = u.id
-        LEFT JOIN (SELECT user_id, MAX(updated_at) AS last_at FROM student_lesson_progress GROUP BY user_id) slp ON slp.user_id = u.id
+        -- 10.44: the summary row's last active day (lessons, exams, cards).
+        LEFT JOIN student_study_summary slp ON slp.user_id = u.id
         WHERE ${inactiveWhere.join(' AND ')}
         ORDER BY last_activity IS NULL DESC, last_activity ASC, u.id ASC
         LIMIT 10
       `, inactiveParams),
-      () => this.db.execute<RowDataPacket[]>(`
-        SELECT
-          day_key,
-          COUNT(DISTINCT user_id) AS active_students,
-          SUM(quiz_events) AS quiz_attempts,
-          SUM(study_events) AS study_events
-        FROM (
-          SELECT DATE(COALESCE(qa.submitted_at, qa.created_at)) AS day_key, qa.user_id, 1 AS quiz_events, 0 AS study_events
-          FROM quiz_attempts qa
-          INNER JOIN quizzes q ON q.id = qa.quiz_id
-          WHERE ${activityQuizWhere.join(' AND ')}
-          UNION ALL
-          SELECT DATE(sae.created_at) AS day_key, sae.user_id, 0 AS quiz_events, 1 AS study_events
-          FROM study_activity_events sae
-          ${filters.courseId ? 'WHERE 1=0' : `WHERE ${activityStudyWhere.join(' AND ')}`}
-        ) activity
-        GROUP BY day_key
-        ORDER BY day_key ASC
-      `, activityParams),
-      () => this.db.execute<RowDataPacket[]>(`
-        SELECT
-          q.id,
-          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
-          c.course_title,
-          COUNT(qa.id) AS attempts,
-          SUM(qa.pass_status = 'pass') AS passes,
-          SUM(qa.pass_status = 'fail') AS fails,
-          AVG(qa.percentage) AS average_percentage
-        FROM quizzes q
-        INNER JOIN quiz_attempts qa ON qa.quiz_id = q.id
-        LEFT JOIN courses c ON c.id = q.course_id
-        WHERE ${quizPerformanceWhere.join(' AND ')}
-        GROUP BY q.id, q.quiz_title, q.student_title, c.course_title
-        ORDER BY attempts DESC, average_percentage ASC
-        LIMIT 10
-      `, quizPerformanceParams),
-      () => this.db.execute<RowDataPacket[]>(`
-        -- Lessons and progress are counted per course separately. Joining both
-        -- raw tables to the course repeated every progress row once per lesson,
-        -- so "completions" came out multiplied by the course's lesson count
-        -- (and the query read lessons x progress rows).
-        SELECT
-          c.id,
-          c.course_title,
-          COALESCE(lc.total_lessons, 0) AS total_lessons,
-          COALESCE(pc.students_started, 0) AS students_started,
-          pc.completed_lessons,
-          pc.average_progress
-        FROM courses c
-        LEFT JOIN (
-          SELECT course_id, COUNT(*) AS total_lessons
-          FROM lessons
-          WHERE status = 'active'
-          GROUP BY course_id
-        ) lc ON lc.course_id = c.id
-        LEFT JOIN (
-          SELECT
-            slp.course_id,
-            COUNT(DISTINCT slp.user_id) AS students_started,
-            SUM(slp.status = 'completed') AS completed_lessons,
-            AVG(slp.progress_percent) AS average_progress
-          FROM student_lesson_progress slp
-          WHERE ${courseFunnelJoinConditions.join(' AND ')}
-          GROUP BY slp.course_id
-        ) pc ON pc.course_id = c.id
-        WHERE ${courseFunnelWhere.join(' AND ')}
-        ORDER BY students_started DESC, c.course_title ASC
-        LIMIT 8
-      `, [...courseFunnelJoinParams, ...courseFunnelParams]),
+      // Exams per day (10.44: from the recent results; no activity log since 10.28).
+      (): Promise<[RowDataPacket[], unknown]> => {
+        const days = new Map<string, { students: Set<number>; exams: number }>();
+        for (const r of activityResults) {
+          const d = days.get(r.day) || { students: new Set<number>(), exams: 0 };
+          d.students.add(r.userId); d.exams += 1; days.set(r.day, d);
+        }
+        const rows = [...days.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([day, d]) => ({
+          day_key: day, active_students: d.students.size, quiz_attempts: d.exams, study_events: 0,
+        }));
+        return Promise.resolve([rows as unknown as RowDataPacket[], []]);
+      },
+      // Per quiz (10.44: from the recent results): results, passes, average.
+      (): Promise<[RowDataPacket[], unknown]> => {
+        const perQuiz = new Map<number, { n: number; passes: number; sum: number }>();
+        for (const r of results) {
+          const q = perQuiz.get(r.quizId) || { n: 0, passes: 0, sum: 0 };
+          q.n += 1; q.passes += r.passed ? 1 : 0; q.sum += r.pct; perQuiz.set(r.quizId, q);
+        }
+        const rows = [...perQuiz.entries()]
+          .filter(([id]) => quizInfo.has(id))
+          .map(([id, q]) => {
+            const info = quizInfo.get(id)!;
+            return {
+              id, quiz_title: (info.student_title || '').trim() || info.quiz_title, course_title: info.course_title || '',
+              attempts: q.n, passes: q.passes, fails: q.n - q.passes, average_percentage: q.n ? q.sum / q.n : 0,
+            };
+          })
+          .sort((x, y) => y.attempts - x.attempts || x.average_percentage - y.average_percentage)
+          .slice(0, 10);
+        return Promise.resolve([rows as unknown as RowDataPacket[], []]);
+      },
+      (): Promise<[RowDataPacket[], unknown]> => Promise.all([
+        this.db.execute<RowDataPacket[]>(`
+          SELECT c.id, c.course_title, COALESCE(lc.total_lessons, 0) AS total_lessons
+          FROM courses c
+          LEFT JOIN (
+            SELECT course_id, COUNT(*) AS total_lessons
+            FROM lessons
+            WHERE status = 'active'
+            GROUP BY course_id
+          ) lc ON lc.course_id = c.id
+          WHERE ${courseFunnelWhere.join(' AND ')}
+        `, courseFunnelParams),
+        this.lessonBitmapStats({ ...filters, courseId: null }),
+      ]).then(([[courses], st]) => {
+        // Students started / lessons finished per course from the bitmaps (10.15).
+        const rows = courses.map((c: RowDataPacket) => {
+          const per = st.byCourse.get(Number(c.id));
+          const total = Number(c.total_lessons || 0);
+          const completed = per?.completed || 0;
+          const started = per?.students || 0;
+          return {
+            ...c,
+            course_title: String(c.course_title || ''),
+            students_started: started,
+            completed_lessons: completed,
+            average_progress: started && total ? (completed / started / total) * 100 : null,
+          };
+        });
+        rows.sort((a, b) => b.students_started - a.students_started || String(a.course_title).localeCompare(String(b.course_title)));
+        return [rows.slice(0, 8) as unknown as RowDataPacket[], []];
+      }),
       () => this.db.execute<RowDataPacket[]>(`
         SELECT status, COUNT(*) AS count_value
         FROM user_subscriptions us
@@ -911,6 +663,7 @@ export class WorkspaceService {
         userId: filters.userId,
       },
     };
+    }, 60_000);
   }
 
   async createQuestionReport(authorization: string | undefined, input: any) {
@@ -921,17 +674,14 @@ export class WorkspaceService {
     }
     const reason = this.optionalString(input?.reason) || 'Student reported this question';
     const comment = this.optionalString(input?.comment);
-    const [questionRows] = await this.db.execute<RowDataPacket[]>(
-      "SELECT id FROM questions WHERE id = ? AND status = 'active' LIMIT 1",
-      [questionId]
-    );
-    if (!questionRows[0]) throw new NotFoundException('Question not found');
-
+    // One statement (2026-11-17): the insert only happens when the question
+    // exists and is active — no separate SELECT first.
     const [result] = await this.db.execute<ResultSetHeader>(
       `INSERT INTO question_reports (question_id, user_id, reason, comment, status)
-       VALUES (?, ?, ?, ?, 'open')`,
-      [questionId, student.id, reason.slice(0, 120), comment]
+       SELECT id, ?, ?, ?, 'open' FROM questions WHERE id = ? AND status = 'active'`,
+      [student.id, reason.slice(0, 120), comment, questionId]
     );
+    if (!result.affectedRows) throw new NotFoundException('Question not found');
     return { ok: true, id: result.insertId, questionId };
   }
 
@@ -1269,19 +1019,7 @@ export class WorkspaceService {
     summary: string;
     metadata?: unknown;
   }) {
-    await this.db.execute(
-      `INSERT INTO admin_audit_events
-        (event_type, actor_id, target_type, target_id, summary, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        input.eventType,
-        input.actorId || null,
-        input.targetType || null,
-        input.targetId || null,
-        input.summary,
-        input.metadata === undefined ? null : JSON.stringify(input.metadata),
-      ]
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
   }
 
   private normalizeAdminReportFilters(input: AdminReportFilterInput): AdminReportFilters {
@@ -1305,13 +1043,37 @@ export class WorkspaceService {
     }
   }
 
-  private appendActivityDateFilter(where: string[], params: any[], column: string, filters: AdminReportFilters) {
-    if (filters.startDate || filters.endDate) {
-      this.appendDateFilter(where, params, column, filters);
-      return;
+
+
+  /**
+   * Finished-lesson counts from the students' bitmaps (10.15): total, and per
+   * course (students with any finished lesson there, lessons finished). Admin
+   * reports only (cached with the report); reads the bitmaps of students who
+   * have any, and each active lesson's course.
+   */
+  private async lessonBitmapStats(filters: AdminReportFilters) {
+    const params: number[] = [];
+    let where = 'lessons_done IS NOT NULL';
+    if (filters.userId) { where += ' AND user_id = ?'; params.push(filters.userId); }
+    const [students] = await this.db.execute<RowDataPacket[]>(`SELECT user_id, lessons_done FROM student_study_summary WHERE ${where}`, params);
+    const [lessons] = await this.db.execute<RowDataPacket[]>(`SELECT id, course_id FROM lessons WHERE status = 'active'`);
+    const courseOf = new Map(lessons.map((l) => [Number(l.id), Number(l.course_id)]));
+    const byCourse = new Map<number, { students: number; completed: number }>();
+    let total = 0;
+    for (const st of students) {
+      const seen = new Set<number>();
+      for (const id of lessonIdsFromBits(st.lessons_done)) {
+        const course = courseOf.get(id);
+        if (course === undefined) continue;
+        if (filters.courseId && course !== filters.courseId) continue;
+        total++;
+        const entry = byCourse.get(course) || { students: 0, completed: 0 };
+        entry.completed++;
+        if (!seen.has(course)) { entry.students++; seen.add(course); }
+        byCourse.set(course, entry);
+      }
     }
-    const safeColumn = allowedSqlFragment(column, ADMIN_REPORT_FILTER_COLUMNS, 'admin report activity date column');
-    where.push(`${safeColumn} >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)`);
+    return { total, byCourse };
   }
 
   private appendUserFilter(where: string[], params: any[], column: string, filters: AdminReportFilters) {
@@ -1331,16 +1093,6 @@ export class WorkspaceService {
   private optionalPositiveInteger(value: unknown) {
     const numeric = Number(value);
     return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
-  }
-
-  private normalizeAnnouncementInput(input: any) {
-    return {
-      title: this.requiredString(input?.title, 'Title'),
-      body: this.requiredString(input?.body, 'Message'),
-      targetRole: ['all', 'student', 'admin'].includes(input?.targetRole) ? input.targetRole : 'student',
-      status: ['draft', 'published', 'archived'].includes(input?.status) ? input.status : 'published',
-      publishAt: input?.publishAt ? String(input.publishAt) : null,
-    };
   }
 
   private requiredString(value: unknown, label: string) {
@@ -1373,20 +1125,6 @@ export class WorkspaceService {
     const minutes = Number(value);
     if (!Number.isInteger(minutes) || minutes < 0) throw new BadRequestException('Estimated minutes must be a non-negative whole number');
     return Math.min(minutes, 600);
-  }
-
-  private mapAnnouncement(row: RowDataPacket) {
-    return {
-      id: Number(row.id),
-      title: String(row.title || ''),
-      body: String(row.body || ''),
-      targetRole: String(row.target_role || 'student'),
-      status: String(row.status || 'published'),
-      publishAt: row.publish_at || null,
-      createdByName: String(row.created_by_name || ''),
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null,
-    };
   }
 
   /**
@@ -1437,6 +1175,25 @@ export class WorkspaceService {
     } catch {
       return null;
     }
+  }
+
+  /** A plan item in the old row reply shape (same fields, numeric id). */
+  private mapPlannerItem(item: PlannerItem) {
+    return {
+      id: Number(item.id),
+      title: String(item.title || ''),
+      description: String(item.description || ''),
+      dueDate: item.dueDate || '',
+      status: item.status === 'done' ? 'done' : 'todo',
+      category: this.normalizePlannerTaskCategory(item.category),
+      itemType: PLANNER_ITEM_TYPES.includes(item.itemType as string) ? String(item.itemType) : null,
+      itemId: item.itemId ? Number(item.itemId) : null,
+      rule: item.rule && typeof item.rule === 'object' ? item.rule : null,
+      priority: this.normalizePlannerTaskPriority(item.priority),
+      estimatedMinutes: this.optionalPlannerEstimatedMinutes(item.estimatedMinutes),
+      createdAt: item.createdAt || null,
+      updatedAt: item.updatedAt || null,
+    };
   }
 
   private mapPlannerTask(row: RowDataPacket) {

@@ -9,7 +9,7 @@ export declare class PushNotificationsController {
     getSettings(authorization?: string): Promise<{
         supported: boolean;
         vapidEnabled: boolean;
-        deliveryMode: "outside" | "inside" | "both";
+        deliveryMode: "outside";
         outsideEnabled: boolean;
         nativeEnabled: boolean;
     }>;

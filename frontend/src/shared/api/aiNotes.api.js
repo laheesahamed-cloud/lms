@@ -1,6 +1,7 @@
 import { apiClient } from './client.js';
+import { fetchSampleLesson } from './samples.api.js';
+import { catalogueLessons } from './catalogue.api.js';
 import { createTimedApiCache } from './cache.js';
-import { claimBootSlice } from './bootChannel.js';
 
 function withEngine(config = {}, engine = 'gemini') {
   return {
@@ -55,8 +56,14 @@ export const adminRegenerateAiNoteSection = (noteId, heading, options = {}) =>
 
 export const adminGetAiNoteGenerationStatus = (jobId, options = {}) =>
   apiClient.get(`/admin/ai-notes/generate/status/${jobId}`, withEngine({}, options.engine)).then((r) => r.data);
-export const adminListAiNotes = (options = {}) =>
-  apiClient.get('/admin/ai-notes', withEngine({}, options.engine)).then((r) => r.data);
+// Admin search (header search box, Structure lesson search): a few matches
+// per group from the server. `only: 'lessons'` returns up to 10 lessons.
+export const adminSearch = (q, { only, signal } = {}) =>
+  apiClient.get('/admin/dashboard/search', { params: only ? { q, only } : { q }, signal }).then((r) => r.data);
+// Structure page: one subject's lessons (titles only, no lesson body). The
+// counts it shows come with the course and subject lists (stored counts).
+export const adminListStructureLessons = (topicId) =>
+  apiClient.get('/admin/ai-notes/structure', { params: { topicId } }).then((r) => r.data);
 export const adminGetAiNote = (id, options = {}) =>
   apiClient.get(`/admin/ai-notes/${id}`, withEngine({}, options.engine)).then((r) => r.data);
 export const adminCreateAiNote = (payload, options = {}) =>
@@ -75,11 +82,21 @@ export const adminDeleteAiNote = (id, options = {}) =>
     return r.data;
   });
 
-export const adminReorderLessons = (orderedIds) =>
-  apiClient.patch('/admin/ai-notes/reorder', { orderedIds }).then((r) => {
-    clearStudentAiNotesCache();
+// Structure page: move one course, subject, topic or lesson between two
+// neighbours (aboveId / belowId; null at the top or bottom). One row changes.
+export const adminMoveStructureItem = ({ kind, id, aboveId = null, belowId = null }) =>
+  apiClient.post('/admin/ai-notes/structure/move', { kind, id, aboveId, belowId }).then((r) => {
+    if (kind !== 'course') clearStudentAiNotesCache();
     return r.data;
   });
+// Structure page "Fix counts": request 1 = plan + first set; each next request
+// one set, the last one also finishing. One request at a time, with a pause.
+export const adminFixCountsStart = (courseId = null) =>
+  apiClient.post('/admin/ai-notes/structure/counts/fix/start', courseId ? { courseId } : {}).then((r) => r.data);
+export const adminFixCountsSet = (runId, subjectIds, finish = null) =>
+  apiClient.post('/admin/ai-notes/structure/counts/fix/set', finish ? { runId, subjectIds, finish } : { runId, subjectIds }).then((r) => r.data);
+export const adminFixCountsFinish = (runId, courses) =>
+  apiClient.post('/admin/ai-notes/structure/counts/fix/finish', { runId, courses }).then((r) => r.data);
 
 export const adminGetCourses = () => apiClient.get('/admin/ai-notes/hierarchy/courses').then((r) => r.data);
 export const adminGetTopics = (courseId) =>
@@ -99,15 +116,13 @@ export const adminDeleteLessonFlashcard = (noteId, cardId, options = {}) =>
 
 const studentAiNotesCache = createTimedApiCache({
   ttlMs: 3600000,
-  persistKey: 'student.aiNotes',
+  persistKey: 'student.aiNotes.list',
   key: (options = {}) => options.engine || 'gemini',
   load: async (options = {}) => {
-    // the /student/boot batch carries the default engine's list only
-    if ((options.engine || 'gemini') === 'gemini') {
-      const seeded = await claimBootSlice('aiNotes');
-      if (seeded !== undefined) return seeded;
-    }
-    return apiClient.get('/student/ai-notes', withEngine({}, options.engine)).then((r) => r.data);
+    // 10.23 W7: every ready lesson from the app's list (lesson parts only, no
+    // database work); locked ones carry a lock and open "Continue in the app".
+    if ((options.engine || 'gemini') !== 'gemini') return [];
+    return catalogueLessons();
   },
 });
 
@@ -122,10 +137,6 @@ export const seedStudentAiNotes = (data, engine = 'gemini') => studentAiNotesCac
 export const listAiNotes = (options = {}) => studentAiNotesCache.get(options);
 
 export const readAiNotesCache = (options = {}) => studentAiNotesCache.peek(options);
-
-function isRateLimited(error) {
-  return Number(error?.response?.status) === 429;
-}
 
 async function listAiNotesForEngineWithRetry(options, engine, attempts = 2) {
   let lastError = null;
@@ -177,39 +188,19 @@ export function clearStudentAiNotesCache() {
   studentAiNotesCache.clear();
 }
 
-export const getAiNote = (id, options = {}) =>
-  apiClient.get(`/student/ai-notes/${id}`, withEngine({}, options.engine)).then((r) => r.data);
+// 10.21: the website opens FREE lessons only, from the sample files (no
+// database work); a premium lesson answers "app only" (the page shows the
+// "open in the app" lock). A lesson's note id is its lesson id.
+export const getAiNote = (id) => fetchSampleLesson(id).then((data) => ({ ...data }));
 
-export async function getLessonAiNote(lessonId, options = {}) {
-  return apiClient.get(`/student/ai-notes/lesson/${lessonId}`, withEngine({}, options.engine)).then((r) => r.data);
+export async function getLessonAiNote(lessonId) {
+  return fetchSampleLesson(lessonId).then((data) => ({ ...data }));
 }
 
 export async function getAiNoteWithFallback(id, options = {}) {
-  let lastError = null;
-  for (const engine of orderedStudentEngines(options.engine)) {
-    try {
-      const data = await getAiNote(id, { ...options, engine });
-      return tagStudentNoteEngine(data, engine);
-    } catch (error) {
-      lastError = error;
-      // A 429 is not engine-specific — trying the next engine only fires more
-      // rate-limited requests. Stop immediately.
-      if (isRateLimited(error)) break;
-    }
-  }
-  throw lastError;
+  return tagStudentNoteEngine(await getAiNote(id, options), 'gemini');
 }
 
 export async function getLessonAiNoteWithFallback(lessonId, options = {}) {
-  let lastError = null;
-  for (const engine of orderedStudentEngines(options.engine)) {
-    try {
-      const data = await getLessonAiNote(lessonId, { ...options, engine });
-      return tagStudentNoteEngine(data, engine);
-    } catch (error) {
-      lastError = error;
-      if (isRateLimited(error)) break;
-    }
-  }
-  throw lastError;
+  return tagStudentNoteEngine(await getLessonAiNote(lessonId, options), 'gemini');
 }

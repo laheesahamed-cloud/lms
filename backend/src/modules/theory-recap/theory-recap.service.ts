@@ -6,6 +6,8 @@ import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { studentCanReadQuestion } from '../../common/utils/question-access.util';
 import { AiService } from '../ai/ai.service';
 import { UpsertTheoryRecapDto } from './dto/upsert-theory-recap.dto';
+import { optionsOf, recapOf } from '../../common/utils/question-content';
+import { bumpQuizStamps } from '../../common/utils/quiz-stamp';
 
 type RecapRow = RowDataPacket & {
   id: number;
@@ -38,12 +40,6 @@ type QuestionContextRow = RowDataPacket & {
   subject_name: string | null;
   topic_name: string | null;
   lesson_title: string | null;
-};
-
-type OptionRow = RowDataPacket & {
-  option_label: string;
-  option_text: string;
-  is_correct: number;
 };
 
 @Injectable()
@@ -86,87 +82,38 @@ export class TheoryRecapService {
   }
 
   async getByQuestionId(questionId: number) {
-    const [rows] = await this.db.execute<RecapRow[]>(
-      `SELECT
-         id, question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
-         etiology, pathophysiology, clinical_features, investigations, treatment, key_points, mnemonic,
-         generated_by, reviewed_status, created_at, updated_at
-       FROM question_theory_recaps
-       WHERE question_id = ?
-       LIMIT 1`,
-      [questionId]
-    );
-    const row = rows[0];
+    // 10.43: the recap lives in questions.recap_json.
+    const [rows] = await this.db.execute<RowDataPacket[]>('SELECT recap_json FROM questions WHERE id = ? LIMIT 1', [questionId]);
+    const row = recapOf(questionId, rows[0]?.recap_json);
     if (!row) return null;
-    return this.mapRow(row);
+    return this.mapRow(row as unknown as RecapRow);
   }
 
   async upsert(questionId: number, dto: UpsertTheoryRecapDto, generatedBy: 'ai' | 'manual' = 'manual') {
     const existing = await this.getByQuestionId(questionId);
-
-    if (existing) {
-      await this.db.execute(
-        `UPDATE question_theory_recaps SET
-          concept_name = ?,
-          hierarchy_course = ?,
-          hierarchy_subject = ?,
-          hierarchy_topic = ?,
-          hierarchy_lesson = ?,
-          etiology = ?,
-          pathophysiology = ?,
-          clinical_features = ?,
-          investigations = ?,
-          treatment = ?,
-          key_points = ?,
-          mnemonic = ?,
-          generated_by = ?,
-          reviewed_status = ?,
-          updated_at = NOW()
-        WHERE question_id = ?`,
-        [
-          dto.conceptName || null,
-          dto.hierarchyCourse || null,
-          dto.hierarchySubject || null,
-          dto.hierarchyTopic || null,
-          dto.hierarchyLesson || null,
-          this.serializeArray(dto.etiology),
-          this.serializeArray(dto.pathophysiology),
-          this.serializeArray(dto.clinicalFeatures),
-          this.serializeArray(dto.investigations),
-          this.serializeArray(dto.treatment),
-          this.serializeArray(dto.keyPoints),
-          dto.mnemonic || null,
-          generatedBy,
-          dto.reviewedStatus || existing.reviewedStatus,
-          questionId,
-        ]
-      );
-    } else {
-      await this.db.execute(
-        `INSERT INTO question_theory_recaps
-          (question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
-           etiology, pathophysiology, clinical_features, investigations, treatment, key_points,
-           mnemonic, generated_by, reviewed_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          questionId,
-          dto.conceptName || null,
-          dto.hierarchyCourse || null,
-          dto.hierarchySubject || null,
-          dto.hierarchyTopic || null,
-          dto.hierarchyLesson || null,
-          this.serializeArray(dto.etiology),
-          this.serializeArray(dto.pathophysiology),
-          this.serializeArray(dto.clinicalFeatures),
-          this.serializeArray(dto.investigations),
-          this.serializeArray(dto.treatment),
-          this.serializeArray(dto.keyPoints),
-          dto.mnemonic || null,
-          generatedBy,
-          dto.reviewedStatus || 'pending',
-        ]
-      );
-    }
+    const now = new Date().toISOString();
+    const recap = {
+      id: existing?.id ?? questionId, // 10.43: one recap per question
+      concept_name: dto.conceptName || null,
+      hierarchy_course: dto.hierarchyCourse || null,
+      hierarchy_subject: dto.hierarchySubject || null,
+      hierarchy_topic: dto.hierarchyTopic || null,
+      hierarchy_lesson: dto.hierarchyLesson || null,
+      etiology: this.serializeArray(dto.etiology),
+      pathophysiology: this.serializeArray(dto.pathophysiology),
+      clinical_features: this.serializeArray(dto.clinicalFeatures),
+      investigations: this.serializeArray(dto.investigations),
+      treatment: this.serializeArray(dto.treatment),
+      key_points: this.serializeArray(dto.keyPoints),
+      mnemonic: dto.mnemonic || null,
+      generated_by: generatedBy,
+      reviewed_status: dto.reviewedStatus || existing?.reviewedStatus || 'pending',
+      created_at: existing?.createdAt ?? now,
+      updated_at: now,
+    };
+    await this.db.execute('UPDATE questions SET recap_json = ? WHERE id = ?', [JSON.stringify(recap), questionId]);
+    // 10.27 R1: the recap is part of the quiz students see.
+    await bumpQuizStamps(this.db, { questionIds: [questionId] });
 
     return this.getByQuestionId(questionId);
   }
@@ -175,10 +122,8 @@ export class TheoryRecapService {
     const question = await this.loadQuestionContext(questionId);
     if (!question) throw new NotFoundException('Question not found');
 
-    const [optionRows] = await this.db.execute<OptionRow[]>(
-      `SELECT option_label, option_text, is_correct FROM question_options WHERE question_id = ? ORDER BY option_label ASC`,
-      [questionId]
-    );
+    const [optRows] = await this.db.execute<RowDataPacket[]>('SELECT options_json FROM questions WHERE id = ? LIMIT 1', [questionId]);
+    const optionRows = optionsOf(questionId, optRows[0]?.options_json); // 10.43
 
     const recap = await this.aiService.generateTheoryRecap({
       questionText: question.question_text,
@@ -218,7 +163,8 @@ export class TheoryRecapService {
   }
 
   async delete(questionId: number) {
-    await this.db.execute('DELETE FROM question_theory_recaps WHERE question_id = ?', [questionId]);
+    await this.db.execute('UPDATE questions SET recap_json = NULL WHERE id = ?', [questionId]); // 10.43
+    await bumpQuizStamps(this.db, { questionIds: [questionId] }); // 10.27 R1
     return { success: true };
   }
 

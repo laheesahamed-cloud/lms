@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import 'flashcards_repository.dart';
+import '../../state/flash_store.dart';
 import '../../data/app_error.dart';
 
 /// FSRS review session: front → reveal answer → grade (Again/Hard/Good/Easy),
@@ -56,6 +57,8 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
   @override
   void dispose() {
     _swipe.dispose();
+    // 10.23 F8: grades are saved in batches; write any left when leaving.
+    FlashStore.flushReviews();
     super.dispose();
   }
 

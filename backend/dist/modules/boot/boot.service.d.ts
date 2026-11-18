@@ -1,63 +1,15 @@
 import { AuthService } from '../auth/auth.service';
 import { LessonsService } from '../lessons/lessons.service';
 import { DashboardService } from '../dashboard/dashboard.service';
-import { QuizAttemptsService } from '../quiz-attempts/quiz-attempts.service';
-import { StudyBookmarksService } from '../study-bookmarks/study-bookmarks.service';
 import { WorkspaceService } from '../workspace/workspace.service';
 export declare class BootService {
     private readonly authService;
     private readonly dashboardService;
     private readonly workspaceService;
-    private readonly quizAttemptsService;
-    private readonly studyBookmarksService;
     private readonly lessonsService;
-    constructor(authService: AuthService, dashboardService: DashboardService, workspaceService: WorkspaceService, quizAttemptsService: QuizAttemptsService, studyBookmarksService: StudyBookmarksService, lessonsService: LessonsService);
+    constructor(authService: AuthService, dashboardService: DashboardService, workspaceService: WorkspaceService, lessonsService: LessonsService);
     getStudentBoot(authorization: string | undefined, engineKey?: string): Promise<{
         dashboard: {
-            user: {
-                id: number;
-                fullName: string;
-            };
-            serverClock: {
-                nowIso: string;
-                dateKey: string;
-                timeZone: string;
-                source: string;
-            };
-            totalQuizzes: number;
-            totalCourses: number;
-            totalAttempts: number;
-            quizDayStreak: number;
-            quizDoneToday: boolean;
-            streakGraceActive: boolean;
-            totalXp: number;
-            xpToday: number;
-            xpDailyCap: 100;
-            level: number;
-            recentActiveDays: string[];
-            avgScore: number;
-            totalPassed: number;
-            passRate: number;
-            totalSmartNotes: number;
-            generatedSmartNotes: number;
-            courseProgress: {
-                id: number;
-                courseTitle: string;
-                courseCode: string;
-                examType: string;
-                subjectCount: number;
-                progressPercent: number;
-                completedLessonsCount: number;
-                totalLessonsCount: number;
-                actionLabel: string;
-            }[];
-            courseProgressSummary: {
-                visibleCourses: number;
-                completedLessons: number;
-                totalLessons: number;
-                overallProgressPercent: number;
-                sourceLabel: string;
-            };
             recentAttempts: {
                 id: number;
                 quizTitle: string;
@@ -69,13 +21,7 @@ export declare class BootService {
                 totalQuestions: number;
                 percentage: number;
                 passStatus: string;
-                submittedAt: string | null;
-            }[];
-            recentSmartNotes: {
-                id: number;
-                title: string;
-                updatedAt: string;
-                hasVisual: boolean;
+                submittedAt: string;
             }[];
             topicMastery: {
                 mastery: "weak" | "improving" | "strong";
@@ -98,6 +44,82 @@ export declare class BootService {
                 averagePercentage: number;
                 attemptsCount: number;
             }[];
+            adaptivePlan: {
+                key: string;
+                title: string;
+                description: string;
+                actionType: string;
+                status: string;
+            }[];
+            questionOfDay: {
+                id: number;
+                questionType: any;
+                questionText: any;
+                courseTitle: string;
+                subjectName: string;
+                topicName: string;
+                options: {
+                    id: number;
+                    optionLabel: string;
+                    optionText: string;
+                    isCorrect: boolean;
+                }[];
+            } | null;
+            missedPatterns: {
+                courseTitle: string;
+                subjectName: string;
+                topicName: string;
+                lessonTitle: string;
+                questionType: string;
+                missCount: number;
+                answeredCount: number;
+                missRate: number;
+                latestMissedAt: string | null;
+                patternLabel: string;
+            }[];
+            user: {
+                id: number;
+                fullName: string;
+            };
+            serverClock: {
+                nowIso: string;
+                dateKey: string;
+                timeZone: string;
+                source: string;
+            };
+            totalQuizzes: number;
+            totalCourses: number;
+            totalAttempts: number;
+            quizDayStreak: number;
+            quizDoneToday: boolean;
+            todayBits: number;
+            streakGraceActive: boolean;
+            totalXp: number;
+            xpToday: number;
+            xpDailyCap: 100;
+            level: number;
+            recentActiveDays: string[];
+            avgScore: number;
+            totalPassed: number;
+            passRate: number;
+            courseProgress: {
+                id: number;
+                courseTitle: string;
+                courseCode: string;
+                examType: string;
+                subjectCount: number;
+                progressPercent: number;
+                completedLessonsCount: number;
+                totalLessonsCount: number;
+                actionLabel: string;
+            }[];
+            courseProgressSummary: {
+                visibleCourses: number;
+                completedLessons: number;
+                totalLessons: number;
+                overallProgressPercent: number;
+                sourceLabel: string;
+            };
             dailyGoals: {
                 key: string;
                 title: string;
@@ -106,8 +128,6 @@ export declare class BootService {
                 progressText: string;
             }[];
             dailyGoalsCompleted: number;
-            focusTopic: string;
-            focusCourse: string;
             performanceSnapshot: {
                 windowLabel: string;
                 comparisonLabel: string;
@@ -124,61 +144,22 @@ export declare class BootService {
                 trendLabel: string;
                 consistencyLabel: string;
             };
-            adaptivePlan: {
-                key: string;
-                title: string;
-                description: string;
-                actionType: string;
-                status: string;
-            }[];
-            questionOfDay: {
-                id: number;
-                questionType: "sba" | "true_false";
-                questionText: string;
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                options: {
-                    id: number;
-                    optionLabel: string;
-                    optionText: string;
-                    isCorrect: boolean;
-                }[];
-            } | null;
-            missedPatterns: {
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                lessonTitle: string;
-                questionType: "sba" | "true_false";
-                missCount: number;
-                latestMissedAt: string | null;
-                patternLabel: string;
-            }[];
+            focusTopic: string;
+            focusCourse: string;
             progressTone: string;
             progressNote: string;
-        } | ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
         } | {
-            id: string;
+            id: number;
             kind: string;
             title: string;
             body: string;
+            targetRole: import("../notices/notices.service").Audience;
+            status: string;
+            createdAt: string;
+            updatedAt: string;
             read: boolean;
-            createdAt: any;
             actionPath: string;
-        })[] | {
+        }[] | {
             generatedAt: string;
             items: {
                 id: string;
@@ -214,138 +195,8 @@ export declare class BootService {
                 completed: number;
                 total: number;
             };
-        } | {
-            id: number;
-            courseId: number;
-            topicId: number | null;
-            subtopicId: number | null;
-            lessonId: number | null;
-            subtopic: string;
-            isGeneral: boolean;
-            examModeOnly: boolean;
-            quizTitle: string;
-            studentTitle: string;
-            displayTitleMode: string;
-            quizNumber: number | null;
-            quizDescription: string;
-            totalQuestions: number;
-            totalMarks: number;
-            timeLimit: number;
-            hideTimeLimit: boolean;
-            passingMarks: number;
-            hidePassingMarks: boolean;
-            updatedAt: string | Date | null;
-            courseTitle: string;
-            examType: any;
-            subjectName: string;
-            topicName: string;
-            subtopicName: string;
-            lessonTitle: string;
-            examAttemptCount: number;
-            latestAttemptId: number | null;
-            isCompleted: boolean;
-            isFree: boolean;
-            randomizationMode: "static" | "dynamic";
-            canAccess: boolean;
-            accessLocked: boolean;
-            accessMessage: string;
-            canPracticeMode: boolean;
-            canExamMode: boolean;
-        }[] | {
-            id: number;
-            userId: number;
-            itemType: "quiz" | "ai_note" | "question";
-            itemId: number;
-            title: string;
-            appOnly: boolean;
-            examModeOnly: boolean;
-            engineKey: string | null;
-            quizId: number | null;
-            courseTitle: string;
-            topicName: string;
-            createdAt: string | null;
-        }[] | {
-            cardCount: number;
-            canAccess: boolean;
-            accessLocked: boolean;
-            showLock: boolean;
-            appOnly: boolean;
-            upgradeLabel: string;
-            lockReason: string;
-            noteData: unknown;
-            id: number;
-            title: string;
-            lessonTitle: string;
-            rawText: string | null;
-            engineKey: import("../lessons/lessons.service").CanvasEngineKey;
-            courseId: number | null;
-            topicId: number | null;
-            subtopicId: number | null;
-            sortOrder: number;
-            lessonId: number;
-            videoUrl: string;
-            pdfUrl: string;
-            isFree: boolean;
-            status: "active" | "inactive";
-            isPublic: boolean;
-            courseTitle: string | null;
-            examType: string | null;
-            topicName: string | null;
-            subtopicName: string | null;
-            lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
-            lessonProgressPercent: number;
-            lessonCompletedAt: string | null;
-            lessonCompleted: boolean;
-            approvedFlashcardCount: number;
-            createdAt: string;
-            updatedAt: string;
-        }[] | null;
+        } | null;
         notifications: {
-            user: {
-                id: number;
-                fullName: string;
-            };
-            serverClock: {
-                nowIso: string;
-                dateKey: string;
-                timeZone: string;
-                source: string;
-            };
-            totalQuizzes: number;
-            totalCourses: number;
-            totalAttempts: number;
-            quizDayStreak: number;
-            quizDoneToday: boolean;
-            streakGraceActive: boolean;
-            totalXp: number;
-            xpToday: number;
-            xpDailyCap: 100;
-            level: number;
-            recentActiveDays: string[];
-            avgScore: number;
-            totalPassed: number;
-            passRate: number;
-            totalSmartNotes: number;
-            generatedSmartNotes: number;
-            courseProgress: {
-                id: number;
-                courseTitle: string;
-                courseCode: string;
-                examType: string;
-                subjectCount: number;
-                progressPercent: number;
-                completedLessonsCount: number;
-                totalLessonsCount: number;
-                actionLabel: string;
-            }[];
-            courseProgressSummary: {
-                visibleCourses: number;
-                completedLessons: number;
-                totalLessons: number;
-                overallProgressPercent: number;
-                sourceLabel: string;
-            };
             recentAttempts: {
                 id: number;
                 quizTitle: string;
@@ -357,13 +208,7 @@ export declare class BootService {
                 totalQuestions: number;
                 percentage: number;
                 passStatus: string;
-                submittedAt: string | null;
-            }[];
-            recentSmartNotes: {
-                id: number;
-                title: string;
-                updatedAt: string;
-                hasVisual: boolean;
+                submittedAt: string;
             }[];
             topicMastery: {
                 mastery: "weak" | "improving" | "strong";
@@ -386,6 +231,82 @@ export declare class BootService {
                 averagePercentage: number;
                 attemptsCount: number;
             }[];
+            adaptivePlan: {
+                key: string;
+                title: string;
+                description: string;
+                actionType: string;
+                status: string;
+            }[];
+            questionOfDay: {
+                id: number;
+                questionType: any;
+                questionText: any;
+                courseTitle: string;
+                subjectName: string;
+                topicName: string;
+                options: {
+                    id: number;
+                    optionLabel: string;
+                    optionText: string;
+                    isCorrect: boolean;
+                }[];
+            } | null;
+            missedPatterns: {
+                courseTitle: string;
+                subjectName: string;
+                topicName: string;
+                lessonTitle: string;
+                questionType: string;
+                missCount: number;
+                answeredCount: number;
+                missRate: number;
+                latestMissedAt: string | null;
+                patternLabel: string;
+            }[];
+            user: {
+                id: number;
+                fullName: string;
+            };
+            serverClock: {
+                nowIso: string;
+                dateKey: string;
+                timeZone: string;
+                source: string;
+            };
+            totalQuizzes: number;
+            totalCourses: number;
+            totalAttempts: number;
+            quizDayStreak: number;
+            quizDoneToday: boolean;
+            todayBits: number;
+            streakGraceActive: boolean;
+            totalXp: number;
+            xpToday: number;
+            xpDailyCap: 100;
+            level: number;
+            recentActiveDays: string[];
+            avgScore: number;
+            totalPassed: number;
+            passRate: number;
+            courseProgress: {
+                id: number;
+                courseTitle: string;
+                courseCode: string;
+                examType: string;
+                subjectCount: number;
+                progressPercent: number;
+                completedLessonsCount: number;
+                totalLessonsCount: number;
+                actionLabel: string;
+            }[];
+            courseProgressSummary: {
+                visibleCourses: number;
+                completedLessons: number;
+                totalLessons: number;
+                overallProgressPercent: number;
+                sourceLabel: string;
+            };
             dailyGoals: {
                 key: string;
                 title: string;
@@ -394,8 +315,6 @@ export declare class BootService {
                 progressText: string;
             }[];
             dailyGoalsCompleted: number;
-            focusTopic: string;
-            focusCourse: string;
             performanceSnapshot: {
                 windowLabel: string;
                 comparisonLabel: string;
@@ -412,61 +331,22 @@ export declare class BootService {
                 trendLabel: string;
                 consistencyLabel: string;
             };
-            adaptivePlan: {
-                key: string;
-                title: string;
-                description: string;
-                actionType: string;
-                status: string;
-            }[];
-            questionOfDay: {
-                id: number;
-                questionType: "sba" | "true_false";
-                questionText: string;
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                options: {
-                    id: number;
-                    optionLabel: string;
-                    optionText: string;
-                    isCorrect: boolean;
-                }[];
-            } | null;
-            missedPatterns: {
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                lessonTitle: string;
-                questionType: "sba" | "true_false";
-                missCount: number;
-                latestMissedAt: string | null;
-                patternLabel: string;
-            }[];
+            focusTopic: string;
+            focusCourse: string;
             progressTone: string;
             progressNote: string;
-        } | ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
         } | {
-            id: string;
+            id: number;
             kind: string;
             title: string;
             body: string;
+            targetRole: import("../notices/notices.service").Audience;
+            status: string;
+            createdAt: string;
+            updatedAt: string;
             read: boolean;
-            createdAt: any;
             actionPath: string;
-        })[] | {
+        }[] | {
             generatedAt: string;
             items: {
                 id: string;
@@ -502,138 +382,8 @@ export declare class BootService {
                 completed: number;
                 total: number;
             };
-        } | {
-            id: number;
-            courseId: number;
-            topicId: number | null;
-            subtopicId: number | null;
-            lessonId: number | null;
-            subtopic: string;
-            isGeneral: boolean;
-            examModeOnly: boolean;
-            quizTitle: string;
-            studentTitle: string;
-            displayTitleMode: string;
-            quizNumber: number | null;
-            quizDescription: string;
-            totalQuestions: number;
-            totalMarks: number;
-            timeLimit: number;
-            hideTimeLimit: boolean;
-            passingMarks: number;
-            hidePassingMarks: boolean;
-            updatedAt: string | Date | null;
-            courseTitle: string;
-            examType: any;
-            subjectName: string;
-            topicName: string;
-            subtopicName: string;
-            lessonTitle: string;
-            examAttemptCount: number;
-            latestAttemptId: number | null;
-            isCompleted: boolean;
-            isFree: boolean;
-            randomizationMode: "static" | "dynamic";
-            canAccess: boolean;
-            accessLocked: boolean;
-            accessMessage: string;
-            canPracticeMode: boolean;
-            canExamMode: boolean;
-        }[] | {
-            id: number;
-            userId: number;
-            itemType: "quiz" | "ai_note" | "question";
-            itemId: number;
-            title: string;
-            appOnly: boolean;
-            examModeOnly: boolean;
-            engineKey: string | null;
-            quizId: number | null;
-            courseTitle: string;
-            topicName: string;
-            createdAt: string | null;
-        }[] | {
-            cardCount: number;
-            canAccess: boolean;
-            accessLocked: boolean;
-            showLock: boolean;
-            appOnly: boolean;
-            upgradeLabel: string;
-            lockReason: string;
-            noteData: unknown;
-            id: number;
-            title: string;
-            lessonTitle: string;
-            rawText: string | null;
-            engineKey: import("../lessons/lessons.service").CanvasEngineKey;
-            courseId: number | null;
-            topicId: number | null;
-            subtopicId: number | null;
-            sortOrder: number;
-            lessonId: number;
-            videoUrl: string;
-            pdfUrl: string;
-            isFree: boolean;
-            status: "active" | "inactive";
-            isPublic: boolean;
-            courseTitle: string | null;
-            examType: string | null;
-            topicName: string | null;
-            subtopicName: string | null;
-            lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
-            lessonProgressPercent: number;
-            lessonCompletedAt: string | null;
-            lessonCompleted: boolean;
-            approvedFlashcardCount: number;
-            createdAt: string;
-            updatedAt: string;
-        }[] | null;
+        } | null;
         agenda: {
-            user: {
-                id: number;
-                fullName: string;
-            };
-            serverClock: {
-                nowIso: string;
-                dateKey: string;
-                timeZone: string;
-                source: string;
-            };
-            totalQuizzes: number;
-            totalCourses: number;
-            totalAttempts: number;
-            quizDayStreak: number;
-            quizDoneToday: boolean;
-            streakGraceActive: boolean;
-            totalXp: number;
-            xpToday: number;
-            xpDailyCap: 100;
-            level: number;
-            recentActiveDays: string[];
-            avgScore: number;
-            totalPassed: number;
-            passRate: number;
-            totalSmartNotes: number;
-            generatedSmartNotes: number;
-            courseProgress: {
-                id: number;
-                courseTitle: string;
-                courseCode: string;
-                examType: string;
-                subjectCount: number;
-                progressPercent: number;
-                completedLessonsCount: number;
-                totalLessonsCount: number;
-                actionLabel: string;
-            }[];
-            courseProgressSummary: {
-                visibleCourses: number;
-                completedLessons: number;
-                totalLessons: number;
-                overallProgressPercent: number;
-                sourceLabel: string;
-            };
             recentAttempts: {
                 id: number;
                 quizTitle: string;
@@ -645,13 +395,7 @@ export declare class BootService {
                 totalQuestions: number;
                 percentage: number;
                 passStatus: string;
-                submittedAt: string | null;
-            }[];
-            recentSmartNotes: {
-                id: number;
-                title: string;
-                updatedAt: string;
-                hasVisual: boolean;
+                submittedAt: string;
             }[];
             topicMastery: {
                 mastery: "weak" | "improving" | "strong";
@@ -674,6 +418,82 @@ export declare class BootService {
                 averagePercentage: number;
                 attemptsCount: number;
             }[];
+            adaptivePlan: {
+                key: string;
+                title: string;
+                description: string;
+                actionType: string;
+                status: string;
+            }[];
+            questionOfDay: {
+                id: number;
+                questionType: any;
+                questionText: any;
+                courseTitle: string;
+                subjectName: string;
+                topicName: string;
+                options: {
+                    id: number;
+                    optionLabel: string;
+                    optionText: string;
+                    isCorrect: boolean;
+                }[];
+            } | null;
+            missedPatterns: {
+                courseTitle: string;
+                subjectName: string;
+                topicName: string;
+                lessonTitle: string;
+                questionType: string;
+                missCount: number;
+                answeredCount: number;
+                missRate: number;
+                latestMissedAt: string | null;
+                patternLabel: string;
+            }[];
+            user: {
+                id: number;
+                fullName: string;
+            };
+            serverClock: {
+                nowIso: string;
+                dateKey: string;
+                timeZone: string;
+                source: string;
+            };
+            totalQuizzes: number;
+            totalCourses: number;
+            totalAttempts: number;
+            quizDayStreak: number;
+            quizDoneToday: boolean;
+            todayBits: number;
+            streakGraceActive: boolean;
+            totalXp: number;
+            xpToday: number;
+            xpDailyCap: 100;
+            level: number;
+            recentActiveDays: string[];
+            avgScore: number;
+            totalPassed: number;
+            passRate: number;
+            courseProgress: {
+                id: number;
+                courseTitle: string;
+                courseCode: string;
+                examType: string;
+                subjectCount: number;
+                progressPercent: number;
+                completedLessonsCount: number;
+                totalLessonsCount: number;
+                actionLabel: string;
+            }[];
+            courseProgressSummary: {
+                visibleCourses: number;
+                completedLessons: number;
+                totalLessons: number;
+                overallProgressPercent: number;
+                sourceLabel: string;
+            };
             dailyGoals: {
                 key: string;
                 title: string;
@@ -682,8 +502,6 @@ export declare class BootService {
                 progressText: string;
             }[];
             dailyGoalsCompleted: number;
-            focusTopic: string;
-            focusCourse: string;
             performanceSnapshot: {
                 windowLabel: string;
                 comparisonLabel: string;
@@ -700,61 +518,22 @@ export declare class BootService {
                 trendLabel: string;
                 consistencyLabel: string;
             };
-            adaptivePlan: {
-                key: string;
-                title: string;
-                description: string;
-                actionType: string;
-                status: string;
-            }[];
-            questionOfDay: {
-                id: number;
-                questionType: "sba" | "true_false";
-                questionText: string;
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                options: {
-                    id: number;
-                    optionLabel: string;
-                    optionText: string;
-                    isCorrect: boolean;
-                }[];
-            } | null;
-            missedPatterns: {
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                lessonTitle: string;
-                questionType: "sba" | "true_false";
-                missCount: number;
-                latestMissedAt: string | null;
-                patternLabel: string;
-            }[];
+            focusTopic: string;
+            focusCourse: string;
             progressTone: string;
             progressNote: string;
-        } | ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
         } | {
-            id: string;
+            id: number;
             kind: string;
             title: string;
             body: string;
+            targetRole: import("../notices/notices.service").Audience;
+            status: string;
+            createdAt: string;
+            updatedAt: string;
             read: boolean;
-            createdAt: any;
             actionPath: string;
-        })[] | {
+        }[] | {
             generatedAt: string;
             items: {
                 id: string;
@@ -790,957 +569,7 @@ export declare class BootService {
                 completed: number;
                 total: number;
             };
-        } | {
-            id: number;
-            courseId: number;
-            topicId: number | null;
-            subtopicId: number | null;
-            lessonId: number | null;
-            subtopic: string;
-            isGeneral: boolean;
-            examModeOnly: boolean;
-            quizTitle: string;
-            studentTitle: string;
-            displayTitleMode: string;
-            quizNumber: number | null;
-            quizDescription: string;
-            totalQuestions: number;
-            totalMarks: number;
-            timeLimit: number;
-            hideTimeLimit: boolean;
-            passingMarks: number;
-            hidePassingMarks: boolean;
-            updatedAt: string | Date | null;
-            courseTitle: string;
-            examType: any;
-            subjectName: string;
-            topicName: string;
-            subtopicName: string;
-            lessonTitle: string;
-            examAttemptCount: number;
-            latestAttemptId: number | null;
-            isCompleted: boolean;
-            isFree: boolean;
-            randomizationMode: "static" | "dynamic";
-            canAccess: boolean;
-            accessLocked: boolean;
-            accessMessage: string;
-            canPracticeMode: boolean;
-            canExamMode: boolean;
-        }[] | {
-            id: number;
-            userId: number;
-            itemType: "quiz" | "ai_note" | "question";
-            itemId: number;
-            title: string;
-            appOnly: boolean;
-            examModeOnly: boolean;
-            engineKey: string | null;
-            quizId: number | null;
-            courseTitle: string;
-            topicName: string;
-            createdAt: string | null;
-        }[] | {
-            cardCount: number;
-            canAccess: boolean;
-            accessLocked: boolean;
-            showLock: boolean;
-            appOnly: boolean;
-            upgradeLabel: string;
-            lockReason: string;
-            noteData: unknown;
-            id: number;
-            title: string;
-            lessonTitle: string;
-            rawText: string | null;
-            engineKey: import("../lessons/lessons.service").CanvasEngineKey;
-            courseId: number | null;
-            topicId: number | null;
-            subtopicId: number | null;
-            sortOrder: number;
-            lessonId: number;
-            videoUrl: string;
-            pdfUrl: string;
-            isFree: boolean;
-            status: "active" | "inactive";
-            isPublic: boolean;
-            courseTitle: string | null;
-            examType: string | null;
-            topicName: string | null;
-            subtopicName: string | null;
-            lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
-            lessonProgressPercent: number;
-            lessonCompletedAt: string | null;
-            lessonCompleted: boolean;
-            approvedFlashcardCount: number;
-            createdAt: string;
-            updatedAt: string;
-        }[] | null;
-        quizzes: {
-            user: {
-                id: number;
-                fullName: string;
-            };
-            serverClock: {
-                nowIso: string;
-                dateKey: string;
-                timeZone: string;
-                source: string;
-            };
-            totalQuizzes: number;
-            totalCourses: number;
-            totalAttempts: number;
-            quizDayStreak: number;
-            quizDoneToday: boolean;
-            streakGraceActive: boolean;
-            totalXp: number;
-            xpToday: number;
-            xpDailyCap: 100;
-            level: number;
-            recentActiveDays: string[];
-            avgScore: number;
-            totalPassed: number;
-            passRate: number;
-            totalSmartNotes: number;
-            generatedSmartNotes: number;
-            courseProgress: {
-                id: number;
-                courseTitle: string;
-                courseCode: string;
-                examType: string;
-                subjectCount: number;
-                progressPercent: number;
-                completedLessonsCount: number;
-                totalLessonsCount: number;
-                actionLabel: string;
-            }[];
-            courseProgressSummary: {
-                visibleCourses: number;
-                completedLessons: number;
-                totalLessons: number;
-                overallProgressPercent: number;
-                sourceLabel: string;
-            };
-            recentAttempts: {
-                id: number;
-                quizTitle: string;
-                quizNumber: number;
-                displayTitleMode: string;
-                courseTitle: string;
-                topicName: string;
-                score: number;
-                totalQuestions: number;
-                percentage: number;
-                passStatus: string;
-                submittedAt: string | null;
-            }[];
-            recentSmartNotes: {
-                id: number;
-                title: string;
-                updatedAt: string;
-                hasVisual: boolean;
-            }[];
-            topicMastery: {
-                mastery: "weak" | "improving" | "strong";
-                masteryLabel: "Weak" | "Improving" | "Strong";
-                masteryNote: string;
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            weakTopics: {
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            strongTopics: {
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            dailyGoals: {
-                key: string;
-                title: string;
-                description: string;
-                completed: boolean;
-                progressText: string;
-            }[];
-            dailyGoalsCompleted: number;
-            focusTopic: string;
-            focusCourse: string;
-            performanceSnapshot: {
-                windowLabel: string;
-                comparisonLabel: string;
-                dateRangeLabel: string;
-                sourceLabel: string;
-                emptyState: string;
-                readinessScore: number;
-                readinessLabel: string;
-                weeklyAttempts: number;
-                weeklyAverage: number;
-                previousWeeklyAverage: number;
-                scoreDelta: number;
-                scoreTrend: string;
-                trendLabel: string;
-                consistencyLabel: string;
-            };
-            adaptivePlan: {
-                key: string;
-                title: string;
-                description: string;
-                actionType: string;
-                status: string;
-            }[];
-            questionOfDay: {
-                id: number;
-                questionType: "sba" | "true_false";
-                questionText: string;
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                options: {
-                    id: number;
-                    optionLabel: string;
-                    optionText: string;
-                    isCorrect: boolean;
-                }[];
-            } | null;
-            missedPatterns: {
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                lessonTitle: string;
-                questionType: "sba" | "true_false";
-                missCount: number;
-                latestMissedAt: string | null;
-                patternLabel: string;
-            }[];
-            progressTone: string;
-            progressNote: string;
-        } | ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
-            id: number;
-            courseId: number;
-            topicId: number | null;
-            subtopicId: number | null;
-            lessonId: number | null;
-            subtopic: string;
-            isGeneral: boolean;
-            examModeOnly: boolean;
-            quizTitle: string;
-            studentTitle: string;
-            displayTitleMode: string;
-            quizNumber: number | null;
-            quizDescription: string;
-            totalQuestions: number;
-            totalMarks: number;
-            timeLimit: number;
-            hideTimeLimit: boolean;
-            passingMarks: number;
-            hidePassingMarks: boolean;
-            updatedAt: string | Date | null;
-            courseTitle: string;
-            examType: any;
-            subjectName: string;
-            topicName: string;
-            subtopicName: string;
-            lessonTitle: string;
-            examAttemptCount: number;
-            latestAttemptId: number | null;
-            isCompleted: boolean;
-            isFree: boolean;
-            randomizationMode: "static" | "dynamic";
-            canAccess: boolean;
-            accessLocked: boolean;
-            accessMessage: string;
-            canPracticeMode: boolean;
-            canExamMode: boolean;
-        }[] | {
-            id: number;
-            userId: number;
-            itemType: "quiz" | "ai_note" | "question";
-            itemId: number;
-            title: string;
-            appOnly: boolean;
-            examModeOnly: boolean;
-            engineKey: string | null;
-            quizId: number | null;
-            courseTitle: string;
-            topicName: string;
-            createdAt: string | null;
-        }[] | {
-            cardCount: number;
-            canAccess: boolean;
-            accessLocked: boolean;
-            showLock: boolean;
-            appOnly: boolean;
-            upgradeLabel: string;
-            lockReason: string;
-            noteData: unknown;
-            id: number;
-            title: string;
-            lessonTitle: string;
-            rawText: string | null;
-            engineKey: import("../lessons/lessons.service").CanvasEngineKey;
-            courseId: number | null;
-            topicId: number | null;
-            subtopicId: number | null;
-            sortOrder: number;
-            lessonId: number;
-            videoUrl: string;
-            pdfUrl: string;
-            isFree: boolean;
-            status: "active" | "inactive";
-            isPublic: boolean;
-            courseTitle: string | null;
-            examType: string | null;
-            topicName: string | null;
-            subtopicName: string | null;
-            lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
-            lessonProgressPercent: number;
-            lessonCompletedAt: string | null;
-            lessonCompleted: boolean;
-            approvedFlashcardCount: number;
-            createdAt: string;
-            updatedAt: string;
-        }[] | null;
-        bookmarks: {
-            user: {
-                id: number;
-                fullName: string;
-            };
-            serverClock: {
-                nowIso: string;
-                dateKey: string;
-                timeZone: string;
-                source: string;
-            };
-            totalQuizzes: number;
-            totalCourses: number;
-            totalAttempts: number;
-            quizDayStreak: number;
-            quizDoneToday: boolean;
-            streakGraceActive: boolean;
-            totalXp: number;
-            xpToday: number;
-            xpDailyCap: 100;
-            level: number;
-            recentActiveDays: string[];
-            avgScore: number;
-            totalPassed: number;
-            passRate: number;
-            totalSmartNotes: number;
-            generatedSmartNotes: number;
-            courseProgress: {
-                id: number;
-                courseTitle: string;
-                courseCode: string;
-                examType: string;
-                subjectCount: number;
-                progressPercent: number;
-                completedLessonsCount: number;
-                totalLessonsCount: number;
-                actionLabel: string;
-            }[];
-            courseProgressSummary: {
-                visibleCourses: number;
-                completedLessons: number;
-                totalLessons: number;
-                overallProgressPercent: number;
-                sourceLabel: string;
-            };
-            recentAttempts: {
-                id: number;
-                quizTitle: string;
-                quizNumber: number;
-                displayTitleMode: string;
-                courseTitle: string;
-                topicName: string;
-                score: number;
-                totalQuestions: number;
-                percentage: number;
-                passStatus: string;
-                submittedAt: string | null;
-            }[];
-            recentSmartNotes: {
-                id: number;
-                title: string;
-                updatedAt: string;
-                hasVisual: boolean;
-            }[];
-            topicMastery: {
-                mastery: "weak" | "improving" | "strong";
-                masteryLabel: "Weak" | "Improving" | "Strong";
-                masteryNote: string;
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            weakTopics: {
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            strongTopics: {
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            dailyGoals: {
-                key: string;
-                title: string;
-                description: string;
-                completed: boolean;
-                progressText: string;
-            }[];
-            dailyGoalsCompleted: number;
-            focusTopic: string;
-            focusCourse: string;
-            performanceSnapshot: {
-                windowLabel: string;
-                comparisonLabel: string;
-                dateRangeLabel: string;
-                sourceLabel: string;
-                emptyState: string;
-                readinessScore: number;
-                readinessLabel: string;
-                weeklyAttempts: number;
-                weeklyAverage: number;
-                previousWeeklyAverage: number;
-                scoreDelta: number;
-                scoreTrend: string;
-                trendLabel: string;
-                consistencyLabel: string;
-            };
-            adaptivePlan: {
-                key: string;
-                title: string;
-                description: string;
-                actionType: string;
-                status: string;
-            }[];
-            questionOfDay: {
-                id: number;
-                questionType: "sba" | "true_false";
-                questionText: string;
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                options: {
-                    id: number;
-                    optionLabel: string;
-                    optionText: string;
-                    isCorrect: boolean;
-                }[];
-            } | null;
-            missedPatterns: {
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                lessonTitle: string;
-                questionType: "sba" | "true_false";
-                missCount: number;
-                latestMissedAt: string | null;
-                patternLabel: string;
-            }[];
-            progressTone: string;
-            progressNote: string;
-        } | ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
-            id: number;
-            courseId: number;
-            topicId: number | null;
-            subtopicId: number | null;
-            lessonId: number | null;
-            subtopic: string;
-            isGeneral: boolean;
-            examModeOnly: boolean;
-            quizTitle: string;
-            studentTitle: string;
-            displayTitleMode: string;
-            quizNumber: number | null;
-            quizDescription: string;
-            totalQuestions: number;
-            totalMarks: number;
-            timeLimit: number;
-            hideTimeLimit: boolean;
-            passingMarks: number;
-            hidePassingMarks: boolean;
-            updatedAt: string | Date | null;
-            courseTitle: string;
-            examType: any;
-            subjectName: string;
-            topicName: string;
-            subtopicName: string;
-            lessonTitle: string;
-            examAttemptCount: number;
-            latestAttemptId: number | null;
-            isCompleted: boolean;
-            isFree: boolean;
-            randomizationMode: "static" | "dynamic";
-            canAccess: boolean;
-            accessLocked: boolean;
-            accessMessage: string;
-            canPracticeMode: boolean;
-            canExamMode: boolean;
-        }[] | {
-            id: number;
-            userId: number;
-            itemType: "quiz" | "ai_note" | "question";
-            itemId: number;
-            title: string;
-            appOnly: boolean;
-            examModeOnly: boolean;
-            engineKey: string | null;
-            quizId: number | null;
-            courseTitle: string;
-            topicName: string;
-            createdAt: string | null;
-        }[] | {
-            cardCount: number;
-            canAccess: boolean;
-            accessLocked: boolean;
-            showLock: boolean;
-            appOnly: boolean;
-            upgradeLabel: string;
-            lockReason: string;
-            noteData: unknown;
-            id: number;
-            title: string;
-            lessonTitle: string;
-            rawText: string | null;
-            engineKey: import("../lessons/lessons.service").CanvasEngineKey;
-            courseId: number | null;
-            topicId: number | null;
-            subtopicId: number | null;
-            sortOrder: number;
-            lessonId: number;
-            videoUrl: string;
-            pdfUrl: string;
-            isFree: boolean;
-            status: "active" | "inactive";
-            isPublic: boolean;
-            courseTitle: string | null;
-            examType: string | null;
-            topicName: string | null;
-            subtopicName: string | null;
-            lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
-            lessonProgressPercent: number;
-            lessonCompletedAt: string | null;
-            lessonCompleted: boolean;
-            approvedFlashcardCount: number;
-            createdAt: string;
-            updatedAt: string;
-        }[] | null;
-        aiNotes: {
-            user: {
-                id: number;
-                fullName: string;
-            };
-            serverClock: {
-                nowIso: string;
-                dateKey: string;
-                timeZone: string;
-                source: string;
-            };
-            totalQuizzes: number;
-            totalCourses: number;
-            totalAttempts: number;
-            quizDayStreak: number;
-            quizDoneToday: boolean;
-            streakGraceActive: boolean;
-            totalXp: number;
-            xpToday: number;
-            xpDailyCap: 100;
-            level: number;
-            recentActiveDays: string[];
-            avgScore: number;
-            totalPassed: number;
-            passRate: number;
-            totalSmartNotes: number;
-            generatedSmartNotes: number;
-            courseProgress: {
-                id: number;
-                courseTitle: string;
-                courseCode: string;
-                examType: string;
-                subjectCount: number;
-                progressPercent: number;
-                completedLessonsCount: number;
-                totalLessonsCount: number;
-                actionLabel: string;
-            }[];
-            courseProgressSummary: {
-                visibleCourses: number;
-                completedLessons: number;
-                totalLessons: number;
-                overallProgressPercent: number;
-                sourceLabel: string;
-            };
-            recentAttempts: {
-                id: number;
-                quizTitle: string;
-                quizNumber: number;
-                displayTitleMode: string;
-                courseTitle: string;
-                topicName: string;
-                score: number;
-                totalQuestions: number;
-                percentage: number;
-                passStatus: string;
-                submittedAt: string | null;
-            }[];
-            recentSmartNotes: {
-                id: number;
-                title: string;
-                updatedAt: string;
-                hasVisual: boolean;
-            }[];
-            topicMastery: {
-                mastery: "weak" | "improving" | "strong";
-                masteryLabel: "Weak" | "Improving" | "Strong";
-                masteryNote: string;
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            weakTopics: {
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            strongTopics: {
-                topicName: string;
-                courseTitle: string;
-                averagePercentage: number;
-                attemptsCount: number;
-            }[];
-            dailyGoals: {
-                key: string;
-                title: string;
-                description: string;
-                completed: boolean;
-                progressText: string;
-            }[];
-            dailyGoalsCompleted: number;
-            focusTopic: string;
-            focusCourse: string;
-            performanceSnapshot: {
-                windowLabel: string;
-                comparisonLabel: string;
-                dateRangeLabel: string;
-                sourceLabel: string;
-                emptyState: string;
-                readinessScore: number;
-                readinessLabel: string;
-                weeklyAttempts: number;
-                weeklyAverage: number;
-                previousWeeklyAverage: number;
-                scoreDelta: number;
-                scoreTrend: string;
-                trendLabel: string;
-                consistencyLabel: string;
-            };
-            adaptivePlan: {
-                key: string;
-                title: string;
-                description: string;
-                actionType: string;
-                status: string;
-            }[];
-            questionOfDay: {
-                id: number;
-                questionType: "sba" | "true_false";
-                questionText: string;
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                options: {
-                    id: number;
-                    optionLabel: string;
-                    optionText: string;
-                    isCorrect: boolean;
-                }[];
-            } | null;
-            missedPatterns: {
-                courseTitle: string;
-                subjectName: string;
-                topicName: string;
-                lessonTitle: string;
-                questionType: "sba" | "true_false";
-                missCount: number;
-                latestMissedAt: string | null;
-                patternLabel: string;
-            }[];
-            progressTone: string;
-            progressNote: string;
-        } | ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
-            id: number;
-            courseId: number;
-            topicId: number | null;
-            subtopicId: number | null;
-            lessonId: number | null;
-            subtopic: string;
-            isGeneral: boolean;
-            examModeOnly: boolean;
-            quizTitle: string;
-            studentTitle: string;
-            displayTitleMode: string;
-            quizNumber: number | null;
-            quizDescription: string;
-            totalQuestions: number;
-            totalMarks: number;
-            timeLimit: number;
-            hideTimeLimit: boolean;
-            passingMarks: number;
-            hidePassingMarks: boolean;
-            updatedAt: string | Date | null;
-            courseTitle: string;
-            examType: any;
-            subjectName: string;
-            topicName: string;
-            subtopicName: string;
-            lessonTitle: string;
-            examAttemptCount: number;
-            latestAttemptId: number | null;
-            isCompleted: boolean;
-            isFree: boolean;
-            randomizationMode: "static" | "dynamic";
-            canAccess: boolean;
-            accessLocked: boolean;
-            accessMessage: string;
-            canPracticeMode: boolean;
-            canExamMode: boolean;
-        }[] | {
-            id: number;
-            userId: number;
-            itemType: "quiz" | "ai_note" | "question";
-            itemId: number;
-            title: string;
-            appOnly: boolean;
-            examModeOnly: boolean;
-            engineKey: string | null;
-            quizId: number | null;
-            courseTitle: string;
-            topicName: string;
-            createdAt: string | null;
-        }[] | {
-            cardCount: number;
-            canAccess: boolean;
-            accessLocked: boolean;
-            showLock: boolean;
-            appOnly: boolean;
-            upgradeLabel: string;
-            lockReason: string;
-            noteData: unknown;
-            id: number;
-            title: string;
-            lessonTitle: string;
-            rawText: string | null;
-            engineKey: import("../lessons/lessons.service").CanvasEngineKey;
-            courseId: number | null;
-            topicId: number | null;
-            subtopicId: number | null;
-            sortOrder: number;
-            lessonId: number;
-            videoUrl: string;
-            pdfUrl: string;
-            isFree: boolean;
-            status: "active" | "inactive";
-            isPublic: boolean;
-            courseTitle: string | null;
-            examType: string | null;
-            topicName: string | null;
-            subtopicName: string | null;
-            lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
-            lessonProgressPercent: number;
-            lessonCompletedAt: string | null;
-            lessonCompleted: boolean;
-            approvedFlashcardCount: number;
-            createdAt: string;
-            updatedAt: string;
-        }[] | null;
+        } | null;
         aiNotesEngine: import("../lessons/lessons.service").CanvasEngineKey;
     }>;
 }

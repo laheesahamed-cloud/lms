@@ -3,8 +3,10 @@ import './ai-notes-inline.css';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getAiNoteWithFallback, getLessonAiNoteWithFallback } from '../../../../shared/api/aiNotes.api.js';
-import { getErrorMessage } from '../../../../shared/api/client.js';
-import { recordStudyActivity } from '../../../../shared/api/dashboard.api.js';
+import { getErrorMessage, isAppOnlyContentError } from '../../../../shared/api/client.js';
+import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
+
+const APP_ONLY_ERROR = '__app_only__';
 import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.js';
 import { getVideoEmbed } from '../../../../shared/utils/videoEmbed.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
@@ -2510,7 +2512,6 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
           Number(data.lessonProgressPercent || 0) >= 100
         ));
       }
-        recordStudyActivity({ activityType:'ai_note_viewed', itemId:Number(data.id||id||lessonId) }).catch(()=>{});
       })
       .catch(e => { if (!cancelled) {
         const cached = readOfflineNoteCache({ id, lessonId });
@@ -2529,7 +2530,9 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
           showPersonalSaveStatus('Offline mode - lesson and writing are saved on this device');
           return;
         }
-        setError(getErrorMessage(e,'Failed to load lesson.'));
+        // 10.21: a premium lesson on the website is "continue in the app"
+        // (decided in the browser, no request) — a friendly screen, not an error.
+        setError(isAppOnlyContentError(e) ? APP_ONLY_ERROR : getErrorMessage(e,'Failed to load lesson.'));
       } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -2994,6 +2997,17 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     <main style={{ minHeight:'100dvh', background:pageBg }}>
       {lessonLoader}
       {lessonHeaderBar}
+    </main>
+  );
+
+  if (error === APP_ONLY_ERROR) return (
+    <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div style={{ width:'100%', maxWidth:520 }}>
+        <AppOnlyGate contentLabel="lesson" title="Continue this lesson in the app" message="This lesson works in the Xyndrome app. Open it there to keep studying where you left off." />
+        <div style={{ textAlign:'center', marginTop:12 }}>
+          <button className="inline-flex items-center justify-center" onClick={handleBack} style={{ border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'8px 18px', fontSize:12, fontWeight:600, color:btnTx, cursor:'pointer' }}>Go back</button>
+        </div>
+      </div>
     </main>
   );
 

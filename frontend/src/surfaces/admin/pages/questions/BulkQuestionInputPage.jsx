@@ -182,7 +182,7 @@ export function BulkQuestionInputPage() {
   const draftImportRef = useRef(null);
   const draftSaveTimerRef = useRef(null);
   const draftPayloadRef = useRef(null);
-  const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [], keywordSuggestions: [] });
+  const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [] });
   const [rawInput, setRawInput] = useState('');
   const [inputMode, setInputMode] = useState('text');
   const [questions, setQuestions] = useState([]);
@@ -349,7 +349,6 @@ export function BulkQuestionInputPage() {
       const haystack = [
         question.questionText,
         question.explanation,
-        question.keywordsText,
         question.sourceSnippet,
       ].join(' ').toLowerCase();
       return haystack.includes(needle);
@@ -1225,16 +1224,6 @@ E) Option E`}
                 </select>
               </label>
 
-              <label className={ui.formLabel}>
-                Global Keywords / Tags
-                <input className={ui.input}
-                  list="bulk-question-keywords"
-                  name="keywordsText"
-                  value={globalDefaults.keywordsText}
-                  onChange={handleGlobalDefaultChange}
-                  placeholder="cardiology, mock, revision"
-                />
-              </label>
             </div>
 
             <div className={bq.gridTwo}>
@@ -1550,17 +1539,6 @@ E) Option E`}
 
                       <div className={bq.gridTwo}>
                         <label className={ui.formLabel}>
-                          Per-question Keywords / Tags
-                          <input className={ui.input}
-                            list="bulk-question-keywords"
-                            name="keywordsText"
-                            value={currentQuestion.keywordsText}
-                            onChange={handleQuestionFieldChange}
-                            placeholder="extra tag, override, grouped-set"
-                          />
-                        </label>
-
-                        <label className={ui.formLabel}>
                           Optional Internal Group Label
                           <input className={ui.input}
                             name="topicLabel"
@@ -1681,11 +1659,6 @@ E) Option E`}
           </section>
         </div>
 
-        <datalist id="bulk-question-keywords">
-          {(meta.keywordSuggestions || []).map((keyword) => (
-            <option key={keyword} value={keyword} />
-          ))}
-        </datalist>
       </section>
     </main>
   );

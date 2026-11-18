@@ -27,8 +27,10 @@ let UsersController = class UsersController {
         this.usersService = usersService;
         this.authService = authService;
     }
-    async findAll(authorization, search, status, role, limit, page, offset) {
+    async findAll(authorization, search, status, role, limit, page, offset, paged, after) {
         const actor = await this.authService.requireAdmin(authorization);
+        if (paged === '1')
+            return this.usersService.findPage(actor, { search, status, role, after });
         return this.usersService.findAll(actor, {
             search,
             status,
@@ -95,8 +97,10 @@ __decorate([
     __param(4, (0, common_1.Query)('limit')),
     __param(5, (0, common_1.Query)('page')),
     __param(6, (0, common_1.Query)('offset')),
+    __param(7, (0, common_1.Query)('paged')),
+    __param(8, (0, common_1.Query)('after')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAll", null);
 __decorate([

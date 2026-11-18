@@ -1,3 +1,4 @@
+import { SamplesModule } from './modules/samples/samples.module';
 import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -9,8 +10,10 @@ import { SubtopicsModule } from './modules/subtopics/subtopics.module';
 import { QuestionsModule } from './modules/questions/questions.module';
 import { QuizzesModule } from './modules/quizzes/quizzes.module';
 import { QuizAttemptsModule } from './modules/quiz-attempts/quiz-attempts.module';
-import { ResultsModule } from './modules/results/results.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AppStartModule } from './modules/app-start/app-start.module';
+import { StudyStatsModule } from './modules/study-stats/study-stats.module';
+import { NoticesModule } from './modules/notices/notices.module';
 import { LessonsModule } from './modules/lessons/lessons.module';
 import { UsersModule } from './modules/users/users.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
@@ -18,16 +21,12 @@ import { PapersModule } from './modules/papers/papers.module';
 import { SchemaModule } from './modules/schema/schema.module';
 import { AiModule } from './modules/ai/ai.module';
 import { SettingsModule } from './modules/settings/settings.module';
-import { SmartNotesModule } from './modules/smart-notes/smart-notes.module';
 import { FlashcardsModule } from './modules/flashcards/flashcards.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
-import { StudyBookmarksModule } from './modules/study-bookmarks/study-bookmarks.module';
 import { TheoryRecapModule } from './modules/theory-recap/theory-recap.module';
-import { SetupModule } from './modules/setup/setup.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { PushNotificationsModule } from './modules/push-notifications/push-notifications.module';
-import { ContentGovernanceModule } from './modules/content-governance/content-governance.module';
 import { BootModule } from './modules/boot/boot.module';
 import { DrugsModule } from './modules/drugs/drugs.module';
 import { EcgModule } from './modules/ecg/ecg.module';
@@ -61,25 +60,24 @@ import { DatabaseModule } from './database/database.module';
     AuthModule,
     UsersModule,
     CoursesModule,
+    SamplesModule,
     TopicsModule,
     SubtopicsModule,
     LessonsModule,
     QuestionsModule,
     QuizzesModule,
     QuizAttemptsModule,
-    ResultsModule,
     DashboardModule,
+    AppStartModule,
+    StudyStatsModule,
+    NoticesModule,
     UploadsModule,
     PapersModule,
-    SmartNotesModule,
     FlashcardsModule,
     PlansModule,
     SubscriptionsModule,
-    StudyBookmarksModule,
     TheoryRecapModule,
-    SetupModule,
     PushNotificationsModule,
-    ContentGovernanceModule,
     WorkspaceModule,
     BootModule,
     DrugsModule,

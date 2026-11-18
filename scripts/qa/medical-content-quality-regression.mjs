@@ -79,27 +79,7 @@ function checkLearnerTrustLanguage() {
   }
 }
 
-function checkAuditabilitySurface() {
-  const service = readFileSync(join(root, 'backend', 'src', 'modules', 'content-governance', 'content-governance.service.ts'), 'utf8');
-  const app = readFileSync(join(root, 'backend', 'src', 'app.module.ts'), 'utf8');
-  const requiredSignals = [
-    'author',
-    'reviewer',
-    'approvalDate',
-    'version',
-    'rollbackPath',
-    'exportEvidence',
-    'content_governance_evidence.viewed',
-  ];
-
-  for (const token of requiredSignals) {
-    assert(service.includes(token), `Content governance evidence must expose ${token}`);
-  }
-  assert(app.includes('ContentGovernanceModule'), 'ContentGovernanceModule must be registered');
-}
-
 runAssessmentIntegrityChecks();
 checkMedicalRenderingSupport();
 checkLearnerTrustLanguage();
-checkAuditabilitySurface();
 console.log('Medical content quality gate checks passed.');

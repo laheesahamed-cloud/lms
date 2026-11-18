@@ -25,6 +25,18 @@ __decorate([
 ], RegisterDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(64),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "universityCountry", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(160),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "university", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(10),
     (0, class_validator_1.Matches)(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
         message: 'Password must include uppercase, lowercase, and number characters',

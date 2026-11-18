@@ -1,4 +1,7 @@
 import 'dart:async';
+import '../../state/catalogue.dart';
+import '../../state/study_days.dart';
+import '../dashboard/dashboard_repository.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -15,7 +18,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../state/saved_first.dart';
 import '../../data/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../theme/tokens.dart';
@@ -623,11 +625,12 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // ── Lesson completion ────────────────────────────────────────────────────────
   bool _lessonCompleted = false;
   bool _completionBusy = false;
-  // When this lesson screen opened. Marking it complete earlier than this plus
-  // 60 seconds shows a "not so fast" message and does nothing. The student
-  // never sees a countdown; the server runs the same check on its own clock.
+  // When this lesson screen opened (OPTIMIZE 10.12: the lesson timer runs on
+  // the phone). Marking it complete before 2 minutes shows a "not so fast"
+  // message and sends nothing, so only a lesson actually studied reaches the
+  // server; "Done" then sends the seconds and the server pays XP from them.
   DateTime? _openedAt;
-  static const _minLessonTime = Duration(seconds: 60);
+  static const _minLessonTime = Duration(minutes: 2);
 
   // The note body is the most expensive subtree and never changes while drawing.
   // Cache the built widget instance so a pen-down/up setState (which only flips
@@ -703,8 +706,10 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     overlay.insert(entry);
   }
 
-  Future<void> _showTooSoonDialog() {
+  Future<void> _showTooSoonDialog(Duration left) {
     final c = context.c;
+    final secs = left.inSeconds.clamp(1, _minLessonTime.inSeconds);
+    final leftText = secs >= 60 ? '${secs ~/ 60} min ${(secs % 60).toString().padLeft(2, '0')} s' : '$secs s';
     return showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -715,7 +720,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.w800, color: c.inkStrong)),
         content: Text(
-            'Spend at least 60 seconds on this lesson before marking it complete.',
+            'Spend at least 2 minutes on this lesson before marking it complete ($leftText left).',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, height: 1.4, color: c.inkSoft)),
         actionsAlignment: MainAxisAlignment.center,
@@ -732,27 +737,35 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Future<void> _markComplete() async {
     if (_completionBusy || _lessonCompleted) return;
     final opened = _openedAt;
-    if (opened != null && DateTime.now().difference(opened) < _minLessonTime) {
-      await _showTooSoonDialog();
+    final spent = opened == null ? _minLessonTime : DateTime.now().difference(opened);
+    if (spent < _minLessonTime) {
+      await _showTooSoonDialog(_minLessonTime - spent);
       return;
     }
     setState(() => _completionBusy = true);
     try {
-      final gain = await markLessonComplete(ref.read(apiClientProvider), widget.lessonId);
+      // The lesson's subject from the catalogue, for today's Study Hub row.
+      final id = int.tryParse(widget.lessonId) ?? 0;
+      final row = ref.read(catalogueProvider).asData?.value.lessonById[id];
+      final subjectId = (row != null && row.length > 2) ? (row[2] as num?)?.toInt() : null;
+      // One request: the completion, the seconds studied and today's row are
+      // all handled by the server inside "Done" (no separate activity request).
+      final done = await markLessonComplete(ref.read(apiClientProvider), widget.lessonId,
+          readSeconds: spent.inSeconds, subjectId: subjectId);
+      final gain = done.xp;
+      // The tick: flip this lesson's bit in the saved progress and keep the
+      // server's new version, instead of downloading all progress again (10.14).
+      await markLessonDoneLocally(id, done.progressVersion);
       if (mounted) {
         setState(() { _lessonCompleted = true; _completionBusy = false; });
         if (gain != null && gain.worthShowing) _flyXp(gain);
-        // Record lesson completion as activity so it counts toward streak + active days.
-        ref.read(apiClientProvider).dio.post(
-          '/dashboard/student/activity',
-          data: {'activityType': 'ai_note_viewed', 'itemId': widget.lessonId},
-        ).catchError((_) {});
-        // Invalidate the notes list so the green tick shows when the user pops back.
-        freshNext('lessons');
-        // The dashboard's "continue" card and progress changed too.
-        freshNext('dashboard');
-        freshNext('courses');
-        ref.invalidate(lessonsListProvider);
+        // The lists, course pages and percentages are rebuilt on the phone from
+        // the updated progress (no request). The Study Hub's own reply changed too.
+        ref.invalidate(studentProgressProvider);
+        // 10.29: today's lesson goal on the phone; the Study Hub is rebuilt
+        // from it when shown (no request).
+        await StudyDays.done(StudyDays.lesson);
+        ref.invalidate(studyDaysProvider);
       }
     } catch (_) {
       if (mounted) setState(() => _completionBusy = false);
@@ -780,7 +793,6 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _pencilChannel.setMethodCallHandler(_onPencilEvent);
     if (!widget.isPersonal && widget.lessonId.isNotEmpty) {
       _openedAt = DateTime.now();
-      markLessonOpened(ref.read(apiClientProvider), widget.lessonId);
     }
   }
 
@@ -2695,7 +2707,8 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                   color: _reelsMode ? c.primary : c.inkMedium,
                 ),
               ),
-            if (!widget.isPersonal && note != null && !note.locked)
+            // 10.32: no faded button when the lesson has no video.
+            if (!widget.isPersonal && note != null && !note.locked && note.videoUrl.isNotEmpty)
               _VideoButton(videoUrl: note.videoUrl, c: c),
             if (!widget.isPersonal && note != null && !note.locked && widget.lessonId.isNotEmpty)
               _CompleteButton(
@@ -4029,8 +4042,10 @@ class _NoteContent extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Title block (2026-11-17): the title a little lower inside its
+                  // box, then the one-line summary, then the underline.
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                    padding: const EdgeInsets.fromLTRB(12, 30, 12, 20),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
@@ -4044,18 +4059,6 @@ class _NoteContent extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: titleAccent.withValues(alpha: dark ? 0.22 : 0.13),
-                          ),
-                          child: Icon(Icons.menu_book_rounded,
-                              size: 20,
-                              color: dark ? titleAccent : _darken(titleAccent)),
-                        ),
-                        const SizedBox(height: 12),
                         Text(note.title.toUpperCase(),
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -4065,7 +4068,14 @@ class _NoteContent extends StatelessWidget {
                                 color: ink,
                                 height: 1.22,
                                 letterSpacing: 0.3)),
-                        const SizedBox(height: 10),
+                        if (note.subtitle.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(note.subtitle,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 14, color: muted)),
+                          ),
+                        const SizedBox(height: 12),
                         Container(
                           width: 46,
                           height: 3,
@@ -4081,24 +4091,25 @@ class _NoteContent extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (note.subtitle.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(note.subtitle,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 14, color: muted)),
-                    ),
                   const SizedBox(height: 14),
                   for (var i = 0; i < note.sections.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _SectionCard(
-                          section: note.sections[i],
-                          index: i,
-                          ink: ink,
-                          muted: muted,
-                          dark: dark),
-                    ),
+                    Builder(builder: (_) {
+                      // A picture-only card joins the card above it.
+                      final joinTop = i > 0 && _SectionCard.bareImage(note.sections[i]);
+                      final joinBottom = i + 1 < note.sections.length &&
+                          _SectionCard.bareImage(note.sections[i + 1]);
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: joinBottom ? 0 : 16),
+                        child: _SectionCard(
+                            section: note.sections[i],
+                            index: i,
+                            ink: ink,
+                            muted: muted,
+                            dark: dark,
+                            joinTop: joinTop,
+                            joinBottom: joinBottom),
+                      );
+                    }),
                   if (note.keyPoints.isNotEmpty) _keyPoints(ink),
                   if (note.summaryBox.isNotEmpty) _summary(ink),
                 ],
@@ -4342,10 +4353,13 @@ Widget _noteImage(String src,
     String fit = 'contain',
     String caption = '',
     bool topOnly = false,
+    bool square = false,
     Color muted = const Color(0xFF6B6155)}) {
-  final radius = topOnly
-      ? const BorderRadius.vertical(top: Radius.circular(8))
-      : BorderRadius.circular(8);
+  final radius = square
+      ? BorderRadius.zero
+      : topOnly
+          ? const BorderRadius.vertical(top: Radius.circular(8))
+          : BorderRadius.circular(8);
   final ar = (w != null && h != null && w > 0 && h > 0) ? (w / h) : null;
   final boxFit = fit == 'cover' ? BoxFit.cover : BoxFit.contain;
 
@@ -4392,7 +4406,8 @@ Widget _noteImage(String src,
 Widget _inlineText(String raw, TextStyle base,
     {Color accent = const Color(0xFF2563EB),
     int highlightIndex = 0,
-    bool dark = false}) {
+    bool dark = false,
+    TextAlign textAlign = TextAlign.start}) {
   base = base.copyWith(fontFamily: base.fontFamily ?? 'Plus Jakarta Sans', fontSize: (base.fontSize ?? 14) * 1.12); // caller font (Patrick Hand for parent lines) else clean Plus Jakarta; bigger for readability
   final runs = parseInline(raw);
   // Pastel rainbow highlighter — soft multi-colour cycling (calm, not neon).
@@ -4430,7 +4445,7 @@ Widget _inlineText(String raw, TextStyle base,
       if (last < r.text.length) children.add(TextSpan(text: r.text.substring(last), style: base));
     }
   }
-  return RichText(text: TextSpan(style: base, children: children));
+  return RichText(textAlign: textAlign, text: TextSpan(style: base, children: children));
 }
 
 // ── Reels review mode — swipe-up-through-cards, one concept per screen ─────
@@ -4656,24 +4671,12 @@ class _ReelsViewState extends State<_ReelsView> {
 
   Widget _introPage(
       AppColors c, bool dark, Color ink, Color muted, LessonDoc note) {
-    final titleAccent = dark ? const Color(0xFFE8B989) : const Color(0xFFB8763E);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: titleAccent.withValues(alpha: dark ? 0.22 : 0.13),
-              ),
-              child: Icon(Icons.menu_book_rounded,
-                  size: 26, color: dark ? titleAccent : titleAccent),
-            ),
-            const SizedBox(height: 20),
             Text(note.title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -5005,12 +5008,24 @@ class _SectionCard extends StatelessWidget {
   final Color ink;
   final Color muted;
   final bool dark;
+  /// Joined to the card above / below (2026-11-17): a picture-only card sits
+  /// flush under the card it illustrates, so it reads as part of that card.
+  final bool joinTop;
+  final bool joinBottom;
   const _SectionCard(
       {required this.section,
       required this.index,
       required this.ink,
       required this.muted,
-      required this.dark});
+      required this.dark,
+      this.joinTop = false,
+      this.joinBottom = false});
+
+  /// A section that is only a picture (no heading, no text): drawn with no
+  /// padding or border, edge to edge, and joined to the card above it.
+  static bool bareImage(LessonSection s) =>
+      s.type == 'image' && s.isImage && s.imageSrc != null &&
+      s.heading.trim().isEmpty && s.bullets.isEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -5047,6 +5062,83 @@ class _SectionCard extends StatelessWidget {
           )
         : null;
 
+    final bare = bareImage(section);
+    const r = Radius.circular(14);
+    final cardRadius = BorderRadius.only(
+      topLeft: joinTop ? Radius.zero : r,
+      topRight: joinTop ? Radius.zero : r,
+      bottomLeft: joinBottom ? Radius.zero : r,
+      bottomRight: joinBottom ? Radius.zero : r,
+    );
+    if (bare) {
+      // Picture only: no padding, no border — the image fills the card.
+      return ClipRRect(
+        borderRadius: cardRadius,
+        child: _noteImage(section.imageSrc!,
+            dark: dark,
+            w: section.imageWidth,
+            h: section.imageHeight,
+            fit: section.imageFit,
+            caption: section.caption,
+            square: true,
+            muted: muted),
+      );
+    }
+    final joined = joinTop || joinBottom;
+
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.094),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_topicIconSvg(section.heading) != null) ...[
+            SvgPicture.string(
+              _topicIconSvg(section.heading)!,
+              width: 13,
+              height: 13,
+              colorFilter: ColorFilter.mode(
+                dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent),
+                BlendMode.srcIn,
+              ),
+            ),
+            const SizedBox(width: 5),
+          ],
+          Flexible(
+            child: Text(section.heading.toUpperCase(),
+                style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent))),
+          ),
+        ],
+      ),
+    );
+
+    // 10.33: a section that is only a heading (the title of a table turned
+    // into cards) shows just its title, centred — no card box behind it.
+    final headingOnly = section.type == 'text' &&
+        section.heading.isNotEmpty &&
+        section.bullets.isEmpty &&
+        section.callout.trim().isEmpty &&
+        section.mnemonic.trim().isEmpty &&
+        section.stickyNote.trim().isEmpty &&
+        section.sectionImage == null &&
+        section.embeddedFlow.isEmpty &&
+        section.embeddedTableHeaders.isEmpty;
+    if (headingOnly) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Center(child: chip),
+      );
+    }
+
     return Container(
       // Roomier than before (was 12): dense lessons read as a wall of text on a phone.
       padding: const EdgeInsets.all(15),
@@ -5057,48 +5149,18 @@ class _SectionCard extends StatelessWidget {
           colors: [glowTL, cardFill, cardFill, glowBR],
           stops: const [0.0, 0.34, 0.66, 1.0],
         ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1EEE4)),
+        borderRadius: cardRadius,
+        // A joined card drops its outline so it meets the picture below
+        // without a line between them.
+        border: joined
+            ? null
+            : Border.all(color: dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF1EEE4)),
         boxShadow: dark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.022), blurRadius: 6, offset: const Offset(0, 1))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (section.heading.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.094),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: accent.withValues(alpha: 0.22)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_topicIconSvg(section.heading) != null) ...[
-                    SvgPicture.string(
-                      _topicIconSvg(section.heading)!,
-                      width: 13,
-                      height: 13,
-                      colorFilter: ColorFilter.mode(
-                        dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent),
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                  ],
-                  Flexible(
-                    child: Text(section.heading.toUpperCase(),
-                        style: TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                            color: dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent))),
-                  ),
-                ],
-              ),
-            ),
+          if (section.heading.isNotEmpty) chip,
           // Image / image-explained section: render the image (figure body below).
           if (section.isImage && section.imageSrc != null) ...[
             const SizedBox(height: 8),
@@ -5164,16 +5226,19 @@ class _SectionCard extends StatelessWidget {
           ),
         ));
       }
+      // Steps centred over their down-arrows, so the chain reads straight
+      // down the card (2026-11-17).
       children.add(_inlineText(
         steps[i],
         TextStyle(fontSize: 14, height: 1.5, color: ink),
         accent: accent,
         dark: dark,
+        textAlign: TextAlign.center,
       ));
     }
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
     );
   }
 
@@ -5286,73 +5351,153 @@ class _SectionCard extends StatelessWidget {
     final dividerColor = accent.withValues(alpha: dark ? 0.18 : 0.12);
     final headerColor = dark ? Color.lerp(accent, Colors.white, 0.35)! : _darken(accent);
 
-    // Fit the table to the screen. The canvas uses a manual pan gesture that
-    // swallows any nested horizontal scroll, so a scrollable table can't slide —
-    // instead columns share the width via Expanded and text wraps at word
-    // boundaries. A smaller cell font (smaller still for 4+ columns) keeps words
-    // from breaking mid-word.
-    final wide = headers.length >= 4;
-    final cellSize = wide ? 11.5 : 13.0;
+    // 10.32 — tables ALWAYS fit the width (no sideways scroll: the canvas's
+    // pan gesture would swallow it). Real text widths are measured:
+    //   1. columns get their full text width when it all fits, else at least
+    //      their longest word and the rest shared by how much text they hold —
+    //      text wraps and rows grow taller;
+    //   2. only if the longest words still don't fit, the text shrinks, never
+    //      below 11.5 (cells are drawn at size × 1.12 by _inlineText);
+    //   3. then words over 8 letters may continue on the next line; short ones
+    //      (SVR, JVP, ECG) never split.
+    const padH = 10.0; // 5 + 5 cell padding
+    const shortWord = 8;
+    String headerText(String h) => plainInline(h).toUpperCase();
+    TextStyle cellStyle(double fs) => TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: fs * 1.12, height: 1.4);
+    TextStyle headStyle(double fs) => TextStyle(
+        fontFamily: 'Plus Jakarta Sans', fontSize: (fs - 2.5).clamp(9.5, 10.5), fontWeight: FontWeight.w800, letterSpacing: 0.2, height: 1.3);
 
-    // Column widths follow the CONTENT instead of being equal: a column of short
-    // numbers stays narrow and a column of sentences gets the room, and no column
-    // is narrower than its longest word — that is what stopped words snapping
-    // mid-word ("SYSTOLI/C") and cells collapsing to a few letters per line.
-    final weights = List<int>.generate(headers.length, (ci) {
-      var longestWord = 0;
-      var total = 0;
-      var count = 0;
-      void scan(String raw) {
-        final plain = plainInline(raw);
-        total += plain.length;
-        count++;
-        for (final word in plain.split(RegExp(r'\s+'))) {
-          if (word.length > longestWord) longestWord = word.length;
+    return LayoutBuilder(builder: (context, box) {
+      final avail = box.maxWidth.isFinite ? box.maxWidth : 340.0;
+      final scaler = MediaQuery.textScalerOf(context);
+      double measure(String text, TextStyle style) {
+        final tp = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)..layout();
+        // Bold / highlighted runs are a little wider than plain text.
+        return tp.width * 1.06;
+      }
+
+      ({List<double> minW, List<double> prefW}) widths(double fs, {bool splitLong = false}) {
+        final minW = List<double>.filled(headers.length, 0);
+        final prefW = List<double>.filled(headers.length, 0);
+        for (var ci = 0; ci < headers.length; ci++) {
+          final cells = <(String, TextStyle)>[
+            (headerText(headers[ci]), headStyle(fs)),
+            for (final r in rows) (plainInline(ci < r.length ? r[ci] : ''), cellStyle(fs)),
+          ];
+          for (final (text, style) in cells) {
+            if (text.isEmpty) continue;
+            prefW[ci] = math.max(prefW[ci], measure(text, style));
+            for (final w in text.split(RegExp(r'\s+'))) {
+              if (w.isEmpty) continue;
+              final word = (splitLong && w.length > shortWord) ? w.substring(0, shortWord) : w;
+              minW[ci] = math.max(minW[ci], measure(word, style));
+            }
+          }
+          minW[ci] += padH;
+          prefW[ci] += padH;
         }
+        return (minW: minW, prefW: prefW);
       }
-      scan(headers[ci]);
-      for (final r in rows) {
-        scan(ci < r.length ? r[ci] : '');
+
+      var fs = headers.length >= 4 ? 12.5 : 13.0;
+      var w = widths(fs);
+      double sum(List<double> l) => l.fold(0.0, (a, b) => a + b);
+      while (sum(w.minW) > avail && fs > 11.5) {
+        fs = math.max(11.5, fs - 0.5);
+        w = widths(fs);
       }
-      final average = count == 0 ? 0 : (total / count).round();
-      final floor = longestWord < 4 ? 4 : (longestWord > 14 ? 14 : longestWord);
-      return average < floor ? floor : (average > 30 ? 30 : average);
+      final split = sum(w.minW) > avail;
+      if (split) w = widths(fs, splitLong: true);
+      // Very dense tables (5+ columns of paragraphs): a little smaller still,
+      // never below 10.5, before any column is squeezed under its words.
+      while (sum(w.minW) > avail && fs > 10.5) {
+        fs = math.max(10.5, fs - 0.5);
+        w = widths(fs, splitLong: true);
+      }
+
+      final List<double> colW;
+      final totalPref = sum(w.prefW), totalMin = sum(w.minW);
+      if (totalPref <= avail) {
+        // Everything fits on one line: share the spare room by text width.
+        colW = [for (final p in w.prefW) p * avail / totalPref];
+      } else if (totalMin <= avail) {
+        final extra = avail - totalMin;
+        final want = [for (var i = 0; i < headers.length; i++) w.prefW[i] - w.minW[i]];
+        final totalWant = sum(want);
+        colW = [for (var i = 0; i < headers.length; i++) w.minW[i] + (totalWant == 0 ? extra / headers.length : extra * want[i] / totalWant)];
+      } else {
+        // Even the shortest words don't fit: scale the minimums down (rare).
+        colW = [for (final m in w.minW) m * avail / totalMin];
+      }
+
+      // A word too long for its column is cut into pieces that fit, each but
+      // the last ending in a hyphen ("hypoten-" / "sion"), instead of the
+      // engine breaking it at whatever letter fills the line. No piece is
+      // shorter than 3 letters. Markup (** / ==) around words is untouched.
+      final letters = RegExp(r"[A-Za-z\u00C0-\u024F']{6,}");
+      // Exact width, in the boldest weight a cell uses (highlighted / bold
+      // runs), no safety margin — so a word is only cut when it truly can't
+      // fit; a cut word that then sat on one line would show its hyphen.
+      double exact(String text, TextStyle style) {
+        final tp = TextPainter(
+            text: TextSpan(text: text, style: style.copyWith(fontWeight: FontWeight.w700)),
+            textDirection: TextDirection.ltr,
+            textScaler: scaler,
+            maxLines: 1)
+          ..layout();
+        return tp.width;
+      }
+      String fitWords(String raw, double maxW, TextStyle style) {
+        if (!split) return raw;
+        return raw.replaceAllMapped(letters, (m) {
+          final word = m[0]!;
+          if (exact(word, style) <= maxW) return word;
+          final pieces = <String>[];
+          var rest = word;
+          while (rest.isNotEmpty && exact(rest, style) > maxW) {
+            var n = 3;
+            while (n < rest.length - 3 && exact('${rest.substring(0, n + 1)}-', style) <= maxW) {
+              n++;
+            }
+            if (rest.length - n < 3) break;
+            pieces.add('${rest.substring(0, n)}-');
+            rest = rest.substring(n);
+          }
+          pieces.add(rest);
+          return pieces.join('\u200B');
+        });
+      }
+
+      Widget buildRow(List<String> cells, {bool isHeader = false}) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List.generate(headers.length, (ci) {
+            final text = ci < cells.length ? cells[ci] : '';
+            return SizedBox(
+              width: colW[ci],
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(5, 6, 5, 6),
+                child: isHeader
+                    // Markers STRIPPED, not rendered: a header is a small-caps label.
+                    ? Text(fitWords(headerText(text), colW[ci] - padH, headStyle(fs)), style: headStyle(fs).copyWith(color: headerColor))
+                    : _inlineText(
+                        fitWords(text, colW[ci] - padH, cellStyle(fs)),
+                        TextStyle(fontSize: fs, height: 1.4, color: ink),
+                        accent: accent,
+                        dark: dark,
+                      ),
+              ),
+            );
+          }),
+        );
+      }
+
+      return _tableFrame(accent, dividerColor, headers, rows, buildRow);
     });
+  }
 
-    Widget buildRow(List<String> cells, {bool isHeader = false}) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(headers.length, (ci) {
-          final text = ci < cells.length ? cells[ci] : '';
-          return Expanded(
-            flex: weights[ci],
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(5, 6, 5, 6),
-              child: isHeader
-                  // Markers STRIPPED, not rendered. A header is a small-caps
-                  // label — a highlight swatch in it would fight the column
-                  // rule — but leaving the markers in meant a cell reading
-                  // literally "==X==", which is what showed on the app.
-                  ? Text(plainInline(text).toUpperCase(),
-                      style: TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          fontSize: wide ? 9.5 : 10.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
-                          height: 1.3,
-                          color: headerColor))
-                  : _inlineText(
-                      text,
-                      TextStyle(fontSize: cellSize, height: 1.4, color: ink),
-                      accent: accent,
-                      dark: dark,
-                    ),
-            ),
-          );
-        }),
-      );
-    }
-
+  Widget _tableFrame(Color accent, Color dividerColor, List<String> headers, List<List<String>> rows,
+      Widget Function(List<String>, {bool isHeader}) buildRow) {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(

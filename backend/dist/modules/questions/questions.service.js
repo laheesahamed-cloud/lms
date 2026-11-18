@@ -13,10 +13,16 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuestionsService = void 0;
+const general_ci_sort_1 = require("../../common/utils/general-ci-sort");
 const common_1 = require("@nestjs/common");
 const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
+const admin_read_cache_1 = require("../../common/utils/admin-read-cache");
+const quiz_counts_1 = require("../../common/utils/quiz-counts");
+const content_history_1 = require("../../common/utils/content-history");
+const question_content_1 = require("../../common/utils/question-content");
+const quiz_stamp_1 = require("../../common/utils/quiz-stamp");
 const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'];
 const QUESTION_LOOKUP_TABLES = ['courses', 'topics', 'subtopics', 'lessons', 'papers'];
 const IMPORT_COLUMNS = [
@@ -45,7 +51,6 @@ const IMPORT_COLUMNS = [
     'option_e_text',
     'option_e_correct',
     'option_e_why_incorrect',
-    'keywords',
     'explanation',
     'status',
 ];
@@ -54,44 +59,35 @@ let QuestionsService = class QuestionsService {
         this.db = db;
     }
     async findAll(filters) {
-        let sql = `
+        const slim = filters.slim === true;
+        const needsSearchJoins = Boolean(filters.search?.trim());
+        const plainList = !filters.random && !(filters.ids && filters.ids.length);
+        const listIndexHint = !plainList ? ''
+            : filters.lessonId ? 'FORCE INDEX (idx_questions_lesson_id)'
+                : filters.topicId ? 'FORCE INDEX (idx_questions_subtopic_id)'
+                    : filters.subjectId ? 'FORCE INDEX (fk_questions_topic)'
+                        : filters.courseId ? 'FORCE INDEX (fk_questions_course)' : '';
+        let sql = slim
+            ? `
       SELECT
-        q.id,
-        q.course_id,
-        q.topic_id,
-        q.subtopic_id,
-        q.lesson_id,
-        q.paper_id,
-        q.subtopic,
-        q.category,
-        q.question_category,
-        q.question_type,
-        q.question_text,
-        q.keywords_text,
-        q.explanation,
-        q.explanation_image_url,
-        q.question_approach,
-        q.question_approach_highlights,
-        q.status,
-        q.created_at,
-        c.course_title,
-        s.topic_name AS subject_name,
-        st.subtopic_name AS topic_name,
-        l.lesson_title,
-        p.paper_title,
-        -- Counted per listed row. Joining a quiz count for the whole bank
-        -- (GROUP BY over every question_quizzes row) on each page read tens of
-        -- thousands of rows to show 20.
-        (
-          SELECT COUNT(DISTINCT qqc.quiz_id)
-          FROM question_quizzes qqc
-          WHERE qqc.question_id = q.id
-        ) AS quiz_count,
-        (
-          SELECT MAX(cv.version_number)
-          FROM content_versions cv
-          WHERE cv.entity_type = 'question' AND cv.entity_id = q.id
-        ) AS content_version
+        q.id, q.course_id, q.topic_id, q.subtopic_id, q.lesson_id, q.paper_id, q.subtopic,
+        q.category, q.question_category, q.question_type, q.question_text,
+        NULL AS explanation, NULL AS explanation_image_url, NULL AS question_approach, NULL AS question_approach_highlights,
+        q.status, q.created_at,
+        NULL AS course_title, NULL AS subject_name, NULL AS topic_name, NULL AS lesson_title, NULL AS paper_title,
+        q.quiz_count, NULL AS content_version
+      FROM questions q ${listIndexHint}
+      ${needsSearchJoins ? 'LEFT JOIN subtopics st ON st.id = q.subtopic_id LEFT JOIN papers p ON p.id = q.paper_id' : ''}
+      WHERE 1 = 1
+    `
+            : `
+      SELECT
+        q.id, q.course_id, q.topic_id, q.subtopic_id, q.lesson_id, q.paper_id, q.subtopic,
+        q.category, q.question_category, q.question_type, q.question_text,
+        q.explanation, q.explanation_image_url, q.question_approach, q.question_approach_highlights,
+        q.status, q.created_at,
+        c.course_title, s.topic_name AS subject_name, st.subtopic_name AS topic_name, l.lesson_title, p.paper_title,
+        q.quiz_count, NULL AS content_version
       FROM questions q
       LEFT JOIN courses c ON c.id = q.course_id
       LEFT JOIN topics s ON s.id = q.topic_id
@@ -116,13 +112,9 @@ let QuestionsService = class QuestionsService {
             params.push(...excludeIds);
         }
         if (filters.search?.trim()) {
-            sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
+            sql += ' AND (q.question_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
             const like = `%${filters.search.trim()}%`;
-            params.push(like, like, like, like, like);
-        }
-        if (filters.keywords?.trim()) {
-            sql += ' AND q.keywords_text LIKE ?';
-            params.push(`%${filters.keywords.trim()}%`);
+            params.push(like, like, like, like);
         }
         if (filters.status === 'active' || filters.status === 'inactive') {
             sql += ' AND q.status = ?';
@@ -159,66 +151,49 @@ let QuestionsService = class QuestionsService {
         if (filters.unclassified) {
             sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
         }
-        const missingClauses = {
-            explanation: "(q.explanation IS NULL OR TRIM(q.explanation) = '')",
-            approach: "(q.question_approach IS NULL OR TRIM(q.question_approach) = '')",
-            why_incorrect: `EXISTS (
-        SELECT 1 FROM question_options o
-        WHERE o.question_id = q.id
-          AND o.is_correct = 0
-          AND (o.why_incorrect IS NULL OR TRIM(o.why_incorrect) = '')
-      )`,
-            theory: `NOT EXISTS (
-        SELECT 1 FROM question_theory_recaps tr WHERE tr.question_id = q.id
-      )`,
-        };
-        if (filters.missing === 'any') {
-            sql += ` AND (${Object.values(missingClauses).join(' OR ')})`;
-        }
-        else if (filters.missing && missingClauses[filters.missing]) {
-            sql += ` AND ${missingClauses[filters.missing]}`;
+        if (filters.missing && (filters.missing === 'any' || filters.missing in question_content_1.MISSING_BITS)) {
+            sql += ` AND ${(0, question_content_1.sqlMissingFilter)('q', filters.missing)}`;
         }
         if (filters.usage === 'unused') {
-            sql += ' AND NOT EXISTS (SELECT 1 FROM question_quizzes qqu WHERE qqu.question_id = q.id)';
+            sql += ' AND q.quiz_count = 0';
         }
         if (filters.usage === 'used') {
-            sql += ' AND EXISTS (SELECT 1 FROM question_quizzes qqu WHERE qqu.question_id = q.id)';
+            sql += ' AND q.quiz_count > 0';
+        }
+        const after = !filters.random && Number.isInteger(filters.after) && Number(filters.after) > 0 ? Number(filters.after) : 0;
+        if (after) {
+            sql += ' AND q.id < ?';
+            params.push(after);
         }
         sql += filters.random ? ' ORDER BY RAND()' : ' ORDER BY q.id DESC';
         sql += ' LIMIT ?';
         params.push(pagination.limit);
-        if (pagination.offset > 0) {
+        if (pagination.offset > 0 && !after) {
             sql += ' OFFSET ?';
             params.push(pagination.offset);
         }
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapQuestionSummary(row));
     }
-    async countByFilters(filters) {
+    countByFilters(filters) {
+        return (0, admin_read_cache_1.cachedAdminRead)(`questions.counts:${JSON.stringify(filters)}`, () => this.loadCountsByFilters(filters));
+    }
+    async loadCountsByFilters(filters) {
+        const needsSearchJoins = Boolean(filters.search?.trim());
         let sql = `
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN qu.question_id IS NULL THEN 1 ELSE 0 END) AS unused,
-        SUM(CASE WHEN qu.question_id IS NOT NULL THEN 1 ELSE 0 END) AS used
+        COALESCE(SUM(q.quiz_count = 0), 0) AS unused,
+        COALESCE(SUM(q.quiz_count > 0), 0) AS used
       FROM questions q
-      LEFT JOIN subtopics st ON st.id = q.subtopic_id
-      LEFT JOIN papers p ON p.id = q.paper_id
-      -- "Is it in any quiz" only needs the distinct linked ids, which the
-      -- (question_id, quiz_id) index gives without counting quizzes per question.
-      LEFT JOIN (
-        SELECT DISTINCT question_id FROM question_quizzes
-      ) qu ON qu.question_id = q.id
+      ${needsSearchJoins ? 'LEFT JOIN subtopics st ON st.id = q.subtopic_id LEFT JOIN papers p ON p.id = q.paper_id' : ''}
       WHERE 1 = 1
     `;
         const params = [];
         if (filters.search?.trim()) {
-            sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
+            sql += ' AND (q.question_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
             const like = `%${filters.search.trim()}%`;
-            params.push(like, like, like, like, like);
-        }
-        if (filters.keywords?.trim()) {
-            sql += ' AND q.keywords_text LIKE ?';
-            params.push(`%${filters.keywords.trim()}%`);
+            params.push(like, like, like, like);
         }
         if (filters.status === 'active' || filters.status === 'inactive') {
             sql += ' AND q.status = ?';
@@ -260,7 +235,82 @@ let QuestionsService = class QuestionsService {
             used: Number(row.used || 0),
         };
     }
-    async meta() {
+    meta() {
+        return (0, admin_read_cache_1.cachedAdminRead)('questions.meta', () => this.loadMeta());
+    }
+    metaFolders() {
+        return (0, admin_read_cache_1.cachedAdminRead)('questions.meta:folders', async () => {
+            const [courseRows] = await this.db.query("SELECT id, course_title FROM courses WHERE status = 'active'");
+            const [subjectRows] = await this.db.query("SELECT id, course_id, topic_name FROM topics WHERE status = 'active'");
+            (0, general_ci_sort_1.sortByName)(courseRows, (r) => String(r.course_title));
+            (0, general_ci_sort_1.sortByName)(subjectRows, (r) => String(r.topic_name));
+            const [paperRows] = await this.db.query("SELECT id, paper_title, year, exam_source, keywords_text FROM papers WHERE status = 'active' ORDER BY year DESC, paper_title ASC");
+            return {
+                courses: courseRows.map((row) => ({ id: Number(row.id), courseTitle: String(row.course_title) })),
+                subjects: subjectRows.map((row) => ({ id: Number(row.id), courseId: Number(row.course_id), subjectName: String(row.topic_name) })),
+                topics: [],
+                lessons: [],
+                papers: paperRows.map((row) => ({
+                    id: Number(row.id), paperTitle: String(row.paper_title), year: Number(row.year),
+                    examSource: String(row.exam_source), keywordsText: String(row.keywords_text || ''),
+                })),
+            };
+        });
+    }
+    async metaSubject(topicId) {
+        if (!Number.isInteger(topicId) || topicId <= 0)
+            throw new common_1.BadRequestException('topicId is required');
+        const [[subject]] = await this.db.query('SELECT course_id FROM topics WHERE id = ?', [topicId]);
+        const [rawTopicRows] = await this.db.query(`SELECT s.id, s.topic_id, s.subtopic_name FROM subtopics s WHERE s.topic_id = ? AND s.status = 'active'`, [topicId]);
+        const topicRows = rawTopicRows.map((row) => ({ ...row, course_id: subject ? subject.course_id : null }));
+        const [lessonRows] = await this.db.query(`SELECT id, course_id, topic_id, subtopic_id, lesson_title
+       FROM lessons WHERE topic_id = ? AND status = 'active'`, [topicId]);
+        (0, general_ci_sort_1.sortByName)(topicRows, (r) => String(r.subtopic_name));
+        (0, general_ci_sort_1.sortByName)(lessonRows, (r) => String(r.lesson_title));
+        return {
+            topicId,
+            topics: topicRows.map((row) => ({
+                id: Number(row.id), subjectId: Number(row.topic_id), courseId: Number(row.course_id), topicName: String(row.subtopic_name),
+            })),
+            lessons: lessonRows.map((row) => ({
+                id: Number(row.id), courseId: Number(row.course_id), subjectId: Number(row.topic_id),
+                topicId: row.subtopic_id === null ? null : Number(row.subtopic_id), lessonTitle: String(row.lesson_title),
+            })),
+        };
+    }
+    fixLinkCounts(after) {
+        return (0, quiz_counts_1.fixQuestionLinkCounts)(this.db, after);
+    }
+    fixCourseQuestionTotals(counts, expected) {
+        const clean = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+        return (0, quiz_counts_1.fixCourseQuestionTotals)(this.db, clean(counts), clean(expected));
+    }
+    async metaSubjects(topicIds) {
+        const ids = [...new Set(topicIds.filter((v) => Number.isInteger(v) && v > 0))].slice(0, 50);
+        if (!ids.length)
+            return { subjects: [] };
+        const [subjectRows] = await this.db.query('SELECT id, course_id FROM topics WHERE id IN (?)', [ids]);
+        const courseOf = new Map(subjectRows.map((row) => [Number(row.id), Number(row.course_id)]));
+        const [rawTopicRows] = await this.db.query(`SELECT s.id, s.topic_id, s.subtopic_name FROM subtopics s WHERE s.topic_id IN (?) AND s.status = 'active'`, [ids]);
+        const topicRows = rawTopicRows.map((row) => ({ ...row, course_id: courseOf.get(Number(row.topic_id)) ?? null }));
+        const [lessonRows] = await this.db.query(`SELECT id, course_id, topic_id, subtopic_id, lesson_title
+       FROM lessons WHERE topic_id IN (?) AND status = 'active'`, [ids]);
+        (0, general_ci_sort_1.sortByName)(topicRows, (r) => String(r.subtopic_name));
+        (0, general_ci_sort_1.sortByName)(lessonRows, (r) => String(r.lesson_title));
+        return {
+            subjects: ids.map((topicId) => ({
+                topicId,
+                topics: topicRows.filter((row) => Number(row.topic_id) === topicId).map((row) => ({
+                    id: Number(row.id), subjectId: Number(row.topic_id), courseId: Number(row.course_id), topicName: String(row.subtopic_name),
+                })),
+                lessons: lessonRows.filter((row) => Number(row.topic_id) === topicId).map((row) => ({
+                    id: Number(row.id), courseId: Number(row.course_id), subjectId: Number(row.topic_id),
+                    topicId: row.subtopic_id === null ? null : Number(row.subtopic_id), lessonTitle: String(row.lesson_title),
+                })),
+            })),
+        };
+    }
+    async loadMeta() {
         const [courseRows] = await this.db.execute("SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC");
         const [subjectRows] = await this.db.execute("SELECT id, course_id, topic_name FROM topics WHERE status = 'active' ORDER BY topic_name ASC");
         const [topicRows] = await this.db.execute(`
@@ -282,7 +332,6 @@ let QuestionsService = class QuestionsService {
         WHERE status = 'active'
         ORDER BY year DESC, paper_title ASC
       `);
-        const keywordSuggestions = await this.getKeywordSuggestions();
         return {
             courses: courseRows.map((row) => ({
                 id: Number(row.id),
@@ -313,7 +362,6 @@ let QuestionsService = class QuestionsService {
                 examSource: String(row.exam_source),
                 keywordsText: String(row.keywords_text || ''),
             })),
-            keywordSuggestions,
         };
     }
     async findOne(id) {
@@ -330,23 +378,21 @@ let QuestionsService = class QuestionsService {
           q.question_category,
           q.question_type,
           q.question_text,
-          q.keywords_text,
           q.explanation,
           q.explanation_image_url,
           q.question_approach,
           q.question_approach_highlights,
           q.status,
           q.created_at,
+          q.updated_at,
+          q.quiz_count,
+          q.options_json,
           c.course_title,
           s.topic_name AS subject_name,
           st.subtopic_name AS topic_name,
           l.lesson_title,
           p.paper_title,
-          (
-            SELECT MAX(cv.version_number)
-            FROM content_versions cv
-            WHERE cv.entity_type = 'question' AND cv.entity_id = q.id
-          ) AS content_version
+          1 AS content_version -- 10.39: version history no longer kept
         FROM questions q
         LEFT JOIN courses c ON c.id = q.course_id
         LEFT JOIN topics s ON s.id = q.topic_id
@@ -360,12 +406,7 @@ let QuestionsService = class QuestionsService {
         if (!question) {
             throw new common_1.NotFoundException('Question not found');
         }
-        const [optionRows] = await this.db.execute(`
-        SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
-        FROM question_options
-        WHERE question_id = ?
-        ORDER BY option_label ASC, id ASC
-      `, [id]);
+        const optionRows = (0, question_content_1.optionsOf)(id, question.options_json);
         return {
             ...this.mapQuestionSummary(question),
             options: optionRows.map((row) => ({
@@ -394,7 +435,6 @@ let QuestionsService = class QuestionsService {
                 category: this.mapQuestionSummary(question).category,
                 question_type: String(question.question_type || ''),
                 question_text: String(question.question_text || ''),
-                keywords: String(question.keywords_text || ''),
                 explanation: String(question.explanation || ''),
                 status: String(question.status || 'active'),
             };
@@ -659,8 +699,8 @@ let QuestionsService = class QuestionsService {
             const [result] = await connection.execute(`
           INSERT INTO questions (
             course_id, topic_id, subtopic_id, lesson_id, paper_id, subtopic, category, question_category, question_type,
-            question_text, keywords_text, explanation, explanation_image_url, question_approach, question_approach_highlights, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            question_text, explanation, explanation_image_url, question_approach, question_approach_highlights, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
                 createQuestionDto.courseId,
                 createQuestionDto.subjectId ?? null,
@@ -672,15 +712,14 @@ let QuestionsService = class QuestionsService {
                 this.normalizeCategory(createQuestionDto.category),
                 createQuestionDto.questionType,
                 createQuestionDto.questionText.trim(),
-                this.normalizeKeywords(createQuestionDto.keywordsText),
                 (createQuestionDto.explanation || '').trim(),
                 this.cleanExplanationImage(createQuestionDto.explanationImageUrl),
                 (createQuestionDto.questionApproach || '').trim(),
                 this.serializeApproachHighlights(createQuestionDto.questionApproachHighlights),
                 createQuestionDto.status,
             ]);
+            await (0, quiz_counts_1.applyQuestionTotalChanges)(connection, [], [{ id: result.insertId, course_id: Number(createQuestionDto.courseId) }]);
             await this.replaceOptions(connection, result.insertId, createQuestionDto.options, createQuestionDto.questionType);
-            await this.syncQuestionKeywords(connection, result.insertId, createQuestionDto.keywordsText);
             await this.recordContentVersion(connection, 'question', result.insertId, this.buildQuestionSnapshot(createQuestionDto), this.getActorId(actor));
             await this.setWorkflowState(connection, 'question', result.insertId, createQuestionDto.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
             await this.recordContentAudit(connection, {
@@ -714,7 +753,6 @@ let QuestionsService = class QuestionsService {
             category: (updateQuestionDto.category ?? existing.category),
             questionType: updateQuestionDto.questionType ?? existing.questionType,
             questionText: updateQuestionDto.questionText ?? existing.questionText,
-            keywordsText: updateQuestionDto.keywordsText ?? existing.keywordsText ?? '',
             explanation: updateQuestionDto.explanation ?? existing.explanation ?? '',
             explanationImageUrl: updateQuestionDto.explanationImageUrl !== undefined
                 ? updateQuestionDto.explanationImageUrl
@@ -740,6 +778,8 @@ let QuestionsService = class QuestionsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const courseBefore = await (0, quiz_counts_1.readQuestionCourses)(connection, [id]);
+            await (0, quiz_stamp_1.bumpQuizStamps)(connection, { questionIds: [id] });
             await connection.execute(`
           UPDATE questions SET
             course_id = ?,
@@ -752,7 +792,6 @@ let QuestionsService = class QuestionsService {
             question_category = ?,
             question_type = ?,
             question_text = ?,
-            keywords_text = ?,
             explanation = ?,
             explanation_image_url = ?,
             question_approach = ?,
@@ -770,7 +809,6 @@ let QuestionsService = class QuestionsService {
                 this.normalizeCategory(merged.category),
                 merged.questionType,
                 merged.questionText.trim(),
-                this.normalizeKeywords(merged.keywordsText),
                 (merged.explanation || '').trim(),
                 this.cleanExplanationImage(merged.explanationImageUrl),
                 (merged.questionApproach || '').trim(),
@@ -778,8 +816,8 @@ let QuestionsService = class QuestionsService {
                 merged.status,
                 id,
             ]);
+            await (0, quiz_counts_1.applyQuestionTotalChanges)(connection, courseBefore, courseBefore.map((q) => ({ ...q, course_id: Number(merged.courseId) })));
             await this.replaceOptions(connection, id, merged.options, merged.questionType);
-            await this.syncQuestionKeywords(connection, id, merged.keywordsText);
             await this.recordContentVersion(connection, 'question', id, this.buildQuestionSnapshot(merged), this.getActorId(actor));
             await this.setWorkflowState(connection, 'question', id, merged.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
             await this.recordContentAudit(connection, {
@@ -808,7 +846,11 @@ let QuestionsService = class QuestionsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const courseBefore = await (0, quiz_counts_1.readQuestionCourses)(connection, [id]);
+            await (0, quiz_stamp_1.bumpQuizStampsForDeletedQuestions)(connection, [id]);
             await connection.execute('DELETE FROM questions WHERE id = ?', [id]);
+            await (0, content_history_1.forgetContentHistory)(connection, 'question', [id]);
+            await (0, quiz_counts_1.applyQuestionTotalChanges)(connection, courseBefore, []);
             await this.recordContentAudit(connection, {
                 entityType: 'question',
                 entityId: id,
@@ -854,13 +896,13 @@ let QuestionsService = class QuestionsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const coursesBefore = await (0, quiz_counts_1.readQuestionCourses)(connection, questionIds);
+            await (0, quiz_stamp_1.bumpQuizStampsForDeletedQuestions)(connection, questionIds);
             await connection.execute(`DELETE FROM question_quizzes WHERE question_id IN (${placeholders})`, questionIds);
-            await connection.execute(`DELETE FROM question_theory_recaps WHERE question_id IN (${placeholders})`, questionIds);
-            await connection.execute(`DELETE FROM question_keyword_map WHERE question_id IN (${placeholders})`, questionIds);
-            await connection.execute(`DELETE FROM question_options WHERE question_id IN (${placeholders})`, questionIds);
             await connection.execute(`DELETE FROM question_reports WHERE question_id IN (${placeholders})`, questionIds);
-            await connection.execute(`DELETE FROM student_answers WHERE question_id IN (${placeholders})`, questionIds);
             const [result] = await connection.execute(`DELETE FROM questions WHERE id IN (${placeholders})`, questionIds);
+            await (0, content_history_1.forgetContentHistory)(connection, 'question', questionIds);
+            await (0, quiz_counts_1.applyQuestionTotalChanges)(connection, coursesBefore, []);
             await this.recordContentAudit(connection, {
                 entityType: 'question',
                 entityId: 0,
@@ -885,74 +927,9 @@ let QuestionsService = class QuestionsService {
             connection.release();
         }
     }
-    async bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto, actor) {
-        const questionIds = Array.from(new Set((bulkUpdateQuestionKeywordsDto.questionIds || [])
-            .map((id) => Number(id))
-            .filter((id) => Number.isInteger(id) && id > 0)));
-        if (questionIds.length === 0) {
-            throw new common_1.BadRequestException('Please select at least one question');
-        }
-        const nextKeywords = this.normalizeKeywordArray(bulkUpdateQuestionKeywordsDto.keywordsText);
-        if (nextKeywords.length === 0) {
-            throw new common_1.BadRequestException('Please enter at least one keyword');
-        }
-        const placeholders = (0, sql_safety_1.sqlPlaceholders)(questionIds);
-        const [questionRows] = await this.db.execute(`SELECT id, keywords_text, status FROM questions WHERE id IN (${placeholders})`, questionIds);
-        if (questionRows.length !== questionIds.length) {
-            throw new common_1.NotFoundException('One or more questions could not be found');
-        }
-        if (!this.canReviewContent(actor) && questionRows.some((row) => String(row.status || '') === 'active')) {
-            throw new common_1.ForbiddenException('Published questions require review permission before keyword changes');
-        }
-        const connection = await this.db.getConnection();
-        try {
-            await connection.beginTransaction();
-            for (const row of questionRows) {
-                const currentKeywords = this.normalizeKeywordArray(String(row.keywords_text || ''));
-                const mergedKeywords = bulkUpdateQuestionKeywordsDto.mode === 'replace'
-                    ? nextKeywords
-                    : Array.from(new Set([...currentKeywords, ...nextKeywords]));
-                const keywordsText = mergedKeywords.join(', ');
-                await connection.execute('UPDATE questions SET keywords_text = ? WHERE id = ?', [keywordsText, Number(row.id)]);
-                await this.syncQuestionKeywords(connection, Number(row.id), keywordsText);
-                await this.recordContentAudit(connection, {
-                    entityType: 'question',
-                    entityId: Number(row.id),
-                    action: 'keywords_updated',
-                    summary: `Question ${row.id} keywords updated`,
-                    actorId: this.getActorId(actor),
-                    before: { keywordsText: String(row.keywords_text || '') },
-                    after: { keywordsText },
-                });
-            }
-            await connection.commit();
-            return {
-                ok: true,
-                updatedCount: questionIds.length,
-                keywords: nextKeywords,
-            };
-        }
-        catch (error) {
-            await connection.rollback();
-            throw error;
-        }
-        finally {
-            connection.release();
-        }
-    }
     async listVersions(id) {
-        await this.findOne(id);
-        const [rows] = await this.db.execute(`SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'question' AND entity_id = ?
-       ORDER BY version_number DESC`, [id]);
-        return rows.map((row) => ({
-            id: Number(row.id),
-            versionNumber: Number(row.version_number),
-            createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-            createdAt: row.created_at || null,
-            snapshot: this.parseSnapshotJson(row.snapshot_json),
-        }));
+        void id;
+        return [];
     }
     async markDraft(id, actor) {
         return this.transitionWorkflow(id, {
@@ -983,60 +960,10 @@ let QuestionsService = class QuestionsService {
         });
     }
     async rollback(id, versionNumber, actor) {
-        if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-            throw new common_1.BadRequestException('Version number is invalid');
-        }
-        if (!this.canReviewContent(actor)) {
-            throw new common_1.ForbiddenException('Review permission is required to rollback published question content');
-        }
-        const existing = await this.findOne(id);
-        const [versionRows] = await this.db.execute(`SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'question' AND entity_id = ? AND version_number = ?
-       LIMIT 1`, [id, versionNumber]);
-        if (!versionRows[0]) {
-            throw new common_1.NotFoundException('Content version not found');
-        }
-        const snapshot = this.parseQuestionSnapshot(versionRows[0].snapshot_json);
-        this.validateQuestionPayload(snapshot);
-        if (snapshot.status === 'active') {
-            this.validateQuestionPublishReady(snapshot);
-        }
-        await this.ensureHierarchyExists(snapshot);
-        const workflowState = snapshot.status === 'active' ? 'published' : 'draft';
-        const connection = await this.db.getConnection();
-        try {
-            await connection.beginTransaction();
-            await this.writeQuestionSnapshot(connection, id, snapshot);
-            await this.replaceOptions(connection, id, snapshot.options, snapshot.questionType);
-            await this.syncQuestionKeywords(connection, id, snapshot.keywordsText);
-            await this.recordContentVersion(connection, 'question', id, snapshot, this.getActorId(actor));
-            await this.setWorkflowState(connection, 'question', id, workflowState, this.getActorId(actor));
-            await this.recordContentAudit(connection, {
-                entityType: 'question',
-                entityId: id,
-                action: 'rolled_back',
-                summary: `Question ${id} rolled back to version ${versionNumber}`,
-                actorId: this.getActorId(actor),
-                before: existing,
-                after: snapshot,
-            });
-            await connection.commit();
-        }
-        catch (error) {
-            await connection.rollback();
-            throw error;
-        }
-        finally {
-            connection.release();
-        }
-        return {
-            ok: true,
-            id,
-            rolledBackToVersion: versionNumber,
-            status: snapshot.status,
-            workflowState,
-        };
+        void id;
+        void versionNumber;
+        void actor;
+        throw new common_1.BadRequestException('Version history is not kept any more.');
     }
     async ensureHierarchyExists(question) {
         await this.ensureExists('courses', question.courseId, 'Selected course was not found');
@@ -1064,7 +991,6 @@ let QuestionsService = class QuestionsService {
             category: question.category,
             questionType: question.questionType,
             questionText: question.questionText,
-            keywordsText: this.normalizeKeywords(question.keywordsText),
             explanation: question.explanation || '',
             explanationImageUrl: question.explanationImageUrl || null,
             questionApproach: question.questionApproach || '',
@@ -1089,7 +1015,6 @@ let QuestionsService = class QuestionsService {
             category: question.category,
             questionType: question.questionType,
             questionText: question.questionText,
-            keywordsText: question.keywordsText || '',
             explanation: question.explanation || '',
             explanationImageUrl: question.explanationImageUrl || null,
             questionApproach: question.questionApproach || '',
@@ -1116,6 +1041,7 @@ let QuestionsService = class QuestionsService {
         try {
             await connection.beginTransaction();
             await connection.execute('UPDATE questions SET status = ? WHERE id = ?', [input.status, id]);
+            await (0, quiz_stamp_1.bumpQuizStamps)(connection, { questionIds: [id] });
             await this.recordContentVersion(connection, 'question', id, snapshot, this.getActorId(input.actor));
             await this.setWorkflowState(connection, 'question', id, input.workflowState, this.getActorId(input.actor));
             await this.recordContentAudit(connection, {
@@ -1144,6 +1070,8 @@ let QuestionsService = class QuestionsService {
         };
     }
     async writeQuestionSnapshot(connection, id, question) {
+        const courseBefore = await (0, quiz_counts_1.readQuestionCourses)(connection, [id]);
+        await (0, quiz_stamp_1.bumpQuizStamps)(connection, { questionIds: [id] });
         await connection.execute(`
         UPDATE questions SET
           course_id = ?,
@@ -1156,7 +1084,6 @@ let QuestionsService = class QuestionsService {
           question_category = ?,
           question_type = ?,
           question_text = ?,
-          keywords_text = ?,
           explanation = ?,
           explanation_image_url = ?,
           status = ?
@@ -1172,12 +1099,12 @@ let QuestionsService = class QuestionsService {
             this.normalizeCategory(question.category),
             question.questionType,
             question.questionText.trim(),
-            this.normalizeKeywords(question.keywordsText),
             (question.explanation || '').trim(),
             this.cleanExplanationImage(question.explanationImageUrl),
             question.status,
             id,
         ]);
+        await (0, quiz_counts_1.applyQuestionTotalChanges)(connection, courseBefore, courseBefore.map((q) => ({ ...q, course_id: Number(question.courseId) })));
     }
     parseSnapshotJson(value) {
         if (value && typeof value === 'object') {
@@ -1210,7 +1137,6 @@ let QuestionsService = class QuestionsService {
             category: (snapshot.category === 'past' || snapshot.category === 'past_paper' || snapshot.category === 'ai') ? snapshot.category : 'mock',
             questionType: snapshot.questionType === 'true_false' ? 'true_false' : 'sba',
             questionText: String(snapshot.questionText || ''),
-            keywordsText: String(snapshot.keywordsText || ''),
             explanation: String(snapshot.explanation || ''),
             status: snapshot.status === 'active' ? 'active' : 'inactive',
             options: Array.isArray(snapshot.options)
@@ -1224,42 +1150,24 @@ let QuestionsService = class QuestionsService {
         };
     }
     async recordContentVersion(connection, entityType, entityId, snapshot, actorId) {
-        const [rows] = await connection.execute('SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?', [entityType, entityId]);
-        const versionNumber = Number(rows[0]?.next_version || 1);
-        await connection.execute('INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)', [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void snapshot;
+        void actorId;
     }
     async setWorkflowState(connection, entityType, entityId, workflowState, actorId) {
-        await connection.execute(`INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`, [entityType, entityId, workflowState, actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void workflowState;
+        void actorId;
     }
     async recordContentAudit(connection, event) {
-        await connection.execute(`INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`, [
-            event.entityType,
-            event.entityId,
-            event.action,
-            event.actorId || null,
-            event.summary,
-            event.before === undefined ? null : JSON.stringify(event.before),
-            event.after === undefined ? null : JSON.stringify(event.after),
-        ]);
+        void 0;
     }
     async recordAdminAuditEvent(input) {
-        await this.db.execute(`INSERT INTO admin_audit_events
-        (event_type, actor_id, target_type, target_id, summary, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?)`, [
-            input.eventType,
-            input.actorId || null,
-            input.targetType || null,
-            input.targetId || null,
-            input.summary,
-            input.metadata === undefined ? null : JSON.stringify(input.metadata),
-        ]);
+        void 0;
     }
     serializeQuestionFilters(filters) {
         return {
@@ -1267,7 +1175,6 @@ let QuestionsService = class QuestionsService {
             status: filters.status || '',
             type: filters.type || '',
             category: filters.category || '',
-            keywords: filters.keywords || '',
             usage: filters.usage || '',
             courseId: filters.courseId || null,
             subjectId: filters.subjectId || null,
@@ -1356,7 +1263,6 @@ let QuestionsService = class QuestionsService {
         }
     }
     async replaceOptions(connection, questionId, options, questionType) {
-        await connection.execute('DELETE FROM question_options WHERE question_id = ?', [questionId]);
         const cleaned = options
             .map((option) => ({
             optionLabel: option.optionLabel.trim().toUpperCase(),
@@ -1364,13 +1270,16 @@ let QuestionsService = class QuestionsService {
             isCorrect: Number(option.isCorrect) === 1 ? 1 : 0,
             whyIncorrect: this.normalizeWhyIncorrect(option),
         }))
-            .filter((option) => option.optionText !== '');
-        for (const option of cleaned) {
-            await connection.execute(`
-          INSERT INTO question_options (question_id, option_label, option_text, is_correct, why_incorrect)
-          VALUES (?, ?, ?, ?, ?)
-        `, [questionId, option.optionLabel, option.optionText, option.isCorrect, questionType === 'sba' && option.isCorrect === 1 ? null : option.whyIncorrect || null]);
-        }
+            .filter((option) => option.optionText !== '')
+            .map((option) => ({
+            ...option,
+            whyIncorrect: questionType === 'sba' && option.isCorrect === 1 ? null : option.whyIncorrect || null,
+        }));
+        const [prev] = await connection.execute('SELECT options_json FROM questions WHERE id = ? LIMIT 1', [questionId]);
+        await connection.execute('UPDATE questions SET options_json = ? WHERE id = ?', [
+            (0, question_content_1.optionsJsonFor)(questionId, cleaned, prev[0]?.options_json),
+            questionId,
+        ]);
     }
     normalizeWhyIncorrect(option) {
         const raw = option.whyIncorrect ?? option.why_incorrect ?? '';
@@ -1404,7 +1313,6 @@ let QuestionsService = class QuestionsService {
         q.question_category,
         q.question_type,
         q.question_text,
-        q.keywords_text,
         q.explanation,
         q.status,
         q.created_at,
@@ -1429,13 +1337,9 @@ let QuestionsService = class QuestionsService {
     `;
         const params = [];
         if (filters.search?.trim()) {
-            sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
+            sql += ' AND (q.question_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
             const like = `%${filters.search.trim()}%`;
-            params.push(like, like, like, like, like);
-        }
-        if (filters.keywords?.trim()) {
-            sql += ' AND q.keywords_text LIKE ?';
-            params.push(`%${filters.keywords.trim()}%`);
+            params.push(like, like, like, like);
         }
         if (filters.status === 'active' || filters.status === 'inactive') {
             sql += ' AND q.status = ?';
@@ -1472,24 +1376,8 @@ let QuestionsService = class QuestionsService {
         if (filters.unclassified) {
             sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
         }
-        const missingClauses = {
-            explanation: "(q.explanation IS NULL OR TRIM(q.explanation) = '')",
-            approach: "(q.question_approach IS NULL OR TRIM(q.question_approach) = '')",
-            why_incorrect: `EXISTS (
-        SELECT 1 FROM question_options o
-        WHERE o.question_id = q.id
-          AND o.is_correct = 0
-          AND (o.why_incorrect IS NULL OR TRIM(o.why_incorrect) = '')
-      )`,
-            theory: `NOT EXISTS (
-        SELECT 1 FROM question_theory_recaps tr WHERE tr.question_id = q.id
-      )`,
-        };
-        if (filters.missing === 'any') {
-            sql += ` AND (${Object.values(missingClauses).join(' OR ')})`;
-        }
-        else if (filters.missing && missingClauses[filters.missing]) {
-            sql += ` AND ${missingClauses[filters.missing]}`;
+        if (filters.missing && (filters.missing === 'any' || filters.missing in question_content_1.MISSING_BITS)) {
+            sql += ` AND ${(0, question_content_1.sqlMissingFilter)('q', filters.missing)}`;
         }
         if (filters.usage === 'unused') {
             sql += ' AND COALESCE(qql.quiz_count, 0) = 0';
@@ -1507,13 +1395,9 @@ let QuestionsService = class QuestionsService {
             return map;
         }
         const placeholders = (0, sql_safety_1.sqlPlaceholders)(questionIds);
-        const [rows] = await this.db.execute(`SELECT id, question_id, option_label, option_text, is_correct, why_incorrect FROM question_options WHERE question_id IN (${placeholders}) ORDER BY question_id, option_label`, questionIds);
+        const [rows] = await this.db.execute(`SELECT id, options_json FROM questions WHERE id IN (${placeholders})`, questionIds);
         rows.forEach((row) => {
-            const questionId = Number(row.question_id);
-            if (!map.has(questionId)) {
-                map.set(questionId, []);
-            }
-            map.get(questionId)?.push(row);
+            map.set(Number(row.id), (0, question_content_1.optionsOf)(Number(row.id), row.options_json));
         });
         return map;
     }
@@ -1573,7 +1457,6 @@ let QuestionsService = class QuestionsService {
         const category = this.normalizeImportCategory(String(row.category || '').trim());
         const questionType = this.normalizeImportQuestionType(String(row.question_type || '').trim());
         const questionText = String(row.question_text || '').trim();
-        const keywordsText = String(row.keywords || '').trim();
         const explanation = String(row.explanation || '').trim();
         const topicLabel = String(row.topic_label || '').trim();
         const status = this.normalizeImportStatus(String(row.status || '').trim());
@@ -1634,7 +1517,6 @@ let QuestionsService = class QuestionsService {
             category,
             questionType,
             questionText,
-            keywordsText,
             explanation,
             status,
             options,
@@ -1674,31 +1556,6 @@ let QuestionsService = class QuestionsService {
     }
     normalizeLookup(value) {
         return String(value || '').trim().toLowerCase();
-    }
-    normalizeKeywords(raw) {
-        return this.normalizeKeywordArray(raw).join(', ');
-    }
-    normalizeKeywordArray(raw) {
-        return Array.from(new Set(String(raw || '')
-            .split(',')
-            .map((item) => item.trim())
-            .filter(Boolean)));
-    }
-    async getKeywordSuggestions() {
-        const [keywordRows] = await this.db.execute('SELECT keyword_name FROM question_keywords ORDER BY keyword_name ASC');
-        return keywordRows.map((row) => String(row.keyword_name)).filter(Boolean);
-    }
-    async syncQuestionKeywords(connection, questionId, rawKeywords) {
-        const keywords = this.normalizeKeywordArray(rawKeywords);
-        await connection.execute('DELETE FROM question_keyword_map WHERE question_id = ?', [questionId]);
-        for (const keyword of keywords) {
-            await connection.execute('INSERT IGNORE INTO question_keywords (keyword_name) VALUES (?)', [keyword]);
-            const [keywordRows] = await connection.execute('SELECT id FROM question_keywords WHERE keyword_name = ? LIMIT 1', [keyword]);
-            if (!keywordRows[0]) {
-                continue;
-            }
-            await connection.execute('INSERT IGNORE INTO question_keyword_map (question_id, keyword_id) VALUES (?, ?)', [questionId, Number(keywordRows[0].id)]);
-        }
     }
     cleanExplanationImage(value) {
         const raw = String(value ?? '').trim();
@@ -1747,13 +1604,13 @@ let QuestionsService = class QuestionsService {
             category: normalizedCategory,
             questionType: row.question_type,
             questionText: row.question_text,
-            keywordsText: row.keywords_text || '',
             explanation: row.explanation || '',
             explanationImageUrl: row.explanation_image_url || '',
             questionApproach: row.question_approach || '',
             questionApproachHighlights: this.parseApproachHighlights(row.question_approach_highlights),
             status: row.status,
             createdAt: row.created_at || null,
+            updatedAt: row.updated_at || null,
             courseTitle: row.course_title || '',
             subjectName: row.subject_name || '',
             topicName: row.topic_name || '',

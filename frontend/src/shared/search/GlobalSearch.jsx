@@ -151,6 +151,8 @@ export function GlobalSearch({ onClose }) {
   const [quizzes, setQuizzes] = useState([]);
   const [courses, setCourses] = useState([]);
   const [users, setUsers] = useState([]);
+  // Staff: matches come from the server per query (nothing is preloaded).
+  const [adminHits, setAdminHits] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(0);
   const deferredQuery = useDeferredValue(query);
@@ -162,6 +164,14 @@ export function GlobalSearch({ onClose }) {
     const role = user?.role;
     const roleIsAdmin = isStaffRole(role);
     const roleIsStudent = role === 'student';
+
+    if (roleIsAdmin) {
+      // Staff search the server as they type (effect below): no lists downloaded on open.
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
 
     if (!roleIsAdmin && !roleIsStudent) {
       setNotes([]);
@@ -176,25 +186,17 @@ export function GlobalSearch({ onClose }) {
 
     setLoading(true);
 
-    const notesRequest = import('../api/aiNotes.api.js')
-      .then((api) => roleIsAdmin ? api.adminListAiNotes() : api.listAiNotes())
-      .catch(() => []);
-    const quizzesRequest = roleIsAdmin
-      ? import('../api/quizzes.api.js').then((api) => api.fetchQuizzes({})).catch(() => [])
-      : import('../api/quizAttempts.api.js').then((api) => api.fetchStudentQuizzes()).catch(() => []);
-    const coursesRequest = import('../api/courses.api.js')
-      .then((api) => roleIsAdmin ? api.fetchCourses() : api.fetchStudentCourses())
-      .catch(() => []);
-    const usersRequest = roleIsAdmin
-      ? import('../api/users.api.js').then((api) => api.fetchUsers({ role: 'student' })).catch(() => [])
-      : Promise.resolve([]);
+    const notesRequest = import('../api/aiNotes.api.js').then((api) => api.listAiNotes()).catch(() => []);
+    const quizzesRequest = import('../api/quizAttempts.api.js').then((api) => api.fetchStudentQuizzes()).catch(() => []);
+    const coursesRequest = import('../api/courses.api.js').then((api) => api.fetchStudentCourses()).catch(() => []);
+    const usersRequest = Promise.resolve([]);
 
     Promise.all([notesRequest, quizzesRequest, coursesRequest, usersRequest]).then(([n, qz, c, u]) => {
       if (cancelled) return;
       setNotes(asArray(n));
       setQuizzes(asArray(qz));
       setCourses(asArray(c));
-      setUsers(roleIsAdmin ? asArray(u) : []);
+      setUsers(asArray(u));
       setLoading(false);
     });
 
@@ -211,9 +213,61 @@ export function GlobalSearch({ onClose }) {
   });
 
   const q = deferredQuery.trim().toLowerCase();
+
+  // Staff: ask the server 250 ms after typing stops; a newer query cancels the older one.
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    if (q.length < 2) {
+      setAdminHits(null);
+      setLoading(false);
+      return undefined;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      import('../api/aiNotes.api.js')
+        .then((api) => api.adminSearch(q, { signal: controller.signal }))
+        .then((hits) => {
+          if (controller.signal.aborted) return;
+          setAdminHits(hits || null);
+          setLoading(false);
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          setAdminHits(null);
+          setLoading(false);
+        });
+    }, 250);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [isAdmin, q]);
+
   const results = useMemo(() => {
     if (q.length < 2) {
       return [];
+    }
+
+    if (isAdmin) {
+      const hits = adminHits || {};
+      return [
+        ...asArray(hits.courses).map((c) => ({
+          type: 'course', id: c.id, title: c.title || 'Course', sub: 'Course management', url: rolePath('/structure', true),
+        })),
+        ...asArray(hits.lessons).map((n) => ({
+          type: 'note', id: n.id, title: n.title, sub: [n.courseTitle, n.topicName].filter(Boolean).join(' › '),
+          url: rolePath(`/ai-notes/${n.id}`, true),
+        })),
+        ...asArray(hits.quizzes).map((qz) => ({
+          type: 'quiz', id: qz.id, title: qz.title || 'Quiz', sub: [qz.courseTitle, qz.topicName].filter(Boolean).join(' › '),
+          url: rolePath(`/quizzes/${qz.id}/edit`, true),
+        })),
+        ...asArray(hits.students).map((u) => ({
+          type: 'user', id: u.id, title: getAdminUserIdentifier(u, 'Student'),
+          sub: [getAdminUserSecondaryIdentifier(u), u.status].filter(Boolean).join(' • '), url: rolePath('/users', true),
+        })),
+      ].slice(0, 16);
     }
 
     const noteResults = notes
@@ -284,7 +338,7 @@ export function GlobalSearch({ onClose }) {
       ...quizResults,
       ...adminStudentResults,
     ].slice(0, 12);
-  }, [courses, isAdmin, notes, q, quizzes, users]);
+  }, [adminHits, courses, isAdmin, notes, q, quizzes, users]);
 
   useEffect(() => { setSelected(0); }, [deferredQuery]);
 

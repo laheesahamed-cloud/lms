@@ -3,8 +3,6 @@ import { Pool, RowDataPacket } from 'mysql2/promise';
 import { PaginationInput } from '../../common/utils/pagination';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
-import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
-import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 type ContentActor = {
     id: number;
@@ -158,49 +156,6 @@ export declare class LessonsService {
         topicName: string;
         subtopicName: string;
     }>;
-    findStudentAnnotations(lessonId: number, authorization?: string): Promise<{
-        id: number;
-        lessonId: number;
-        userId: number;
-        type: "note" | "highlight";
-        selectedText: string;
-        startOffset: number;
-        endOffset: number;
-        color: string;
-        noteText: string;
-        createdAt: string | null;
-        updatedAt: string | null;
-    }[]>;
-    createStudentAnnotation(lessonId: number, dto: CreateLessonAnnotationDto, authorization?: string): Promise<{
-        id: number;
-        lessonId: number;
-        userId: number;
-        type: "note" | "highlight";
-        selectedText: string;
-        startOffset: number;
-        endOffset: number;
-        color: string;
-        noteText: string;
-        createdAt: string | null;
-        updatedAt: string | null;
-    }>;
-    updateStudentAnnotation(lessonId: number, annotationId: number, dto: UpdateLessonAnnotationDto, authorization?: string): Promise<{
-        id: number;
-        lessonId: number;
-        userId: number;
-        type: "note" | "highlight";
-        selectedText: string;
-        startOffset: number;
-        endOffset: number;
-        color: string;
-        noteText: string;
-        createdAt: string | null;
-        updatedAt: string | null;
-    }>;
-    removeStudentAnnotation(lessonId: number, annotationId: number, authorization?: string): Promise<{
-        ok: boolean;
-        id: number;
-    }>;
     create(createLessonDto: CreateLessonDto, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
@@ -213,13 +168,7 @@ export declare class LessonsService {
         ok: boolean;
         id: number;
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
@@ -238,13 +187,7 @@ export declare class LessonsService {
         status: "active" | "inactive";
         workflowState: ContentWorkflowState;
     }>;
-    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<void>;
     uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
@@ -275,7 +218,6 @@ export declare class LessonsService {
     private parseSnapshotJson;
     private parseLessonSnapshot;
     private ensureLessonHierarchyExists;
-    private ensureExists;
     private recordContentVersion;
     private setWorkflowState;
     private recordContentAudit;
@@ -293,12 +235,8 @@ export declare class LessonsService {
     private parseIdList;
     private resolveEffectiveAccessScope;
     private canAccessLesson;
-    private validateAnnotationPayload;
-    private findAnnotationById;
-    private findOwnedAnnotation;
     private mapLesson;
     private mapStudentLesson;
-    private mapAnnotation;
     private extractToken;
     private findActiveStudentByToken;
     private toExcerpt;
@@ -308,38 +246,78 @@ export declare class LessonsService {
     private requireAdminToken;
     private requireStudentToken;
     private canvasLessonSelect;
-    canvasAdminList(token: string, engineKey?: CanvasEngineKey): Promise<{
+    canvasAdminStructureLessons(topicId: number, token: string, engineKey?: CanvasEngineKey): Promise<{
         id: number;
-        title: string;
-        lessonTitle: string;
-        rawText: string | null;
-        noteData: unknown;
-        engineKey: CanvasEngineKey;
-        courseId: number | null;
-        topicId: number | null;
-        subtopicId: number | null;
+        title: any;
+        lessonTitle: any;
+        status: any;
+        courseId: any;
+        topicId: any;
+        subtopicId: any;
         sortOrder: number;
-        lessonId: number;
-        videoUrl: string;
-        pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
-        isPublic: boolean;
-        courseTitle: string | null;
-        examType: string | null;
-        topicName: string | null;
-        subtopicName: string | null;
-        lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
-        lessonProgressPercent: number;
-        lessonCompletedAt: string | null;
-        lessonCompleted: boolean;
-        approvedFlashcardCount: number;
-        createdAt: string;
-        updatedAt: string;
+        hasNote: boolean;
     }[]>;
-    canvasReorderLessons(orderedIds: number[], token: string): Promise<{
+    canvasAdminStructureCounts(token: string, action: {
+        step: 'check';
+    } | {
+        step: 'start';
+        courseId?: number;
+    } | {
+        step: 'set';
+        runId: string;
+        subjectIds: number[];
+        finish?: Array<{
+            id: number;
+            lessons: number;
+            expectedLessons: number;
+            expectedSubjects: number;
+        }>;
+    } | {
+        step: 'finish';
+        runId: string;
+        courses: Array<{
+            id: number;
+            lessons: number;
+            expectedLessons: number;
+            expectedSubjects: number;
+        }>;
+    }): Promise<{
+        runId: string;
+        courses: {
+            id: number;
+            name: string;
+            lessonCount: number;
+            subjectCount: number;
+        }[];
+        first: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+            courseLessons: Record<number, number>;
+            rowsRead: number;
+        };
+        remaining: number[][];
+        finishWithLast: boolean;
+        done: boolean;
+        finish: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+        } | null;
+    } | {
+        done: boolean;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+    } | {
+        issues: import("../../common/utils/structure-counts").CountIssue[];
+    }>;
+    canvasAdminStructureMove(body: {
+        kind?: unknown;
+        id?: unknown;
+        aboveId?: unknown;
+        belowId?: unknown;
+    }, token: string): Promise<{
         ok: boolean;
+        respread: boolean;
     }>;
     canvasAdminFindOne(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
         id: number;
@@ -363,7 +341,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "completed" | "not_started" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -561,7 +539,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "completed" | "not_started" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -569,7 +547,17 @@ export declare class LessonsService {
         createdAt: string;
         updatedAt: string;
     }[]>;
-    canvasStudentFindNote(id: number, token: string, engineKey?: CanvasEngineKey, appClient?: string): Promise<{
+    freeSamples(): Promise<{
+        lessons: {
+            item: any;
+            full: any;
+        }[];
+        decks: {
+            lessonId: number;
+            flashcards: unknown[];
+        }[];
+    }>;
+    canvasStudentFindNote(id: number, token: string, engineKey?: CanvasEngineKey, appClient?: string): Promise<Record<string, unknown> | {
         cardCount: number;
         canAccess: boolean;
         accessLocked: boolean;
@@ -598,7 +586,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "completed" | "not_started" | "in_progress";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -614,6 +602,7 @@ export declare class LessonsService {
         appOnly: boolean;
         lockReason: string;
     }>;
+    private appLessonOpen;
     canvasStudentFlashcards(id: number, token: string, engineKey?: CanvasEngineKey, appClient?: string): Promise<{
         flashcards: {
             id: number;

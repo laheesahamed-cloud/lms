@@ -82,7 +82,11 @@ class OsceMediaCache {
     // Collapse concurrent asks for the same URL: a scene and its mini-map both
     // want the same picture on the same frame.
     return _inFlight.putIfAbsent(url, () => _resolve(url))
-        .whenComplete(() => _inFlight.remove(url));
+        .whenComplete(() {
+    // A block, not `=> remove(url)`: remove returns this very future and
+    // whenComplete would wait on it — the load never finished (images stayed blank).
+    _inFlight.remove(url);
+  });
   }
 
   Future<File?> _resolve(String url) async {

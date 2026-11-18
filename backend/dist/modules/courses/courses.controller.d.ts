@@ -24,6 +24,8 @@ export declare class CoursesController {
         completedLessonsCount: any;
         totalLessonsCount: any;
         actionLabel: string;
+        lessonCount?: number | undefined;
+        sortOrder?: number | undefined;
         id: number;
         courseTitle: string;
         courseCode: string;
@@ -39,6 +41,9 @@ export declare class CoursesController {
             totalSubjectsCount: any;
             completedLessonsCount: any;
             totalLessonsCount: any;
+            subjectCount?: number | undefined;
+            lessonCount?: number | undefined;
+            sortOrder?: number | undefined;
             id: number;
             courseTitle: string;
             courseCode: string;
@@ -50,17 +55,31 @@ export declare class CoursesController {
         subjects: any;
     }>;
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
+        progressVersion?: number | undefined;
         ok: boolean;
         lessonId: number;
-        status: "in_progress" | "completed" | "not_started";
+        status: "completed";
         progressPercent: number;
         actionLabel: string;
-        xp: import("../xp/xp.service").XpResult | undefined;
+        xp: {
+            awarded: number;
+            capped: boolean;
+            reason?: "low_score" | "too_fast" | "unverified" | "too_soon" | "nothing_new";
+        };
+    } | {
+        ok: boolean;
+        lessonId: number;
+        status: "completed" | "not_started" | "in_progress";
+        progressPercent: number;
+        actionLabel: string;
     }>;
     markStudentLessonOpened(lessonId: number, authorization?: string): Promise<{
         ok: boolean;
     }>;
     findAll(): Promise<{
+        subjectCount?: number | undefined;
+        lessonCount?: number | undefined;
+        sortOrder?: number | undefined;
         id: number;
         courseTitle: string;
         courseCode: string;
@@ -81,36 +100,24 @@ export declare class CoursesController {
         ok: boolean;
         id: number;
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
-    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<void>;
 }

@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 
 const isCapacitorBuild = Boolean(process.env.CAPACITOR_BUILD || process.env.VITE_LMS_BUILD_TARGET === 'native');
@@ -11,9 +13,24 @@ const appEntryFileName = 'assets/app-[hash].js';
 const appChunkFileName = 'assets/chunks/[name]-[hash].js';
 const appCssFileName = 'assets/css/[name]-[hash].css';
 
+// OPTIMIZE 10.53 (white flash): boot.js blocks the first paint, and with
+// "no-cache" every visit waited a round trip on a blank white page. A content
+// version in its address lets .htaccess cache it for a year; any edit to
+// boot.js changes the address.
+function versionBootScript() {
+  return {
+    name: 'lms-version-boot-script',
+    transformIndexHtml(html) {
+      const source = readFileSync(new URL('./public/boot.js', import.meta.url));
+      const version = createHash('sha256').update(source).digest('hex').slice(0, 10);
+      return html.replace(/(<script src="[^"]*boot\.js)(")/, `$1?v=${version}$2`);
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '/' : isCapacitorBuild ? '/' : isDesktopBuild ? './' : '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), versionBootScript()],
   define: {
     'import.meta.env.VITE_ANDROID_FCM_CONFIGURED': JSON.stringify(hasAndroidFcmConfig ? 'true' : 'false'),
   },
@@ -58,7 +75,9 @@ export default defineConfig(({ command }) => ({
       // Local dev: forward API calls to the Nest backend so `npm run dev` works
       // same-origin (prod is served behind Apache, which proxies /api itself).
       '/api': {
-        target: 'http://localhost:3000',
+        // DEV_API_TARGET points dev at another backend (e.g. the traced :3200
+        // the load monitor watches); default unchanged.
+        target: process.env.DEV_API_TARGET || 'http://localhost:3000',
         changeOrigin: true,
       },
     },

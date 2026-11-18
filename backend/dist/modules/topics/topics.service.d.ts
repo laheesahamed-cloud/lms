@@ -11,6 +11,7 @@ type TopicEntity = {
     createdAt: string | null;
     courseTitle?: string;
     subtopicCount?: number;
+    lessonCount?: number;
 };
 type ContentActor = {
     id: number;
@@ -34,6 +35,7 @@ export declare class TopicsService {
         createdAt: string | null;
         courseTitle?: string;
         subtopicCount?: number;
+        lessonCount?: number;
     }>;
     create(createTopicDto: CreateTopicDto, actor?: ContentActorInput): Promise<{
         ok: boolean;
@@ -47,41 +49,26 @@ export declare class TopicsService {
         ok: boolean;
         id: number;
     }>;
-    reorder(orderedIds: number[]): Promise<{
-        ok: boolean;
-    }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     submitForReview(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     publish(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
-    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "draft" | "published";
-    }>;
+    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<void>;
     private transitionWorkflow;
     private buildTopicSnapshot;
     private buildTopicSnapshotFromEntity;
@@ -97,7 +84,7 @@ export declare class TopicsService {
     private assertCanModifyExistingStatus;
     private validateTopicPayload;
     private ensureCourseExists;
-    private replaceSubtopics;
+    private syncSubtopics;
     private normalizeSubtopicNames;
     private mapTopic;
 }

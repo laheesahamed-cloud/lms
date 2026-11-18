@@ -1,7 +1,10 @@
+import '../core/perf_log.dart';
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../data/api_client.dart';
+import 'practice_sync.dart';
 import '../data/auth_repository.dart';
 import '../data/apple_auth.dart';
 import '../data/google_auth.dart';
@@ -14,8 +17,14 @@ import '../services/study_reminders.dart';
 import '../services/flashcard_reminders.dart';
 import '../services/streak_reminders.dart';
 import 'local_scope.dart';
+import 'catalogue.dart';
+import 'notice_store.dart';
+import 'flash_store.dart';
+import '../services/plan_reminders.dart';
+import 'saved_first.dart';
 import 'user_data_reset.dart';
 import '../features/dashboard/dashboard_repository.dart';
+import '../features/notifications/notifications_repository.dart';
 
 /// Mirrors the web authStore keys (§8): token, user, isAuthenticated,
 /// isHydrating, error.
@@ -126,24 +135,44 @@ class AuthController extends Notifier<AuthState> {
       return;
     }
     _api.setToken(token);
-    // Cold-start overlap: request the dashboard now, in parallel with me(),
-    // rather than waiting for Study Hub to mount and ask afterwards. Two
-    // serial round trips become one; the splash covers both. Purely a timing
-    // change — nothing renders any earlier than it used to.
-    DashboardPrefetch.start(_api);
 
     try {
-      final user = await _repo.me();
+      // One request on a cold open: renews the access token (the account
+      // check), and brings the user, the catalogue version and Study Hub.
+      // The phone's inbox is per account; the last account on this phone is
+      // the likely one, so its newest notice id goes with the request.
+      final lastUid = await NoticeStore.lastAccount();
+      if (lastUid != null) LocalScope.uid = lastUid;
+      PerfLog.mark('hydrate: start-up request');
+      final started = await _repo.start(
+          lastNoticeId: lastUid == null ? 0 : await NoticeStore.lastId());
+      PerfLog.mark('hydrate: start-up reply');
+      final user = started.user;
+      catalogueVersion = started.contentVersion;
+      DashboardPrefetch.seed(started.dashboard);
       StudyReminders.userId = user.id;
       FlashcardReminders.userId = user.id;
       StreakReminders.userId = user.id;
+      PlanReminders.userId = user.id;
       LocalScope.uid = user.id;
+      await FlashStore.applyStart(started.raw, user.id);
+      await NoticeStore.rememberAccount(user.id);
+      // The reply carries the student's progress: saved as that list's
+      // fresh copy, so no separate progress request (step 5).
+      await seedSaved('progress', await mergeProgress(started.raw['progress']));
+      if (lastUid == user.id) {
+        await NoticeStore.applyServer(started.raw);
+      } else {
+        await NoticeStore.savePopups(started.raw['popups']);
+        unawaited(NoticeStore.pull(_api)); // another account: ask from its own last id
+      }
+      unawaited(PlanReminders.reconcile(user));
       state = AuthState(
           isHydrating: false,
           isAuthenticated: true,
           user: user,
           token: token);
-      Push.onAuthenticated();
+      Push.onAuthenticated(userId: user.id);
     } catch (_) {
       DashboardPrefetch.clear();
       await SecureStore.clear();
@@ -151,6 +180,7 @@ class AuthController extends Notifier<AuthState> {
       StudyReminders.userId = 'anon';
       FlashcardReminders.userId = 'anon';
       StreakReminders.userId = 'anon';
+      PlanReminders.userId = 'anon';
       LocalScope.uid = 'anon';
       resetUserScopedData(ref);
       state = const AuthState(isHydrating: false);
@@ -163,29 +193,14 @@ class AuthController extends Notifier<AuthState> {
     StudyReminders.cancelScheduled();
     FlashcardReminders.cancelScheduled();
     StreakReminders.cancelScheduled();
+    PlanReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
     FlashcardReminders.userId = 'anon';
     StreakReminders.userId = 'anon';
+    PlanReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false, error: 'Your session expired.');
-  }
-
-  /// Re-check the session when the app returns to the foreground. If the token
-  /// expired while we were backgrounded, `/auth/me` returns 401 → the
-  /// ApiClient hook fires [_onUnauthorized] → the router sends us to login,
-  /// without needing to close and reopen the app. A transient failure
-  /// (timeout / server cold-start) is swallowed, so a flaky network never logs
-  /// the user out.
-  Future<void> revalidateSession() async {
-    final token = state.token;
-    if (!state.isAuthenticated || token == null) return;
-    try {
-      final user = await _repo.me();
-      if (state.isAuthenticated) state = state.copyWith(user: user);
-    } catch (_) {
-      // A real 401 already routed to login via onUnauthorized; ignore the rest.
-    }
   }
 
   Future<AuthAttempt> login(String email, String password) async {
@@ -198,10 +213,25 @@ class AuthController extends Notifier<AuthState> {
       _applySession(out.session!);
       return const AuthAttempt(signedIn: true);
     } catch (e) {
-      state = state.copyWith(error: _msg(e));
+      state = state.copyWith(error: _loginMsg(e));
       return const AuthAttempt();
     }
   }
+
+  /// Email sign-in errors as ONE plain message (2026-11-17): a wrong or badly
+  /// typed email / password never shows the server's field messages
+  /// ("email must be an email").
+  String _loginMsg(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode ?? 0;
+      if (code == 400 || code == 401 || code == 404) return 'Incorrect email or password.';
+      if (code == 429) return 'Too many tries. Wait a few minutes and try again.';
+    }
+    return _msg(e);
+  }
+
+  /// Shows a sign-in form message without a request (e.g. an empty field).
+  void showError(String message) => state = state.copyWith(error: message);
 
   /// Native Google sign-in: get an ID token from Google, exchange it at
   /// POST /auth/google, then store the session exactly like [login].
@@ -250,6 +280,8 @@ class AuthController extends Notifier<AuthState> {
     required String password,
     required String confirmPassword,
     required bool acceptedTerms,
+    required String country,
+    required String university,
   }) async {
     try {
       final out = await _repo.register(
@@ -258,6 +290,8 @@ class AuthController extends Notifier<AuthState> {
         password: password,
         confirmPassword: confirmPassword,
         acceptedTerms: acceptedTerms,
+        country: country,
+        university: university.trim(),
       );
       if (out.needsVerification) {
         state = state.copyWith(error: null);
@@ -295,31 +329,72 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> _applySession(AuthResult res) async {
     await SecureStore.writeToken(res.token);
-    _api.setToken(res.token);
+    // The sign-in reply's access token is kept (no /auth/token renewal).
+    _api.setToken(res.token, keepAccess: true);
     // Clear any data cached for a previously signed-in account before the new
     // user's screens read these providers.
     resetUserScopedData(ref);
     StudyReminders.userId = res.user.id;
     FlashcardReminders.userId = res.user.id;
     StreakReminders.userId = res.user.id;
+    PlanReminders.userId = res.user.id;
     LocalScope.uid = res.user.id;
+    // One-request sign-in (step 5): keep what the reply carried BEFORE the
+    // signed-in state is set. Setting it rebuilds the first screen at once;
+    // seeded first, that rebuild reads these copies instead of asking the
+    // server again (it sent /student/progress and /student/dashboard/top).
+    final start = res.start;
+    if (start != null) {
+      final v = (start['contentVersion'] as num?)?.toInt();
+      if (v != null) catalogueVersion = v;
+      await FlashStore.applyStart(start, res.user.id);
+      await seedSaved('progress', await mergeProgress(start['progress']));
+      DashboardPrefetch.seed(start['dashboard']);
+    }
     state = AuthState(
         isHydrating: false,
         isAuthenticated: true,
         user: res.user,
         token: res.token);
-    Push.onAuthenticated();
+    Push.onAuthenticated(userId: res.user.id, fresh: true);
+    // A fresh sign-in skips the start-up reply: fetch the inbox and the
+    // announcements from the notice files (no database), then the reminders.
+    // Through the container, not this controller's ref: these providers
+    // depend on the signed-in user (userScopeProvider -> this controller), and
+    // the debug build refuses that as a circular dependency, which stopped
+    // sign-in half way (same fix as resetUserScopedData).
+    final container = ref.container;
+    if (start != null) {
+      unawaited(NoticeStore.rememberAccount(res.user.id)
+          .then((_) => NoticeStore.applyServer(start))
+          .then((_) {
+        container.invalidate(notificationsProvider);
+        container.invalidate(currentPopupProvider);
+      }));
+    } else {
+      unawaited(NoticeStore.rememberAccount(res.user.id));
+      unawaited(NoticeStore.pull(_api).then((_) {
+        container.invalidate(notificationsProvider);
+        container.invalidate(currentPopupProvider);
+      }));
+    }
+    unawaited(PlanReminders.reconcile(res.user));
   }
 
   /// Edit profile. Returns null on success, or a user-facing error message.
   Future<String?> updateProfile({
     required String fullName,
     String? avatarKey,
+    String? country,
+    String? university,
   }) async {
     try {
       final user = await _repo.updateProfile(
+        current: state.user,
         fullName: fullName.trim(),
         avatarKey: avatarKey,
+        country: country,
+        university: university?.trim(),
       );
       state = state.copyWith(user: user);
       return null;
@@ -367,15 +442,19 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // 10.28: practices still waiting on the phone are sent first.
+    await syncPracticesIfOverdue(_api, force: true);
     await _repo.logout();
     await SecureStore.clear();
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
     await FlashcardReminders.cancelScheduled();
     await StreakReminders.cancelScheduled();
+    await PlanReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
     FlashcardReminders.userId = 'anon';
     StreakReminders.userId = 'anon';
+    PlanReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);
@@ -389,14 +468,17 @@ class AuthController extends Notifier<AuthState> {
     } catch (e) {
       return _msg(e);
     }
+    await forgetSavedForAccount(LocalScope.uid); // this account's saved data goes
     await SecureStore.clear();
     _api.setToken(null);
     await StudyReminders.cancelScheduled();
     await FlashcardReminders.cancelScheduled();
     await StreakReminders.cancelScheduled();
+    await PlanReminders.cancelScheduled();
     StudyReminders.userId = 'anon';
     FlashcardReminders.userId = 'anon';
     StreakReminders.userId = 'anon';
+    PlanReminders.userId = 'anon';
     LocalScope.uid = 'anon';
     resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);

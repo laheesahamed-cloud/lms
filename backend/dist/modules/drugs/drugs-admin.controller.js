@@ -39,9 +39,12 @@ let DrugsAdminController = class DrugsAdminController {
         await this.svc.updateFeatureSettings(body.enabled, body.freeLimit);
         return { ok: true };
     }
-    async list(page = '1', limit = '30', search = '', auth) {
+    async list(page = '1', limit = '30', search = '', auth, afterId, afterName, idsOnly) {
         await this.requireAdmin(auth);
-        return this.svc.listDrugs(Number(page), Number(limit), search);
+        if (idsOnly === '1')
+            return this.svc.listDrugIds(search);
+        const after = afterId && afterName !== undefined ? { id: Number(afterId), name: String(afterName) } : null;
+        return this.svc.listDrugs(Number(page), Number(limit), search, after);
     }
     async aiLookup(body, auth) {
         await this.requireAdmin(auth);
@@ -140,8 +143,11 @@ __decorate([
     __param(1, (0, common_1.Query)('limit')),
     __param(2, (0, common_1.Query)('search')),
     __param(3, (0, common_1.Headers)('authorization')),
+    __param(4, (0, common_1.Query)('afterId')),
+    __param(5, (0, common_1.Query)('afterName')),
+    __param(6, (0, common_1.Query)('idsOnly')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, Object, String]),
+    __metadata("design:paramtypes", [Object, Object, Object, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], DrugsAdminController.prototype, "list", null);
 __decorate([

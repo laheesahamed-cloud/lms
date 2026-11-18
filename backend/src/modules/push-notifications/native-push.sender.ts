@@ -32,6 +32,9 @@ export type NativePushPayload = {
   data?: Record<string, unknown>;
 };
 
+/** Both platforms' settings, read once and reused for every phone in a broadcast. */
+export type NativePushSettingsSnapshot = { apns: ApnsRuntimeSettings; fcm: FcmRuntimeSettings };
+
 export type NativePushSendResult = {
   ok: boolean;
   statusCode?: number;
@@ -49,11 +52,27 @@ export class NativePushSender {
     private readonly configService: ConfigService,
     private readonly logger: Logger,
     private readonly getApnsRuntimeSettings?: () => Promise<ApnsRuntimeSettings>,
-    private readonly getFcmRuntimeSettings?: () => Promise<FcmRuntimeSettings>
+    private readonly getFcmRuntimeSettings?: () => Promise<FcmRuntimeSettings>,
+    // Both platforms in ONE database read (used for broadcasts).
+    private readonly getPushRuntimeSettings?: () => Promise<{ apns: ApnsRuntimeSettings; fcm: FcmRuntimeSettings }>
   ) {}
 
-  async isConfigured() {
-    return (await this.isApnsConfigured()) || this.isFcmConfigured();
+  /**
+   * Read both platforms' settings once. A broadcast passes this snapshot to
+   * every send, so the database is asked once per broadcast, not 2× per phone
+   * (which at 200 phones overflowed the pool queue and sent nothing).
+   */
+  async loadSettings(): Promise<NativePushSettingsSnapshot> {
+    const raw = this.getPushRuntimeSettings ? await this.getPushRuntimeSettings() : undefined;
+    return {
+      apns: await this.resolveApnsSettings(raw ? raw.apns : undefined),
+      fcm: await this.resolveFcmSettings(raw ? raw.fcm : undefined),
+    };
+  }
+
+  async isConfigured(snapshot?: NativePushSettingsSnapshot) {
+    const s = snapshot || await this.loadSettings();
+    return this.apnsReady(s.apns) || this.fcmReady(s.fcm);
   }
 
   async isConfiguredFor(platform: NativePlatform) {
@@ -62,14 +81,17 @@ export class NativePushSender {
     return false;
   }
 
-  async send(platform: NativePlatform, token: string, payload: NativePushPayload): Promise<NativePushSendResult> {
-    if (platform === 'ios') return this.sendApns(token, payload);
-    if (platform === 'android') return this.sendFcm(token, payload);
+  async send(platform: NativePlatform, token: string, payload: NativePushPayload, snapshot?: NativePushSettingsSnapshot): Promise<NativePushSendResult> {
+    if (platform === 'ios') return this.sendApns(token, payload, snapshot?.apns);
+    if (platform === 'android') return this.sendFcm(token, payload, snapshot?.fcm);
     return { ok: false, error: 'Unsupported native push platform' };
   }
 
   private async isApnsConfigured() {
-    const settings = await this.resolveApnsSettings();
+    return this.apnsReady(await this.resolveApnsSettings());
+  }
+
+  private apnsReady(settings: ApnsRuntimeSettings) {
     return Boolean(
       settings.keyId &&
       settings.teamId &&
@@ -79,16 +101,19 @@ export class NativePushSender {
   }
 
   private async isFcmConfigured() {
-    const settings = await this.resolveFcmSettings();
+    return this.fcmReady(await this.resolveFcmSettings());
+  }
+
+  private fcmReady(settings: FcmRuntimeSettings) {
     return Boolean(
       settings.projectId &&
       (this.getFcmServiceAccount(settings) || settings.serverKey)
     );
   }
 
-  private async sendApns(token: string, payload: NativePushPayload): Promise<NativePushSendResult> {
-    const settings = await this.resolveApnsSettings();
-    if (!(await this.isApnsConfigured())) return { ok: false, error: 'APNs is not configured' };
+  private async sendApns(token: string, payload: NativePushPayload, given?: ApnsRuntimeSettings): Promise<NativePushSendResult> {
+    const settings = given || await this.resolveApnsSettings();
+    if (!this.apnsReady(settings)) return { ok: false, error: 'APNs is not configured' };
 
     const host = settings.useSandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
     const body = JSON.stringify({
@@ -148,9 +173,9 @@ export class NativePushSender {
     });
   }
 
-  private async sendFcm(token: string, payload: NativePushPayload): Promise<NativePushSendResult> {
-    const settings = await this.resolveFcmSettings();
-    if (!(await this.isFcmConfigured())) return { ok: false, error: 'FCM is not configured' };
+  private async sendFcm(token: string, payload: NativePushPayload, given?: FcmRuntimeSettings): Promise<NativePushSendResult> {
+    const settings = given || await this.resolveFcmSettings();
+    if (!this.fcmReady(settings)) return { ok: false, error: 'FCM is not configured' };
     const channelId = this.resolveAndroidChannelId(payload);
 
     const legacyServerKey = settings.serverKey;
@@ -159,7 +184,7 @@ export class NativePushSender {
     }
 
     const projectId = settings.projectId;
-    const accessToken = await this.getFcmAccessToken();
+    const accessToken = await this.getFcmAccessToken(settings);
     const body = JSON.stringify({
       message: {
         token,
@@ -213,13 +238,13 @@ export class NativePushSender {
     });
   }
 
-  private async getFcmAccessToken() {
+  private async getFcmAccessToken(given?: FcmRuntimeSettings) {
     const now = Math.floor(Date.now() / 1000);
     if (this.fcmAccessToken && this.fcmAccessToken.expiresAt - 60 > now) {
       return this.fcmAccessToken.value;
     }
 
-    const account = this.getFcmServiceAccount(await this.resolveFcmSettings());
+    const account = this.getFcmServiceAccount(given || await this.resolveFcmSettings());
     if (!account?.client_email || !account?.private_key) {
       throw new Error('FCM service account is missing client_email or private_key');
     }
@@ -294,9 +319,9 @@ export class NativePushSender {
     return ['default', 'exam_reminders', 'course_updates', 'account_alerts'].includes(channelId) ? channelId : '';
   }
 
-  private async resolveFcmSettings(): Promise<FcmRuntimeSettings> {
-    if (this.getFcmRuntimeSettings) {
-      const settings = await this.getFcmRuntimeSettings();
+  private async resolveFcmSettings(fromDbGiven?: FcmRuntimeSettings): Promise<FcmRuntimeSettings> {
+    if (fromDbGiven || this.getFcmRuntimeSettings) {
+      const settings = fromDbGiven || await this.getFcmRuntimeSettings!();
       if (settings.projectId || settings.serverKey || settings.serviceAccountJson || settings.serviceAccountPath) {
         return settings;
       }
@@ -310,7 +335,7 @@ export class NativePushSender {
     };
   }
 
-  private async resolveApnsSettings(): Promise<ApnsRuntimeSettings> {
+  private async resolveApnsSettings(fromDbGiven?: ApnsRuntimeSettings): Promise<ApnsRuntimeSettings> {
     // .env now wins over the admin-panel/database value whenever it's set,
     // per field. Was "DB wins outright if it has anything set, .env only
     // used when the DB has nothing" — which meant .env couldn't be used to
@@ -319,7 +344,7 @@ export class NativePushSender {
     // also isn't at the mercy of whatever a web-form textarea might quietly
     // do to a pasted multi-line key (autocorrect, smart quotes, trimmed
     // trailing newlines) — worth ruling that out as a source of this bug.
-    const fromDb = this.getApnsRuntimeSettings ? await this.getApnsRuntimeSettings() : undefined;
+    const fromDb = fromDbGiven || (this.getApnsRuntimeSettings ? await this.getApnsRuntimeSettings() : undefined);
 
     const envKeyId = String(this.configService.get<string>('APNS_KEY_ID') || '').trim();
     const envTeamId = String(this.configService.get<string>('APNS_TEAM_ID') || '').trim();

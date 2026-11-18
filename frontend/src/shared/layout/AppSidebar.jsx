@@ -207,7 +207,6 @@ const adminLinks = [
 
   { section: 'Content' },
   { to: '/structure',     label: 'Courses',       icon: 'Courses', requiredPermissions: ['content.manage'] },
-  { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes', requiredPermissions: ['content.manage'] },
   { to: '/questions',     label: 'Questions',     icon: 'Questions', requiredPermissions: ['questions.manage'] },
   { to: '/question-reports', label: 'Question Reports', icon: 'Questions', requiredPermissions: ['questions.manage'] },
   { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes', requiredPermissions: ['quizzes.manage'] },
@@ -239,7 +238,6 @@ const adminLinks = [
   { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },
 
   { section: 'System' },
-  { to: '/setup',         label: 'Setup',         icon: 'Setup', requiredPermissions: ['settings.manage'] },
   { to: '/settings',      label: 'Settings',      icon: 'Settings', requiredPermissions: ['settings.manage'] },
 ];
 
@@ -261,7 +259,7 @@ const studentLinks = [
 const END_EXACT = new Set([
   '/dashboard',
   '/bookmarks', '/subscriptions', '/finance', '/exams', '/flashcards',
-  '/structure', '/users', '/roles', '/setup', '/settings', '/announcements',
+  '/structure', '/users', '/roles', '/settings', '/announcements',
   '/question-reports',
   '/reports', '/notifications', '/planner',
   '/ai/gemini', '/ai/chatgpt',

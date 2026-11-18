@@ -1,3 +1,4 @@
+import '../../state/saved_first.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -119,7 +120,10 @@ class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
   Widget _content(AppColors c, Billing billing) {
     return Builder(
       builder: (context) => RefreshIndicator(
-          onRefresh: () async => ref.refresh(billingProvider.future),
+          onRefresh: () async {
+            freshNext('billing');
+            return ref.refresh(billingProvider.future);
+          },
           child: ListView(
             padding: EdgeInsets.fromLTRB(16, 10, 16, 20 + shellNavInset(context)),
             children: [

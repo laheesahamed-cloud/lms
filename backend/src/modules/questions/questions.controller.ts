@@ -5,7 +5,6 @@ import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { QuestionsService } from './questions.service';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
-import { BulkUpdateQuestionKeywordsDto } from './dto/bulk-update-question-keywords.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 
@@ -55,7 +54,6 @@ export class QuestionsController {
     @Query('paperId') paperId?: string,
     @Query('category') category?: string,
     @Query('unclassified') unclassified?: string,
-    @Query('keywords') keywords?: string,
     @Query('usage') usage?: string,
     @Query('missing') missing?: string,
     @Query('ids') ids?: string,
@@ -63,14 +61,17 @@ export class QuestionsController {
     @Query('limit') limit?: string,
     @Query('page') page?: string,
     @Query('offset') offset?: string,
-    @Query('random') random?: string
+    @Query('random') random?: string,
+    @Query('after') after?: string,
+    @Query('slim') slim?: string
   ) {
     return this.questionsService.findAll({
+      after: this.parsePositiveNumber(after),
+      slim: slim === '1' || slim === 'true',
       search,
       status,
       type,
       category,
-      keywords,
       usage,
       missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
         .includes(String(missing))
@@ -91,9 +92,33 @@ export class QuestionsController {
     });
   }
 
+  // `scope=folders`: only what the Questions list page shows up front (courses,
+  // subjects, papers). Topics and lessons then load on demand below.
+  // Without a scope: the full editor lists, as before.
   @Get('meta')
-  meta() {
-    return this.questionsService.meta();
+  meta(@Query('scope') scope?: string) {
+    return scope === 'folders' ? this.questionsService.metaFolders() : this.questionsService.meta();
+  }
+
+  // One subject's topics and lessons, when a subject is picked (2 indexed reads).
+  // `topicIds=1,2,3` returns several subjects at once (one request for the
+  // subjects on a page of questions).
+  @Get('meta/subject')
+  metaSubject(@Query('topicId') topicId?: string, @Query('topicIds') topicIds?: string) {
+    if (topicIds) return this.questionsService.metaSubjects(String(topicIds).split(',').map(Number));
+    return this.questionsService.metaSubject(Number(topicId));
+  }
+
+  // Manual repair of the stored "used in N assessments" numbers, 400 questions
+  // per request (the page sends one request at a time).
+  @Post('link-counts/fix')
+  fixLinkCounts(@Body('after') after?: number) {
+    return this.questionsService.fixLinkCounts(Number(after) || 0);
+  }
+
+  @Post('course-totals/fix')
+  fixCourseTotals(@Body('counts') counts?: unknown, @Body('expected') expected?: unknown) {
+    return this.questionsService.fixCourseQuestionTotals(counts, expected);
   }
 
   @Get('counts')
@@ -107,14 +132,12 @@ export class QuestionsController {
     @Query('lessonId') lessonId?: string,
     @Query('paperId') paperId?: string,
     @Query('category') category?: string,
-    @Query('keywords') keywords?: string,
   ) {
     return this.questionsService.countByFilters({
       search,
       status,
       type,
       category,
-      keywords,
       courseId: courseId ? Number(courseId) : undefined,
       subjectId: subjectId ? Number(subjectId) : undefined,
       topicId: topicId ? Number(topicId) : undefined,
@@ -136,7 +159,6 @@ export class QuestionsController {
     @Query('paperId') paperId?: string,
     @Query('category') category?: string,
     @Query('unclassified') unclassified?: string,
-    @Query('keywords') keywords?: string,
     @Query('usage') usage?: string,
     @Query('missing') missing?: string,
     @Res() response?: any,
@@ -147,7 +169,6 @@ export class QuestionsController {
       status,
       type,
       category,
-      keywords,
       usage,
       missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
         .includes(String(missing))
@@ -179,7 +200,6 @@ export class QuestionsController {
     @Query('paperId') paperId?: string,
     @Query('category') category?: string,
     @Query('unclassified') unclassified?: string,
-    @Query('keywords') keywords?: string,
     @Query('usage') usage?: string,
     @Query('missing') missing?: string,
     @Res() response?: any,
@@ -196,8 +216,8 @@ export class QuestionsController {
       paperId,
       category,
       unclassified,
-      keywords,
       usage,
+      missing,
       response,
     );
   }
@@ -259,15 +279,6 @@ export class QuestionsController {
   async create(@Headers('authorization') authorization: string | undefined, @Body() createQuestionDto: CreateQuestionDto) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.questionsService.create(createQuestionDto, actor);
-  }
-
-  @Post('keywords/bulk')
-  async bulkUpdateKeywords(
-    @Headers('authorization') authorization: string | undefined,
-    @Body() bulkUpdateQuestionKeywordsDto: BulkUpdateQuestionKeywordsDto,
-  ) {
-    const actor = await this.authService.requireAdmin(authorization);
-    return this.questionsService.bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto, actor);
   }
 
   @Post('bulk-delete')

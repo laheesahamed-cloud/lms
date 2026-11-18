@@ -8,8 +8,8 @@ export class WorkspaceController {
 
   @Get('announcements/admin')
   @RequirePermissions('notifications.manage')
-  listAdminAnnouncements(@Headers('authorization') authorization?: string) {
-    return this.workspaceService.listAdminAnnouncements(authorization);
+  listAdminAnnouncements(@Headers('authorization') authorization?: string, @Query('after') after?: string) {
+    return this.workspaceService.listAdminAnnouncements(authorization, after ? Number(after) : undefined);
   }
 
   @Post('announcements/admin')

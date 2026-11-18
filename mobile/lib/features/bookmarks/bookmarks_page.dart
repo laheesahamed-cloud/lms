@@ -5,7 +5,6 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
-import '../quizzes/quizzes_repository.dart';
 import 'bookmarks_repository.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/shell_insets.dart';
@@ -33,18 +32,10 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
           ? Icons.help_outline_rounded
           : Icons.fact_check_outlined;
 
-  /// Show a quiz bookmark with the SAME name it has on the hero cards, the
-  /// Q-Bank list and results — QuizListItem.displayName ("Quiz N" in number
-  /// mode, else the title). Falls back to the stored title for notes/questions
-  /// or if the quiz isn't in the loaded list.
-  String _displayName(Bookmark b, List<QuizListItem> quizzes) {
-    if (b.itemType == 'quiz') {
-      for (final q in quizzes) {
-        if (q.id == b.itemId.toString()) return q.displayName;
-      }
-    }
-    return b.title;
-  }
+  /// The name saved with the bookmark (its one name, 10.25).
+  String _displayName(Bookmark b) => b.title.trim().isNotEmpty
+      ? b.title.trim()
+      : b.typeLabel;
 
   void _open(Bookmark b) {
     switch (b.itemType) {
@@ -79,10 +70,6 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
   Widget build(BuildContext context) {
     final c = context.c;
     final bookmarksAsync = ref.watch(bookmarksProvider);
-    // Same source the Q-Bank list / hero cards use, so quiz names match exactly.
-    final quizzes = ref
-        .watch(quizListProvider)
-        .maybeWhen(data: (x) => x, orElse: () => const <QuizListItem>[]);
 
     return SafeArea(
       bottom: false,
@@ -192,7 +179,7 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(_displayName(b, quizzes),
+                                          Text(_displayName(b),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(

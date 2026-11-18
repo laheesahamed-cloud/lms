@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  fetchAdminPaidSubscriptions,
   fetchAdminSubscriptionRequests,
-  fetchAdminSubscriptions,
-  fetchSubscriptionAdminMeta,
+  fetchPaymentTotals,
   fetchSubscriptionAudit,
   fetchSubscriptionCoupons,
 } from '../../../../shared/api/subscriptions.api.js';
-import { fetchAdminReports } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -445,10 +444,7 @@ function PanelHeader({ title, text, actions = null }) {
 export function AdminFinancePage() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [coupons, setCoupons] = useState([]);
-  const [auditEvents, setAuditEvents] = useState([]);
-  const [plans, setPlans] = useState([]);
-  const [reports, setReports] = useState(null);
+  const [paymentTotals, setPaymentTotals] = useState([]);
   const [filters, setFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -462,20 +458,17 @@ export function AdminFinancePage() {
     setLoading(true);
     setError('');
     try {
-      const [subscriptionRows, requestRows, couponRows, auditRows, metaData, reportData] = await Promise.all([
-        fetchAdminSubscriptions(),
+      // All paid subscriptions (the free plan's 0 LKR rows are not finance),
+      // requests, and the gateway totals. Coupons and the audit log are only
+      // in the PDF, so they load when it is created.
+      const [subscriptionRows, requestRows, totalsRows] = await Promise.all([
+        fetchAdminPaidSubscriptions(),
         fetchAdminSubscriptionRequests(),
-        fetchSubscriptionCoupons(),
-        fetchSubscriptionAudit(),
-        fetchSubscriptionAdminMeta(),
-        fetchAdminReports({}),
+        fetchPaymentTotals(),
       ]);
       setSubscriptions(safeArray(subscriptionRows));
       setRequests(safeArray(requestRows));
-      setCoupons(safeArray(couponRows));
-      setAuditEvents(safeArray(auditRows));
-      setPlans(safeArray(metaData?.plans));
-      setReports(reportData || null);
+      setPaymentTotals(safeArray(totalsRows));
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load finance data'));
     } finally {
@@ -511,7 +504,7 @@ export function AdminFinancePage() {
     });
   }, [filters, requests]);
 
-  const filteredAuditEvents = useMemo(() => {
+  function filterAuditEvents(auditEvents) {
     return safeArray(auditEvents).filter((event) => {
       if (!isWithinRange(event.createdAt, filters.startDate, filters.endDate)) return false;
       return matchesSearch(event, filters.search, [
@@ -523,7 +516,23 @@ export function AdminFinancePage() {
         'eventType',
       ]);
     });
-  }, [auditEvents, filters]);
+  }
+
+  // Plans that have subscriptions, from the subscription rows themselves.
+  const plans = useMemo(() => {
+    const byId = new Map();
+    safeArray(subscriptions).forEach((subscription) => {
+      if (!byId.has(subscription.planId)) {
+        byId.set(subscription.planId, {
+          id: subscription.planId,
+          name: subscription.planName,
+          effectivePrice: subscription.planEffectivePrice,
+          currency: subscription.planCurrency,
+        });
+      }
+    });
+    return [...byId.values()];
+  }, [subscriptions]);
 
   const summary = useMemo(() => {
     const collectedTotals = {};
@@ -673,10 +682,7 @@ export function AdminFinancePage() {
       .slice(0, 10);
   }, [filteredRequests]);
 
-  const reportPayments = useMemo(
-    () => safeArray(reports?.subscriptions?.payments),
-    [reports]
-  );
+  const reportPayments = paymentTotals;
   const monthlyRevenue = useMemo(() => {
     const now = new Date();
     const months = [];
@@ -728,10 +734,21 @@ export function AdminFinancePage() {
     setFilters(emptyFilters);
   }
 
-  function handleCreatePdf() {
+  async function handleCreatePdf() {
     const reportWindow = window.open('', '_blank', 'width=980,height=720');
     if (!reportWindow) {
       setNotice('Allow pop-ups to create the finance PDF report.');
+      return;
+    }
+
+    // Coupons and the audit log appear only in the PDF: read them now.
+    let couponRows;
+    let auditRows;
+    try {
+      [couponRows, auditRows] = await Promise.all([fetchSubscriptionCoupons(), fetchSubscriptionAudit(80)]);
+    } catch (loadError) {
+      reportWindow.close();
+      setError(getErrorMessage(loadError, 'Unable to create the finance report'));
       return;
     }
 
@@ -742,8 +759,8 @@ export function AdminFinancePage() {
       requests: pendingInvoices,
       planRows,
       paymentRows: reportPayments,
-      couponRows: safeArray(coupons),
-      auditRows: filteredAuditEvents,
+      couponRows: safeArray(couponRows),
+      auditRows: filterAuditEvents(auditRows),
     });
     reportWindow.document.open();
     reportWindow.document.write(html);

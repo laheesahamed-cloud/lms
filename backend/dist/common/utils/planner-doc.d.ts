@@ -1,0 +1,22 @@
+import { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise';
+export type PlannerItem = {
+    id: string;
+    title: string;
+    description: string;
+    dueDate: string;
+    status: 'todo' | 'done';
+    category: string;
+    priority: string;
+    estimatedMinutes: number | null;
+    itemType: string | null;
+    itemId: number | null;
+    rule: Record<string, unknown> | null;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+};
+export declare const PLAN_ROW_TITLE = "Study plan";
+export declare function readPlanItems(raw: unknown): PlannerItem[];
+export declare function newPlannerIds(count: number): string[];
+export declare function rowToItem(row: RowDataPacket): PlannerItem;
+export declare function foldPlannerRows(conn: Pool | PoolConnection): Promise<number>;

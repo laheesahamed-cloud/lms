@@ -9,6 +9,7 @@ import '../../widgets/app_button.dart';
 import '../../state/auth_controller.dart';
 import 'auth_background.dart';
 import 'auth_widgets.dart';
+import '../../widgets/country_field.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -21,6 +22,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  final _university = TextEditingController();
+  String _country = '';
   final _formKey = GlobalKey<FormState>();
   bool _obscure = true;
   bool _terms = false;
@@ -32,6 +35,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
+    _university.dispose();
     super.dispose();
   }
 
@@ -50,6 +54,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           password: _password.text,
           confirmPassword: _confirm.text,
           acceptedTerms: _terms,
+          country: _country,
+          university: _university.text,
         );
     if (!mounted) return;
     setState(() => _loading = false);
@@ -112,6 +118,33 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         validator: (v) => (v == null || !v.contains('@'))
                             ? 'Enter a valid email'
                             : null,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 11),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // One "University" label, its country and name together under it.
+                            Text('University',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.inkSoft)),
+                            const SizedBox(height: 6),
+                            CountryField(
+                              hint: 'Country',
+                              onChanged: (v) => setState(() => _country = v),
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _university,
+                              textCapitalization: TextCapitalization.words,
+                              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                              style: TextStyle(fontSize: 15.5, color: c.inkStrong),
+                              decoration: const InputDecoration(hintText: 'University name'),
+                              validator: (v) => (v == null || v.trim().length < 2)
+                                  ? 'Enter your university name'
+                                  : null,
+                            ),
+                          ],
+                        ),
                       ),
                       AuthField(
                         label: 'Password',

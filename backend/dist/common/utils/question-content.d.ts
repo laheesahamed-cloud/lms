@@ -1,0 +1,50 @@
+export type QuestionOptionRow = {
+    id: number;
+    question_id: number;
+    option_label: string;
+    option_text: string;
+    is_correct: number;
+    why_incorrect: string | null;
+};
+export type QuestionRecapRow = {
+    id: number;
+    question_id: number;
+    concept_name: string | null;
+    hierarchy_course: string | null;
+    hierarchy_subject: string | null;
+    hierarchy_topic: string | null;
+    hierarchy_lesson: string | null;
+    etiology: string | null;
+    pathophysiology: string | null;
+    clinical_features: string | null;
+    investigations: string | null;
+    treatment: string | null;
+    key_points: string | null;
+    mnemonic: string | null;
+    generated_by: 'ai' | 'manual';
+    reviewed_status: 'pending' | 'approved' | 'rejected';
+    created_at: string | null;
+    updated_at: string | null;
+};
+export declare const RECAP_KEYS: readonly ["concept_name", "hierarchy_course", "hierarchy_subject", "hierarchy_topic", "hierarchy_lesson", "etiology", "pathophysiology", "clinical_features", "investigations", "treatment", "key_points", "mnemonic", "generated_by", "reviewed_status"];
+export declare function newOptionId(questionId: number, label: string): number;
+export declare function optionsOf(questionId: number, json: unknown): QuestionOptionRow[];
+export declare function optionsJsonFor(questionId: number, options: Array<{
+    optionLabel: string;
+    optionText: string;
+    isCorrect: number;
+    whyIncorrect: string | null;
+}>, previousJson?: unknown): string;
+export declare function recapOf(questionId: number, json: unknown): QuestionRecapRow | null;
+export declare function sqlOptionCount(alias?: string): string;
+export declare function sqlCorrectCount(alias?: string): string;
+export declare function sqlWhyMissing(alias?: string): string;
+export declare const MISSING_BITS: {
+    readonly explanation: 1;
+    readonly why_incorrect: 2;
+    readonly approach: 4;
+    readonly theory: 8;
+};
+export type MissingKey = keyof typeof MISSING_BITS | 'any';
+export declare function sqlMissingMaskExpression(): string;
+export declare function sqlMissingFilter(alias: string, key: MissingKey): string;

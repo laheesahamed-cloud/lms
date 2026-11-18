@@ -14,6 +14,10 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var LessonsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LessonsService = void 0;
+const content_version_1 = require("../../common/utils/content-version");
+const subscription_scope_1 = require("../../common/auth/subscription-scope");
+const access_token_1 = require("../../common/auth/access-token");
+const token_user_1 = require("../../common/auth/token-user");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const fs = require("fs");
@@ -23,12 +27,15 @@ const pagination_1 = require("../../common/utils/pagination");
 const app_only_content_exception_1 = require("../../common/exceptions/app-only-content.exception");
 const database_tokens_1 = require("../../database/database.tokens");
 const auth_token_util_1 = require("../auth/auth-token.util");
+const session_cache_1 = require("../auth/session-cache");
+const structure_order_1 = require("../../common/utils/structure-order");
+const structure_counts_1 = require("../../common/utils/structure-counts");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const fetch_with_retry_1 = require("../../common/utils/fetch-with-retry");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
-const mobile_table_layout_1 = require("./mobile-table-layout");
 const mobile_text_layout_1 = require("./mobile-text-layout");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
+const lesson_bits_1 = require("../../common/utils/lesson-bits");
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
 const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
@@ -130,7 +137,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       ${whereClause}
-      ORDER BY l.sort_order ASC, l.id ASC
+      ORDER BY l.course_id ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC
       LIMIT ? OFFSET ?`, [...params, limit, offset]);
         return rows.map((row) => this.mapLesson(row));
     }
@@ -156,7 +163,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.status = 'active'
-      ORDER BY l.sort_order ASC, l.id ASC`);
+      ORDER BY l.course_id ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC`);
         return rows.map((row) => this.mapStudentLesson(row, accessProfile));
     }
     async findStudentLesson(id, authorization, appClient) {
@@ -177,68 +184,6 @@ let LessonsService = LessonsService_1 = class LessonsService {
             excerpt: this.toExcerpt(lesson.lessonContent || ''),
         };
     }
-    async findStudentAnnotations(lessonId, authorization) {
-        const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-        await this.ensureStudentCanAccessLesson(lessonId, user.id);
-        const [rows] = await this.db.execute(`
-        SELECT id, lesson_id, user_id, type, selected_text, start_offset, end_offset, color, note_text, created_at, updated_at
-        FROM lesson_annotations
-        WHERE lesson_id = ? AND user_id = ?
-        ORDER BY start_offset ASC, id ASC
-      `, [lessonId, user.id]);
-        return rows.map((row) => this.mapAnnotation(row));
-    }
-    async createStudentAnnotation(lessonId, dto, authorization) {
-        const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-        const lesson = await this.ensureStudentCanAccessLesson(lessonId, user.id);
-        const lessonText = this.toPlainText(lesson.lessonContent || '');
-        this.validateAnnotationPayload(dto, lessonText.length);
-        const [result] = await this.db.execute(`
-        INSERT INTO lesson_annotations
-          (lesson_id, user_id, type, selected_text, start_offset, end_offset, color, note_text)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-            lessonId,
-            user.id,
-            dto.type,
-            dto.selectedText.trim(),
-            dto.startOffset,
-            dto.endOffset,
-            (dto.color || '').trim() || '#fff59d',
-            (dto.noteText || '').trim() || null,
-        ]);
-        const created = await this.findAnnotationById(result.insertId);
-        return this.mapAnnotation(created);
-    }
-    async updateStudentAnnotation(lessonId, annotationId, dto, authorization) {
-        const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-        await this.ensureStudentCanAccessLesson(lessonId, user.id);
-        const annotation = await this.findOwnedAnnotation(annotationId, lessonId, user.id);
-        await this.db.execute(`
-        UPDATE lesson_annotations
-        SET color = ?, note_text = ?
-        WHERE id = ? AND lesson_id = ? AND user_id = ?
-      `, [
-            typeof dto.color === 'string' ? dto.color.trim() || annotation.color : annotation.color,
-            typeof dto.noteText === 'string' ? dto.noteText.trim() || null : annotation.noteText,
-            annotationId,
-            lessonId,
-            user.id,
-        ]);
-        const updated = await this.findAnnotationById(annotationId);
-        return this.mapAnnotation(updated);
-    }
-    async removeStudentAnnotation(lessonId, annotationId, authorization) {
-        const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-        await this.ensureStudentCanAccessLesson(lessonId, user.id);
-        await this.findOwnedAnnotation(annotationId, lessonId, user.id);
-        await this.db.execute('DELETE FROM lesson_annotations WHERE id = ? AND lesson_id = ? AND user_id = ?', [
-            annotationId,
-            lessonId,
-            user.id,
-        ]);
-        return { ok: true, id: annotationId };
-    }
     async create(createLessonDto, actor) {
         const snapshot = this.buildLessonSnapshot(createLessonDto);
         this.validateLessonPayload(snapshot);
@@ -246,26 +191,41 @@ let LessonsService = LessonsService_1 = class LessonsService {
         if (snapshot.status === 'active') {
             this.validateLessonPublishReady(snapshot);
         }
-        await this.ensureLessonHierarchyExists(snapshot);
+        const validId = (id) => Number.isInteger(id) && Number(id) > 0;
+        if (!validId(snapshot.courseId))
+            throw new common_1.BadRequestException('Selected course was not found');
+        if (!validId(snapshot.topicId))
+            throw new common_1.BadRequestException('Selected subject was not found');
+        if (snapshot.subtopicId && !validId(snapshot.subtopicId))
+            throw new common_1.BadRequestException('Selected topic was not found');
         const connection = await this.db.getConnection();
+        let released = false;
         try {
             await connection.beginTransaction();
-            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE course_id <=> ?`, [snapshot.courseId]);
-            const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
+            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`, [snapshot.topicId ?? null, snapshot.subtopicId || null]);
             const [result] = await connection.execute(`INSERT INTO lessons
-          (course_id, topic_id, subtopic_id, lesson_title, lesson_content, video_url, is_free, status, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+          (course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
                 snapshot.courseId,
                 snapshot.topicId,
                 snapshot.subtopicId || null,
                 snapshot.lessonTitle,
-                snapshot.lessonContent,
                 snapshot.videoUrl,
                 snapshot.isFree,
                 snapshot.status,
-                nextSortOrder,
+                Number(orderRows[0]?.maxOrder || 0) + structure_order_1.RANK_GAP,
             ]);
-            await this.recordContentVersion(connection, 'lesson', result.insertId, snapshot, this.getActorId(actor));
+            const withTopic = Boolean(snapshot.subtopicId);
+            const [counted] = await connection.execute(`UPDATE topics t
+         JOIN courses c ON c.id = ?
+         ${withTopic ? 'JOIN subtopics s ON s.id = ?' : ''}
+         SET t.lesson_count = t.lesson_count + 1, c.lesson_count = c.lesson_count + 1
+         WHERE t.id = ?`, withTopic ? [snapshot.courseId, snapshot.subtopicId, snapshot.topicId] : [snapshot.courseId, snapshot.topicId]);
+            if (counted.affectedRows < 2) {
+                await this.ensureLessonHierarchyExists(snapshot);
+                throw new common_1.BadRequestException('Selected course or subject was not found');
+            }
+            await this.recordContentVersion(connection, 'lesson', result.insertId, snapshot, this.getActorId(actor), { isNew: true });
             await this.setWorkflowState(connection, 'lesson', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
             await this.recordContentAudit(connection, {
                 entityType: 'lesson',
@@ -289,10 +249,17 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         catch (error) {
             await connection.rollback();
+            connection.release();
+            released = true;
+            if (error?.errno === 1452) {
+                await this.ensureLessonHierarchyExists(snapshot);
+                throw new common_1.BadRequestException('Selected course or subject was not found');
+            }
             throw error;
         }
         finally {
-            connection.release();
+            if (!released)
+                connection.release();
         }
     }
     async update(id, updateLessonDto, actor) {
@@ -355,7 +322,11 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const [locked] = await connection.execute('SELECT course_id, topic_id, is_public, engine_key FROM lessons WHERE id = ? FOR UPDATE', [id]);
             await connection.execute('DELETE FROM lessons WHERE id = ?', [id]);
+            if (locked[0] && (0, structure_counts_1.isCountedLesson)(locked[0])) {
+                await (0, structure_counts_1.moveLessonCounts)(connection, { course_id: locked[0].course_id, topic_id: locked[0].topic_id, counted: true }, { course_id: null, topic_id: null, counted: false });
+            }
             await this.recordContentAudit(connection, {
                 entityType: 'lesson',
                 entityId: id,
@@ -379,18 +350,8 @@ let LessonsService = LessonsService_1 = class LessonsService {
         };
     }
     async listVersions(id) {
-        await this.findById(id);
-        const [rows] = await this.db.execute(`SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'lesson' AND entity_id = ?
-       ORDER BY version_number DESC`, [id]);
-        return rows.map((row) => ({
-            id: Number(row.id),
-            versionNumber: Number(row.version_number),
-            createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-            createdAt: row.created_at || null,
-            snapshot: this.parseSnapshotJson(row.snapshot_json),
-        }));
+        void id;
+        return [];
     }
     async markDraft(id, actor) {
         return this.transitionWorkflow(id, {
@@ -421,58 +382,10 @@ let LessonsService = LessonsService_1 = class LessonsService {
         });
     }
     async rollback(id, versionNumber, actor) {
-        if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-            throw new common_1.BadRequestException('Version number is invalid');
-        }
-        if (!this.canReviewContent(actor)) {
-            throw new common_1.ForbiddenException('Review permission is required to rollback published lesson content');
-        }
-        const existing = await this.findById(id);
-        const [versionRows] = await this.db.execute(`SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'lesson' AND entity_id = ? AND version_number = ?
-       LIMIT 1`, [id, versionNumber]);
-        if (!versionRows[0]) {
-            throw new common_1.NotFoundException('Content version not found');
-        }
-        const snapshot = this.parseLessonSnapshot(versionRows[0].snapshot_json);
-        this.validateLessonPayload(snapshot);
-        if (snapshot.status === 'active') {
-            this.validateLessonPublishReady(snapshot);
-        }
-        await this.ensureLessonHierarchyExists(snapshot);
-        const workflowState = snapshot.status === 'active' ? 'published' : 'draft';
-        const connection = await this.db.getConnection();
-        try {
-            await connection.beginTransaction();
-            await this.writeLessonSnapshot(connection, id, snapshot);
-            await this.recordContentVersion(connection, 'lesson', id, snapshot, this.getActorId(actor));
-            await this.setWorkflowState(connection, 'lesson', id, workflowState, this.getActorId(actor));
-            await this.recordContentAudit(connection, {
-                entityType: 'lesson',
-                entityId: id,
-                action: 'rolled_back',
-                summary: `Lesson ${id} rolled back to version ${versionNumber}`,
-                actorId: this.getActorId(actor),
-                before: existing,
-                after: snapshot,
-            });
-            await connection.commit();
-        }
-        catch (error) {
-            await connection.rollback();
-            throw error;
-        }
-        finally {
-            connection.release();
-        }
-        return {
-            ok: true,
-            id,
-            rolledBackToVersion: versionNumber,
-            status: snapshot.status,
-            workflowState,
-        };
+        void id;
+        void versionNumber;
+        void actor;
+        throw new common_1.BadRequestException('Version history is not kept any more.');
     }
     async uploadPdf(id, file, actor) {
         await this.findById(id);
@@ -485,7 +398,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const pdfUrl = `/uploads/pdf/${safeName}`;
         await this.db.execute('UPDATE lessons SET pdf_url = ? WHERE id = ?', [pdfUrl, id]);
         this.forgetCanvasCatalog();
-        await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'pdf_uploaded', this.getActorId(actor) || null, `PDF uploaded for lesson ${id}`]);
+        void 0;
         return { ok: true, id, pdfUrl };
     }
     async uploadCanvasImage(id, file, token) {
@@ -513,7 +426,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
             fs.unlinkSync(filePath);
         await this.db.execute('UPDATE lessons SET pdf_url = NULL WHERE id = ?', [id]);
         this.forgetCanvasCatalog();
-        await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'pdf_removed', this.getActorId(actor) || null, `PDF removed from lesson ${id}`]);
+        void 0;
         return { ok: true, id };
     }
     async uploadVideo(id, file, actor) {
@@ -536,7 +449,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const videoUrl = `/uploads/video/${safeName}`;
         await this.db.execute('UPDATE lessons SET video_url = ? WHERE id = ?', [videoUrl, id]);
         this.forgetCanvasCatalog();
-        await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'video_uploaded', this.getActorId(actor) || null, `Video uploaded for lesson ${id}`]);
+        void 0;
         return { ok: true, id, videoUrl };
     }
     async removeVideo(id, actor) {
@@ -550,7 +463,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         await this.db.execute('UPDATE lessons SET video_url = NULL WHERE id = ?', [id]);
         this.forgetCanvasCatalog();
-        await this.db.execute(`INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`, ['lesson', id, 'video_removed', this.getActorId(actor) || null, `Video removed from lesson ${id}`]);
+        void 0;
         return { ok: true, id };
     }
     async transitionWorkflow(id, input) {
@@ -624,19 +537,31 @@ let LessonsService = LessonsService_1 = class LessonsService {
         });
     }
     async writeLessonSnapshot(connection, id, lesson) {
+        const [locked] = await connection.execute('SELECT course_id, topic_id, subtopic_id, sort_order, is_public, engine_key FROM lessons WHERE id = ? FOR UPDATE', [id]);
+        const before = locked[0];
+        const same = (a, b) => String(a ?? '') === String(b ?? '');
+        let sortOrder = before ? Number(before.sort_order) : 0;
+        if (before && (!same(lesson.topicId, before.topic_id) || !same(lesson.subtopicId || null, before.subtopic_id))) {
+            const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`, [lesson.topicId ?? null, lesson.subtopicId || null]);
+            sortOrder = Number(orderRows[0]?.maxOrder || 0) + structure_order_1.RANK_GAP;
+        }
         await connection.execute(`UPDATE lessons
-       SET course_id = ?, topic_id = ?, subtopic_id = ?, lesson_title = ?, lesson_content = ?, video_url = ?, is_free = ?, status = ?
+       SET course_id = ?, topic_id = ?, subtopic_id = ?, lesson_title = ?, video_url = ?, is_free = ?, status = ?, sort_order = ?
        WHERE id = ?`, [
             lesson.courseId,
             lesson.topicId,
             lesson.subtopicId || null,
             lesson.lessonTitle,
-            lesson.lessonContent,
             lesson.videoUrl,
             lesson.isFree,
             lesson.status,
+            sortOrder,
             id,
         ]);
+        if (before) {
+            const counted = (0, structure_counts_1.isCountedLesson)(before);
+            await (0, structure_counts_1.moveLessonCounts)(connection, { course_id: before.course_id, topic_id: before.topic_id, counted }, { course_id: lesson.courseId, topic_id: lesson.topicId, counted });
+        }
     }
     parseSnapshotJson(value) {
         if (value && typeof value === 'object') {
@@ -671,46 +596,43 @@ let LessonsService = LessonsService_1 = class LessonsService {
         });
     }
     async ensureLessonHierarchyExists(lesson) {
-        await this.ensureExists('courses', lesson.courseId, 'Selected course was not found');
-        await this.ensureExists('topics', lesson.topicId, 'Selected subject was not found');
-        if (lesson.subtopicId) {
-            await this.ensureExists('subtopics', lesson.subtopicId, 'Selected topic was not found');
-        }
+        const validId = (id) => Number.isInteger(id) && Number(id) > 0;
+        if (!validId(lesson.courseId))
+            throw new common_1.BadRequestException('Selected course was not found');
+        if (!validId(lesson.topicId))
+            throw new common_1.BadRequestException('Selected subject was not found');
+        const wantsTopic = Boolean(lesson.subtopicId);
+        if (wantsTopic && !validId(lesson.subtopicId))
+            throw new common_1.BadRequestException('Selected topic was not found');
+        const [rows] = await this.db.execute(`SELECT c.id AS course_id, t.id AS topic_id, ${wantsTopic ? 's.id' : 'NULL'} AS subtopic_id
+       FROM courses c
+       LEFT JOIN topics t ON t.id = ?
+       ${wantsTopic ? 'LEFT JOIN subtopics s ON s.id = ?' : ''}
+       WHERE c.id = ? LIMIT 1`, wantsTopic ? [lesson.topicId, lesson.subtopicId, lesson.courseId] : [lesson.topicId, lesson.courseId]);
+        const row = rows[0];
+        if (!row)
+            throw new common_1.BadRequestException('Selected course was not found');
+        if (row.topic_id == null)
+            throw new common_1.BadRequestException('Selected subject was not found');
+        if (wantsTopic && row.subtopic_id == null)
+            throw new common_1.BadRequestException('Selected topic was not found');
     }
-    async ensureExists(tableName, id, message) {
-        if (!Number.isInteger(id) || id <= 0) {
-            throw new common_1.BadRequestException(message);
-        }
-        const [rows] = await this.db.execute(`SELECT id FROM ${tableName} WHERE id = ? LIMIT 1`, [id]);
-        if (rows.length === 0) {
-            throw new common_1.BadRequestException(message);
-        }
-    }
-    async recordContentVersion(connection, entityType, entityId, snapshot, actorId) {
-        const [rows] = await connection.execute('SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?', [entityType, entityId]);
-        const versionNumber = Number(rows[0]?.next_version || 1);
-        await connection.execute('INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)', [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]);
+    async recordContentVersion(connection, entityType, entityId, snapshot, actorId, options = {}) {
+        void connection;
+        void entityType;
+        void entityId;
+        void snapshot;
+        void actorId;
     }
     async setWorkflowState(connection, entityType, entityId, workflowState, actorId) {
-        await connection.execute(`INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`, [entityType, entityId, workflowState, actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void workflowState;
+        void actorId;
     }
     async recordContentAudit(connection, event) {
-        await connection.execute(`INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`, [
-            event.entityType,
-            event.entityId,
-            event.action,
-            event.actorId || null,
-            event.summary,
-            event.before === undefined ? null : JSON.stringify(event.before),
-            event.after === undefined ? null : JSON.stringify(event.after),
-        ]);
+        void 0;
     }
     getActorId(actor) {
         if (typeof actor === 'number')
@@ -763,7 +685,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         l.topic_id,
         l.subtopic_id,
         l.lesson_title,
-        l.lesson_content,
+        NULL AS lesson_content, -- 10.42: column dropped (old lesson system)
         l.video_url,
         l.pdf_url,
         l.is_free,
@@ -800,15 +722,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         return lesson;
     }
     async getLessonAccessProfile(userId) {
-        const [rows] = await this.db.execute(`
-        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-        FROM user_subscriptions us
-        INNER JOIN plans ON plans.id = us.plan_id
-        WHERE us.user_id = ?
-          AND us.status = 'active'
-          AND us.start_date <= CURDATE()
-          AND us.end_date >= CURDATE() AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-      `, [userId]);
+        const rows = await (0, subscription_scope_1.getScopeRows)(this.db, userId);
         const profile = {
             hasAnyPaidLessonAccess: rows.length > 0,
             hasFullAccess: false,
@@ -860,40 +774,6 @@ let LessonsService = LessonsService_1 = class LessonsService {
             return true;
         return profile.courseIds.has(Number(lesson.courseId ?? lesson.course_id)) || profile.lessonIds.has(Number(lesson.id));
     }
-    validateAnnotationPayload(dto, lessonLength) {
-        if (!dto.selectedText.trim()) {
-            throw new common_1.BadRequestException('Selected text is required');
-        }
-        if (dto.endOffset <= dto.startOffset) {
-            throw new common_1.BadRequestException('Annotation selection range is invalid');
-        }
-        if (dto.endOffset > lessonLength) {
-            throw new common_1.BadRequestException('Annotation selection is outside the lesson content');
-        }
-        if (dto.type === 'note' && !(dto.noteText || '').trim()) {
-            throw new common_1.BadRequestException('Note text is required for note annotations');
-        }
-    }
-    async findAnnotationById(id) {
-        const [rows] = await this.db.execute(`
-        SELECT id, lesson_id, user_id, type, selected_text, start_offset, end_offset, color, note_text, created_at, updated_at
-        FROM lesson_annotations
-        WHERE id = ?
-        LIMIT 1
-      `, [id]);
-        const annotation = rows[0];
-        if (!annotation) {
-            throw new common_1.NotFoundException('Annotation not found');
-        }
-        return annotation;
-    }
-    async findOwnedAnnotation(annotationId, lessonId, userId) {
-        const annotation = await this.findAnnotationById(annotationId);
-        if (annotation.lesson_id !== lessonId || annotation.user_id !== userId) {
-            throw new common_1.ForbiddenException('You can only edit or delete your own annotations');
-        }
-        return this.mapAnnotation(annotation);
-    }
     mapLesson(row) {
         return {
             id: row.id,
@@ -928,21 +808,6 @@ let LessonsService = LessonsService_1 = class LessonsService {
             lockReason: canAccess ? '' : 'Your subscription does not include this premium lesson.',
         };
     }
-    mapAnnotation(row) {
-        return {
-            id: row.id,
-            lessonId: row.lesson_id,
-            userId: row.user_id,
-            type: row.type,
-            selectedText: row.selected_text,
-            startOffset: Number(row.start_offset),
-            endOffset: Number(row.end_offset),
-            color: row.color || '#fff59d',
-            noteText: row.note_text || '',
-            createdAt: row.created_at || null,
-            updatedAt: row.updated_at || null,
-        };
-    }
     extractToken(authorization) {
         const token = (0, auth_token_util_1.extractBearerToken)(authorization);
         if (!token) {
@@ -951,6 +816,14 @@ let LessonsService = LessonsService_1 = class LessonsService {
         return token;
     }
     async findActiveStudentByToken(sessionToken) {
+        if ((0, access_token_1.looksLikeAccessToken)(sessionToken)) {
+            const user = (0, token_user_1.userFromAccessToken)(sessionToken);
+            if (user.role !== 'student')
+                throw new common_1.UnauthorizedException('Student access required');
+            if (user.status !== 'active')
+                throw new common_1.UnauthorizedException('Your student account is not active yet');
+            return user;
+        }
         const [rows] = await this.db.execute(`SELECT id, role, status
        FROM users
        WHERE session_token = ?
@@ -989,7 +862,16 @@ let LessonsService = LessonsService_1 = class LessonsService {
     async resolveToken(token) {
         if (!token)
             throw new common_1.UnauthorizedException('Missing auth token');
-        const [rows] = await this.db.execute(`SELECT id, role, status FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`, [(0, auth_token_util_1.hashSessionToken)(token)]);
+        if ((0, access_token_1.looksLikeAccessToken)(token)) {
+            const u = (0, token_user_1.userFromAccessToken)(token);
+            return { id: u.id, role: u.role, status: u.status };
+        }
+        const tokenHash = (0, auth_token_util_1.hashSessionToken)(token);
+        const remembered = (0, session_cache_1.getCachedSession)(tokenHash);
+        if (remembered) {
+            return { id: remembered.id, role: remembered.role, status: remembered.status };
+        }
+        const [rows] = await this.db.execute(`SELECT id, role, status FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`, [tokenHash]);
         if (!rows.length)
             throw new common_1.UnauthorizedException('Invalid or expired session');
         return rows[0];
@@ -1015,37 +897,85 @@ let LessonsService = LessonsService_1 = class LessonsService {
       c.course_title, c.exam_type, t.topic_name, s.subtopic_name
     `;
     }
-    async canvasAdminList(token, engineKey = 'gemini') {
+    async canvasAdminStructureLessons(topicId, token, engineKey = 'gemini') {
         await this.requireAdminToken(token);
+        if (!Number.isInteger(topicId) || topicId <= 0)
+            throw new common_1.BadRequestException('topicId is required');
         const [rows] = await this.db.execute(`
-      SELECT ${this.canvasLessonSelect(false)},
-             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+      SELECT l.id, l.lesson_title, l.status, l.is_free, l.course_id, l.topic_id, l.subtopic_id, l.sort_order,
+             (l.note_data IS NOT NULL) AS has_note
       FROM lessons l
-      LEFT JOIN courses c ON c.id = l.course_id
-      LEFT JOIN topics t ON t.id = l.topic_id
-      LEFT JOIN subtopics s ON s.id = l.subtopic_id
-      WHERE l.is_public = 1 AND l.engine_key = ?
-      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey]);
-        return rows.map(r => this.deserializeCanvas(r));
+      WHERE l.is_public = 1 AND l.engine_key = ? AND l.topic_id = ?
+      ORDER BY l.sort_order ASC, l.id ASC`, [engineKey, topicId]);
+        return rows.map((row) => ({
+            id: Number(row.id),
+            title: row.lesson_title,
+            lessonTitle: row.lesson_title,
+            status: row.status ?? 'active',
+            courseId: row.course_id ?? null,
+            topicId: row.topic_id ?? null,
+            subtopicId: row.subtopic_id ?? null,
+            sortOrder: Number(row.sort_order ?? 0),
+            isFree: Number(row.is_free) === 1,
+            hasNote: Number(row.has_note) === 1,
+        }));
     }
-    async canvasReorderLessons(orderedIds, token) {
+    async canvasAdminStructureCounts(token, action) {
         await this.requireAdminToken(token);
-        const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
-        if (!ids.length)
-            return { ok: true };
-        await Promise.all(ids.map((id, index) => this.db.execute(`UPDATE lessons SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])));
-        this.forgetCanvasCatalog();
-        return { ok: true };
+        try {
+            if (action.step === 'check')
+                return { issues: await (0, structure_counts_1.checkStructureCounts)(this.db) };
+            if (action.step === 'start') {
+                const courseId = Number.isInteger(action.courseId) && Number(action.courseId) > 0 ? Number(action.courseId) : undefined;
+                return await (0, structure_counts_1.startCountFix)(this.db, courseId);
+            }
+            if (typeof action.runId !== 'string' || !action.runId)
+                throw new common_1.BadRequestException('runId is required');
+            if (action.step === 'set') {
+                if (!Array.isArray(action.subjectIds))
+                    throw new common_1.BadRequestException('subjectIds is required');
+                return await (0, structure_counts_1.runCountFixSet)(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
+            }
+            if (!Array.isArray(action.courses))
+                throw new common_1.BadRequestException('courses is required');
+            return await (0, structure_counts_1.finishCountFix)(this.db, action.runId, action.courses);
+        }
+        catch (error) {
+            if (error instanceof structure_counts_1.CountFixBusyError)
+                throw new common_1.ConflictException(error.message);
+            throw error;
+        }
+    }
+    async canvasAdminStructureMove(body, token) {
+        await this.requireAdminToken(token);
+        const toId = (v) => (v == null || v === '' ? null : Number(v));
+        const kind = body.kind;
+        const id = toId(body.id);
+        const aboveId = toId(body.aboveId);
+        const belowId = toId(body.belowId);
+        const valid = (v) => v == null || (Number.isInteger(v) && v > 0);
+        if (!(0, structure_order_1.isStructureKind)(kind))
+            throw new common_1.BadRequestException('kind must be course, subject, topic or lesson');
+        if (id == null || !valid(id) || !valid(aboveId) || !valid(belowId))
+            throw new common_1.BadRequestException('Invalid id');
+        if (aboveId == null && belowId == null)
+            throw new common_1.BadRequestException('aboveId or belowId is required');
+        if (aboveId === id || belowId === id || (aboveId != null && aboveId === belowId))
+            throw new common_1.BadRequestException('Invalid neighbours');
+        const result = await (0, structure_order_1.moveStructureItem)(this.db, kind, id, aboveId, belowId);
+        if (!result.ok)
+            throw new common_1.ConflictException('The order changed on another screen. Refresh and try again.');
+        if (kind === 'lesson' || kind === 'topic' || kind === 'subject')
+            this.forgetCanvasCatalog();
+        return { ok: true, respread: result.respread };
     }
     async canvasAdminFindOne(id, token, engineKey = 'gemini') {
         await this.requireAdminToken(token);
         const [rows] = await this.db.execute(`
-      SELECT ${this.canvasLessonSelect(true)},
-             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+      SELECT l.id, l.lesson_title, l.engine_key, l.is_free, l.status, l.is_public,
+             l.course_id, l.topic_id, l.subtopic_id, l.sort_order, l.video_url, l.pdf_url,
+             l.created_at, l.updated_at, l.note_data, l.raw_text
       FROM lessons l
-      LEFT JOIN courses c ON c.id = l.course_id
-      LEFT JOIN topics t ON t.id = l.topic_id
-      LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.id = ? AND l.is_public = 1 AND l.engine_key = ?`, [id, engineKey]);
         if (!rows.length)
             throw new common_1.NotFoundException('Lesson not found');
@@ -1053,19 +983,16 @@ let LessonsService = LessonsService_1 = class LessonsService {
     }
     async canvasAdminUpdate(id, patch, token, engineKey = 'gemini') {
         await this.requireAdminToken(token);
-        const [existing] = await this.db.execute('SELECT id FROM lessons WHERE id = ? AND is_public = 1 AND engine_key = ?', [id, engineKey]);
+        const [existing] = await this.db.execute('SELECT id, course_id, topic_id, subtopic_id FROM lessons WHERE id = ? AND is_public = 1 AND engine_key = ?', [id, engineKey]);
         if (!existing.length)
             throw new common_1.NotFoundException('Lesson not found');
-        if (patch.courseId && !patch.topicId) {
-            try {
-                const fallback = await this.ensureDefaultLessonHierarchy(Number(patch.courseId));
-                patch.topicId = fallback.topicId;
-            }
-            catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                throw new common_1.BadRequestException(`Could not resolve a default subject for this course: ${message}`);
-            }
-        }
+        const current = existing[0];
+        const same = (a, b) => String(a ?? '') === String(b ?? '');
+        const needsFallback = Boolean(patch.courseId && !patch.topicId);
+        const moves = needsFallback
+            || (patch.courseId !== undefined && !same(patch.courseId ?? null, current.course_id))
+            || (patch.topicId !== undefined && !same(patch.topicId ?? null, current.topic_id))
+            || (patch.subtopicId !== undefined && !same(patch.subtopicId ?? null, current.subtopic_id));
         const fields = [];
         const values = [];
         if (patch.title !== undefined) {
@@ -1079,18 +1006,6 @@ let LessonsService = LessonsService_1 = class LessonsService {
         if (patch.status !== undefined) {
             fields.push('status = ?');
             values.push(patch.status === 'active' ? 'active' : 'inactive');
-        }
-        if (patch.courseId !== undefined) {
-            fields.push('course_id = ?');
-            values.push(patch.courseId ?? null);
-        }
-        if (patch.topicId !== undefined) {
-            fields.push('topic_id = ?');
-            values.push(patch.topicId ?? null);
-        }
-        if (patch.subtopicId !== undefined) {
-            fields.push('subtopic_id = ?');
-            values.push(patch.subtopicId ?? null);
         }
         if (patch.videoUrl !== undefined) {
             fields.push('video_url = ?');
@@ -1107,24 +1022,90 @@ let LessonsService = LessonsService_1 = class LessonsService {
             fields.push('note_data = ?');
             values.push(serialized);
         }
-        if (!fields.length)
+        const tooLarge = (err) => {
+            const e = err;
+            return e?.code === 'ER_NET_PACKET_TOO_LARGE' || e?.errno === 1153;
+        };
+        if (!moves) {
+            if (!fields.length)
+                return { id };
+            values.push(id);
+            try {
+                await this.db.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+                this.forgetCanvasCatalog();
+            }
+            catch (err) {
+                if (tooLarge(err))
+                    throw new common_1.BadRequestException('Lesson data is too large for the database.');
+                throw err;
+            }
             return { id };
-        values.push(id);
+        }
+        const connection = await this.db.getConnection();
         try {
-            await this.db.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+            await connection.beginTransaction();
+            const [locked] = await connection.execute('SELECT course_id, topic_id, subtopic_id, is_public, engine_key FROM lessons WHERE id = ? AND engine_key = ? FOR UPDATE', [id, engineKey]);
+            if (!locked.length || Number(locked[0].is_public) !== 1)
+                throw new common_1.NotFoundException('Lesson not found');
+            const before = locked[0];
+            let topicId = patch.topicId;
+            if (needsFallback) {
+                try {
+                    topicId = (await this.ensureDefaultLessonHierarchy(Number(patch.courseId), connection)).topicId;
+                }
+                catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    throw new common_1.BadRequestException(`Could not resolve a default subject for this course: ${message}`);
+                }
+            }
+            const next = {
+                course_id: patch.courseId !== undefined ? (patch.courseId ?? null) : before.course_id,
+                topic_id: topicId !== undefined ? (topicId ?? null) : before.topic_id,
+                subtopic_id: patch.subtopicId !== undefined ? (patch.subtopicId ?? null) : before.subtopic_id,
+            };
+            fields.push('course_id = ?', 'topic_id = ?', 'subtopic_id = ?');
+            values.push(next.course_id, next.topic_id, next.subtopic_id);
+            if (!same(next.topic_id, before.topic_id) || !same(next.subtopic_id, before.subtopic_id)) {
+                const [orderRows] = await connection.execute(`SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM lessons WHERE topic_id <=> ? AND subtopic_id <=> ?`, [next.topic_id, next.subtopic_id]);
+                fields.push('sort_order = ?');
+                values.push(Number(orderRows[0]?.maxOrder || 0) + structure_order_1.RANK_GAP);
+            }
+            values.push(id);
+            await connection.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+            const counted = (0, structure_counts_1.isCountedLesson)(before);
+            await (0, structure_counts_1.moveLessonCounts)(connection, { course_id: before.course_id, topic_id: before.topic_id, counted }, { course_id: next.course_id, topic_id: next.topic_id, counted });
+            await connection.commit();
             this.forgetCanvasCatalog();
         }
         catch (err) {
-            const e = err;
-            if (e?.code === 'ER_NET_PACKET_TOO_LARGE' || e?.errno === 1153)
+            await connection.rollback().catch(() => undefined);
+            if (tooLarge(err))
                 throw new common_1.BadRequestException('Lesson data is too large for the database.');
+            if (err?.errno === 1452)
+                throw new common_1.BadRequestException('Selected course or subject was not found');
             throw err;
+        }
+        finally {
+            connection.release();
         }
         return { id };
     }
     async canvasAdminRemove(id, token, engineKey = 'gemini') {
         await this.requireAdminToken(token);
-        await this.db.execute(`UPDATE lessons SET note_data = NULL, raw_text = NULL, is_public = 0 WHERE id = ? AND engine_key = ?`, [id, engineKey]);
+        let changed = 0;
+        if (engineKey === 'gemini') {
+            const [result] = await this.db.execute(`UPDATE lessons l
+         LEFT JOIN topics t ON t.id = l.topic_id
+         LEFT JOIN courses c ON c.id = l.course_id
+         SET l.note_data = NULL, l.raw_text = NULL, l.is_public = 0,
+             t.lesson_count = GREATEST(t.lesson_count - 1, 0),
+             c.lesson_count = GREATEST(c.lesson_count - 1, 0)
+         WHERE l.id = ? AND l.engine_key = 'gemini' AND l.is_public = 1`, [id]);
+            changed = result.affectedRows;
+        }
+        if (!changed) {
+            await this.db.execute(`UPDATE lessons SET note_data = NULL, raw_text = NULL, is_public = 0 WHERE id = ? AND engine_key = ?`, [id, engineKey]);
+        }
         this.forgetCanvasCatalog();
         return { deleted: true };
     }
@@ -1865,8 +1846,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
         this.canvasCatalogCache.clear();
     }
     async getCanvasStudentCatalog(engineKey) {
+        const version = await (0, content_version_1.getContentVersion)(this.db);
         const cached = this.canvasCatalogCache.get(engineKey);
-        if (cached && cached.expiresAt > Date.now())
+        if (cached && cached.version === version)
             return cached.rows;
         const running = this.canvasCatalogInflight.get(engineKey);
         if (running)
@@ -1879,9 +1861,9 @@ let LessonsService = LessonsService_1 = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
-      ORDER BY c.course_title ASC, l.sort_order ASC, l.id ASC`, [engineKey])
+      ORDER BY c.course_title ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC`, [engineKey])
             .then(([rows]) => {
-            this.canvasCatalogCache.set(engineKey, { rows, expiresAt: Date.now() + LessonsService_1.CANVAS_CATALOG_TTL_MS });
+            this.canvasCatalogCache.set(engineKey, { rows, expiresAt: Date.now() + LessonsService_1.CANVAS_CATALOG_TTL_MS, version });
             return rows;
         })
             .finally(() => this.canvasCatalogInflight.delete(engineKey));
@@ -1892,30 +1874,62 @@ let LessonsService = LessonsService_1 = class LessonsService {
         const student = await this.requireStudentToken(token);
         const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
         const catalog = await this.getCanvasStudentCatalog(engineKey);
-        const [progressRows] = await this.db.execute(`SELECT lesson_id, status, progress_percent, completed_at
-       FROM student_lesson_progress
-       WHERE user_id = ?`, [student.id]);
-        const progressByLesson = new Map(progressRows.map((p) => [Number(p.lesson_id), p]));
+        const done = await (0, lesson_bits_1.finishedLessons)(this.db, student.id);
         return catalog.map((row) => {
-            const progress = progressByLesson.get(Number(row.id));
+            const finished = done.has(Number(row.id));
             const merged = {
                 ...row,
-                lesson_progress_status: progress ? progress.status : null,
-                lesson_progress_percent: progress ? progress.progress_percent : null,
-                lesson_completed_at: progress ? progress.completed_at : null,
+                lesson_progress_status: finished ? 'completed' : null,
+                lesson_progress_percent: finished ? 100 : null,
+                lesson_completed_at: null,
             };
             return this.mapCanvasStudentNote(merged, accessProfile, false);
         });
     }
+    async freeSamples() {
+        const [rows] = await this.db.execute(`
+      SELECT ${this.canvasLessonSelect(true)},
+             NULL AS lesson_progress_status, NULL AS lesson_progress_percent, NULL AS lesson_completed_at,
+             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+        FROM lessons l
+        LEFT JOIN courses c ON c.id = l.course_id
+        LEFT JOIN topics t ON t.id = l.topic_id
+        LEFT JOIN subtopics s ON s.id = l.subtopic_id
+       WHERE l.is_free = 1 AND l.is_public = 1 AND l.status = 'active' AND l.engine_key = 'gemini'
+         AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL)
+       ORDER BY c.course_title ASC, t.sort_order ASC, t.id ASC, s.sort_order ASC, s.id ASC, l.sort_order ASC, l.id ASC`);
+        const profile = {
+            hasAnyPaidLessonAccess: false, hasNotesCanvas: false, hasFullAccess: false,
+            courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked: false,
+        };
+        const lessons = rows.map((row) => {
+            const full = this.mapCanvasStudentNote(row, profile, true);
+            if (full.noteData)
+                full.rawText = null;
+            const { noteData: _n, rawText: _r, ...item } = full;
+            return { item, full };
+        });
+        const decks = [];
+        for (const lesson of lessons) {
+            if (Number(lesson.item.approvedFlashcardCount) > 0) {
+                decks.push({ lessonId: Number(lesson.item.id), flashcards: await this.findApprovedFlashcardsForLesson(Number(lesson.item.id)) });
+            }
+        }
+        return { lessons, decks };
+    }
     async canvasStudentFindNote(id, token, engineKey = 'gemini', appClient) {
         const student = await this.requireStudentToken(token);
         const accessProfile = await this.getCanvasAccessProfile(student.id, appClient);
+        if ((0, mobile_client_util_1.isMobileAppClient)(appClient))
+            return this.appLessonOpen(id, engineKey, accessProfile);
         const [rows] = await this.db.execute(`
       SELECT ${this.canvasLessonSelect(true)},
-             slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
+             IF(ss.lessons_done IS NOT NULL AND LENGTH(ss.lessons_done) > l.id DIV 8
+                AND (ORD(SUBSTRING(ss.lessons_done, l.id DIV 8 + 1, 1)) & (1 << (l.id % 8))) <> 0, 'completed', NULL) AS lesson_progress_status,
+             NULL AS lesson_progress_percent, NULL AS lesson_completed_at,
              (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
       FROM lessons l
-      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = l.id AND slp.user_id = ?
+      LEFT JOIN student_study_summary ss ON ss.user_id = ?
       LEFT JOIN courses c ON c.id = l.course_id
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
@@ -1938,8 +1952,48 @@ let LessonsService = LessonsService_1 = class LessonsService {
         }
         const mapped = this.mapCanvasStudentNote(rows[0], accessProfile, true);
         return (0, mobile_client_util_1.isMobileAppClient)(appClient) && mapped.noteData
-            ? { ...mapped, noteData: (0, mobile_text_layout_1.calmTextForPhone)((0, mobile_table_layout_1.reshapeTablesForPhone)(mapped.noteData)) }
+            ? { ...mapped, noteData: (0, mobile_text_layout_1.compactForPhone)((0, mobile_text_layout_1.scrubPlainTextFieldsForPhone)(mapped.noteData)) }
             : mapped;
+    }
+    async appLessonOpen(id, engineKey, accessProfile) {
+        const [rows] = await this.db.execute(`SELECT id, lesson_title, is_free, course_id, video_url, pdf_url, note_data
+         FROM lessons
+        WHERE id = ? AND is_public = 1 AND status = 'active' AND engine_key = ?
+        LIMIT 1`, [id, engineKey]);
+        const row = rows[0];
+        if (!row || (!row.note_data && !row.pdf_url))
+            throw new common_1.NotFoundException('Lesson not found');
+        const isFree = Number(row.is_free) === 1;
+        const canAccess = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: Number(row.id) }, accessProfile);
+        const hasStudyMode = accessProfile.hasAnyPaidLessonAccess || isFree;
+        let noteData = null;
+        if (canAccess && row.note_data) {
+            try {
+                noteData = JSON.parse(String(row.note_data));
+            }
+            catch {
+                noteData = null;
+            }
+            if (noteData)
+                noteData = (0, mobile_text_layout_1.compactForPhone)((0, mobile_text_layout_1.scrubPlainTextFieldsForPhone)(noteData));
+        }
+        const reply = {
+            id: Number(row.id),
+            lessonTitle: String(row.lesson_title || ''),
+            isFree,
+            accessLocked: !canAccess,
+        };
+        if (noteData)
+            reply.noteData = noteData;
+        if (canAccess && row.pdf_url)
+            reply.pdfUrl = String(row.pdf_url);
+        if (canAccess && row.video_url)
+            reply.videoUrl = String(row.video_url);
+        if (!canAccess) {
+            reply.lockReason = hasStudyMode ? 'Your package only unlocks selected course or lesson content.' : 'Upgrade to access this feature';
+            reply.upgradeLabel = hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan';
+        }
+        return reply;
     }
     async canvasStudentFlashcards(id, token, engineKey = 'gemini', appClient) {
         const student = await this.requireStudentToken(token);
@@ -1968,18 +2022,21 @@ let LessonsService = LessonsService_1 = class LessonsService {
             : "SELECT id, subtopic_name AS name FROM subtopics WHERE status = 'active' ORDER BY sort_order ASC, id ASC", topicId ? [topicId] : []);
         return rows;
     }
-    async ensureDefaultLessonHierarchy(courseId) {
-        const [tr] = await this.db.execute(`SELECT id FROM topics WHERE course_id = ? AND topic_name = 'General lessons' LIMIT 1`, [courseId]);
+    async ensureDefaultLessonHierarchy(courseId, connection) {
+        const [tr] = await connection.execute(`SELECT id FROM topics WHERE course_id = ? AND topic_name = 'General lessons' LIMIT 1`, [courseId]);
         let topicId = tr[0]?.id ? Number(tr[0].id) : 0;
         if (!topicId) {
-            const [r] = await this.db.execute(`INSERT INTO topics (course_id, topic_name, topic_description, status) VALUES (?, 'General lessons', 'Auto-created bucket for course-level lessons.', 'active')`, [courseId]);
+            const [r] = await connection.execute(`INSERT INTO topics (course_id, topic_name, topic_description, status, sort_order)
+         SELECT ?, 'General lessons', 'Auto-created bucket for course-level lessons.', 'active', COALESCE(MAX(sort_order), 0) + ${structure_order_1.RANK_GAP}
+         FROM topics WHERE course_id = ?`, [courseId, courseId]);
             topicId = r.insertId;
+            await (0, structure_counts_1.bumpCounts)(connection, 'courses', 'subject_count', [[courseId, 1]]);
         }
         return { topicId };
     }
     async findCanvasLessonRow(id) {
         const [rows] = await this.db.execute(`
-      SELECT l.*, c.course_title, t.topic_name, s.subtopic_name
+      SELECT l.id, l.lesson_title, l.note_data, l.raw_text, c.course_title, t.topic_name, s.subtopic_name
       FROM lessons l
       LEFT JOIN courses c ON c.id = l.course_id
       LEFT JOIN topics t ON t.id = l.topic_id
@@ -2079,9 +2136,7 @@ let LessonsService = LessonsService_1 = class LessonsService {
         };
     }
     async getCanvasAccessProfile(userId, appClient) {
-        const [rows] = await this.db.execute(`SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-       FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
-       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE() AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())`, [userId]);
+        const rows = await (0, subscription_scope_1.getScopeRows)(this.db, userId);
         const appOnlyBlocked = this.isAppOnlyBlocked(appClient);
         const profile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set(), appOnlyBlocked };
         for (const row of rows) {

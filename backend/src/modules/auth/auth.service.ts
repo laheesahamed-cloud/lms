@@ -1,14 +1,18 @@
-import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { readScopeRows } from '../../common/auth/subscription-scope';
+import { AccessClaims, looksLikeAccessToken, signAccessToken, verifyAccessToken } from '../../common/auth/access-token';
+import { setFullFeatureAccess, userFromAccessToken } from '../../common/auth/token-user';
+import { rememberStudent, rememberTokenScope, requestContext } from '../../common/auth/subscription-scope';
+import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
-import { randomBytes, randomInt, createHmac, createPublicKey, verify as cryptoVerify } from 'crypto';
+import { randomBytes, randomInt, createPublicKey, verify as cryptoVerify } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { decryptSecret } from '../../common/utils/ai-provider.utils';
 import { DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
-import { forgetSessionToken, forgetUserSessions, getCachedSession, setCachedSession } from './session-cache';
+import { forgetSessionToken, forgetUserSessions, getCachedResolved, getCachedSession, setCachedResolved, setCachedSession } from './session-cache';
 import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken, isValidSessionTokenFormat } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -177,7 +181,10 @@ export class AuthService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly configService: ConfigService
-  ) {}
+  ) {
+    // The full feature list a token's "all" stands for (token-user.ts).
+    setFullFeatureAccess(AuthService.fullFeatureAccess());
+  }
 
   async login(loginDto: LoginDto) {
     const email = loginDto.email.trim().toLowerCase();
@@ -223,6 +230,7 @@ export class AuthService {
     return {
       ok: true,
       sessionToken,
+      ...(await this.issueAccessToken(user, hashSessionToken(sessionToken))),
       sessionTtlDays,
       redirectPath: this.getRedirectPath(user.role, user.status),
       user: await this.serializeUser(user),
@@ -232,6 +240,11 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const fullName = registerDto.fullName.trim();
     const email = registerDto.email.trim().toLowerCase();
+    const country = registerDto.universityCountry.trim();
+    const university = registerDto.university.trim();
+    if (country.length < 2 || university.length < 2) {
+      throw new BadRequestException('Choose your university\'s country and enter its name');
+    }
 
     if (registerDto.password !== registerDto.confirmPassword) {
       throw new BadRequestException('Passwords do not match');
@@ -251,8 +264,8 @@ export class AuthService {
     // New self-signup students start unverified (email_verified = 0) and must
     // confirm a 6-digit code before any session is issued.
     const [result] = await this.db.execute<ResultSetHeader>(
-      'INSERT INTO users (full_name, email, password, role, status, email_verified) VALUES (?, ?, ?, ?, ?, 0)',
-      [fullName, email, hashedPassword, 'student', 'active']
+      'INSERT INTO users (full_name, email, password, role, status, email_verified, university_country, university) VALUES (?, ?, ?, ?, ?, 0, ?, ?)',
+      [fullName, email, hashedPassword, 'student', 'active', country, university]
     );
 
     await this.assignDefaultEntryPlan(result.insertId);
@@ -335,6 +348,7 @@ export class AuthService {
     return {
       ok: true,
       sessionToken,
+      ...(await this.issueAccessToken(user, hashSessionToken(sessionToken))),
       sessionTtlDays,
       redirectPath: this.getRedirectPath(user.role, user.status),
       user: await this.serializeUser(user),
@@ -402,6 +416,7 @@ export class AuthService {
     return {
       ok: true,
       sessionToken,
+      ...(await this.issueAccessToken(user, hashSessionToken(sessionToken))),
       sessionTtlDays,
       redirectPath: this.getRedirectPath(user.role, user.status),
       user: await this.serializeUser(user),
@@ -506,7 +521,13 @@ export class AuthService {
 
   async logout(authorization?: string) {
     const token = extractBearerToken(authorization);
-    if (isValidSessionTokenFormat(token)) {
+    if (token && looksLikeAccessToken(token)) {
+      const result = verifyAccessToken(token);
+      if (result.ok) {
+        await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE id = ? AND session_token = ?', [result.claims.sub, result.claims.sid]);
+        forgetSessionToken(result.claims.sid);
+      }
+    } else if (isValidSessionTokenFormat(token)) {
       await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE session_token = ?', [hashSessionToken(token)]);
       forgetSessionToken(hashSessionToken(token));
     }
@@ -517,16 +538,34 @@ export class AuthService {
   }
 
   async deleteAccount(authorization?: string) {
-    const user = await this.findUserByToken(this.extractToken(authorization));
+    const user = await this.findUserFresh(this.extractToken(authorization));
 
     if (isStaffRole(user.role)) {
       throw new BadRequestException('Staff accounts cannot be self-deleted here');
     }
 
+    await this.softDeleteUser(user.id, 'self_service');
+
+    return {
+      ok: true,
+      message: 'Your account has been deleted.',
+    };
+  }
+
+  /**
+   * Soft delete (a student's own account deletion, and an admin's user delete):
+   * keep the row and its history (subscriptions, payments, attempts), but
+   * anonymize personal data, lock the login and end sessions, cancel active
+   * subscriptions, and keep the payer's address on payment records.
+   */
+  async softDeleteUser(userId: number, reason: 'self_service' | 'admin') {
+    const [rows] = await this.db.execute<UserRow[]>('SELECT id, email FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [userId]);
+    const target = rows[0];
+    if (!target) throw new NotFoundException('User not found');
     // Soft delete: keep the row (and its history) but anonymize personal data and
     // lock the login. deleted_at marks it as deleted — kept separate from `status`,
     // which is the approval (active/inactive) state.
-    const scrambledEmail = `deleted+${user.id}-${randomBytes(6).toString('hex')}@deleted.invalid`;
+    const scrambledEmail = `deleted+${target.id}-${randomBytes(6).toString('hex')}@deleted.invalid`;
     const lockedPassword = await bcrypt.hash(`deleted:${randomBytes(16).toString('hex')}`, 10);
 
     // One transaction: the account is either fully deleted or not at all. A
@@ -547,7 +586,7 @@ export class AuthService {
         try {
           await connection.execute(
             `UPDATE ${table} SET payer_email = ? WHERE user_id = ? AND payer_email IS NULL`,
-            [user.email, user.id]
+            [target.email, target.id]
           );
         } catch (error) {
           // A table that was never created has no rows to keep. Anything else
@@ -569,9 +608,9 @@ export class AuthService {
              password_reset_expires_at = NULL,
              deleted_at = NOW()
          WHERE id = ?`,
-        [scrambledEmail, lockedPassword, user.id]
+        [scrambledEmail, lockedPassword, target.id]
       );
-      forgetUserSessions(user.id);
+      forgetUserSessions(target.id);
 
       // Close out their subscriptions. The account cannot sign in again, so
       // leaving rows 'active' only misreports who is subscribed.
@@ -579,16 +618,11 @@ export class AuthService {
         `UPDATE user_subscriptions
          SET status = 'cancelled'
          WHERE user_id = ? AND status IN ('active', 'pending')`,
-        [user.id]
+        [target.id]
       );
 
-      // Minimal audit row: an id, a timestamp, and an HMAC of the address.
-      // Never the address, the name, or anything they studied — see
-      // account_deletion_audit in schema-sync.
-      await connection.execute(
-        'INSERT INTO account_deletion_audit (user_id, email_hash, reason) VALUES (?, ?, ?)',
-        [user.id, this.hashEmailForAudit(user.email), 'self_service']
-      );
+      // 10.41: no deletion audit row is kept (user decision).
+      void reason;
 
       await connection.commit();
     } catch (error) {
@@ -598,28 +632,6 @@ export class AuthService {
       connection.release();
     }
 
-    return {
-      ok: true,
-      message: 'Your account has been deleted.',
-    };
-  }
-
-  /// One-way fingerprint of an email, for the deletion audit.
-  ///
-  /// HMAC rather than a bare hash: email addresses are short and guessable, so
-  /// a plain SHA-256 could be reversed by hashing a list of candidates. Keyed
-  /// with a server secret, the digest is useless to anyone who does not hold
-  /// that key. Returns null when no secret is configured rather than writing a
-  /// weak digest and implying a protection that is not there.
-  private hashEmailForAudit(email: string): string | null {
-    const secret = String(
-      this.configService.get<string>('ACCOUNT_DELETION_HASH_SECRET')
-        || this.configService.get<string>('SETTINGS_ENCRYPTION_KEY')
-        || ''
-    ).trim();
-    const normalized = String(email || '').trim().toLowerCase();
-    if (!secret || !normalized) return null;
-    return createHmac('sha256', secret).update(normalized).digest('hex');
   }
 
   private canExposeDevResetToken(shouldSendEmail: boolean) {
@@ -911,6 +923,7 @@ export class AuthService {
     return {
       ok: true,
       sessionToken,
+      ...(await this.issueAccessToken(user, hashSessionToken(sessionToken))),
       sessionTtlDays,
       redirectPath: this.getRedirectPath(user.role, user.status),
       user: await this.serializeUser(user),
@@ -1025,7 +1038,7 @@ If you did not try to sign in, you can safely ignore this email.`;
   }
 
   async updateProfile(authorization: string | undefined, updateProfileDto: UpdateProfileDto) {
-    const user = await this.findUserByToken(this.extractToken(authorization));
+    const user = await this.findUserFresh(this.extractToken(authorization));
     const fullName = updateProfileDto.fullName.trim();
     const avatarKey = updateProfileDto.avatarKey?.trim() || null;
 
@@ -1036,10 +1049,19 @@ If you did not try to sign in, you can safely ignore this email.`;
     // Clearing needs_profile_setup here as well: naming yourself IS the answer
     // to the onboarding question, whether it was given on the welcome screen or
     // months later from Profile. Leaving it set would re-ask on the next device.
-    await this.db.execute(
-      'UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?',
-      [fullName, avatarKey, user.id]
-    );
+    const country = updateProfileDto.universityCountry?.trim() || '';
+    const university = updateProfileDto.university?.trim() || '';
+    if (country && university) {
+      await this.db.execute(
+        'UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0, university_country = ?, university = ? WHERE id = ?',
+        [fullName, avatarKey, country, university, user.id]
+      );
+    } else {
+      await this.db.execute(
+        'UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?',
+        [fullName, avatarKey, user.id]
+      );
+    }
     forgetUserSessions(user.id);
 
     return {
@@ -1053,6 +1075,33 @@ If you did not try to sign in, you can safely ignore this email.`;
     };
   }
 
+  /// Phone app profile save (2026-11-17): ONE statement. The access token is
+  /// checked in memory; the UPDATE itself checks the session is still live, so
+  /// no SELECT before and none after. Replies with the changed fields only.
+  async updateProfileLean(authorization: string | undefined, dto: UpdateProfileDto) {
+    const token = this.extractToken(authorization);
+    if (!looksLikeAccessToken(token)) return this.updateProfile(authorization, dto);
+    const claims = userFromAccessToken(token).__claims as AccessClaims;
+    const fullName = dto.fullName.trim();
+    const avatarKey = dto.avatarKey?.trim() || null;
+    if (avatarKey && !ALLOWED_AVATAR_KEYS.has(avatarKey)) {
+      throw new BadRequestException('Selected avatar is not available');
+    }
+    const country = dto.universityCountry?.trim() || '';
+    const university = dto.university?.trim() || '';
+    const sets = country && university
+      ? 'full_name = ?, avatar_key = ?, needs_profile_setup = 0, university_country = ?, university = ?'
+      : 'full_name = ?, avatar_key = ?, needs_profile_setup = 0';
+    const params = country && university ? [fullName, avatarKey, country, university] : [fullName, avatarKey];
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `UPDATE users SET ${sets}
+        WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL`,
+      [...params, claims.sub, claims.sid]);
+    if (!result.affectedRows) throw new UnauthorizedException('Session is invalid or has expired');
+    forgetUserSessions(claims.sub);
+    return { ok: true, user: { fullName, avatarKey: avatarKey || '', needsProfileSetup: false } };
+  }
+
   /// Marks the "what should we call you?" screen as answered without changing
   /// anything — what Skip calls.
   ///
@@ -1060,7 +1109,7 @@ If you did not try to sign in, you can safely ignore this email.`;
   /// in the handset's own storage, a student who skipped was asked again the
   /// first time they signed in anywhere else.
   async completeProfileSetup(authorization: string | undefined) {
-    const user = await this.findUserByToken(this.extractToken(authorization));
+    const user = await this.findUserFresh(this.extractToken(authorization));
     await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
     forgetUserSessions(user.id);
     return {
@@ -1070,7 +1119,7 @@ If you did not try to sign in, you can safely ignore this email.`;
   }
 
   async changePassword(authorization: string | undefined, changePasswordDto: ChangePasswordDto) {
-    const user = await this.findUserByToken(this.extractToken(authorization));
+    const user = await this.findUserFresh(this.extractToken(authorization));
 
     if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
       throw new BadRequestException('New passwords do not match');
@@ -1115,13 +1164,44 @@ If you did not try to sign in, you can safely ignore this email.`;
   }
 
   async requireStudent(authorization?: string) {
-    const user = await this.findUserByToken(this.extractToken(authorization));
+    const token = this.extractToken(authorization);
+    const user = await this.findUserByToken(token);
 
     if (user.role !== 'student' || user.status !== 'active') {
       throw new UnauthorizedException('Student access is required');
     }
 
-    return this.serializeUser(user);
+    // 10.16-W: a page's burst of requests resolves the student (subscription
+    // included) once per session-cache window, and the services of THIS
+    // request reuse it instead of reading the session and plan again.
+    const tokenHash = looksLikeAccessToken(token) ? '' : hashSessionToken(token);
+    const cached = tokenHash ? getCachedResolved<any>(tokenHash) : null;
+    if (cached) {
+      rememberTokenScope(Number(user.id), cached.scope as any);
+      rememberStudent(cached.value);
+      return cached.value;
+    }
+    const serialized: any = await this.serializeUser(user);
+    const resolved = {
+      ...serialized,
+      full_name: serialized.fullName,
+      __accessProfile: (user as any).__accessProfile || {
+        hasActiveSubscription: serialized.hasActiveSubscription,
+        subscriptionStatus: serialized.subscriptionStatus,
+        currentPlanName: serialized.currentPlanName,
+        featureAccess: serialized.featureAccess,
+      },
+    };
+    if (tokenHash) {
+      const scope = (await this.activeSubscriptions(Number(user.id))).map((r: any) => ({
+        plan_slug: r.plan_slug ?? null, access_scope: r.access_scope ?? null,
+        course_ids_json: r.course_ids_json ?? null, lesson_ids_json: r.lesson_ids_json ?? null,
+      }));
+      rememberTokenScope(Number(user.id), scope as any);
+      setCachedResolved(tokenHash, resolved, scope);
+    }
+    rememberStudent(resolved);
+    return resolved;
   }
 
   private getRedirectPath(role: string, status: string) {
@@ -1146,7 +1226,87 @@ If you did not try to sign in, you can safely ignore this email.`;
     return token;
   }
 
+  /**
+   * Account / security / payments: always checked against the database, even
+   * when the request carries a signed access token (its session must still
+   * exist and the account still be allowed).
+   */
+  async findUserFresh(token: string) {
+    if (!looksLikeAccessToken(token)) {
+      const [rows] = await this.db.execute<UserRow[]>(
+        `SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+         FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`,
+        [hashSessionToken(token)]);
+      if (!rows[0]) throw new UnauthorizedException('Session is invalid or has expired');
+      return rows[0];
+    }
+    const claims = userFromAccessToken(token).__claims as AccessClaims;
+    const [rows] = await this.db.execute<UserRow[]>(
+      `SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+       FROM users WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL LIMIT 1`,
+      [claims.sub, claims.sid]);
+    if (!rows[0]) throw new UnauthorizedException('Session is invalid or has expired');
+    return rows[0];
+  }
+
+  async requireFreshUser(authorization?: string) {
+    return this.serializeUser(await this.findUserFresh(this.extractToken(authorization)));
+  }
+
+  async requireFreshStudent(authorization?: string) {
+    const user = await this.findUserFresh(this.extractToken(authorization));
+    if (user.role !== 'student' || user.status !== 'active') {
+      throw new UnauthorizedException('Student access is required');
+    }
+    return this.serializeUser(user);
+  }
+
+  /** A signed access token for this user's current session (1 h, or until their access ends). */
+  private async issueAccessToken(user: UserRow, sessionHash: string) {
+    const accessProfile: any = user.role === 'student' ? await this.getStudentAccessProfile(user.id) : null;
+    const until = accessProfile?.accessUntil;
+    const maxSeconds = until ? Math.max(60, Math.floor((until - Date.now()) / 1000)) : undefined;
+    // Subscription scopes for content screens (one read here instead of per
+    // request); omitted when unusually large, then services read the database.
+    const scopeRows = user.role === 'student'
+      ? (await this.activeSubscriptions(Number(user.id))).map((r: any) => ({
+          plan_slug: r.plan_slug ?? null, access_scope: r.access_scope ?? null,
+          course_ids_json: r.course_ids_json ?? null, lesson_ids_json: r.lesson_ids_json ?? null,
+        }))
+      : [];
+    const scope = JSON.stringify(scopeRows).length <= 4000 ? scopeRows : null;
+    // The rest of this request (sign-in start payload) reuses these scopes.
+    rememberTokenScope(Number(user.id), scopeRows as any);
+    const signed = signAccessToken({
+      sub: Number(user.id), sid: sessionHash, role: String(user.role), st: String(user.status),
+      name: String(user.full_name || ''), email: String(user.email || ''), perm: (user.permissions as any) ?? null,
+      av: String(user.avatar_key || ''), nps: Number(user.needs_profile_setup ?? 0) === 1 ? 1 : 0,
+      // The 1 KB feature list is one of two fixed lists (any active plan =
+      // every feature, else none), so the token carries just which one; it is
+      // rebuilt when the token is read (token-user.ts). The token rides on
+      // every request, so this saves ~1 KB per request.
+      acc: accessProfile ? { ...accessProfile, featureAccess: undefined, fa: accessProfile.hasActiveSubscription ? 'all' : 'none' } : accessProfile,
+      scope,
+    } as any, maxSeconds);
+    return { accessToken: signed.token, accessExpiresIn: signed.expiresIn };
+  }
+
+  /**
+   * Renewal: the session (renewal) token for a fresh signed access token. One
+   * indexed user row + the access profile. This is also the cold-open check.
+   */
+  async renewAccessToken(authorization?: string) {
+    const token = this.extractToken(authorization);
+    if (looksLikeAccessToken(token)) throw new UnauthorizedException('Renew with the session token');
+    const user = await this.findUserFresh(token);
+    if (isStaffRole(user.role) && user.status !== 'active') throw new UnauthorizedException('Your admin account is not active right now');
+    const issued = await this.issueAccessToken(user, hashSessionToken(token));
+    return { ok: true, ...issued, user: await this.serializeUser({ ...user, __accessProfile: userFromAccessToken(issued.accessToken).__accessProfile } as any) };
+  }
+
   private async findUserByToken(sessionToken: string) {
+    // Signed access token: trusted by its signature, no session SQL.
+    if (looksLikeAccessToken(sessionToken)) return userFromAccessToken(sessionToken) as unknown as UserRow;
     const tokenHash = hashSessionToken(sessionToken);
     const remembered = getCachedSession<UserRow>(tokenHash);
     if (remembered) {
@@ -1418,7 +1578,9 @@ ${settings.footer}`;
   }
 
   private async serializeUser(user: AuthUser) {
-    const accessProfile = user.role === 'student'
+    // A signed access token carries the profile it was issued with (no SQL).
+    const carried = (user as any).__accessProfile;
+    const accessProfile = carried ? carried : user.role === 'student'
       ? await this.getStudentAccessProfile(user.id)
       : {
           hasActiveSubscription: true,
@@ -1459,12 +1621,35 @@ ${settings.footer}`;
       subscriptionStatus: accessProfile.subscriptionStatus,
       currentPlanName: accessProfile.currentPlanName,
       featureAccess: accessProfile.featureAccess,
+      // For the phone's own "plan ends soon" reminders (step 4). An Apple plan
+      // renews by itself, so the app does not warn about it.
+      accessUntil: accessProfile.accessUntil ? new Date(accessProfile.accessUntil).toISOString() : null,
+      accessRenews: Boolean(accessProfile.accessRenews),
     };
   }
 
-  private async getStudentAccessProfile(userId: number) {
-    const [rows] = await this.db.execute<SubscriptionAccessRow[]>(
-      `SELECT plans.name AS plan_name, us.status AS subscription_status
+  private dateText(value: unknown) {
+    if (value instanceof Date) {
+      return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    }
+    return String(value || '').slice(0, 10);
+  }
+
+  /**
+   * The student's active subscriptions, read ONCE per request: the access
+   * profile (newest) and the plan scopes (all) both come from it. Sign-in used
+   * to read the profile twice and the scopes once more (3 queries → 1).
+   */
+  private async activeSubscriptions(userId: number): Promise<SubscriptionAccessRow[]> {
+    const ctx: any = requestContext.getStore();
+    const memo: Map<number, Promise<SubscriptionAccessRow[]>> | undefined = ctx ? (ctx.activeSubs ??= new Map()) : undefined;
+    const hit = memo?.get(userId);
+    if (hit) return hit;
+    const task = this.db.execute<SubscriptionAccessRow[]>(
+      `SELECT plans.name AS plan_name, plans.slug AS plan_slug, us.status AS subscription_status, us.end_date,
+         -- Apple's exact expiry is stored in UTC; MySQL works out the seconds left.
+         TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), us.access_expires_at) AS access_seconds_left,
+         us.access_scope, us.course_ids_json, us.lesson_ids_json
        FROM user_subscriptions us
        INNER JOIN plans ON plans.id = us.plan_id
        WHERE us.user_id = ?
@@ -1472,10 +1657,15 @@ ${settings.footer}`;
          AND us.start_date <= CURDATE()
          AND us.end_date >= CURDATE()
          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-       ORDER BY us.end_date DESC, us.id DESC
-       LIMIT 1`,
+       ORDER BY us.end_date DESC, us.id DESC`,
       [userId]
-    );
+    ).then(([rows]) => rows);
+    memo?.set(userId, task);
+    return task;
+  }
+
+  private async getStudentAccessProfile(userId: number) {
+    const rows = await this.activeSubscriptions(userId);
 
     const row = rows[0];
     if (!row) {
@@ -1503,10 +1693,21 @@ ${settings.footer}`;
       };
     }
 
-    const featureKeys = await this.getActiveFeatureKeysForUser(userId);
-    const featureAccess = this.buildFeatureAccessMap(featureKeys);
+    // The row above already proves an active subscription (the same condition
+    // the separate feature-key lookup re-checked): any active subscription
+    // unlocks every feature.
+    const featureAccess = this.buildFeatureAccessMap(
+      Array.from(new Set(DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey))));
+    // When this access ends (end of its last day, or Apple's exact expiry), so
+    // a signed access token never outlives it.
+    const endOfDay = new Date(`${this.dateText(row.end_date)}T23:59:59`).getTime();
+    const secondsLeft = (row as any).access_seconds_left;
+    const appleEnd = secondsLeft === null || secondsLeft === undefined ? NaN : Date.now() + Number(secondsLeft) * 1000;
+    const accessUntil = Math.min(Number.isFinite(endOfDay) ? endOfDay : Infinity, Number.isFinite(appleEnd) ? appleEnd : Infinity);
 
     return {
+      accessUntil: Number.isFinite(accessUntil) ? accessUntil : null,
+      accessRenews: Number.isFinite(appleEnd),
       hasActiveSubscription: true,
       subscriptionStatus: String(row.subscription_status || 'active'),
       currentPlanName: String(row.plan_name || ''),
@@ -1538,7 +1739,16 @@ ${settings.footer}`;
     return Array.from(new Set(DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey)));
   }
 
+  /** Feature switches for any active plan (feature gating removed: every feature). */
+  static fullFeatureAccess() {
+    return AuthService.featureMap(Array.from(new Set(DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey))));
+  }
+
   private buildFeatureAccessMap(featureKeys: string[]) {
+    return AuthService.featureMap(featureKeys);
+  }
+
+  private static featureMap(featureKeys: string[]) {
     const has = (featureKey: string) => featureKeys.includes(featureKey);
 
     return {

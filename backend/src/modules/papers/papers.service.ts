@@ -3,6 +3,7 @@ import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/pro
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { CreatePaperDto } from './dto/create-paper.dto';
 import { UpdatePaperDto } from './dto/update-paper.dto';
+import { forgetContentHistory } from '../../common/utils/content-history';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 
 type PaperRow = RowDataPacket & {
@@ -200,6 +201,7 @@ export class PapersService {
     try {
       await connection.beginTransaction();
       await connection.execute('DELETE FROM papers WHERE id = ?', [id]);
+      await forgetContentHistory(connection, 'paper', [id]);
       await this.recordContentAudit(connection, {
         entityType: 'paper',
         entityId: id,
@@ -219,22 +221,9 @@ export class PapersService {
   }
 
   async listVersions(id: number) {
-    await this.findOne(id);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'paper' AND entity_id = ?
-       ORDER BY version_number DESC`,
-      [id]
-    );
-
-    return rows.map((row) => ({
-      id: Number(row.id),
-      versionNumber: Number(row.version_number),
-      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-      createdAt: row.created_at || null,
-      snapshot: this.parseSnapshotJson(row.snapshot_json),
-    }));
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id;
+    return [];
   }
 
   async markDraft(id: number, actor?: ContentActorInput) {
@@ -268,61 +257,9 @@ export class PapersService {
   }
 
   async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
-    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-      throw new BadRequestException('Version number is invalid');
-    }
-
-    if (!this.canReviewContent(actor)) {
-      throw new ForbiddenException('Review permission is required to rollback published paper content');
-    }
-
-    const existing = await this.findOne(id);
-    const [versionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'paper' AND entity_id = ? AND version_number = ?
-       LIMIT 1`,
-      [id, versionNumber]
-    );
-
-    if (!versionRows[0]) {
-      throw new NotFoundException('Content version not found');
-    }
-
-    const snapshot = this.parsePaperSnapshot(versionRows[0].snapshot_json);
-    this.validatePaperPayload(snapshot);
-
-    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
-    const connection = await this.db.getConnection();
-    try {
-      await connection.beginTransaction();
-      await this.writePaperSnapshot(connection, id, snapshot);
-      await this.recordContentVersion(connection, 'paper', id, snapshot, this.getActorId(actor));
-      await this.setWorkflowState(connection, 'paper', id, workflowState, this.getActorId(actor));
-      await this.recordContentAudit(connection, {
-        entityType: 'paper',
-        entityId: id,
-        action: 'rolled_back',
-        summary: `Paper ${id} rolled back to version ${versionNumber}`,
-        actorId: this.getActorId(actor),
-        before: existing,
-        after: snapshot,
-      });
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-
-    return {
-      ok: true,
-      id,
-      rolledBackToVersion: versionNumber,
-      status: snapshot.status,
-      workflowState,
-    };
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id; void versionNumber; void actor;
+    throw new BadRequestException('Version history is not kept any more.');
   }
 
   async keywordSuggestions(query?: string) {
@@ -481,15 +418,8 @@ export class PapersService {
     snapshot: unknown,
     actorId?: number,
   ) {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
-      [entityType, entityId]
-    );
-    const versionNumber = Number(rows[0]?.next_version || 1);
-    await connection.execute(
-      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
-      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void snapshot; void actorId;
   }
 
   private async setWorkflowState(
@@ -499,15 +429,8 @@ export class PapersService {
     workflowState: ContentWorkflowState,
     actorId?: number,
   ) {
-    await connection.execute(
-      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`,
-      [entityType, entityId, workflowState, actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void workflowState; void actorId;
   }
 
   private async recordContentAudit(
@@ -522,20 +445,7 @@ export class PapersService {
       after?: unknown;
     }
   ) {
-    await connection.execute(
-      `INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        event.entityType,
-        event.entityId,
-        event.action,
-        event.actorId || null,
-        event.summary,
-        event.before === undefined ? null : JSON.stringify(event.before),
-        event.after === undefined ? null : JSON.stringify(event.after),
-      ]
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
   }
 
   private getActorId(actor?: ContentActorInput) {

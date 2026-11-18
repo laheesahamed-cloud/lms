@@ -13,7 +13,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FlashcardsService = void 0;
+const promises_1 = require("node:fs/promises");
+const node_path_1 = require("node:path");
 const common_1 = require("@nestjs/common");
+const student_catalogue_service_1 = require("../courses/student-catalogue.service");
+const subscription_scope_1 = require("../../common/auth/subscription-scope");
+const content_access_1 = require("../../common/auth/content-access");
+const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
+const progress_write_1 = require("../../common/utils/progress-write");
+const streak_1 = require("../xp/streak");
 const database_tokens_1 = require("../../database/database.tokens");
 const lessons_service_1 = require("../lessons/lessons.service");
 const flashcard_scheduler_service_1 = require("./flashcard-scheduler.service");
@@ -24,12 +32,22 @@ const DEFAULT_REVIEWS_PER_DAY = 200;
 const QUEUE_HARD_CAP = 500;
 const LOG_RETENTION = 200;
 let FlashcardsService = class FlashcardsService {
-    constructor(db, scheduler, aiNotes) {
+    constructor(db, scheduler, aiNotes, catalogue) {
         this.db = db;
         this.scheduler = scheduler;
         this.aiNotes = aiNotes;
+        this.catalogue = catalogue;
+        this.settingsCache = null;
+        this.cardsMemory = new Map();
+        this.cardsDir = (0, node_path_1.join)(process.env.CACHE_DIR || (0, node_path_1.join)(process.cwd(), 'storage', 'cache'), 'flashcards');
     }
     async getSettings() {
+        if (this.settingsCache)
+            return this.settingsCache;
+        this.settingsCache = await this.readSettings();
+        return this.settingsCache;
+    }
+    async readSettings() {
         const [rows] = await this.db.execute('SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1', [FSRS_SETTINGS_KEY]);
         let stored = {};
         try {
@@ -48,7 +66,8 @@ let FlashcardsService = class FlashcardsService {
         };
     }
     async updateSettings(patch) {
-        const current = await this.getSettings();
+        this.settingsCache = null;
+        const current = await this.readSettings();
         const next = {
             requestRetention: clampNumber(patch.requestRetention, 0.7, 0.99, current.requestRetention),
             maximumInterval: clampNumber(patch.maximumInterval, 1, 36500, current.maximumInterval),
@@ -70,7 +89,7 @@ let FlashcardsService = class FlashcardsService {
         };
     }
     async listDecks(userId, token, appClient) {
-        const notes = await this.loadAccessibleNotes(token, appClient);
+        const notes = await this.loadAccessibleNotes(token, appClient, userId);
         const reviewByNote = await this.reviewCountsByNote(userId);
         const tree = buildDeckTree(notes, reviewByNote);
         const totals = tree.reduce((acc, node) => {
@@ -81,10 +100,80 @@ let FlashcardsService = class FlashcardsService {
         }, { newCount: 0, learningCount: 0, dueCount: 0 });
         return { decks: tree, totals };
     }
+    async cardsForLessons(userId, lessonIds, appClient) {
+        const settings = await this.getSettings();
+        const wanted = [...new Set(lessonIds.filter((id) => Number.isInteger(id) && id > 0))].slice(0, 50);
+        if (!wanted.length || !this.catalogue)
+            return { cards: [], settings };
+        const [{ decks }, scopeRows] = await Promise.all([this.catalogue.get(), (0, subscription_scope_1.getScopeRows)(this.db, userId)]);
+        const access = (0, content_access_1.buildContentAccess)(scopeRows);
+        const appOnlyBlocked = !(0, mobile_client_util_1.isMobileAppClient)(appClient);
+        const deckById = new Map(decks.map((d) => [d.id, d]));
+        const open = wanted.filter((id) => {
+            const d = deckById.get(id);
+            return d && (0, content_access_1.canOpenLesson)(access, { id: d.id, courseId: d.courseId, isFree: d.isFree }, appOnlyBlocked);
+        });
+        if (!open.length)
+            return { cards: [], settings };
+        const cards = [];
+        const missing = [];
+        for (const id of open) {
+            const stamp = Number(deckById.get(id)?.stamp || 0);
+            const kept = await this.keptCards(id, stamp);
+            if (kept)
+                cards.push(...kept);
+            else
+                missing.push(id);
+        }
+        if (missing.length) {
+            const [rows] = await this.db.query(`SELECT id, lesson_id, question, answer, source_hint, image_url, image_fit, sort_order
+           FROM lesson_flashcards
+          WHERE status = 'approved' AND lesson_id IN (?)`, [missing]);
+            const byLesson = new Map(missing.map((id) => [id, []]));
+            for (const r of rows) {
+                byLesson.get(Number(r.lesson_id))?.push([
+                    Number(r.id), Number(r.lesson_id), String(r.question || ''), String(r.answer || ''), String(r.source_hint || ''),
+                    parseImageUrls(r.image_url), r.image_fit === 'cover' ? 'cover' : 'contain', Number(r.sort_order) || 0,
+                ]);
+            }
+            for (const [id, list] of byLesson) {
+                cards.push(...list);
+                await this.keepCards(id, Number(deckById.get(id)?.stamp || 0), list);
+            }
+        }
+        return { settings, cards, lessonIds: open };
+    }
+    async keptCards(lessonId, stamp) {
+        const hit = this.cardsMemory.get(lessonId);
+        if (hit && hit.stamp === stamp)
+            return hit.cards;
+        try {
+            const saved = JSON.parse(await (0, promises_1.readFile)((0, node_path_1.join)(this.cardsDir, `${lessonId}.json`), 'utf8'));
+            if (Number(saved?.stamp) === stamp && Array.isArray(saved.cards)) {
+                this.cardsMemory.set(lessonId, { stamp, cards: saved.cards });
+                return saved.cards;
+            }
+        }
+        catch { }
+        return null;
+    }
+    async keepCards(lessonId, stamp, cards) {
+        this.cardsMemory.set(lessonId, { stamp, cards });
+        try {
+            await (0, promises_1.mkdir)(this.cardsDir, { recursive: true });
+            const file = (0, node_path_1.join)(this.cardsDir, `${lessonId}.json`);
+            await (0, promises_1.writeFile)(`${file}.tmp`, JSON.stringify({ stamp, cards }));
+            await (0, promises_1.rename)(`${file}.tmp`, file);
+        }
+        catch { }
+    }
+    async exportReviews(_userId) {
+        return { settings: await this.getSettings(), reviews: [] };
+    }
     async getQueue(userId, token, params, appClient) {
         const settings = await this.getSettings();
         const fsrs = this.fsrsSettings(settings);
-        const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token, appClient)).filter((n) => n.canAccess).map((n) => n.id));
+        const accessibleNoteIds = new Set((await this.loadAccessibleNotes(token, appClient, userId)).filter((n) => n.canAccess).map((n) => n.id));
         const noteIds = params.noteIds.filter((id) => accessibleNoteIds.has(id));
         if (!noteIds.length)
             return { cards: [], counts: { new: 0, learning: 0, due: 0 } };
@@ -179,37 +268,11 @@ let FlashcardsService = class FlashcardsService {
             }
             results.push({ cardId, applied, state, previews: this.scheduler.preview(state, new Date(), fsrs) });
         }
+        await (0, progress_write_1.applyProgress)(this.db, userId, (0, streak_1.localDateKey)(new Date()));
         return { results };
     }
-    async undo(userId, cardId) {
-        const existing = (await this.loadReviewRows(userId, [cardId])).get(cardId);
-        if (!existing)
-            throw new common_1.NotFoundException('Nothing to undo for this card.');
-        const log = parseLog(existing.log_json);
-        if (!log.length) {
-            await this.db.execute('DELETE FROM lesson_flashcard_reviews WHERE user_id = ? AND card_id = ?', [userId, cardId]);
-            return { cardId, reverted: true, state: null };
-        }
-        log.pop();
-        if (!log.length) {
-            await this.db.execute('DELETE FROM lesson_flashcard_reviews WHERE user_id = ? AND card_id = ?', [userId, cardId]);
-            return { cardId, reverted: true, state: null };
-        }
-        const last = log[log.length - 1];
-        const state = {
-            state: last.state,
-            due: last.due,
-            stability: last.stability,
-            difficulty: last.difficulty,
-            elapsedDays: last.elapsedDays,
-            scheduledDays: last.scheduledDays,
-            reps: last.reps,
-            lapses: last.lapses,
-            learningSteps: 0,
-            lastReview: last.ts,
-        };
-        await this.upsertState(userId, cardId, state, log);
-        return { cardId, reverted: true, state };
+    async undo(_userId, cardId) {
+        return { cardId, reverted: false, state: null };
     }
     async setCardFlags(userId, cardId, flags) {
         if (!(await this.validCardIds([cardId])).has(cardId))
@@ -224,9 +287,8 @@ let FlashcardsService = class FlashcardsService {
         return { cardId, ...flags };
     }
     async stats(userId) {
-        const [rows] = await this.db.execute(`SELECT lfr.* FROM lesson_flashcard_reviews lfr
-       JOIN lesson_flashcards lf ON lf.id = lfr.card_id AND lf.status = 'approved'
-       WHERE lfr.user_id = ?`, [userId]);
+        void userId;
+        const rows = [];
         const now = new Date();
         const byState = { new: 0, learning: 0, review: 0, relearning: 0 };
         const forecast = {};
@@ -268,7 +330,24 @@ let FlashcardsService = class FlashcardsService {
         const r = Number(rating);
         return r === 1 || r === 2 || r === 4 ? r : 3;
     }
-    async loadAccessibleNotes(token, appClient) {
+    async loadAccessibleNotes(token, appClient, userId) {
+        if (this.catalogue && userId) {
+            const [{ decks }, scopeRows] = await Promise.all([
+                this.catalogue.get(),
+                (0, subscription_scope_1.getScopeRows)(this.db, userId),
+            ]);
+            const access = (0, content_access_1.buildContentAccess)(scopeRows);
+            const appOnlyBlocked = !(0, mobile_client_util_1.isMobileAppClient)(appClient);
+            return decks.map((d) => {
+                const canAccess = (0, content_access_1.canOpenLesson)(access, { id: d.id, courseId: d.courseId, isFree: d.isFree }, appOnlyBlocked);
+                return normalizeNote({
+                    id: d.id, engineKey: 'gemini', courseId: d.courseId, topicId: d.topicId, subtopicId: d.subtopicId, lessonId: d.id,
+                    courseTitle: d.courseTitle, topicName: d.topicName, subtopicName: d.subtopicName, lessonTitle: d.lessonTitle,
+                    approvedFlashcardCount: d.approvedFlashcardCount, canAccess,
+                    appOnly: !canAccess && !d.isFree && appOnlyBlocked,
+                });
+            });
+        }
         const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine, appClient)));
         const merged = new Map();
         for (const list of lists) {
@@ -283,28 +362,8 @@ let FlashcardsService = class FlashcardsService {
         }
         return [...merged.values()];
     }
-    async reviewCountsByNote(userId) {
-        const [rows] = await this.db.execute(`SELECT lf.note_id AS note_id, lfr.state AS state, lfr.due AS due, lfr.suspended AS suspended, lfr.buried AS buried
-       FROM lesson_flashcard_reviews lfr
-       JOIN lesson_flashcards lf ON lf.id = lfr.card_id AND lf.status = 'approved'
-       WHERE lfr.user_id = ?`, [userId]);
-        const now = new Date();
-        const eod = endOfDay(now).getTime();
-        const map = new Map();
-        for (const row of rows) {
-            const noteId = Number(row.note_id);
-            const entry = map.get(noteId) || { reviewed: 0, learning: 0, due: 0 };
-            entry.reviewed += 1;
-            if (!row.suspended && !row.buried) {
-                const dueTime = Date.parse(String(row.due));
-                if ((row.state === 1 || row.state === 3) && dueTime <= now.getTime())
-                    entry.learning += 1;
-                else if (row.state === 2 && dueTime <= eod)
-                    entry.due += 1;
-            }
-            map.set(noteId, entry);
-        }
-        return map;
+    async reviewCountsByNote(_userId) {
+        return new Map();
     }
     async loadCards(noteIds) {
         if (!noteIds.length)
@@ -316,12 +375,8 @@ let FlashcardsService = class FlashcardsService {
        ORDER BY sort_order ASC, id ASC`, noteIds);
         return rows;
     }
-    async loadReviewRows(userId, cardIds) {
-        if (!cardIds.length)
-            return new Map();
-        const placeholders = cardIds.map(() => '?').join(',');
-        const [rows] = await this.db.execute(`SELECT * FROM lesson_flashcard_reviews WHERE user_id = ? AND card_id IN (${placeholders})`, [userId, ...cardIds]);
-        return new Map(rows.map((row) => [row.card_id, row]));
+    async loadReviewRows(_userId, _cardIds) {
+        return new Map();
     }
     async validCardIds(cardIds) {
         if (!cardIds.length)
@@ -330,30 +385,17 @@ let FlashcardsService = class FlashcardsService {
         const [rows] = await this.db.execute(`SELECT id FROM lesson_flashcards WHERE status = 'approved' AND id IN (${placeholders})`, cardIds);
         return new Set(rows.map((r) => Number(r.id)));
     }
-    async upsertState(userId, cardId, state, log, flags = {}) {
-        await this.db.execute(`INSERT INTO lesson_flashcard_reviews
-        (user_id, card_id, state, due, stability, difficulty, elapsed_days, scheduled_days,
-         reps, lapses, learning_steps, last_review, suspended, buried, log_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         state = VALUES(state), due = VALUES(due), stability = VALUES(stability),
-         difficulty = VALUES(difficulty), elapsed_days = VALUES(elapsed_days),
-         scheduled_days = VALUES(scheduled_days), reps = VALUES(reps), lapses = VALUES(lapses),
-         learning_steps = VALUES(learning_steps), last_review = VALUES(last_review),
-         suspended = VALUES(suspended), buried = VALUES(buried), log_json = VALUES(log_json)`, [
-            userId, cardId, state.state, toMysqlDateTime(state.due), state.stability, state.difficulty,
-            state.elapsedDays, state.scheduledDays, state.reps, state.lapses, state.learningSteps,
-            state.lastReview ? toMysqlDateTime(state.lastReview) : null,
-            flags.suspended ? 1 : 0, flags.buried ? 1 : 0, JSON.stringify(log),
-        ]);
+    async upsertState(_userId, _cardId, _state, _log, _flags = {}) {
     }
 };
 exports.FlashcardsService = FlashcardsService;
 exports.FlashcardsService = FlashcardsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
+    __param(3, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [Object, flashcard_scheduler_service_1.FlashcardSchedulerService,
-        lessons_service_1.LessonsService])
+        lessons_service_1.LessonsService,
+        student_catalogue_service_1.StudentCatalogueService])
 ], FlashcardsService);
 function normalizeNote(note) {
     return {

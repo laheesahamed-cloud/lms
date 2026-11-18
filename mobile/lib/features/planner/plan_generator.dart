@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
+import '../../state/catalogue.dart';
 import '../courses/courses_repository.dart';
 import '../lessons/lessons_repository.dart';
 import '../flashcards/flashcards_repository.dart';
@@ -173,9 +174,10 @@ Future<List<_PlanItem>> _collect(PlanRead read, String kind, String courseId,
     }
   } else if (kind == 'quiz') {
     final quizzes = await read(quizListProvider.future);
-    // A Q-bank set counts as done only once it has been PASSED as an exam.
-    final results = await read(resultsListProvider.future);
-    final passed = {for (final r in results) if (r.passed) '${r.quizId}'};
+    // A Q-bank set counts as done only once it has been PASSED as an exam —
+    // from the quiz byte map (10.16), which remembers every quiz's pass.
+    final prog = await read(studentProgressProvider.future);
+    final passed = {for (final e in prog.quizMarks.entries) if ((e.value & 128) != 0) '${e.key}'};
     var i = 0;
     for (final q in sortQuizzesByHierarchy(
         quizzes.where((q) => q.courseId == courseId && !q.locked).toList())) {

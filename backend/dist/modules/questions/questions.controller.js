@@ -20,7 +20,6 @@ const auth_service_1 = require("../auth/auth.service");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
 const questions_service_1 = require("./questions.service");
 const bulk_delete_questions_dto_1 = require("./dto/bulk-delete-questions.dto");
-const bulk_update_question_keywords_dto_1 = require("./dto/bulk-update-question-keywords.dto");
 const create_question_dto_1 = require("./dto/create-question.dto");
 const update_question_dto_1 = require("./dto/update-question.dto");
 const workbookUploadOptions = {
@@ -49,13 +48,14 @@ let QuestionsController = class QuestionsController {
         this.questionsService = questionsService;
         this.authService = authService;
     }
-    findAll(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, missing, ids, excludeIds, limit, page, offset, random) {
+    findAll(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, usage, missing, ids, excludeIds, limit, page, offset, random, after, slim) {
         return this.questionsService.findAll({
+            after: this.parsePositiveNumber(after),
+            slim: slim === '1' || slim === 'true',
             search,
             status,
             type,
             category,
-            keywords,
             usage,
             missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
                 .includes(String(missing))
@@ -75,16 +75,26 @@ let QuestionsController = class QuestionsController {
             random: random === '1' || random === 'true',
         });
     }
-    meta() {
-        return this.questionsService.meta();
+    meta(scope) {
+        return scope === 'folders' ? this.questionsService.metaFolders() : this.questionsService.meta();
     }
-    counts(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, keywords) {
+    metaSubject(topicId, topicIds) {
+        if (topicIds)
+            return this.questionsService.metaSubjects(String(topicIds).split(',').map(Number));
+        return this.questionsService.metaSubject(Number(topicId));
+    }
+    fixLinkCounts(after) {
+        return this.questionsService.fixLinkCounts(Number(after) || 0);
+    }
+    fixCourseTotals(counts, expected) {
+        return this.questionsService.fixCourseQuestionTotals(counts, expected);
+    }
+    counts(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category) {
         return this.questionsService.countByFilters({
             search,
             status,
             type,
             category,
-            keywords,
             courseId: courseId ? Number(courseId) : undefined,
             subjectId: subjectId ? Number(subjectId) : undefined,
             topicId: topicId ? Number(topicId) : undefined,
@@ -92,14 +102,13 @@ let QuestionsController = class QuestionsController {
             paperId: paperId ? Number(paperId) : undefined,
         });
     }
-    async exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, missing, response) {
+    async exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, usage, missing, response) {
         const actor = await this.authService.requireAdmin(authorization);
         const workbook = await this.questionsService.exportWorkbook({
             search,
             status,
             type,
             category,
-            keywords,
             usage,
             missing: ['explanation', 'why_incorrect', 'approach', 'theory', 'any']
                 .includes(String(missing))
@@ -116,8 +125,8 @@ let QuestionsController = class QuestionsController {
         response.setHeader('Content-Disposition', `attachment; filename="questions-export-${Date.now()}.csv"`);
         response.send(workbook);
     }
-    async exportQuestionsLegacy(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, missing, response) {
-        return this.exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, response);
+    async exportQuestionsLegacy(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, usage, missing, response) {
+        return this.exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, usage, missing, response);
     }
     async importQuestions(authorization, file) {
         const actor = await this.authService.requireAdmin(authorization);
@@ -151,10 +160,6 @@ let QuestionsController = class QuestionsController {
     async create(authorization, createQuestionDto) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.questionsService.create(createQuestionDto, actor);
-    }
-    async bulkUpdateKeywords(authorization, bulkUpdateQuestionKeywordsDto) {
-        const actor = await this.authService.requireAdmin(authorization);
-        return this.questionsService.bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto, actor);
     }
     async bulkDelete(authorization, bulkDeleteQuestionsDto) {
         const actor = await this.authService.requireAdmin(authorization);
@@ -209,25 +214,50 @@ __decorate([
     __param(7, (0, common_1.Query)('paperId')),
     __param(8, (0, common_1.Query)('category')),
     __param(9, (0, common_1.Query)('unclassified')),
-    __param(10, (0, common_1.Query)('keywords')),
-    __param(11, (0, common_1.Query)('usage')),
-    __param(12, (0, common_1.Query)('missing')),
-    __param(13, (0, common_1.Query)('ids')),
-    __param(14, (0, common_1.Query)('excludeIds')),
-    __param(15, (0, common_1.Query)('limit')),
-    __param(16, (0, common_1.Query)('page')),
-    __param(17, (0, common_1.Query)('offset')),
-    __param(18, (0, common_1.Query)('random')),
+    __param(10, (0, common_1.Query)('usage')),
+    __param(11, (0, common_1.Query)('missing')),
+    __param(12, (0, common_1.Query)('ids')),
+    __param(13, (0, common_1.Query)('excludeIds')),
+    __param(14, (0, common_1.Query)('limit')),
+    __param(15, (0, common_1.Query)('page')),
+    __param(16, (0, common_1.Query)('offset')),
+    __param(17, (0, common_1.Query)('random')),
+    __param(18, (0, common_1.Query)('after')),
+    __param(19, (0, common_1.Query)('slim')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('meta'),
+    __param(0, (0, common_1.Query)('scope')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "meta", null);
+__decorate([
+    (0, common_1.Get)('meta/subject'),
+    __param(0, (0, common_1.Query)('topicId')),
+    __param(1, (0, common_1.Query)('topicIds')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "metaSubject", null);
+__decorate([
+    (0, common_1.Post)('link-counts/fix'),
+    __param(0, (0, common_1.Body)('after')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "fixLinkCounts", null);
+__decorate([
+    (0, common_1.Post)('course-totals/fix'),
+    __param(0, (0, common_1.Body)('counts')),
+    __param(1, (0, common_1.Body)('expected')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "fixCourseTotals", null);
 __decorate([
     (0, common_1.Get)('counts'),
     __param(0, (0, common_1.Query)('search')),
@@ -239,9 +269,8 @@ __decorate([
     __param(6, (0, common_1.Query)('lessonId')),
     __param(7, (0, common_1.Query)('paperId')),
     __param(8, (0, common_1.Query)('category')),
-    __param(9, (0, common_1.Query)('keywords')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "counts", null);
 __decorate([
@@ -257,12 +286,11 @@ __decorate([
     __param(8, (0, common_1.Query)('paperId')),
     __param(9, (0, common_1.Query)('category')),
     __param(10, (0, common_1.Query)('unclassified')),
-    __param(11, (0, common_1.Query)('keywords')),
-    __param(12, (0, common_1.Query)('usage')),
-    __param(13, (0, common_1.Query)('missing')),
-    __param(14, (0, common_1.Res)()),
+    __param(11, (0, common_1.Query)('usage')),
+    __param(12, (0, common_1.Query)('missing')),
+    __param(13, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "exportQuestions", null);
 __decorate([
@@ -278,12 +306,11 @@ __decorate([
     __param(8, (0, common_1.Query)('paperId')),
     __param(9, (0, common_1.Query)('category')),
     __param(10, (0, common_1.Query)('unclassified')),
-    __param(11, (0, common_1.Query)('keywords')),
-    __param(12, (0, common_1.Query)('usage')),
-    __param(13, (0, common_1.Query)('missing')),
-    __param(14, (0, common_1.Res)()),
+    __param(11, (0, common_1.Query)('usage')),
+    __param(12, (0, common_1.Query)('missing')),
+    __param(13, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "exportQuestionsLegacy", null);
 __decorate([
@@ -361,14 +388,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, create_question_dto_1.CreateQuestionDto]),
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "create", null);
-__decorate([
-    (0, common_1.Post)('keywords/bulk'),
-    __param(0, (0, common_1.Headers)('authorization')),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, bulk_update_question_keywords_dto_1.BulkUpdateQuestionKeywordsDto]),
-    __metadata("design:returntype", Promise)
-], QuestionsController.prototype, "bulkUpdateKeywords", null);
 __decorate([
     (0, common_1.Post)('bulk-delete'),
     __param(0, (0, common_1.Headers)('authorization')),

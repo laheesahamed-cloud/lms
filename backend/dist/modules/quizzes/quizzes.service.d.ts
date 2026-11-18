@@ -34,12 +34,15 @@ export declare class QuizzesService {
         total: number;
         active: number;
     }[]>;
+    private summaryFromStoredCounts;
     findAll(filters: {
         search?: string;
         courseId?: number;
         topicId?: string;
         status?: string;
         order?: string;
+        after?: number;
+        slim?: boolean;
     } & PaginationInput): Promise<{
         id: number;
         courseId: number;
@@ -55,25 +58,10 @@ export declare class QuizzesService {
         examModeOnly: number;
         adminName: string;
         studentTitle: string;
-        displayTitleMode: string;
+        displayTitleMode: "title";
         quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
-        blueprint: {
-            sections: {
-                id: string;
-                title: string;
-                targetCount: number;
-                courseId: number | null;
-                subjectId: number | null;
-                topicId: number | null;
-                lessonId: number | null;
-                paperId: number | null;
-                category: string;
-                questionType: string;
-            }[];
-        };
-        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;
@@ -88,6 +76,17 @@ export declare class QuizzesService {
         lessonTitle: string;
         paperTitle: string;
     }[]>;
+    metaFolders(): Promise<{
+        courses: {
+            id: number;
+            courseTitle: string;
+        }[];
+        subjects: {
+            id: number;
+            courseId: number;
+            subjectName: string;
+        }[];
+    }>;
     meta(options?: {
         includeQuestions?: boolean;
     }): Promise<{
@@ -120,7 +119,6 @@ export declare class QuizzesService {
             examSource: string;
             keywordsText: string;
         }[];
-        keywordSuggestions: string[];
         categories: string[];
         questionTypes: string[];
         usedQuestionIds: number[];
@@ -135,7 +133,6 @@ export declare class QuizzesService {
             category: string;
             questionType: string;
             questionText: string;
-            keywordsText: string;
             usageCount: number;
             usedInAnyQuiz: boolean;
             courseTitle: string;
@@ -145,6 +142,7 @@ export declare class QuizzesService {
             paperTitle: string;
         }[];
     }>;
+    private loadMeta;
     findOne(id: number): Promise<{
         questionIds: number[];
         id: number;
@@ -161,25 +159,10 @@ export declare class QuizzesService {
         examModeOnly: number;
         adminName: string;
         studentTitle: string;
-        displayTitleMode: string;
+        displayTitleMode: "title";
         quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
-        blueprint: {
-            sections: {
-                id: string;
-                title: string;
-                targetCount: number;
-                courseId: number | null;
-                subjectId: number | null;
-                topicId: number | null;
-                lessonId: number | null;
-                paperId: number | null;
-                category: string;
-                questionType: string;
-            }[];
-        };
-        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;
@@ -229,13 +212,7 @@ export declare class QuizzesService {
         deletedQuestions: number;
         keptQuestions: number;
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
@@ -254,17 +231,9 @@ export declare class QuizzesService {
         status: "active" | "inactive";
         workflowState: ContentWorkflowState;
     }>;
-    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<void>;
     private validateQuiz;
     private cleanQuestionIds;
-    private resolveRandomizationMode;
-    private getBlueprintQuestionCount;
     private resolveQuizQuestionCount;
     private buildQuizSnapshot;
     private buildQuizSnapshotFromEntity;
@@ -280,18 +249,11 @@ export declare class QuizzesService {
     private assertCanSaveStatus;
     private assertCanModifyExistingStatus;
     private replaceQuestionLinks;
-    private appendKeywordsToQuestions;
-    private normalizeKeywords;
-    private normalizeKeywordArray;
+    private quizName;
     private resolveAdminName;
     private resolveStudentTitle;
     private resolveDisplayTitleMode;
-    private resolveNextQuizNumber;
     private optionalPositiveId;
-    private normalizeBlueprintPayload;
-    private stringifyBlueprint;
-    private parseBlueprint;
-    private getKeywordSuggestions;
     private mapQuiz;
     private ensureStudentCanAccessQuiz;
     private getQuizAccessProfile;

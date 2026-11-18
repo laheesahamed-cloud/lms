@@ -15,7 +15,6 @@ import '../courses/courses_repository.dart';
 import '../quizzes/quizzes_repository.dart';
 import '../flashcards/flashcards_repository.dart';
 import '../dashboard/dashboard_repository.dart';
-import '../bookmarks/bookmarks_repository.dart';
 import '../../widgets/shell_insets.dart';
 import '../../config/launch_flags.dart';
 
@@ -150,6 +149,9 @@ class _AppShellState extends ConsumerState<AppShell> with RouteAware {
     // and stay instant.
     final location = widget.location;
     if (location.startsWith('/app/dashboard')) {
+      // 10.29: rebuilt on the phone (today's goals, streak, Readiness) — the
+      // server part is not asked again.
+      ref.invalidate(studyDaysProvider);
       ref.invalidate(studentDashboardProvider);
     } else if (location.startsWith('/app/lessons')) {
       ref.invalidate(lessonsListProvider);
@@ -173,18 +175,20 @@ class _AppShellState extends ConsumerState<AppShell> with RouteAware {
       ref.invalidate(quizListProvider);
       ref.invalidate(flashDecksProvider);
     } else if (location.startsWith('/app/bookmarks')) {
-      ref.invalidate(bookmarksProvider);
+      // Kept on the phone; coming back to the page shows the saved copy.
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final child = widget.child;
     final location = widget.location;
+    final child = widget.child; // iPad top room: see _tabletTopInset in main.dart
     // Gate the shell so the notification priming sheet appears once after login.
     final gatedChild = NotificationPrimingGate(child: child);
-    final width = MediaQuery.sizeOf(context).width;
-    if (width >= Breakpoints.desktop) {
+    // Side bar only on a wide screen held in LANDSCAPE (iPad sideways);
+    // portrait — every phone and an iPad held upright — keeps the bottom bar.
+    final size = MediaQuery.sizeOf(context);
+    if (size.width >= Breakpoints.desktop && size.width > size.height) {
       return Scaffold(
         body: Row(
           children: [

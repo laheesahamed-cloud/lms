@@ -13,6 +13,7 @@ const PUBLIC_WEBSITE_PATHS = new Set([
   '/cookie-policy',
   '/delete-account',
   '/support',
+  '/try',
   '/ai',
   '/ai/gemini',
   '/ai/chatgpt',

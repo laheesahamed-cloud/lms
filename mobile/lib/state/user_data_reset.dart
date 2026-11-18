@@ -1,3 +1,5 @@
+import 'local_scope.dart';
+import 'catalogue.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/lessons/lessons_repository.dart';
@@ -33,39 +35,51 @@ import 'saved_first.dart';
 /// `asReload: true` makes the state AsyncLoading instead, so pages show their
 /// loading state rather than another person's data. One frame of spinner is
 /// the correct trade.
-void resetUserScopedData(Ref ref) {
-  // The phone's saved copies of the lists belong to the account that is leaving.
-  clearSavedLists();
+void resetUserScopedData(Ref ref, {bool forgetSaved = false}) {
+  // Through the container, not the caller's ref: the caller is the sign-in
+  // controller, and these lists depend on it (via the signed-in user), which
+  // the debug build refuses as a "circular dependency" — sign-out then stopped
+  // half way on the simulator. The release build already does exactly this.
+  final container = ref.container;
+  // Saved copies are kept per account (keys carry the user id) and stay on the
+  // phone after sign-out, updated on the next sign-in; only deleting the
+  // account (or the app) removes them (decision 2026-11-15).
+  if (forgetSaved) forgetSavedForAccount(LocalScope.uid);
   // AI notes
-  ref.invalidate(lessonsListProvider, asReload: true);
-  ref.invalidate(lessonDocProvider, asReload: true);
+  container.invalidate(lessonsListProvider, asReload: true);
+  container.invalidate(lessonDocProvider, asReload: true);
   // Courses
-  ref.invalidate(studentCoursesProvider, asReload: true);
-  ref.invalidate(courseDetailProvider, asReload: true);
+  container.invalidate(studentCoursesProvider, asReload: true);
+  container.invalidate(courseDetailProvider, asReload: true);
   // Quizzes / exams / results
-  ref.invalidate(quizListProvider, asReload: true);
-  ref.invalidate(practiceQuizProvider, asReload: true);
-  ref.invalidate(examQuizProvider, asReload: true);
-  ref.invalidate(attemptResultProvider, asReload: true);
-  ref.invalidate(resultsListProvider, asReload: true);
-  ref.invalidate(attemptReviewProvider, asReload: true);
+  container.invalidate(quizListProvider, asReload: true);
+  container.invalidate(studentProgressProvider, asReload: true);
+  container.invalidate(practiceQuizProvider, asReload: true);
+  container.invalidate(examQuizProvider, asReload: true);
+  container.invalidate(attemptResultProvider, asReload: true);
+  container.invalidate(resultsListProvider, asReload: true);
+  container.invalidate(attemptReviewProvider, asReload: true);
   // Flashcards
-  ref.invalidate(flashDecksProvider, asReload: true);
-  ref.invalidate(flashQueueProvider, asReload: true);
+  container.invalidate(flashDecksProvider, asReload: true);
+  container.invalidate(flashQueueProvider, asReload: true);
   // Other student surfaces
   // Drop any in-flight cold-start prefetch too: it carries the previous
   // user's dashboard, and invalidating the provider alone would let the
   // next account adopt it.
   DashboardPrefetch.clear();
-  ref.invalidate(studentDashboardProvider, asReload: true);
-  ref.invalidate(bookmarksProvider, asReload: true);
-  ref.invalidate(plannerTasksProvider, asReload: true);
-  ref.invalidate(billingProvider, asReload: true);
-  ref.invalidate(notificationsProvider, asReload: true);
+  container.invalidate(hubTopProvider, asReload: true);
+  container.invalidate(studentDashboardProvider, asReload: true);
+  container.invalidate(studyDaysProvider, asReload: true);
+  container.invalidate(hubMoreProvider, asReload: true);
+  container.invalidate(bookmarksProvider, asReload: true);
+  container.invalidate(plannerTasksProvider, asReload: true);
+  container.invalidate(billingProvider, asReload: true);
+  container.invalidate(notificationsProvider, asReload: true);
+  container.invalidate(currentPopupProvider, asReload: true);
   // Drug randomizer — app-lifetime provider, so its cached spin count/hasSub
   // would otherwise bleed from one account to the next. Reset it so the new
   // user re-fetches their own count from the server.
-  ref.invalidate(drugQueueProvider, asReload: true);
+  container.invalidate(drugQueueProvider, asReload: true);
   // Apple IAP: forget which transactions were already redeemed, so the incoming
   // account re-checks StoreKit against its own server-side entitlement instead
   // of assuming the previous user's redemptions apply to it.

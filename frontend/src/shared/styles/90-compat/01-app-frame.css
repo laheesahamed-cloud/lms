@@ -117,7 +117,6 @@
   .page,
   .page-wrapper,
   .main-layout,
-  .landing-page,
   .app-shell {
     width: 100%;
     max-width: 100%;
@@ -149,21 +148,6 @@
 
   :where(input, select, textarea) {
     max-width: 100%;
-  }
-
-  .landing-page {
-    --app-bg: var(--app-dark-bg);
-  }
-
-  :root:has(.landing-page) {
-    --app-bg: var(--app-dark-bg);
-    background: var(--app-dark-bg);
-    background-color: var(--app-dark-bg);
-  }
-
-  body:has(.landing-page) {
-    background: var(--app-dark-bg) !important;
-    background-color: var(--app-dark-bg) !important;
   }
 
   .app-shell main,

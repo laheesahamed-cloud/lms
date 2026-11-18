@@ -21,6 +21,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   (IconData, Color) _visual(AppColors c, String kind) {
     switch (kind) {
+      case 'new-content':
+        return (Icons.library_add_outlined, c.primary);
       case 'subscription':
         return (Icons.workspace_premium_outlined, c.primary);
       case 'weak':
@@ -170,7 +172,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           ),
         ),
         data: (items) => RefreshIndicator(
-          onRefresh: () async => ref.refresh(notificationsProvider.future),
+          onRefresh: () async {
+            await refreshNotices(ref.read(notificationsApiProvider));
+            return ref.refresh(notificationsProvider.future);
+          },
           child: ListView(
             padding: EdgeInsets.fromLTRB(16, 14, 16, 28 + shellNavInset(context)),
             children: [

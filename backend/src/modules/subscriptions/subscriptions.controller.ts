@@ -32,7 +32,7 @@ export class SubscriptionsController {
     @Query('page') page?: string,
     @Query('offset') offset?: string
   ) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const user = await this.authService.requireFreshUser(authorization);
     if (isStaffRole(user.role)) {
       if (user.status !== 'active') {
         throw new UnauthorizedException('Admin access is required');
@@ -65,6 +65,42 @@ export class SubscriptionsController {
     });
   }
 
+  @Get('admin/overview')
+  @RequirePermissions('subscriptions.manage')
+  async adminOverview(@Headers('authorization') authorization?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.subscriptionsService.adminSubscriptionsOverview();
+  }
+
+  @Get('admin/paid')
+  @RequirePermissions('subscriptions.manage')
+  async findAdminPaidList(@Headers('authorization') authorization?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.subscriptionsService.findAdminPaidList();
+  }
+
+  @Get('admin/payment-totals')
+  @RequirePermissions('subscriptions.manage')
+  async paymentTotals(@Headers('authorization') authorization?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.subscriptionsService.paymentTotals();
+  }
+
+  @Get('admin/students')
+  @RequirePermissions('subscriptions.manage')
+  async searchStudents(@Headers('authorization') authorization?: string, @Query('q') q?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.subscriptionsService.searchStudentsForAssign(q);
+  }
+
+  @Get('admin/lessons')
+  @RequirePermissions('subscriptions.manage')
+  async findLessonTitles(@Headers('authorization') authorization?: string, @Query('ids') ids?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.subscriptionsService.findLessonTitles(
+      ids === undefined ? undefined : String(ids).split(',').map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0));
+  }
+
   @Get('admin/requests')
   @RequirePermissions('subscriptions.manage')
   async findAdminRequests(@Headers('authorization') authorization?: string) {
@@ -74,9 +110,9 @@ export class SubscriptionsController {
 
   @Get('admin/audit')
   @RequirePermissions('subscriptions.manage')
-  async findAuditEvents(@Headers('authorization') authorization?: string) {
+  async findAuditEvents(@Headers('authorization') authorization?: string, @Query('limit') limit?: string) {
     await this.authService.requireAdmin(authorization);
-    return this.subscriptionsService.findAuditEvents();
+    return this.subscriptionsService.findAuditEvents(limit ? Number(limit) : undefined);
   }
 
   @Get('admin/coupons')
@@ -149,32 +185,32 @@ export class SubscriptionsController {
 
   @Post('request')
   async requestUpgrade(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
-    const student = await this.authService.requireStudent(authorization);
+    const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.requestUpgrade(student.id, dto);
   }
 
   @Post('checkout/coupon-preview')
   async previewCheckoutCoupon(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
-    const student = await this.authService.requireStudent(authorization);
+    const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.previewCheckoutCoupon(student.id, dto);
   }
 
   @Post('coupon-approval/request')
   async requestCouponApproval(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
-    const student = await this.authService.requireStudent(authorization);
+    const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.requestCouponApproval(student.id, dto);
   }
 
   @Post('payhere/initiate')
   async initiatePayHereCheckout(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
-    const student = await this.authService.requireStudent(authorization);
+    const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.initiatePayHereCheckout(student.id, dto.planId, dto);
   }
 
   @Post('manual-payment/request')
   async requestManualPayment(@Headers('authorization') authorization: string | undefined, @Body() dto: ManualPaymentRequestDto) {
-    const student = await this.authService.requireStudent(authorization);
-    return this.subscriptionsService.requestManualPayment(student.id, dto);
+    const student = await this.authService.requireFreshStudent(authorization);
+    return this.subscriptionsService.requestManualPayment(student.id, dto, student);
   }
 
   @Delete('requests/:id')
@@ -182,7 +218,7 @@ export class SubscriptionsController {
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number
   ) {
-    const student = await this.authService.requireStudent(authorization);
+    const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.cancelStudentPendingInvoice(student.id, id);
   }
 
@@ -201,7 +237,7 @@ export class SubscriptionsController {
     @Headers('authorization') authorization: string | undefined,
     @Body() dto: RedeemAppleTransactionDto
   ) {
-    const student = await this.authService.requireStudent(authorization);
+    const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.redeemAppleTransaction(student.id, dto.signedTransaction);
   }
 
@@ -303,7 +339,7 @@ export class SubscriptionsController {
 
   @Get('me')
   async getMine(@Headers('authorization') authorization?: string) {
-    const student = await this.authService.requireStudent(authorization);
+    const student = await this.authService.requireFreshStudent(authorization);
     return this.subscriptionsService.getStudentBilling(student.id);
   }
 

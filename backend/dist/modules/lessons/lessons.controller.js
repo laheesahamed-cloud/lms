@@ -50,8 +50,6 @@ const permissions_decorator_1 = require("../auth/permissions.decorator");
 const lessons_service_1 = require("./lessons.service");
 const create_lesson_dto_1 = require("./dto/create-lesson.dto");
 const update_lesson_dto_1 = require("./dto/update-lesson.dto");
-const create_lesson_annotation_dto_1 = require("./dto/create-lesson-annotation.dto");
-const update_lesson_annotation_dto_1 = require("./dto/update-lesson-annotation.dto");
 let UploadErrorFilter = class UploadErrorFilter {
     catch(exception, host) {
         const res = host.switchToHttp().getResponse();
@@ -97,18 +95,6 @@ let LessonsController = class LessonsController {
     }
     findStudentLesson(id, authorization, appClient) {
         return this.lessonsService.findStudentLesson(id, authorization, appClient);
-    }
-    findStudentAnnotations(lessonId, authorization) {
-        return this.lessonsService.findStudentAnnotations(lessonId, authorization);
-    }
-    createStudentAnnotation(lessonId, createLessonAnnotationDto, authorization) {
-        return this.lessonsService.createStudentAnnotation(lessonId, createLessonAnnotationDto, authorization);
-    }
-    updateStudentAnnotation(lessonId, annotationId, updateLessonAnnotationDto, authorization) {
-        return this.lessonsService.updateStudentAnnotation(lessonId, annotationId, updateLessonAnnotationDto, authorization);
-    }
-    removeStudentAnnotation(lessonId, annotationId, authorization) {
-        return this.lessonsService.removeStudentAnnotation(lessonId, annotationId, authorization);
     }
     async create(authorization, createLessonDto) {
         const actor = await this.authService.requireAdmin(authorization);
@@ -191,11 +177,28 @@ let LessonsController = class LessonsController {
     canvasGenerateStatus(auth, jobId) {
         return this.lessonsService.getCanvasGenerateJob(jobId, this.bearerToken(auth));
     }
-    canvasAdminList(auth, engineKey) {
-        return this.lessonsService.canvasAdminList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    canvasAdminStructureLessons(auth, topicId, engineKey) {
+        return this.lessonsService.canvasAdminStructureLessons(Number(topicId), this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
     }
-    canvasReorderLessons(auth, orderedIds) {
-        return this.lessonsService.canvasReorderLessons(Array.isArray(orderedIds) ? orderedIds.map(Number) : [], this.bearerToken(auth));
+    canvasAdminStructureCountsCheck(auth) {
+        return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'check' });
+    }
+    canvasAdminStructureCountsStart(auth, courseId) {
+        return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'start', courseId: courseId != null ? Number(courseId) : undefined });
+    }
+    canvasAdminStructureCountsSet(auth, body) {
+        return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), {
+            step: 'set', runId: String(body?.runId || ''), subjectIds: Array.isArray(body?.subjectIds) ? body.subjectIds.map(Number) : undefined,
+            finish: Array.isArray(body?.finish) ? body.finish : undefined,
+        });
+    }
+    canvasAdminStructureCountsFinish(auth, body) {
+        return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), {
+            step: 'finish', runId: String(body?.runId || ''), courses: Array.isArray(body?.courses) ? body.courses : undefined,
+        });
+    }
+    canvasAdminStructureMove(auth, body) {
+        return this.lessonsService.canvasAdminStructureMove(body || {}, this.bearerToken(auth));
     }
     canvasGetCourses(auth) {
         return this.lessonsService.getCourses(this.bearerToken(auth));
@@ -301,42 +304,6 @@ __decorate([
     __metadata("design:paramtypes", [Number, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "findStudentLesson", null);
-__decorate([
-    (0, common_1.Get)(':lessonId/annotations'),
-    __param(0, (0, common_1.Param)('lessonId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
-    __metadata("design:returntype", void 0)
-], LessonsController.prototype, "findStudentAnnotations", null);
-__decorate([
-    (0, common_1.Post)(':lessonId/annotations'),
-    __param(0, (0, common_1.Param)('lessonId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, create_lesson_annotation_dto_1.CreateLessonAnnotationDto, String]),
-    __metadata("design:returntype", void 0)
-], LessonsController.prototype, "createStudentAnnotation", null);
-__decorate([
-    (0, common_1.Patch)(':lessonId/annotations/:annotationId'),
-    __param(0, (0, common_1.Param)('lessonId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Param)('annotationId', common_1.ParseIntPipe)),
-    __param(2, (0, common_1.Body)()),
-    __param(3, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number, update_lesson_annotation_dto_1.UpdateLessonAnnotationDto, String]),
-    __metadata("design:returntype", void 0)
-], LessonsController.prototype, "updateStudentAnnotation", null);
-__decorate([
-    (0, common_1.Delete)(':lessonId/annotations/:annotationId'),
-    __param(0, (0, common_1.Param)('lessonId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Param)('annotationId', common_1.ParseIntPipe)),
-    __param(2, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number, String]),
-    __metadata("design:returntype", void 0)
-], LessonsController.prototype, "removeStudentAnnotation", null);
 __decorate([
     (0, common_1.Post)(),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
@@ -520,21 +487,53 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasGenerateStatus", null);
 __decorate([
-    (0, common_1.Get)('canvas/admin'),
+    (0, common_1.Get)('canvas/admin/structure'),
     __param(0, (0, common_1.Headers)('authorization')),
-    __param(1, (0, common_1.Query)('engineKey')),
+    __param(1, (0, common_1.Query)('topicId')),
+    __param(2, (0, common_1.Query)('engineKey')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
-], LessonsController.prototype, "canvasAdminList", null);
+], LessonsController.prototype, "canvasAdminStructureLessons", null);
 __decorate([
-    (0, common_1.Patch)('canvas/admin/reorder'),
+    (0, common_1.Get)('canvas/admin/structure/counts'),
     __param(0, (0, common_1.Headers)('authorization')),
-    __param(1, (0, common_1.Body)('orderedIds')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Array]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], LessonsController.prototype, "canvasReorderLessons", null);
+], LessonsController.prototype, "canvasAdminStructureCountsCheck", null);
+__decorate([
+    (0, common_1.Post)('canvas/admin/structure/counts/fix/start'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)('courseId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminStructureCountsStart", null);
+__decorate([
+    (0, common_1.Post)('canvas/admin/structure/counts/fix/set'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminStructureCountsSet", null);
+__decorate([
+    (0, common_1.Post)('canvas/admin/structure/counts/fix/finish'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminStructureCountsFinish", null);
+__decorate([
+    (0, common_1.Post)('canvas/admin/structure/move'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminStructureMove", null);
 __decorate([
     (0, common_1.Get)('canvas/hierarchy/courses'),
     __param(0, (0, common_1.Headers)('authorization')),

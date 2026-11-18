@@ -1,18 +1,18 @@
-import '../../state/saved_first.dart';
+import '../../widgets/explanation_text.dart';
 import 'package:flutter/material.dart';
+import '../../state/catalogue.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/api_client.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import '../../widgets/glass_card.dart';
-import '../dashboard/dashboard_repository.dart';
 import '../quizzes/quizzes_repository.dart';
 import 'reviewed_attempts.dart';
 import '../../data/app_error.dart';
 
 /// Per-question review of a submitted attempt — real answers + explanations
-/// (`GET /quiz-attempts/review/:attemptId`).
+/// (the recent result: `GET /quiz-attempts/recent/:quizId/review`, kept on the phone).
 class ReviewPage extends ConsumerStatefulWidget {
   final String attemptId;
   const ReviewPage({super.key, required this.attemptId});
@@ -28,22 +28,14 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   @override
   void initState() {
     super.initState();
-    // Record that the student viewed a result today so the dashboard
-    // study plan can mark the Review step as done.
     // Remember locally that these answers have been opened, so the dashboard's
     // Continue card stops offering this same review and moves to the next
-    // thing. The server has no field for this.
+    // thing. (10.17: no "result viewed" request any more — nothing needs it.)
     ReviewedAttempts.mark(int.tryParse(widget.attemptId) ?? 0);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(apiClientProvider).dio.post(
-        '/dashboard/student/activity',
-        data: {'activityType': 'result_viewed'},
-      ).then((_) {
-        if (!mounted) return;
-        freshNext('dashboard');
-        ref.invalidate(studentDashboardProvider);
-      }).catchError((_) {});
+    // 10.27 R2: already marked reviewed on this phone → the button shows done
+    // and sends nothing.
+    recentReviewedLocally(int.tryParse(widget.attemptId) ?? 0).then((done) {
+      if (done && mounted) setState(() => _reviewed = true);
     });
   }
 
@@ -51,9 +43,15 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     if (_markingBusy || _reviewed) return;
     setState(() => _markingBusy = true);
     try {
-      await ref.read(apiClientProvider).dio.post(
-            '/quiz-attempts/review/${widget.attemptId}/complete',
+      // The recent entry's "reviewed" flag (10.16; 1 statement), mirrored on
+      // the phone for the 5-result lock rule.
+      final res = await ref.read(apiClientProvider).dio.post(
+            '/quiz-attempts/recent/${widget.attemptId}/reviewed',
           );
+      final v = (res.data is Map) ? ((res.data as Map)['progressVersion'] as num?)?.toInt() : null;
+      final already = res.data is Map && (res.data as Map)['alreadyReviewed'] == true;
+      await markReviewedLocally(int.tryParse(widget.attemptId) ?? 0, v, alreadyOnServer: already);
+      ref.invalidate(studentProgressProvider);
       if (mounted) setState(() { _reviewed = true; _markingBusy = false; });
       // Invalidate results list so the badge updates when the user goes back.
       ref.invalidate(resultsListProvider);
@@ -126,16 +124,17 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _ReviewCard(index: qi, item: review.questions[qi]),
                       ),
+                    // At the end of the list (user, 2026-11-18): the student
+                    // reaches it after going through every question.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                      child: _FinishReviewButton(
+                        reviewed: _reviewed,
+                        busy: _markingBusy,
+                        onTap: _markReviewed,
+                      ),
+                    ),
                   ],
-                ),
-              ),
-              // Fixed bottom bar — never scrolls or bounces with the list.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: _FinishReviewButton(
-                  reviewed: _reviewed,
-                  busy: _markingBusy,
-                  onTap: _markReviewed,
                 ),
               ),
             ],
@@ -297,7 +296,7 @@ class _ReviewCard extends StatelessWidget {
                       size: 17, color: c.accent),
                   const SizedBox(width: 9),
                   Expanded(
-                    child: Text(q.explanation,
+                    child: ExplanationText(q.explanation, dotColor: c.primary,
                         style: TextStyle(
                             fontSize: 13,
                             height: 1.45,

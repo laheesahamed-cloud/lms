@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  adminListDrugs, adminDeleteDrug, adminToggleDrug,
+  adminListDrugs, adminListDrugIds, adminDeleteDrug, adminToggleDrug,
   adminGetDrugSettings, adminUpdateDrugSettings, adminImportDrugs,
   adminGetDrug, adminUpdateDrug, adminAiLookupDrug,
 } from '../../../../shared/api/drugs.api.js';
@@ -31,14 +31,18 @@ export function AdminDrugsPage() {
   const [overwrite, setOverwrite]   = useState(false);
   const [run, setRun]               = useState(null); // { names: [], index, done, failed, current, waiting, finished, stopped }
   const stopRef = useRef(false);
+  // Where each page starts (no search): page N continues after page N-1's last drug.
+  const pageStartRef = useRef({ 1: null });
 
   const load = useCallback(async (p = page, q = search) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await adminListDrugs(p, LIMIT, q);
-      setDrugs(res.drugs);
-      setTotal(res.total);
+      const res = await adminListDrugs(p, LIMIT, q, q ? null : pageStartRef.current[p] || null);
+      const rows = Array.isArray(res.drugs) ? res.drugs : [];
+      setDrugs(rows);
+      if (res.total !== null && res.total !== undefined) setTotal(res.total);
+      if (!q && rows.length) pageStartRef.current[p + 1] = { id: rows[rows.length - 1].id, name: rows[rows.length - 1].name };
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -122,8 +126,8 @@ export function AdminDrugsPage() {
   async function selectEverything() {
     setSelectingAll(true);
     try {
-      const res = await adminListDrugs(1, 10000, search);
-      setSelected(new Set(res.drugs.map((d) => d.id)));
+      const res = await adminListDrugIds(search);
+      setSelected(new Set(Array.isArray(res.ids) ? res.ids : []));
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {

@@ -168,7 +168,8 @@ let AuscultationService = class AuscultationService {
         return rows;
     }
     async getTopic(id) {
-        const [rows] = await this.db.execute(`SELECT * FROM auscultation_topics WHERE id = ?`, [id]);
+        const [rows] = await this.db.execute(`SELECT id, category, title, description, position, is_active, created_at, updated_at
+       FROM auscultation_topics WHERE id = ?`, [id]);
         return rows[0] ?? null;
     }
     async createTopic(data) {

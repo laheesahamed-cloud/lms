@@ -74,6 +74,24 @@ export async function loginWithApple(payload) {
   return response.data;
 }
 
+/**
+ * Page load = the app's start-up request (10.22): the account, a signed access
+ * token, the Study Hub top with course cards, the student's progress and their
+ * results — in 3 statements, where auth/me + the boot batch took ~20. Uses the
+ * session cookie (never the access token).
+ */
+export async function fetchAppStart(options = {}) {
+  const response = await apiClient.post('/app/start', { progressFormat: 'bits', courses: true }, {
+    __skipNetworkActivity: Boolean(options.silent),
+    __suppressServerStatus: Boolean(options.silent),
+    __suppressUnauthorizedSessionNotice: Boolean(options.silent),
+    __skipTimeoutRetry: Boolean(options.silent),
+    __skipApiBaseFallback: Boolean(options.silent),
+    timeout: options.timeout ?? 8000,
+  });
+  return response.data;
+}
+
 export async function fetchCurrentUser(options = {}) {
   const response = await apiClient.get('/auth/me', {
     __skipNetworkActivity: Boolean(options.silent),

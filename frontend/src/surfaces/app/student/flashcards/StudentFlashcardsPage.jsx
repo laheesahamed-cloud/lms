@@ -417,7 +417,7 @@ function DeckListView({ onStart }) {
                 <button type="button" className="xfc-primary" onClick={load}>Try again</button>
               </div>
             ) : !data.decks.length ? (
-              <div className="xfc-empty"><h2>No flashcards yet</h2><p>Flashcards appear here once your lessons have approved cards.</p></div>
+              <div className="xfc-empty"><h2>Flashcards are in the app</h2><p>Flashcard decks work in the Xyndrome app, with spaced review that remembers what you need to see next.</p></div>
             ) : (
               <div className="xfc-deck-list">
                 {data.decks.map((node) => (

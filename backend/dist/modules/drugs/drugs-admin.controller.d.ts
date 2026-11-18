@@ -16,9 +16,11 @@ export declare class DrugsAdminController {
     }, auth?: string): Promise<{
         ok: boolean;
     }>;
-    list(page?: string, limit?: string, search?: string, auth?: string): Promise<{
+    list(page?: string, limit?: string, search?: string, auth?: string, afterId?: string, afterName?: string, idsOnly?: string): Promise<{
+        ids: number[];
+    } | {
         drugs: import("mysql2").RowDataPacket[];
-        total: number;
+        total: number | null;
         page: number;
         limit: number;
     }>;

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { CreatePlanDto } from './dto/create-plan.dto';
@@ -14,7 +14,9 @@ export class PlansController {
     private readonly authService: AuthService
   ) {}
 
+  // Same answer for every visitor: browsers and a CDN may keep it for a minute.
   @Get()
+  @Header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
   findActive() {
     return this.plansService.findActive();
   }

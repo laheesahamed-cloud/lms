@@ -1,3 +1,4 @@
+import { Notice, NoticesService } from '../notices/notices.service';
 import { OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'mysql2/promise';
@@ -20,10 +21,13 @@ export declare class PushNotificationsService implements OnModuleDestroy {
     private readonly authService;
     private readonly configService;
     private readonly settingsService;
+    private readonly notices;
     private readonly logger;
     private readonly nativePushSender;
     private readonly pendingDebounced;
-    constructor(db: Pool, authService: AuthService, configService: ConfigService, settingsService: SettingsService);
+    private readonly spreadTimers;
+    private readonly runningBatches;
+    constructor(db: Pool, authService: AuthService, configService: ConfigService, settingsService: SettingsService, notices: NoticesService);
     getPublicConfig(): {
         enabled: boolean;
         publicKey: string;
@@ -31,7 +35,7 @@ export declare class PushNotificationsService implements OnModuleDestroy {
     getSettings(authorization?: string): Promise<{
         supported: boolean;
         vapidEnabled: boolean;
-        deliveryMode: DeliveryMode;
+        deliveryMode: "outside";
         outsideEnabled: boolean;
         nativeEnabled: boolean;
     }>;
@@ -70,7 +74,7 @@ export declare class PushNotificationsService implements OnModuleDestroy {
         ok: boolean;
         reason: string;
     }>;
-    unsubscribe(authorization: string | undefined, input: any): Promise<{
+    unsubscribe(authorization: string | undefined, _input: any): Promise<{
         ok: boolean;
     }>;
     saveNativeToken(authorization: string | undefined, input: any): Promise<{
@@ -94,16 +98,25 @@ export declare class PushNotificationsService implements OnModuleDestroy {
         body: string;
         targetRole: 'all' | 'student' | 'admin';
         url?: string;
+        notice?: Notice | null;
     }): Promise<{
         ok: boolean;
         sent: number;
         failed: number;
         reason: string;
+        queued?: undefined;
+    } | {
+        ok: boolean;
+        sent: number;
+        failed: number;
+        queued: number;
+        reason?: undefined;
     } | {
         ok: boolean;
         sent: number;
         failed: number;
         reason?: undefined;
+        queued?: undefined;
     }>;
     notifyStudentsOfNewContent(payload: {
         title: string;
@@ -114,11 +127,19 @@ export declare class PushNotificationsService implements OnModuleDestroy {
         sent: number;
         failed: number;
         reason: string;
+        queued?: undefined;
+    } | {
+        ok: boolean;
+        sent: number;
+        failed: number;
+        queued: number;
+        reason?: undefined;
     } | {
         ok: boolean;
         sent: number;
         failed: number;
         reason?: undefined;
+        queued?: undefined;
     }>;
     notifyStudentsOfNewContentDebounced(key: string, buildPayload: (count: number) => {
         title: string;
@@ -126,21 +147,38 @@ export declare class PushNotificationsService implements OnModuleDestroy {
         url?: string;
     }, delayMs?: number): void;
     onModuleDestroy(): void;
+    waitForPushIdle(): Promise<void>;
     sendToAudience(payload: PushPayload, audience?: {
         targetRole?: string;
         userIds?: number[];
+    }, options?: {
+        spread?: boolean;
     }): Promise<{
         ok: boolean;
         sent: number;
         failed: number;
         reason: string;
+        queued?: undefined;
+    } | {
+        ok: boolean;
+        sent: number;
+        failed: number;
+        queued: number;
+        reason?: undefined;
     } | {
         ok: boolean;
         sent: number;
         failed: number;
         reason?: undefined;
+        queued?: undefined;
     }>;
-    private sendNativeToAudience;
+    private static readonly SEND_CONCURRENCY;
+    private static readonly SPREAD_SLOTS;
+    private static readonly MIN_SPREAD_BATCH;
+    private spreadWindowMs;
+    private scheduleSpread;
+    private loadAudienceTokens;
+    private sendBatch;
     private normalizePayload;
     private withDefaults;
     private inferAndroidChannelId;
@@ -151,8 +189,8 @@ export declare class PushNotificationsService implements OnModuleDestroy {
     private normalizeNativePlatform;
     private safeInternalPath;
     private hashEndpoint;
-    private markNativeTokenFailure;
+    private markNativeTokenFailures;
     private hasEnabledNativeToken;
-    private createInAppAnnouncement;
+    private withNotice;
 }
 export {};

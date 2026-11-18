@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.splitLongBullet = splitLongBullet;
 exports.scrubPlainTextFieldsForPhone = scrubPlainTextFieldsForPhone;
 exports.calmTextForPhone = calmTextForPhone;
+exports.compactForPhone = compactForPhone;
 const mobile_table_layout_1 = require("./mobile-table-layout");
 const LONG_BULLET = 110;
 const MAX_LINES_PER_CARD = 8;
@@ -126,5 +127,20 @@ function calmTextForPhone(noteData) {
     if (Array.isArray(data.sections))
         next.sections = calmSections(data.sections);
     return scrubPlainTextFieldsForPhone(next);
+}
+function compactForPhone(value) {
+    if (Array.isArray(value))
+        return value.map(compactForPhone);
+    if (!value || typeof value !== 'object')
+        return value;
+    const out = {};
+    for (const [key, v] of Object.entries(value)) {
+        if (key === 'visual_style')
+            continue;
+        if (v === '' || v === null || v === undefined || (Array.isArray(v) && v.length === 0))
+            continue;
+        out[key] = compactForPhone(v);
+    }
+    return out;
 }
 //# sourceMappingURL=mobile-text-layout.js.map

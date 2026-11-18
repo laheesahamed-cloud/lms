@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createQuiz, fetchQuiz, fetchQuizzesMeta, updateQuiz } from '../../../../shared/api/quizzes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { bulkUpdateQuestionKeywords, fetchQuestionCounts, fetchQuestions } from '../../../../shared/api/questions.api.js';
+import { fetchQuestionCounts, fetchQuestions } from '../../../../shared/api/questions.api.js';
 import {
   generateQuestionApproach,
   generateQuestionExplanation,
@@ -29,7 +29,7 @@ import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 const defaultForm = {
   adminName: '',
   studentTitle: '',
-  displayTitleMode: 'number',
+  displayTitleMode: 'title',
   quizNumber: null,
   quizDescription: '',
   courseId: '',
@@ -49,8 +49,7 @@ const defaultForm = {
   examModeOnly: false,
   isGeneral: false,
   subtopic: '',
-  blueprint: { sections: [] },
-  randomizationMode: 'static',
+  blueprint: { sections: [] }, // Paper sections helper (not saved since 10.54)
   questionIds: [],
 };
 
@@ -63,7 +62,6 @@ const defaultFilters = {
   category: '',
   questionType: '',
   questionUsage: 'all',
-  keywords: '',
   search: '',
 };
 
@@ -258,7 +256,6 @@ function normalizeQuizMeta(payload = {}) {
     })).filter((paper) => paper.id),
     categories: Array.isArray(payload.categories) ? payload.categories : [],
     questionTypes: Array.isArray(payload.questionTypes) ? payload.questionTypes : [],
-    keywordSuggestions: Array.isArray(payload.keywordSuggestions) ? payload.keywordSuggestions : [],
     questions: rawQuestions.map((question) => ({
       id: toId(question.id),
       courseId: toId(question.courseId ?? question.course_id),
@@ -270,7 +267,6 @@ function normalizeQuizMeta(payload = {}) {
       category: String(question.category ?? question.question_category ?? '').trim(),
       questionType: String(question.questionType ?? question.question_type ?? '').trim(),
       questionText: String(question.questionText ?? question.question_text ?? '').trim(),
-      keywordsText: String(question.keywordsText ?? question.keywords_text ?? '').trim(),
       usageCount: Number(question.usageCount ?? question.quizCount ?? question.quiz_count ?? question.usage_count ?? 0),
       usedInAnyQuiz:
         usedQuestionIds.has(toId(question.id)) ||
@@ -298,23 +294,16 @@ function mergeQuestionRowsIntoMeta(current, rows = []) {
 
   const categorySet = new Set(current.categories || []);
   const typeSet = new Set(current.questionTypes || []);
-  const keywordSet = new Set(current.keywordSuggestions || []);
 
   incoming.forEach((question) => {
     if (question.category) categorySet.add(question.category);
     if (question.questionType) typeSet.add(question.questionType);
-    String(question.keywordsText || '')
-      .split(',')
-      .map((keyword) => keyword.trim())
-      .filter(Boolean)
-      .forEach((keyword) => keywordSet.add(keyword));
   });
 
   return {
     ...current,
     categories: Array.from(categorySet).filter(Boolean).sort((left, right) => left.localeCompare(right)),
     questionTypes: Array.from(typeSet).filter(Boolean).sort((left, right) => left.localeCompare(right)),
-    keywordSuggestions: Array.from(keywordSet).filter(Boolean).sort((left, right) => left.localeCompare(right)),
     questions: Array.from(byId.values()),
   };
 }
@@ -397,7 +386,6 @@ function buildQuestionPoolParams(filters, options = {}) {
   if (!loadingIds && filters.paperId) params.paperId = filters.paperId;
   if (!loadingIds && filters.category) params.category = filters.category;
   if (!loadingIds && filters.questionType) params.type = filters.questionType;
-  if (!loadingIds && filters.keywords?.trim()) params.keywords = filters.keywords.trim();
   if (!loadingIds && (filters.questionUsage === 'unused' || filters.questionUsage === 'used')) params.usage = filters.questionUsage;
   if (options.random) params.random = '1';
   if (loadingIds) {
@@ -482,9 +470,6 @@ const QuestionListCard = memo(function QuestionListCard({ question, selected, di
             <span className={qb.usageText}>Not used in any assessment yet</span>
           )}
         </div>
-        {question.keywordsText ? (
-          <div className={qb.questionMeta}>Tags: {question.keywordsText}</div>
-        ) : null}
       </div>
       <button className={cx(ui.secondaryButton, qb.transfer, selected && qb.transferSelected)}
         type="button"
@@ -517,8 +502,7 @@ function resolveQuizBulkDefaults(form, fallbackType = '') {
     lessonId: form.isGeneral ? '' : form.lessonId || '',
     category: form.category || 'mock',
     questionType: fallbackType || '',
-    paperId: form.paperId || '',
-    keywordsText: form.collectionTags || '',
+    paperId: '',
   };
 }
 
@@ -542,7 +526,6 @@ function getHierarchyOptions(meta, question, defaults) {
 
 function BulkAddQuestionsPanel({
   meta,
-  form,
   defaults,
   onDefaultsChange,
   rawInput,
@@ -602,7 +585,6 @@ function BulkAddQuestionsPanel({
     return [
       question.questionText,
       question.explanation,
-      question.keywordsText,
       question.sourceSnippet,
     ].join(' ').toLowerCase().includes(needle);
   });
@@ -880,15 +862,6 @@ function BulkAddQuestionsPanel({
               {meta.papers.map((paper) => <option key={paper.id} value={paper.id}>{paper.paperTitle}</option>)}
             </select>
           </label>
-          <label className={ui.formLabel}>
-            Global Keywords / Tags
-            <input className={ui.input}
-              name="keywordsText"
-              value={defaults.keywordsText}
-              onChange={handleDefaultChange}
-              placeholder={form.collectionTags || 'cardiology, revision'}
-            />
-          </label>
         </div>
       </div>
 
@@ -1084,14 +1057,6 @@ function BulkAddQuestionsPanel({
                       {meta.papers.map((paper) => <option key={paper.id} value={paper.id}>{paper.paperTitle}</option>)}
                     </select>
                   </label>
-                  <label className={ui.formLabel}>
-                    Keywords / Tags
-                    <input className={ui.input}
-                      value={currentQuestion.keywordsText}
-                      onChange={(event) => patchCurrent({ keywordsText: event.target.value })}
-                      placeholder={defaults.keywordsText || 'cardiology, revision'}
-                    />
-                  </label>
                 </div>
 
                 <div className="grid gap-3">
@@ -1173,7 +1138,6 @@ export function QuizBuilderPage() {
     papers: [],
     categories: [],
     questionTypes: [],
-    keywordSuggestions: [],
     questions: [],
   });
   const [form, setForm] = useState(defaultForm);
@@ -1185,7 +1149,6 @@ export function QuizBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [drawingBlueprint, setDrawingBlueprint] = useState(false);
   const [blueprintCounts, setBlueprintCounts] = useState({});
-  const [applyingTags, setApplyingTags] = useState(false);
   const [error, setError] = useState('');
   const [questionTab, setQuestionTab] = useState('existing');
   const [blueprintToast, setBlueprintToast] = useState('');
@@ -1250,9 +1213,10 @@ export function QuizBuilderPage() {
 
         if (quizPayload) {
           const nextForm = {
-            adminName: quizPayload.adminName || quizPayload.quizTitle || '',
-            studentTitle: quizPayload.studentTitle || quizPayload.quizTitle || '',
-            displayTitleMode: quizPayload.displayTitleMode === 'title' ? 'title' : 'number',
+            // One name per quiz (OPTIMIZE 10.25).
+            adminName: quizPayload.studentTitle || quizPayload.quizTitle || quizPayload.adminName || '',
+            studentTitle: quizPayload.studentTitle || quizPayload.quizTitle || quizPayload.adminName || '',
+            displayTitleMode: 'title',
             quizNumber: quizPayload.quizNumber ?? null,
             quizDescription: quizPayload.quizDescription || '',
             courseId: String(quizPayload.courseId || ''),
@@ -1273,7 +1237,6 @@ export function QuizBuilderPage() {
             isGeneral: quizPayload.isGeneral === 1,
             subtopic: quizPayload.subtopic || '',
             blueprint: normalizeBlueprint(quizPayload.blueprint),
-            randomizationMode: quizPayload.randomizationMode === 'dynamic' ? 'dynamic' : 'static',
             questionIds: quizPayload.questionIds || [],
           };
 
@@ -1378,7 +1341,6 @@ export function QuizBuilderPage() {
       loadQuestionPoolRef.current?.({
         category: filters.category,
         courseId: filters.courseId,
-        keywords: filters.keywords,
         lessonId: filters.lessonId,
         paperId: filters.paperId,
         questionType: filters.questionType,
@@ -1392,7 +1354,6 @@ export function QuizBuilderPage() {
   }, [
     filters.category,
     filters.courseId,
-    filters.keywords,
     filters.lessonId,
     filters.paperId,
     filters.questionType,
@@ -1480,7 +1441,6 @@ export function QuizBuilderPage() {
 
   const filteredQuestions = useMemo(() => {
     const searchNeedle = filters.search.trim().toLowerCase();
-    const keywordNeedle = filters.keywords.trim().toLowerCase();
 
     return meta.questions.filter((question) => {
       if (visibleQuestionIdSet && !visibleQuestionIdSet.has(question.id)) return false;
@@ -1499,7 +1459,6 @@ export function QuizBuilderPage() {
       if (filters.questionUsage === 'used' && !usedForUsageFilter) return false;
       if (filters.questionUsage === 'used_in_this_quiz' && !selectedInCurrentQuiz) return false;
       if (filters.questionUsage === 'not_in_this_quiz' && selectedInCurrentQuiz) return false;
-      if (keywordNeedle && !String(question.keywordsText || '').toLowerCase().includes(keywordNeedle)) return false;
 
       if (searchNeedle) {
         const haystack = [
@@ -1509,7 +1468,6 @@ export function QuizBuilderPage() {
           question.topicName,
           question.lessonTitle,
           question.paperTitle,
-          question.keywordsText,
         ]
           .filter(Boolean)
           .join(' ')
@@ -1605,23 +1563,12 @@ export function QuizBuilderPage() {
     loading,
   ]);
 
-  const isDynamicQuiz = form.randomizationMode === 'dynamic';
-  const visibleQuestionTabs = useMemo(
-    () => (isDynamicQuiz ? quizQuestionTabs.filter((tab) => tab.id === 'bulk') : quizQuestionTabs),
-    [isDynamicQuiz]
-  );
-  const effectiveQuestionCount = isDynamicQuiz ? blueprintTotals.targetCount : selectedQuestions.length;
-  const totalMarks = effectiveQuestionCount;
-
-  useEffect(() => {
-    if (isDynamicQuiz && questionTab !== 'bulk') {
-      setQuestionTab('bulk');
-    }
-  }, [isDynamicQuiz, questionTab]);
+  // 10.54: every set is a fixed list (the random-set mode was removed).
+  const visibleQuestionTabs = quizQuestionTabs;
+  const totalMarks = selectedQuestions.length;
 
   function buildQuizPayload(nextForm = form) {
     const isGeneral = nextForm.isGeneral || !nextForm.subjectId;
-    const randomizationMode = nextForm.randomizationMode === 'dynamic' ? 'dynamic' : 'static';
     return {
       courseId: Number(nextForm.courseId),
       topicId: isGeneral ? null : nextForm.subjectId ? Number(nextForm.subjectId) : null,
@@ -1634,19 +1581,18 @@ export function QuizBuilderPage() {
       subtopic: nextForm.subtopic || '',
       isGeneral: isGeneral ? 1 : 0,
       examModeOnly: nextForm.examModeOnly ? 1 : 0,
-      adminName: nextForm.adminName.trim(),
+      // One name per quiz (10.25): the same name for admins and students.
+      adminName: nextForm.studentTitle.trim(),
       studentTitle: nextForm.studentTitle.trim(),
-      displayTitleMode: nextForm.displayTitleMode === 'title' ? 'title' : 'number',
+      displayTitleMode: 'title',
       quizTitle: nextForm.studentTitle.trim(),
       quizDescription: nextForm.quizDescription,
-      blueprint: normalizeBlueprint(nextForm.blueprint),
-      randomizationMode,
       timeLimit: Number(nextForm.timeLimit),
       hideTimeLimit: nextForm.hideTimeLimit ? 1 : 0,
       passingMarks: Number(nextForm.passingMarks),
       hidePassingMarks: nextForm.hidePassingMarks ? 1 : 0,
       status: normalizeStatusForApi(nextForm.status),
-      questionIds: randomizationMode === 'dynamic' ? [] : nextForm.questionIds,
+      questionIds: nextForm.questionIds,
     };
   }
 
@@ -1686,7 +1632,6 @@ export function QuizBuilderPage() {
       category: resolved.category || '',
       questionType: resolved.questionType || '',
       questionText: question.questionText || '',
-      keywordsText: resolved.keywordsText || '',
       usageCount: isEditing ? 1 : 0,
       usedInAnyQuiz: isEditing,
       courseTitle: getMetaLabel(meta.courses, resolved.courseId, 'courseTitle'),
@@ -1721,10 +1666,7 @@ export function QuizBuilderPage() {
     if (autoSavingRef.current || saving) return;
     if (form.status === 'active') return;
     if (!String(form.title || '').trim() || !form.courseId) return;
-    const hasContent = form.randomizationMode === 'dynamic'
-      ? blueprintTotals.targetCount > 0
-      : form.questionIds.length > 0;
-    if (!hasContent) return;
+    if (form.questionIds.length === 0) return;
 
     autoSavingRef.current = true;
     try {
@@ -1776,7 +1718,6 @@ export function QuizBuilderPage() {
 
   async function syncExistingQuizQuestionLinks(nextQuestionIds) {
     if (!isEditing) return;
-    if (form.randomizationMode === 'dynamic') return;
     await updateQuiz(Number(quizId), buildQuizPayload({ ...form, questionIds: nextQuestionIds }));
   }
 
@@ -1841,21 +1782,10 @@ export function QuizBuilderPage() {
     if (name === 'examModeOnly') {
       next.quizMode = checked ? 'exam_only' : 'standard';
     }
-    if (name === 'prioritizeQuizNumber') {
-      next.displayTitleMode = checked ? 'number' : 'title';
-      if (!checked && form.quizNumber) {
-        next._quizNumberWarnOnUncheck = true;
-      } else {
-        next._quizNumberWarnOnUncheck = false;
-      }
-    }
     if (name === 'isGeneral' && checked) {
       next.subjectId = '';
       next.topicId = '';
       next.lessonId = '';
-    }
-    if (name === 'randomizationMode' && value === 'dynamic') {
-      setFilters((current) => ({ ...current, questionUsage: 'all' }));
     }
 
     setForm(next);
@@ -2037,11 +1967,6 @@ export function QuizBuilderPage() {
   }
 
   async function drawAllMissingBlueprintSections() {
-    if (form.randomizationMode === 'dynamic') {
-      setBlueprintToast('Dynamic mode saves paper rules. It does not attach a fixed question list.');
-      return;
-    }
-
     const drawableSections = blueprintSections.filter((section) => Number(section.targetCount || 0) > 0);
     if (!drawableSections.length) {
       setBlueprintToast('Add at least one paper section with a target count.');
@@ -2382,7 +2307,6 @@ export function QuizBuilderPage() {
         category: question.category || '',
         questionType: question.questionType || '',
         paperId: question.paperId || '',
-        keywordsText: question.keywordsText || '',
       }));
       setBulkQuestions(parsed);
       setBulkCurrentIndex(0);
@@ -2657,10 +2581,6 @@ export function QuizBuilderPage() {
       questions: current.questions.some((item) => item.id === savedId)
         ? current.questions
         : [...current.questions, toMetaQuestion(question, resolved, savedId)],
-      keywordSuggestions: Array.from(new Set([
-        ...current.keywordSuggestions,
-        ...String(resolved.keywordsText || '').split(',').map((keyword) => keyword.trim()).filter(Boolean),
-      ])).sort((left, right) => left.localeCompare(right)),
     }));
 
     await syncExistingQuizQuestionLinks(nextQuestionIds);
@@ -2763,65 +2683,6 @@ export function QuizBuilderPage() {
     }
   }
 
-  async function applyCollectionTagsToSelected() {
-    if (form.questionIds.length === 0) {
-      setError('Select at least one question before applying collection tags.');
-      return;
-    }
-
-    if (!form.collectionTags.trim()) {
-      setError('Enter at least one collection tag before applying it to selected questions.');
-      return;
-    }
-
-    setApplyingTags(true);
-    setError('');
-
-    try {
-      await bulkUpdateQuestionKeywords({
-        questionIds: form.questionIds,
-        keywordsText: form.collectionTags,
-        mode: 'append',
-      });
-
-      setMeta((current) => ({
-        ...current,
-        keywordSuggestions: Array.from(new Set([
-          ...current.keywordSuggestions,
-          ...form.collectionTags
-            .split(',')
-            .map((keyword) => keyword.trim())
-            .filter(Boolean),
-        ])).sort((left, right) => left.localeCompare(right)),
-        questions: current.questions.map((question) => {
-          if (!form.questionIds.includes(question.id)) {
-            return question;
-          }
-
-          const mergedKeywords = Array.from(new Set([
-            ...String(question.keywordsText || '')
-              .split(',')
-              .map((keyword) => keyword.trim())
-              .filter(Boolean),
-            ...form.collectionTags
-              .split(',')
-              .map((keyword) => keyword.trim())
-              .filter(Boolean),
-          ]));
-
-          return {
-            ...question,
-            keywordsText: mergedKeywords.join(', '),
-          };
-        }),
-      }));
-    } catch (applyError) {
-      setError(getErrorMessage(applyError, 'Unable to apply collection tags'));
-    } finally {
-      setApplyingTags(false);
-    }
-  }
-
   /**
    * Leaving mid-run loses the generation that is already paid for and in
    * flight, and leaves the queue half-filled. This catches a refresh, a tab
@@ -2846,19 +2707,7 @@ export function QuizBuilderPage() {
     setError('');
 
     try {
-      if (form.randomizationMode === 'dynamic') {
-        if (blueprintTotals.targetCount <= 0) {
-          throw new Error('Dynamic randomized assessments need at least one paper section with a target count.');
-        }
-        const shortSection = blueprintSections.find((section) => {
-          const counts = blueprintCounts[section.id];
-          return counts && counts.total !== null && Number(counts.total || 0) < Number(section.targetCount || 0);
-        });
-        if (shortSection) {
-          const counts = blueprintCounts[shortSection.id];
-          throw new Error(`${shortSection.title || 'A paper section'} only has ${Number(counts?.total || 0)} matching active question(s). Increase the pool or lower the target.`);
-        }
-      } else if (form.questionIds.length === 0) {
+      if (form.questionIds.length === 0) {
         throw new Error('Static assessments need at least one selected question.');
       }
 
@@ -2903,49 +2752,17 @@ export function QuizBuilderPage() {
             <BuilderSection
               eyebrow="Details"
               title="Assessment Details"
-              description="Set the internal name, student-facing title, category, and publishing status."
+              description="Set the name, category, and publishing status."
               actions={(
                 <button type="button" className={ui.secondaryAction} onClick={() => navigate('/quizzes')}>
                   Back to Library
                 </button>
               )}
             >
-              <div className={qb.gridTwo}>
-                <label className={ui.formLabel}>
-                  Admin Name
-                  <input className={ui.input} name="adminName" value={form.adminName} onChange={handleFormChange} required />
-                  <FieldNote>Only admins see this</FieldNote>
-                </label>
-
-                <label className={ui.formLabel}>
-                  Student Title
-                  <input className={ui.input} name="studentTitle" value={form.studentTitle} onChange={handleFormChange} required />
-                  <FieldNote>Students see this title</FieldNote>
-                </label>
-              </div>
-
-              <label className={qb.checkbox}>
-                <input className="shrink-0" type="checkbox" name="prioritizeQuizNumber" checked={form.displayTitleMode !== 'title'} onChange={handleFormChange} />
-                <span>
-                  Prioritize Quiz number in the student list
-                  <FieldNote>
-                    {form.displayTitleMode !== 'title'
-                      ? form.quizNumber
-                        ? `Students see Quiz ${Number(form.quizNumber)} in the list. Number is locked.`
-                        : 'A sequential number will be auto-assigned when saved.'
-                      : 'Students see the assessment title as the main label.'}
-                  </FieldNote>
-                </span>
-              </label>
-              {form._quizNumberWarnOnUncheck ? (
-                <div className="rounded-xl border border-brand-warning/34 bg-[var(--color-warning-light,#fffbeb)] px-4 py-3 text-sm text-brand-warning" role="alert">
-                  This quiz was displayed as <strong>Quiz {Number(form.quizNumber)}</strong> to students. Update the <strong>Student Title</strong> above to describe the content before saving.
-                </div>
-              ) : null}
-
               <label className={ui.formLabel}>
-                Description
-                <textarea className={ui.textarea} name="quizDescription" rows="3" value={form.quizDescription} onChange={handleFormChange} />
+                Name
+                <input className={ui.input} name="studentTitle" value={form.studentTitle} onChange={handleFormChange} required />
+                <FieldNote>Admins and students see this name</FieldNote>
               </label>
 
               <div className={qb.gridThree}>
@@ -2966,39 +2783,8 @@ export function QuizBuilderPage() {
                     ))}
                   </select>
                 </label>
-
-                <label className={ui.formLabel}>
-                  Attempt Type
-                  <select className={ui.input} name="quizMode" value={form.quizMode} onChange={handleFormChange}>
-                    <option value="standard">Practice + Exam</option>
-                    <option value="exam_only">Exam Mode Only</option>
-                  </select>
-                </label>
               </div>
 
-              <div className={qb.gridTwo}>
-                <label className={ui.formLabel}>
-                  Paper
-                  <select className={ui.input} name="paperId" value={form.paperId} onChange={handleFormChange}>
-                    <option value="">All papers</option>
-                    {meta.papers.map((paper) => (
-                      <option key={paper.id} value={paper.id}>{paper.paperTitle}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className={ui.formLabel}>
-                  Collection Tags
-                  <input className={ui.input}
-                    list="quiz-keyword-suggestions"
-                    name="collectionTags"
-                    value={form.collectionTags}
-                    onChange={handleFormChange}
-                    placeholder="cardiology, practice-set-1"
-                  />
-                  <FieldNote>Optional tags to reuse across the question bank</FieldNote>
-                </label>
-              </div>
             </BuilderSection>
 
             <BuilderSection
@@ -3055,21 +2841,6 @@ export function QuizBuilderPage() {
                     ))}
                   </select>
                 </label>
-
-                <label className={ui.formLabel}>
-                  Lesson
-                  <select className={ui.input}
-                    name="lessonId"
-                    value={form.lessonId}
-                    onChange={handleFormChange}
-                    disabled={!form.subjectId || form.isGeneral}
-                  >
-                    <option value="">{form.subjectId ? 'All lessons' : 'Select subject first'}</option>
-                    {visibleLessons.map((lesson) => (
-                      <option key={lesson.id} value={lesson.id}>{lesson.lessonTitle}</option>
-                    ))}
-                  </select>
-                </label>
               </div>
 
               <div className={qb.gridTwo}>
@@ -3080,61 +2851,6 @@ export function QuizBuilderPage() {
                     <FieldNote>Use this when the assessment should cover the entire course without a subject-specific label.</FieldNote>
                   </span>
                 </label>
-
-                <label className={ui.formLabel}>
-                  Optional Internal Group Label
-                  <input className={ui.input}
-                    name="subtopic"
-                    value={form.subtopic}
-                    onChange={handleFormChange}
-                    placeholder="Batch 01, Revision Set A"
-                  />
-                  <FieldNote>Admin-only grouping label for extra organization</FieldNote>
-                </label>
-              </div>
-            </BuilderSection>
-
-            <BuilderSection
-              eyebrow="Paper Type"
-              title="Question Delivery"
-              description="Choose whether this assessment saves one fixed paper or generates a randomized paper at start."
-            >
-              <div className={qb.modeGrid}>
-                <label className={cx(qb.modeOption, form.randomizationMode !== 'dynamic' && qb.modeOptionActive)}>
-                  <input
-                    className="shrink-0"
-                    type="radio"
-                    name="randomizationMode"
-                    value="static"
-                    checked={form.randomizationMode !== 'dynamic'}
-                    onChange={handleFormChange}
-                  />
-                  <span>
-                    Static fixed paper
-                    <FieldNote>Admin draws or selects the exact questions now. Every student receives the same saved question list.</FieldNote>
-                  </span>
-                </label>
-
-                <label className={cx(qb.modeOption, form.randomizationMode === 'dynamic' && qb.modeOptionActive)}>
-                  <input
-                    className="shrink-0"
-                    type="radio"
-                    name="randomizationMode"
-                    value="dynamic"
-                    checked={form.randomizationMode === 'dynamic'}
-                    onChange={handleFormChange}
-                  />
-                  <span>
-                    Dynamic randomized paper
-                    <FieldNote>Premium feature. The blueprint is saved, then each student gets a frozen random set at start.</FieldNote>
-                  </span>
-                </label>
-              </div>
-
-              <div className={qb.infoBox}>
-                {isDynamicQuiz
-                  ? 'Dynamic mode saves section targets only. A frozen random paper is generated when the student starts.'
-                  : 'Static mode saves the exact selected question IDs. Every student receives the same paper.'}
               </div>
             </BuilderSection>
 
@@ -3161,21 +2877,17 @@ export function QuizBuilderPage() {
             <BuilderSection
               eyebrow="Paper Rules"
               title="Paper Sections"
-              description={isDynamicQuiz
-                ? 'Create the randomized mix that will be used when each student starts.'
-                : 'Create a target mix, then draw matching questions into the fixed paper.'}
+              description="Create a target mix, then draw matching questions into the fixed paper."
               actions={(
                 <>
-                  {!isDynamicQuiz ? (
-                    <button
-                      type="button"
-                      className={ui.secondaryAction}
-                      onClick={drawAllMissingBlueprintSections}
-                      disabled={drawingBlueprint || questionLoading || blueprintSections.length === 0}
-                    >
-                      {drawingBlueprint ? 'Drawing...' : 'Draw Missing'}
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className={ui.secondaryAction}
+                    onClick={drawAllMissingBlueprintSections}
+                    disabled={drawingBlueprint || questionLoading || blueprintSections.length === 0}
+                  >
+                    {drawingBlueprint ? 'Drawing...' : 'Draw Missing'}
+                  </button>
                   <button type="button" className={ui.primaryAction} onClick={addBlueprintSection}>
                     Add Paper Section
                   </button>
@@ -3188,21 +2900,19 @@ export function QuizBuilderPage() {
                 <article className={qb.summaryCard}>
                   <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-soft">Sections</span>
                   <strong className="text-[22px] leading-none text-ink-strong">{blueprintSections.length}</strong>
-                  <p className="m-0 text-[12.5px] text-ink-soft">Saved with this assessment.</p>
+                  <p className="m-0 text-[12.5px] text-ink-soft">A drawing helper for this page; not saved.</p>
                 </article>
                 <article className={cx(qb.summaryCard, qb.summaryAccent)}>
                   <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-soft">
-                    {isDynamicQuiz ? 'Paper size' : 'Target coverage'}
+                    Target coverage
                   </span>
                   <strong className="text-[22px] leading-none text-ink-strong">
-                    {isDynamicQuiz ? blueprintTotals.targetCount : `${blueprintTotals.selectedCount}/${blueprintTotals.targetCount}`}
+                    {`${blueprintTotals.selectedCount}/${blueprintTotals.targetCount}`}
                   </strong>
                   <p className="m-0 text-[12.5px] text-ink-soft">
-                    {isDynamicQuiz
-                      ? 'Questions are drawn when the student starts.'
-                      : blueprintTotals.missingCount > 0
-                        ? `${blueprintTotals.missingCount} question(s) still missing.`
-                        : 'All targets covered.'}
+                    {blueprintTotals.missingCount > 0
+                      ? `${blueprintTotals.missingCount} question(s) still missing.`
+                      : 'All targets covered.'}
                   </p>
                 </article>
               </div>
@@ -3227,22 +2937,18 @@ export function QuizBuilderPage() {
                           <div>
                             <h3 className={qb.panelTitle}>Section {index + 1}</h3>
                             <p className={qb.panelText}>
-                              {isDynamicQuiz
-                                ? `${stats.targetCount} target question(s) • ${poolLabel}`
-                                : `${stats.selectedCount}/${stats.targetCount} matched selected questions${stats.missingCount > 0 ? ` • ${stats.missingCount} missing` : ' • target covered'} • ${poolLabel}`}
+                              {`${stats.selectedCount}/${stats.targetCount} matched selected questions${stats.missingCount > 0 ? ` • ${stats.missingCount} missing` : ' • target covered'} • ${poolLabel}`}
                             </p>
                           </div>
                           <div className={ui.buttonRow}>
-                            {!isDynamicQuiz ? (
-                              <button
-                                type="button"
-                                className={ui.secondaryAction}
-                                onClick={() => drawMissingForBlueprintSection(section)}
-                                disabled={questionLoading || stats.missingCount <= 0}
-                              >
-                                Draw Missing
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              className={ui.secondaryAction}
+                              onClick={() => drawMissingForBlueprintSection(section)}
+                              disabled={questionLoading || stats.missingCount <= 0}
+                            >
+                              Draw Missing
+                            </button>
                             <button type="button" className={ui.dangerAction} onClick={() => removeBlueprintSection(section.id)}>
                               Remove
                             </button>
@@ -3429,16 +3135,6 @@ export function QuizBuilderPage() {
                   </select>
                 </label>
 
-                <label className={ui.formLabel}>
-                  Keyword / Tag
-                  <input className={ui.input}
-                    list="quiz-keyword-suggestions"
-                    name="keywords"
-                    value={filters.keywords}
-                    onChange={handleFilterChange}
-                    placeholder="cardiology"
-                  />
-                </label>
               </div>
 
               <label className={ui.formLabel}>
@@ -3457,16 +3153,8 @@ export function QuizBuilderPage() {
             <BuilderSection
               eyebrow="Fixed Paper"
               title="Select Questions"
-              description={isDynamicQuiz
-                ? 'Dynamic mode uses paper sections instead of a fixed selected-question list.'
-                : 'Add questions from the bank and build the final assessment paper.'}
+              description="Add questions from the bank and build the final assessment paper."
             >
-              {isDynamicQuiz ? (
-                <div className={qb.infoBox}>
-                  Manual add is disabled for randomized papers. Switch to Static fixed paper to save an exact question list.
-                </div>
-              ) : null}
-
               <div className={qb.selectionLayout}>
                 <div className={qb.selectionPanel}>
                   <div className={qb.panelTop}>
@@ -3494,7 +3182,7 @@ export function QuizBuilderPage() {
                         className={ui.secondaryAction}
                         type="button"
                         onClick={addRandomQuestionPool}
-                        disabled={questionLoading || isDynamicQuiz}
+                        disabled={questionLoading}
                       >
                         Random Draw
                       </button>
@@ -3502,7 +3190,7 @@ export function QuizBuilderPage() {
                         className={ui.secondaryAction}
                         type="button"
                         onClick={addAllFilteredQuestions}
-                        disabled={filteredQuestions.length === 0 || isDynamicQuiz}
+                        disabled={filteredQuestions.length === 0}
                       >
                         Add All Filtered
                       </button>
@@ -3520,7 +3208,6 @@ export function QuizBuilderPage() {
                           key={question.id}
                           question={question}
                           selected={selectedQuestionIdSet.has(question.id)}
-                          disabled={isDynamicQuiz}
                           onToggle={toggleQuestion}
                         />
                       ))
@@ -3533,20 +3220,10 @@ export function QuizBuilderPage() {
                     <div>
                       <h3 className={qb.panelTitle}>Selected Paper</h3>
                       <p className={qb.panelText}>
-                        {isDynamicQuiz
-                          ? `${selectedQuestions.length} remembered locally, ignored when dynamic mode saves.`
-                          : `${selectedQuestions.length} question(s) currently included in this assessment.`}
+                        {`${selectedQuestions.length} question(s) currently included in this assessment.`}
                       </p>
                     </div>
                     <div className={ui.buttonRow}>
-                      <button className={ui.secondaryAction}
-                        type="button"
-                       
-                        onClick={applyCollectionTagsToSelected}
-                        disabled={selectedQuestions.length === 0 || !form.collectionTags.trim() || applyingTags}
-                      >
-                        {applyingTags ? 'Applying Tags...' : 'Apply Tags'}
-                      </button>
                       <button className={ui.dangerAction}
                         type="button"
                        
@@ -3606,19 +3283,9 @@ export function QuizBuilderPage() {
               <BuilderSection
                 eyebrow="Fixed Paper"
                 title="Selected Paper"
-                description={isDynamicQuiz
-                  ? 'Dynamic mode uses paper section targets instead of fixed selected questions.'
-                  : 'Review the questions currently linked to this assessment.'}
+                description="Review the questions currently linked to this assessment."
                 actions={(
                   <>
-                    <button className={ui.secondaryAction}
-                      type="button"
-                     
-                      onClick={applyCollectionTagsToSelected}
-                      disabled={selectedQuestions.length === 0 || !form.collectionTags.trim() || applyingTags}
-                    >
-                      {applyingTags ? 'Applying Tags...' : 'Apply Tags'}
-                    </button>
                     <button className={ui.dangerAction}
                       type="button"
                      
@@ -3631,18 +3298,13 @@ export function QuizBuilderPage() {
                 )}
               >
                 <div className="grid gap-3">
-                  {isDynamicQuiz ? (
-                    <div className={qb.infoBox}>
-                      Randomized assessments save zero fixed question IDs. The paper size comes from section targets.
-                    </div>
-                  ) : null}
                   <div className={qb.summary}>
                     <article className={cx(qb.summaryCard, qb.summaryAccent)}>
                       <span className="text-xs text-ink-soft">Selected</span>
                       <strong className="text-[22px] leading-none text-ink-strong">{selectedQuestions.length}</strong>
                     </article>
                     <article className={qb.summaryCard}>
-                      <span className="text-xs text-ink-soft">{isDynamicQuiz ? 'Paper target' : 'Total marks'}</span>
+                      <span className="text-xs text-ink-soft">Total marks</span>
                       <strong className="text-[22px] leading-none text-ink-strong">{totalMarks}</strong>
                     </article>
                   </div>
@@ -3683,9 +3345,7 @@ export function QuizBuilderPage() {
               <BuilderSection
                 eyebrow="Question Creation"
                 title="Add New Questions"
-                description={isDynamicQuiz
-                  ? 'Paste, parse, review, and save new questions to the bank. Randomized papers include them when they match the paper rules.'
-                  : 'Paste, parse, review, save to the main question bank, and attach the new question IDs to this assessment.'}
+                description="Paste, parse, review, save to the main question bank, and attach the new question IDs to this assessment."
               >
                 <BulkAddQuestionsPanel
                   meta={meta}
@@ -3757,35 +3417,11 @@ export function QuizBuilderPage() {
                 <label className={ui.formLabel}>
                   Total Marks
                   <input className={ui.input} type="number" value={totalMarks} readOnly />
-                  <FieldNote>{isDynamicQuiz ? 'Calculated from paper targets' : 'Calculated automatically from the selected question count'}</FieldNote>
+                  <FieldNote>Calculated automatically from the selected question count</FieldNote>
                 </label>
               </div>
 
               <div className={qb.settingsGrid}>
-                <label className={qb.checkbox}>
-                  <input className="shrink-0" type="checkbox" name="hideTimeLimit" checked={form.hideTimeLimit} onChange={handleFormChange} />
-                  <span>
-                    Hide time limit
-                    <FieldNote>Students can attempt the quiz without seeing the timer value in advance.</FieldNote>
-                  </span>
-                </label>
-
-                <label className={qb.checkbox}>
-                  <input className="shrink-0" type="checkbox" name="hidePassingMarks" checked={form.hidePassingMarks} onChange={handleFormChange} />
-                  <span>
-                    Hide passing marks
-                    <FieldNote>Use this if you want the threshold hidden before the attempt begins.</FieldNote>
-                  </span>
-                </label>
-
-                <label className={qb.checkbox}>
-                  <input className="shrink-0" type="checkbox" name="examModeOnly" checked={form.examModeOnly} onChange={handleFormChange} />
-                  <span>
-                    Exam mode only
-                    <FieldNote>Students will not see the practice-mode option for this assessment.</FieldNote>
-                  </span>
-                </label>
-
                 <label className={qb.checkbox}>
                   <input className="shrink-0" type="checkbox" name="isFree" checked={form.isFree} onChange={handleFormChange} />
                   <span>
@@ -3805,22 +3441,8 @@ export function QuizBuilderPage() {
 
               <div className={qb.checklist}>
                 <div className={qb.checklistItem}>
-                  <strong className="text-xs text-ink-strong">Internal name</strong>
-                  <span className="break-words text-xs leading-normal text-ink-soft">{form.adminName || 'Add an admin name'}</span>
-                </div>
-                <div className={qb.checklistItem}>
-                  <strong className="text-xs text-ink-strong">Student title</strong>
-                  <span className="break-words text-xs leading-normal text-ink-soft">{form.studentTitle || 'Add a student title'}</span>
-                </div>
-                <div className={qb.checklistItem}>
-                  <strong className="text-xs text-ink-strong">Student list priority</strong>
-                  <span className="break-words text-xs leading-normal text-ink-soft">
-                    {form.displayTitleMode === 'title'
-                      ? 'Assessment title'
-                      : form.quizNumber
-                        ? `Quiz ${Number(form.quizNumber)} (assigned)`
-                        : 'Quiz N (auto on save)'}
-                  </span>
+                  <strong className="text-xs text-ink-strong">Name</strong>
+                  <span className="break-words text-xs leading-normal text-ink-soft">{form.studentTitle || 'Add a name'}</span>
                 </div>
                 <div className={qb.checklistItem}>
                   <strong className="text-xs text-ink-strong">Hierarchy</strong>
@@ -3840,15 +3462,13 @@ export function QuizBuilderPage() {
                 <div className={qb.checklistItem}>
                   <strong className="text-xs text-ink-strong">Delivery mode</strong>
                   <span className="break-words text-xs leading-normal text-ink-soft">
-                    {isDynamicQuiz ? 'Dynamic randomized paper' : 'Static fixed paper'}
+                    Fixed list
                   </span>
                 </div>
                 <div className={qb.checklistItem}>
                   <strong className="text-xs text-ink-strong">Questions selected</strong>
                   <span className="break-words text-xs leading-normal text-ink-soft">
-                    {isDynamicQuiz
-                      ? `${blueprintTotals.targetCount} generated question target(s)`
-                      : `${selectedQuestions.length} question(s)`}
+                    {`${selectedQuestions.length} question(s)`}
                   </span>
                 </div>
                 <div className={qb.checklistItem}>
@@ -3881,11 +3501,6 @@ export function QuizBuilderPage() {
           </aside>
         </form>
 
-        <datalist id="quiz-keyword-suggestions">
-          {meta.keywordSuggestions.map((keyword) => (
-            <option key={keyword} value={keyword} />
-          ))}
-        </datalist>
       </section>
     </main>
   );

@@ -184,13 +184,14 @@ export function MarketingPopupAlert({ suppressed = false }) {
         for (const manifestUrl of manifestUrls) {
           const nextAlert = await fetchJsonWithTimeout(manifestUrl, POPUP_MANIFEST_TIMEOUT_MS);
           if (!nextAlert) continue;
-          if (cancelled || !nextAlert || typeof nextAlert !== 'object') return;
+          if (cancelled || !nextAlert || typeof nextAlert !== 'object') return true;
           applyPopupAlert(nextAlert);
-          return;
+          return true;
         }
       } catch {
         // The settings API below remains the fallback when the static manifest is unavailable.
       }
+      return false;
     }
 
     async function loadPopupAlertSettings({ force = false } = {}) {
@@ -217,8 +218,9 @@ export function MarketingPopupAlert({ suppressed = false }) {
     const startupTimer = cacheIsFresh
       ? 0
       : window.setTimeout(() => {
-          loadPopupAlertManifest();
-          loadPopupAlertSettings();
+          // OPTIMIZE 10.48: the settings request only when the popup file is missing
+          // (it used to run alongside the file on every fresh load).
+          loadPopupAlertManifest().then((found) => { if (!found && !cancelled) loadPopupAlertSettings(); });
         }, startupDelay);
     const refreshPopupAlert = () => {
       loadPopupAlertManifest();

@@ -14,8 +14,10 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var DashboardService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardService = void 0;
+const access_token_1 = require("../../common/auth/access-token");
+const recent_results_1 = require("../../common/utils/recent-results");
+const token_user_1 = require("../../common/auth/token-user");
 const common_1 = require("@nestjs/common");
-const run_in_batches_1 = require("../../common/utils/run-in-batches");
 const node_crypto_1 = require("node:crypto");
 const database_tokens_1 = require("../../database/database.tokens");
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
@@ -24,624 +26,192 @@ const auth_token_util_1 = require("../auth/auth-token.util");
 const courses_service_1 = require("../courses/courses.service");
 const streak_1 = require("../xp/streak");
 const xp_service_1 = require("../xp/xp.service");
+const word_search_1 = require("../../common/utils/word-search");
+const users_service_1 = require("../users/users.service");
+const subscriptions_service_1 = require("../subscriptions/subscriptions.service");
+const study_stats_service_1 = require("../study-stats/study-stats.service");
+const progress_write_1 = require("../../common/utils/progress-write");
+const streak_2 = require("../xp/streak");
+const course_structure_service_1 = require("../courses/course-structure.service");
+const student_catalogue_service_1 = require("../courses/student-catalogue.service");
+const question_content_1 = require("../../common/utils/question-content");
+const content_version_1 = require("../../common/utils/content-version");
 let DashboardService = DashboardService_1 = class DashboardService {
-    constructor(db, authService, coursesService, xpService) {
+    constructor(db, authService, coursesService, xpService, usersService, subscriptionsService, studyStats, courseStructure, studentCatalogue) {
         this.db = db;
         this.authService = authService;
         this.coursesService = coursesService;
         this.xpService = xpService;
+        this.usersService = usersService;
+        this.subscriptionsService = subscriptionsService;
+        this.studyStats = studyStats;
+        this.courseStructure = courseStructure;
+        this.studentCatalogue = studentCatalogue;
+        this.namesCache = null;
         this.questionOfDayCache = new Map();
         this.questionOfDayInflight = new Map();
         this.webQuestionPoolCache = null;
         this.webQuestionPoolInflight = null;
+        this.questionIdRange = null;
     }
-    async getAdminDashboard(authorization) {
+    async getAdminDashboard(authorization, today) {
         const admin = await this.authService.requireAdmin(authorization);
-        const canViewLearnerPii = this.canViewLearnerPii(admin);
-        const [summaryResult, userGrowthResult, courseGrowthResult, lessonGrowthResult, quizGrowthResult, questionGrowthResult, attemptResult, recentUsersResult, recentCoursesResult, recentLessonsResult, recentAttemptsResult,] = await (0, run_in_batches_1.runInBatches)([
-            () => this.db.query(`SELECT
-          (SELECT COUNT(*) FROM users) AS users_count,
-          (SELECT COUNT(*) FROM courses) AS courses_count,
-          (SELECT COUNT(*) FROM topics) AS topics_count,
-          (SELECT COUNT(*) FROM quizzes) AS quizzes_count,
-          (SELECT COUNT(*) FROM questions) AS questions_count,
-          (SELECT COUNT(*) FROM lessons) AS lessons_count`),
-            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-         FROM users
-         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-         GROUP BY DATE(created_at)
-         ORDER BY DATE(created_at) ASC`),
-            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-         FROM courses
-         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-         GROUP BY DATE(created_at)
-         ORDER BY DATE(created_at) ASC`),
-            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-         FROM lessons
-         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-         GROUP BY DATE(created_at)
-         ORDER BY DATE(created_at) ASC`),
-            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-         FROM quizzes
-         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-         GROUP BY DATE(created_at)
-         ORDER BY DATE(created_at) ASC`),
-            () => this.db.query(`SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-         FROM questions
-         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-         GROUP BY DATE(created_at)
-         ORDER BY DATE(created_at) ASC`),
-            () => this.db.query(`SELECT DATE(COALESCE(submitted_at, created_at)) AS day_key, COUNT(*) AS count_value
-         FROM quiz_attempts
-         WHERE COALESCE(submitted_at, created_at) >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-         GROUP BY DATE(COALESCE(submitted_at, created_at))
-         ORDER BY DATE(COALESCE(submitted_at, created_at)) ASC`),
-            () => this.db.query(`SELECT
-           'user' AS item_type,
-           id AS item_id,
-           full_name AS title,
-           email AS subtitle,
-           status,
-           created_at
-         FROM users
-         ORDER BY created_at DESC, id DESC
-         LIMIT 4`),
-            () => this.db.query(`SELECT
-           'course' AS item_type,
-           id AS item_id,
-           course_title AS title,
-           course_code AS subtitle,
-           status,
-           created_at
-         FROM courses
-         ORDER BY created_at DESC, id DESC
-         LIMIT 4`),
-            () => this.db.query(`SELECT
-           'lesson' AS item_type,
-           l.id AS item_id,
-           l.lesson_title AS title,
-           CONCAT_WS(' / ', c.course_title, t.topic_name, s.subtopic_name) AS subtitle,
-           l.status,
-           l.created_at
-         FROM lessons l
-         LEFT JOIN courses c ON c.id = l.course_id
-         LEFT JOIN topics t ON t.id = l.topic_id
-         LEFT JOIN subtopics s ON s.id = l.subtopic_id
-         ORDER BY l.created_at DESC, l.id DESC
-         LIMIT 4`),
-            () => this.db.query(`SELECT
-           'attempt' AS item_type,
-           qa.id AS item_id,
-           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS title,
-           CONCAT('Score ', qa.score, '/', qa.total_questions) AS subtitle,
-           qa.pass_status AS status,
-           COALESCE(qa.submitted_at, qa.created_at) AS created_at
-         FROM quiz_attempts qa
-         INNER JOIN quizzes q ON q.id = qa.quiz_id
-         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
-         LIMIT 6`),
-        ], 3);
-        const [summaryRows] = summaryResult;
-        const [userGrowthRows] = userGrowthResult;
-        const [courseGrowthRows] = courseGrowthResult;
-        const [lessonGrowthRows] = lessonGrowthResult;
-        const [quizGrowthRows] = quizGrowthResult;
-        const [questionGrowthRows] = questionGrowthResult;
-        const [attemptRows] = attemptResult;
-        const [recentUsers] = recentUsersResult;
-        const [recentCourses] = recentCoursesResult;
-        const [recentLessons] = recentLessonsResult;
-        const [recentAttempts] = recentAttemptsResult;
-        const summary = summaryRows[0];
-        const totals = {
-            users: Number(summary?.users_count || 0),
-            courses: Number(summary?.courses_count || 0),
-            subjects: Number(summary?.topics_count || 0),
-            quizzes: Number(summary?.quizzes_count || 0),
-            questions: Number(summary?.questions_count || 0),
-            lessons: Number(summary?.lessons_count || 0),
-        };
-        const userSeries = this.buildDailySeries(userGrowthRows);
-        const courseSeries = this.buildDailySeries(courseGrowthRows);
-        const lessonSeries = this.buildDailySeries(lessonGrowthRows);
-        const quizSeries = this.buildDailySeries(quizGrowthRows);
-        const questionSeries = this.buildDailySeries(questionGrowthRows);
-        const attemptSeries = this.buildDailySeries(attemptRows);
-        const engagementScore = this.calculateAdminEngagementScore({
-            attemptsSeries: attemptSeries,
-            totals,
-        });
-        const recommendations = this.buildAdminRecommendations({
-            totals,
-            engagementScore,
-            questionSeries,
-            quizSeries,
-            lessonSeries,
-        });
-        const aiInsights = this.buildAdminAiInsights({
-            totals,
-            userSeries,
-            lessonSeries,
-            questionSeries,
-            quizSeries,
-            attemptSeries,
-            engagementScore,
-        });
-        const activityFeed = this.buildAdminActivityFeed([
-            ...recentUsers,
-            ...recentCourses,
-            ...recentLessons,
-            ...recentAttempts,
-        ], canViewLearnerPii);
-        return {
-            totalUsers: Number(summary?.users_count || 0),
-            totalCourses: Number(summary?.courses_count || 0),
-            totalSubjects: Number(summary?.topics_count || 0),
-            totalQuizzes: Number(summary?.quizzes_count || 0),
-            totalQuestions: Number(summary?.questions_count || 0),
-            totalLessons: Number(summary?.lessons_count || 0),
-            engagementScore,
-            generatedAt: new Date().toISOString(),
-            analytics: {
-                users: userSeries,
-                courses: courseSeries,
-                lessons: lessonSeries,
-                quizzes: quizSeries,
-                questions: questionSeries,
-                attempts: attemptSeries,
-            },
-            aiInsights,
-            recommendations,
-            activityFeed,
-            shortcuts: [
-                { label: 'Courses', path: '/courses' },
-                { label: 'Structure', path: '/structure' },
-                { label: 'Lessons', path: '/structure' },
-                { label: 'Questions', path: '/questions' },
-                { label: 'Quizzes', path: '/quizzes' },
-                { label: 'Users', path: '/users' },
-            ],
-        };
-    }
-    buildDailySeries(rows, totalDays = 90) {
-        const valueMap = new Map((rows || []).map((row) => [String(row.day_key).slice(0, 10), Number(row.count_value || 0)]));
-        const result = [];
-        const anchor = new Date();
-        anchor.setHours(0, 0, 0, 0);
-        for (let offset = totalDays - 1; offset >= 0; offset -= 1) {
-            const current = new Date(anchor);
-            current.setDate(anchor.getDate() - offset);
-            const key = this.localDateKey(current);
-            result.push({
-                date: key,
-                value: Number(valueMap.get(key) || 0),
-            });
-        }
-        return result;
-    }
-    calculateAdminEngagementScore({ attemptsSeries, totals, }) {
-        const trailing14 = attemptsSeries.slice(-14);
-        const totalAttempts = trailing14.reduce((sum, point) => sum + point.value, 0);
-        const activeDays = trailing14.filter((point) => point.value > 0).length;
-        const contentDensityBase = totals.courses + totals.lessons + totals.questions + totals.quizzes;
-        const contentDensity = Math.min(100, Math.round((contentDensityBase / Math.max(1, totals.users + 5)) * 20));
-        const attemptScore = Math.min(100, totalAttempts * 4);
-        const consistencyScore = Math.min(100, activeDays * 7);
-        return Math.max(24, Math.round((attemptScore * 0.45) + (consistencyScore * 0.35) + (contentDensity * 0.2)));
-    }
-    buildAdminRecommendations({ totals, engagementScore, questionSeries, quizSeries, lessonSeries, }) {
-        const recentQuestions = questionSeries.slice(-14).reduce((sum, point) => sum + point.value, 0);
-        const recentQuizzes = quizSeries.slice(-14).reduce((sum, point) => sum + point.value, 0);
-        const recentLessons = lessonSeries.slice(-14).reduce((sum, point) => sum + point.value, 0);
-        const recommendations = [
-            {
-                title: recentQuestions < Math.max(6, recentQuizzes * 3)
-                    ? 'Expand the question bank before the next assessment push'
-                    : 'Question supply is keeping pace with new quiz creation',
-                detail: recentQuestions < Math.max(6, recentQuizzes * 3)
-                    ? 'The last two weeks added fewer questions than the quiz pipeline needs. Focus on question authoring or bulk import.'
-                    : 'The last two weeks show enough new questions to support active assessment growth.',
-                actionLabel: recentQuestions < Math.max(6, recentQuizzes * 3) ? 'Open bulk question input' : 'Open question bank',
-                actionPath: '/questions/bulk',
-                tone: recentQuestions < Math.max(6, recentQuizzes * 3) ? 'warning' : 'positive',
-            },
-            {
-                title: recentLessons < Math.max(2, totals.courses)
-                    ? 'Course content expansion is lagging behind course count'
-                    : 'Lesson production is healthy across the course catalog',
-                detail: recentLessons < Math.max(2, totals.courses)
-                    ? 'Add more lessons to keep each course academically dense and easier to monetize.'
-                    : 'Lesson creation stayed active recently, which supports better learner retention.',
-                actionLabel: recentLessons < Math.max(2, totals.courses) ? 'Open structure manager' : 'Open lessons',
-                actionPath: recentLessons < Math.max(2, totals.courses) ? '/structure' : '/ai-notes',
-                tone: recentLessons < Math.max(2, totals.courses) ? 'warning' : 'positive',
-            },
-            {
-                title: engagementScore < 55
-                    ? 'Engagement score suggests a reactivation cycle is needed'
-                    : 'Engagement score indicates healthy learner motion',
-                detail: engagementScore < 55
-                    ? 'Lean on quizzes, content releases, and AI-generated materials to drive another usage wave.'
-                    : 'Learner interaction is stable enough to support new course launches or premium content pushes.',
-                actionLabel: engagementScore < 55 ? 'Generate new quiz' : 'Create new course',
-                actionPath: engagementScore < 55 ? '/quizzes/new' : '/courses',
-                tone: engagementScore < 55 ? 'warning' : 'positive',
-            },
-        ];
-        return recommendations;
-    }
-    buildAdminAiInsights({ totals, userSeries, lessonSeries, questionSeries, quizSeries, attemptSeries, engagementScore, }) {
-        const userTrend = this.calculateSeriesDelta(userSeries, 14);
-        const contentTrend = this.calculateSeriesDelta(lessonSeries, 14);
-        const assessmentTrend = this.calculateSeriesDelta(questionSeries, 14);
-        const attemptTrend = this.calculateSeriesDelta(attemptSeries, 14);
-        return [
-            {
-                id: 'users',
-                label: 'Learner Growth',
-                value: totals.users,
-                delta: userTrend.delta,
-                deltaLabel: userTrend.label,
-                tone: userTrend.delta >= 0 ? 'positive' : 'warning',
-                detail: userTrend.delta >= 0
-                    ? 'User growth is trending upward, likely supported by fresh learning inventory and active assessments.'
-                    : 'User growth has softened. Consider launching new course value or quiz campaigns.',
-            },
-            {
-                id: 'content',
-                label: 'Content Velocity',
-                value: totals.lessons,
-                delta: contentTrend.delta,
-                deltaLabel: contentTrend.label,
-                tone: contentTrend.delta >= 0 ? 'positive' : 'neutral',
-                detail: contentTrend.delta >= 0
-                    ? 'Lesson output increased recently, which should improve learner return frequency.'
-                    : 'Lesson creation slowed in the latest period. AI-assisted content could accelerate the pipeline.',
-            },
-            {
-                id: 'assessment',
-                label: 'Assessment Supply',
-                value: totals.questions,
-                delta: assessmentTrend.delta,
-                deltaLabel: assessmentTrend.label,
-                tone: assessmentTrend.delta >= 0 ? 'positive' : 'warning',
-                detail: assessmentTrend.delta >= 0
-                    ? 'Question growth is supporting more quizzes and richer practice sets.'
-                    : 'Question authoring is lagging. Use bulk add or AI quiz generation to close the gap.',
-            },
-            {
-                id: 'engagement',
-                label: 'Engagement Score',
-                value: engagementScore,
-                delta: attemptTrend.delta,
-                deltaLabel: attemptTrend.label,
-                tone: engagementScore >= 70 ? 'positive' : engagementScore >= 45 ? 'neutral' : 'warning',
-                detail: engagementScore >= 70
-                    ? 'Recent attempt activity suggests a strong usage rhythm across the LMS.'
-                    : engagementScore >= 45
-                        ? 'Engagement is stable but still has room for a sharper content or quiz cadence.'
-                        : 'Platform engagement is low enough to justify proactive intervention this week.',
-            },
-            {
-                id: 'forecast',
-                label: '30-Day Forecast',
-                value: totals.quizzes + Math.max(1, Math.round((quizSeries.slice(-30).reduce((sum, point) => sum + point.value, 0) / 30) * 12)),
-                delta: this.calculateSeriesDelta(quizSeries, 30).delta,
-                deltaLabel: 'Projected active quiz inventory',
-                tone: 'neutral',
-                detail: 'Projected quiz inventory assumes the current publishing pace continues for the next month.',
-            },
-        ];
-    }
-    buildAdminActivityFeed(feedRows, canViewLearnerPii = false) {
-        const typeMap = {
-            user: { label: 'New user', tone: 'blue' },
-            course: { label: 'Course update', tone: 'violet' },
-            lesson: { label: 'Lesson published', tone: 'teal' },
-            attempt: { label: 'Quiz submission', tone: 'amber' },
-        };
-        return [...feedRows]
-            .sort((left, right) => String(right.created_at || '').localeCompare(String(left.created_at || '')))
-            .slice(0, 12)
-            .map((row) => {
-            const isLearnerRow = row.item_type === 'user';
+        const day = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today) ? today : null;
+        const canSeeMoney = admin.role === 'admin' || Boolean(admin.permissions?.includes('subscriptions.manage'));
+        const conn = await this.db.getConnection();
+        try {
+            const [courseRows] = await conn.query('SELECT lesson_count, question_total, quiz_total FROM courses');
+            const users = await this.usersService.summary(admin, day ?? undefined, conn);
+            const finance = canSeeMoney ? await this.subscriptionsService.adminDashboardFinance(conn, day) : null;
             return {
-                id: `${row.item_type}-${row.item_id}`,
-                type: row.item_type,
-                typeLabel: typeMap[row.item_type]?.label || 'Activity',
-                tone: typeMap[row.item_type]?.tone || 'blue',
-                title: isLearnerRow && !canViewLearnerPii ? this.anonymizedLearnerRef(row.item_id) : row.title || 'Untitled item',
-                subtitle: isLearnerRow && !canViewLearnerPii ? '' : row.subtitle || '',
-                status: row.status || '',
-                createdAt: row.created_at || null,
+                totals: {
+                    courses: courseRows.length,
+                    lessons: courseRows.reduce((t, c) => t + Number(c.lesson_count || 0), 0),
+                    questions: courseRows.reduce((t, c) => t + Number(c.question_total || 0), 0),
+                    quizzes: courseRows.reduce((t, c) => t + Number(c.quiz_total || 0), 0),
+                },
+                users,
+                finance,
+                generatedAt: new Date().toISOString(),
             };
-        });
+        }
+        finally {
+            conn.release();
+        }
     }
-    canViewLearnerPii(user) {
-        return user.role === 'admin' || Boolean(user.permissions?.includes('students.manage'));
-    }
-    anonymizedLearnerRef(value) {
-        const digest = (0, node_crypto_1.createHash)('sha256')
-            .update(`learner:${String(value || '')}`)
-            .digest('hex')
-            .slice(0, 10)
-            .toUpperCase();
-        return `Learner ${digest}`;
-    }
-    calculateSeriesDelta(series, windowSize) {
-        const currentWindow = series.slice(-windowSize);
-        const previousWindow = series.slice(-windowSize * 2, -windowSize);
-        const currentTotal = currentWindow.reduce((sum, point) => sum + point.value, 0);
-        const previousTotal = previousWindow.reduce((sum, point) => sum + point.value, 0);
-        const delta = previousTotal > 0
-            ? Math.round(((currentTotal - previousTotal) / previousTotal) * 100)
-            : currentTotal > 0 ? 100 : 0;
-        const label = delta > 0 ? `+${delta}% vs previous period` : `${delta}% vs previous period`;
-        return { delta, label };
+    async adminSearch(authorization, query, only) {
+        const admin = await this.authService.requireAdmin(authorization);
+        const q = String(query || '').trim().slice(0, 100);
+        const empty = { courses: [], lessons: [], quizzes: [], students: [] };
+        if (q.length < 2)
+            return empty;
+        const can = (permission) => admin.role === 'admin' || Boolean(admin.permissions?.includes(permission));
+        const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+        const words = (0, word_search_1.searchWords)(q);
+        if (!words.length)
+            return empty;
+        const textFilter = (columns) => (0, word_search_1.wordSearchFilter)(columns, words);
+        const lessonsOnly = only === 'lessons';
+        const studentsOnly = only === 'students';
+        const limit = lessonsOnly || studentsOnly ? 10 : 4;
+        const conn = await this.db.getConnection();
+        try {
+            const result = { ...empty };
+            if (can('content.manage') && !lessonsOnly && !studentsOnly) {
+                const [rows] = await conn.query('SELECT id, course_title FROM courses WHERE course_title LIKE ? OR description LIKE ? LIMIT ?', [like, like, limit]);
+                result.courses = rows.map((r) => ({ id: Number(r.id), title: String(r.course_title || '') }));
+            }
+            if (can('content.manage') && !studentsOnly) {
+                const lessonText = textFilter(['l.lesson_title']);
+                const [rows] = await conn.query(`SELECT l.id, l.lesson_title, l.status, l.course_id, l.topic_id, l.subtopic_id,
+             c.course_title, t.topic_name, s.subtopic_name
+           FROM lessons l
+           LEFT JOIN courses c ON c.id = l.course_id
+           LEFT JOIN topics t ON t.id = l.topic_id
+           LEFT JOIN subtopics s ON s.id = l.subtopic_id
+           WHERE ${lessonText.sql}
+             AND l.is_public = 1 AND l.engine_key = 'gemini'
+           LIMIT ?`, [...lessonText.params, limit]);
+                result.lessons = rows.map((r) => ({
+                    id: Number(r.id),
+                    title: String(r.lesson_title || ''),
+                    status: String(r.status || 'active'),
+                    courseId: r.course_id == null ? null : Number(r.course_id),
+                    topicId: r.topic_id == null ? null : Number(r.topic_id),
+                    subtopicId: r.subtopic_id == null ? null : Number(r.subtopic_id),
+                    courseTitle: String(r.course_title || ''),
+                    topicName: String(r.topic_name || ''),
+                    subtopicName: String(r.subtopic_name || ''),
+                }));
+            }
+            if (can('quizzes.manage') && !lessonsOnly && !studentsOnly) {
+                const quizText = textFilter(['q.quiz_title']);
+                const [rows] = await conn.query(`SELECT q.id, q.quiz_title AS title, c.course_title, t.topic_name
+           FROM quizzes q
+           LEFT JOIN courses c ON c.id = q.course_id
+           LEFT JOIN topics t ON t.id = q.topic_id
+           WHERE ${quizText.sql}
+           LIMIT ?`, [...quizText.params, limit]);
+                result.quizzes = rows.map((r) => ({
+                    id: Number(r.id), title: String(r.title || ''), courseTitle: String(r.course_title || ''), topicName: String(r.topic_name || ''),
+                }));
+            }
+            if (can('students.manage') && !lessonsOnly) {
+                const userText = textFilter(['full_name', 'email']);
+                const [rows] = await conn.query(`SELECT id, full_name, email, status FROM users
+           WHERE ${userText.sql} AND role = 'student' AND deleted_at IS NULL
+           LIMIT ?`, [...userText.params, limit]);
+                result.students = rows.map((r) => ({
+                    id: Number(r.id), fullName: String(r.full_name || ''), email: String(r.email || ''), status: String(r.status || ''),
+                }));
+            }
+            return result;
+        }
+        finally {
+            conn.release();
+        }
     }
     async getStudentDashboard(authorization, appClient) {
         const student = await this.findActiveStudentByToken(this.extractToken(authorization));
-        const serverNow = new Date();
-        const serverClock = this.buildServerClock(serverNow);
-        const [summaryResult, recentAttemptsResult, topicRowsResult, smartNotesResult, attemptDaysResult, performanceWindowsResult, missedPatternsResult, todayQuizRowsResult, todayNoteRowsResult, todayResultViewRowsResult, questionOfDay, courseProgress, xpSummary,] = await (0, run_in_batches_1.runInBatches)([
-            () => this.db.execute(`SELECT
-          (SELECT COUNT(*) FROM quizzes WHERE status = 'active') AS total_quizzes,
-          (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ?) AS total_attempts,
-          (SELECT AVG(percentage) FROM quiz_attempts WHERE user_id = ? AND status = 'submitted') AS average_percentage,
-          (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ? AND pass_status = 'pass') AS total_passed,
-          (SELECT COUNT(*) FROM smart_notes WHERE user_id = ?) AS total_smart_notes,
-          (SELECT COUNT(*) FROM smart_notes WHERE user_id = ? AND (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL)) AS generated_smart_notes`, [student.id, student.id, student.id, student.id, student.id]),
-            () => this.db.execute(`SELECT
-          qa.id,
-          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
-          q.quiz_number,
-          q.display_title_mode,
-          c.course_title,
-          t.topic_name,
-          qa.score,
-          qa.total_questions,
-          qa.percentage,
-          qa.pass_status,
-          qa.submitted_at
-        FROM quiz_attempts qa
-        INNER JOIN quizzes q ON q.id = qa.quiz_id
-        LEFT JOIN courses c ON c.id = q.course_id
-        LEFT JOIN topics t ON t.id = q.topic_id
-        WHERE qa.user_id = ?
-        ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
-        LIMIT 5`, [student.id]),
-            () => this.db.execute(`SELECT
-          t.topic_name,
-          c.course_title,
-          AVG(qa.percentage) AS average_percentage,
-          COUNT(*) AS attempts_count
-        FROM quiz_attempts qa
-        INNER JOIN quizzes q ON q.id = qa.quiz_id
-        LEFT JOIN topics t ON t.id = q.topic_id
-        LEFT JOIN courses c ON c.id = q.course_id
-        WHERE qa.user_id = ? AND qa.status = 'submitted'
-        GROUP BY q.topic_id, t.topic_name, c.course_title
-        HAVING attempts_count > 0
-        ORDER BY average_percentage ASC, attempts_count DESC`, [student.id]),
-            () => this.db.execute(`SELECT
-          id,
-          title,
-          updated_at,
-          CASE
-            WHEN (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL) THEN 1
-            ELSE 0
-          END AS has_visual
-        FROM smart_notes
-        WHERE user_id = ?
-        ORDER BY updated_at DESC, id DESC
-        LIMIT 3`, [student.id]),
-            () => this.db.execute(`SELECT attempt_day FROM (
-           SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
-           FROM quiz_attempts
-           WHERE user_id = ? AND status = 'submitted'
-           UNION
-           SELECT DISTINCT DATE(created_at) AS attempt_day
-           FROM study_activity_events
-           WHERE user_id = ? AND activity_type IN ('practice_completed', 'ai_note_viewed')
-         ) AS days
-         ORDER BY attempt_day DESC`, [student.id, student.id]),
-            () => this.db.execute(`SELECT
-           CASE
-             WHEN DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 'last_7'
-             ELSE 'previous_7'
-           END AS window_key,
-           COUNT(*) AS attempts_count,
-           AVG(percentage) AS average_percentage
-         FROM quiz_attempts
-         WHERE user_id = ?
-           AND status = 'submitted'
-           AND DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
-         GROUP BY window_key`, [student.id]),
-            () => this.db.execute(`SELECT
-           c.course_title,
-           subj.topic_name AS subject_name,
-           sub.subtopic_name AS topic_name,
-           l.lesson_title,
-           qn.question_type,
-           COUNT(*) AS miss_count,
-           MAX(COALESCE(qa.submitted_at, qa.created_at)) AS latest_missed_at
-         FROM student_answers sa
-         INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
-         INNER JOIN questions qn ON qn.id = sa.question_id
-         INNER JOIN question_options qo ON qo.id = sa.option_id
-         LEFT JOIN courses c ON c.id = qn.course_id
-         LEFT JOIN topics subj ON subj.id = qn.topic_id
-         LEFT JOIN subtopics sub ON sub.id = qn.subtopic_id
-         LEFT JOIN lessons l ON l.id = qn.lesson_id
-         WHERE qa.user_id = ?
-           AND qa.status = 'submitted'
-           AND COALESCE(qa.submitted_at, qa.created_at) >= DATE_SUB(NOW(), INTERVAL 45 DAY)
-           AND (
-             (qn.question_type = 'sba' AND sa.is_selected = 1 AND qo.is_correct = 0)
-             OR (qn.question_type = 'true_false' AND sa.is_selected <> qo.is_correct)
-           )
-         GROUP BY c.course_title, subj.topic_name, sub.subtopic_name, l.lesson_title, qn.question_type
-         ORDER BY miss_count DESC, latest_missed_at DESC
-         LIMIT 5`, [student.id]),
-            () => this.db.execute(`SELECT q.id, c.course_title, t.topic_name
-         FROM quiz_attempts qa
-         INNER JOIN quizzes q ON q.id = qa.quiz_id
-         LEFT JOIN courses c ON c.id = q.course_id
-         LEFT JOIN topics t ON t.id = q.topic_id
-         WHERE qa.user_id = ?
-           AND qa.status = 'submitted'
-           AND DATE(COALESCE(qa.submitted_at, qa.created_at)) = CURDATE()
-         UNION
-         SELECT q.id, c.course_title, t.topic_name
-         FROM study_activity_events e
-         INNER JOIN quizzes q ON q.id = e.item_id
-         LEFT JOIN courses c ON c.id = q.course_id
-         LEFT JOIN topics t ON t.id = q.topic_id
-         WHERE e.user_id = ?
-           AND e.activity_type = 'practice_completed'
-           AND DATE(e.created_at) = CURDATE()
-         ORDER BY id DESC`, [student.id, student.id]),
-            () => this.db.execute(`SELECT DISTINCT
-           n.id,
-           c.course_title,
-           t.topic_name
-         FROM study_activity_events e
-         INNER JOIN lessons n ON n.id = e.item_id
-         LEFT JOIN courses c ON c.id = n.course_id
-         LEFT JOIN topics t ON t.id = n.topic_id
-         WHERE e.user_id = ?
-           AND e.activity_type = 'ai_note_viewed'
-           AND DATE(e.created_at) = CURDATE()
-         ORDER BY n.id DESC`, [student.id]),
-            () => this.db.execute(`SELECT 1 FROM study_activity_events
-         WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE()
-         LIMIT 1`, [student.id]),
-            () => this.getRandomDashboardQuestion(student.id, appClient),
-            () => this.coursesService.findStudentCourses(authorization),
-            () => this.xpService.getSummary(student.id),
-        ], 3);
-        const [summaryRows] = summaryResult;
-        const [recentAttempts] = recentAttemptsResult;
-        const [topicRows] = topicRowsResult;
-        const [smartNotes] = smartNotesResult;
-        const [attemptDays] = attemptDaysResult;
-        const [performanceWindows] = performanceWindowsResult;
-        const [missedPatterns] = missedPatternsResult;
-        const [todayQuizRows] = todayQuizRowsResult;
-        const [todayNoteRows] = todayNoteRowsResult;
-        const [todayResultViewRows] = todayResultViewRowsResult;
-        const summary = summaryRows[0];
-        const courseProgressSummary = this.buildCourseProgressSummary(courseProgress);
-        const totalAttempts = Number(summary?.total_attempts || 0);
-        const totalPassed = Number(summary?.total_passed || 0);
-        const averagePercentage = Number(summary?.average_percentage || 0);
+        const top = await this.hubTop(student, authorization);
+        const more = await this.hubMore(student, appClient, top.__stats);
+        const { __stats: _s, ...rest } = top;
+        return { ...rest, ...more };
+    }
+    async getStudentHubTop(authorization, lite = false) {
+        const student = await this.findActiveStudentByToken(this.extractToken(authorization));
+        const { __stats: _s, ...top } = await this.hubTop(student, authorization, lite);
+        return top;
+    }
+    async getStudentHubMore(authorization, appClient, webLite = false) {
+        const student = await this.findActiveStudentByToken(this.extractToken(authorization));
+        const phoneOrLite = (0, mobile_client_util_1.isMobileAppClient)(appClient) || webLite;
+        return this.hubMore(student, appClient, undefined, phoneOrLite, phoneOrLite);
+    }
+    async getStudentQuestionOfDay(authorization) {
+        const student = await this.findActiveStudentByToken(this.extractToken(authorization));
+        return this.getRandomDashboardQuestion(student.id, 'xyndrome-mobile-app');
+    }
+    async hubTop(student, authorization, lite = false) {
+        const serverClock = this.buildServerClock(new Date());
+        const stats = await this.studyStats.summary(student.id);
+        const recentDays = stats.recentDays || [];
+        const weakAreas = [];
+        const [courseProgress, xpSummary, totalQuizzes, names, latestAttempt] = await Promise.all([
+            lite ? Promise.resolve([]) : this.coursesService.findStudentCourses(authorization),
+            this.xpService.getSummary(student.id, stats.today.xp, stats.totalXp),
+            this.activeQuizCount(),
+            this.areaNames(),
+            lite ? Promise.resolve([]) : this.recentAttempts(student.id, 1),
+        ]);
+        const totalAttempts = stats.attemptsTotal;
+        const totalPassed = stats.passedTotal;
+        const averagePercentage = stats.averagePercentage;
         const passRate = totalAttempts > 0 ? (totalPassed / totalAttempts) * 100 : 0;
-        const { streak: quizDayStreak, graceActive: streakGraceActive } = this.calculateQuizDayStreak(attemptDays.map((row) => row.attempt_day));
-        const activityDaySet = new Set(attemptDays.map((row) => {
-            const d = row.attempt_day;
-            return this.normalizeDateKey(d);
-        }));
-        const todayMidnight = new Date();
-        todayMidnight.setHours(0, 0, 0, 0);
-        const recentActiveDays = Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(todayMidnight);
-            d.setDate(d.getDate() - (6 - i));
-            return this.localDateKey(d);
-        }).filter((day) => activityDaySet.has(day));
-        const insights = topicRows
-            .filter((row) => row.topic_name)
-            .map((row) => ({
-            topicName: row.topic_name || 'General',
-            courseTitle: row.course_title || 'General',
-            averagePercentage: Number(row.average_percentage || 0),
-            attemptsCount: Number(row.attempts_count || 0),
-        }));
-        const weakTopics = [...insights].sort((a, b) => a.averagePercentage - b.averagePercentage).slice(0, 3);
-        const weakTopicKeys = new Set(weakTopics.map((topic) => this.getTopicKey(topic.courseTitle, topic.topicName)));
-        const strongTopics = [...insights]
-            .filter((topic) => !weakTopicKeys.has(this.getTopicKey(topic.courseTitle, topic.topicName)))
-            .sort((a, b) => b.averagePercentage - a.averagePercentage)
-            .slice(0, 3);
-        const topicMastery = [...insights]
-            .sort((a, b) => {
-            const masteryRankDiff = this.getMasteryRank(this.classifyTopicMastery(a.averagePercentage, a.attemptsCount).mastery)
-                - this.getMasteryRank(this.classifyTopicMastery(b.averagePercentage, b.attemptsCount).mastery);
-            if (masteryRankDiff !== 0) {
-                return masteryRankDiff;
+        const weekStart = this.shiftDayKey(stats.today.day, -6);
+        const recentActiveDays = [];
+        if (stats.streak > 0 && stats.lastActiveDay && stats.lastActiveDay >= this.shiftDayKey(stats.today.day, -1)) {
+            for (let i = 0; i < stats.streak; i++) {
+                const day = this.shiftDayKey(stats.lastActiveDay, -i);
+                if (day < weekStart)
+                    break;
+                recentActiveDays.unshift(day);
             }
-            if (a.averagePercentage !== b.averagePercentage) {
-                return a.averagePercentage - b.averagePercentage;
-            }
-            return b.attemptsCount - a.attemptsCount;
-        })
-            .slice(0, 6)
-            .map((topic) => ({
-            ...topic,
-            ...this.classifyTopicMastery(topic.averagePercentage, topic.attemptsCount),
-        }));
-        const focusTopic = weakTopics[0]?.topicName || 'Start your first quiz';
-        const focusCourse = weakTopics[0]?.courseTitle || 'No course data yet';
-        const weakestTopic = weakTopics[0] || null;
-        const weakestTopicReviewedToday = Boolean(weakestTopic &&
-            (todayQuizRows.some((row) => String(row.course_title || '').trim() === String(weakestTopic.courseTitle || '').trim() &&
-                String(row.topic_name || '').trim() === String(weakestTopic.topicName || '').trim()) ||
-                todayNoteRows.some((row) => String(row.course_title || '').trim() === String(weakestTopic.courseTitle || '').trim() &&
-                    String(row.topic_name || '').trim() === String(weakestTopic.topicName || '').trim())));
-        const dailyGoals = [
-            {
-                key: 'quiz_today',
-                title: 'Complete 1 quiz today',
-                description: 'Build momentum by submitting at least one quiz attempt.',
-                completed: todayQuizRows.length >= 1,
-                progressText: `${Math.min(todayQuizRows.length, 1)}/1 done`,
-            },
-            {
-                key: 'note_today',
-                title: 'Review 1 lesson today',
-                description: 'Open one lesson and revise a concept intentionally.',
-                completed: todayNoteRows.length >= 1,
-                progressText: `${Math.min(todayNoteRows.length, 1)}/1 done`,
-            },
-            {
-                key: 'weak_topic_today',
-                title: weakestTopic ? `Revisit ${weakestTopic.topicName}` : 'Revisit a weak topic',
-                description: weakestTopic
-                    ? `Focus on your weakest topic in ${weakestTopic.courseTitle}.`
-                    : 'Complete more quizzes to unlock weak-topic targeting.',
-                completed: weakestTopic ? weakestTopicReviewedToday : false,
-                progressText: weakestTopic ? `${weakestTopicReviewedToday ? 1 : 0}/1 done` : 'Locked',
-            },
-        ];
-        const completedGoals = dailyGoals.filter((goal) => goal.completed).length;
-        const performanceSnapshot = this.buildStudentPerformanceSnapshot({
-            totalAttempts,
-            averagePercentage,
-            passRate,
-            quizDayStreak,
-            dailyGoalsCompleted: completedGoals,
-            dailyGoalsTotal: dailyGoals.length,
-            performanceWindows,
-        });
-        const adaptivePlan = this.buildStudentAdaptivePlan({
-            totalAttempts,
-            weakestTopic,
-            recommendedNoteTitle: smartNotes[0]?.title || '',
-            todayQuizCount: todayQuizRows.length,
-            todayNoteCount: todayNoteRows.length,
-            todayResultViewCount: todayResultViewRows.length,
-        });
+        }
+        const weakTopics = weakAreas.map((area) => this.subjectInsight(area, names));
+        const quizDoneToday = stats.todayBits === progress_write_1.TODAY.ALL;
+        const { dailyGoals, completedGoals, performanceSnapshot } = this.goalsAndSnapshot(stats, recentDays, weakAreas[0] || null, weakTopics[0] || null);
         return {
-            user: {
-                id: student.id,
-                fullName: student.full_name || '',
-            },
+            __stats: { stats, recentDays, weakAreas },
+            user: { id: student.id, fullName: student.full_name || '' },
             serverClock,
-            totalQuizzes: Number(summary?.total_quizzes || 0),
-            totalCourses: courseProgress.length,
+            totalQuizzes,
+            totalCourses: lite ? (await this.courseStructure.get()).courses.length : courseProgress.length,
             totalAttempts,
-            quizDayStreak,
-            quizDoneToday: todayQuizRows.length >= 1,
-            streakGraceActive,
+            quizDayStreak: stats.streak,
+            quizDoneToday,
+            todayBits: stats.todayBits,
+            streakGraceActive: stats.streakGraceActive,
             totalXp: xpSummary.totalXp,
             xpToday: xpSummary.xpToday,
             xpDailyCap: xpSummary.xpDailyCap,
@@ -650,8 +220,6 @@ let DashboardService = DashboardService_1 = class DashboardService {
             avgScore: Number(averagePercentage.toFixed(2)),
             totalPassed,
             passRate: Number(passRate.toFixed(2)),
-            totalSmartNotes: Number(summary?.total_smart_notes || 0),
-            generatedSmartNotes: Number(summary?.generated_smart_notes || 0),
             courseProgress: courseProgress.map((course) => ({
                 id: Number(course.id),
                 courseTitle: course.courseTitle,
@@ -663,46 +231,14 @@ let DashboardService = DashboardService_1 = class DashboardService {
                 totalLessonsCount: Number(course.totalLessonsCount || 0),
                 actionLabel: course.actionLabel || 'View Course',
             })),
-            courseProgressSummary,
-            recentAttempts: recentAttempts.map((row) => ({
-                id: row.id,
-                quizTitle: row.quiz_title,
-                quizNumber: Number(row.quiz_number || 0),
-                displayTitleMode: row.display_title_mode === 'title' ? 'title' : 'number',
-                courseTitle: row.course_title || '',
-                topicName: row.topic_name || '',
-                score: row.score,
-                totalQuestions: row.total_questions,
-                percentage: Number(row.percentage || 0),
-                passStatus: row.pass_status,
-                submittedAt: row.submitted_at,
-            })),
-            recentSmartNotes: smartNotes.map((row) => ({
-                id: row.id,
-                title: row.title,
-                updatedAt: row.updated_at,
-                hasVisual: Boolean(row.has_visual),
-            })),
-            topicMastery,
+            courseProgressSummary: this.buildCourseProgressSummary(courseProgress),
             weakTopics,
-            strongTopics,
             dailyGoals,
             dailyGoalsCompleted: completedGoals,
-            focusTopic,
-            focusCourse,
             performanceSnapshot,
-            adaptivePlan,
-            questionOfDay,
-            missedPatterns: missedPatterns.map((row) => ({
-                courseTitle: row.course_title || 'General',
-                subjectName: row.subject_name || '',
-                topicName: row.topic_name || row.subject_name || 'General',
-                lessonTitle: row.lesson_title || '',
-                questionType: row.question_type,
-                missCount: Number(row.miss_count || 0),
-                latestMissedAt: row.latest_missed_at,
-                patternLabel: row.question_type === 'true_false' ? 'True/false accuracy' : 'Answer selection',
-            })),
+            recentAttempts: latestAttempt,
+            focusTopic: weakTopics[0]?.topicName || 'Start your first quiz',
+            focusCourse: weakTopics[0]?.courseTitle || 'No course data yet',
             progressTone: averagePercentage >= 75 ? 'strong' : averagePercentage >= 50 ? 'steady' : 'focus',
             progressNote: totalAttempts === 0
                 ? 'No submitted quizzes yet. Start with one short quiz to build your baseline.'
@@ -713,9 +249,160 @@ let DashboardService = DashboardService_1 = class DashboardService {
                         : 'Your recent results point to one focused review block. Revisit lessons first, then use practice mode before full exams.',
         };
     }
+    async hubMore(student, appClient, known, lite = false, noQuestion = false) {
+        const stats = known?.stats ?? await this.studyStats.summary(student.id);
+        const ranked = { weakest: [], strongest: [], missed: [] };
+        const [recentAttempts, noteRows, questionOfDay, names] = await Promise.all([
+            lite ? Promise.resolve([]) : this.recentAttempts(student.id),
+            Promise.resolve([]),
+            noQuestion ? Promise.resolve(null) : this.getRandomDashboardQuestion(student.id, appClient),
+            this.areaNames(),
+        ]);
+        const { weakest, strongest, missed: missedTopics } = ranked;
+        const today = stats.today;
+        const totalAttempts = stats.attemptsTotal;
+        const insights = weakest.map((area) => this.subjectInsight(area, names));
+        const weakTopics = insights.slice(0, 3);
+        const weakIds = new Set(weakest.slice(0, 3).map((a) => a.area_id));
+        const strongTopics = strongest.filter((a) => !weakIds.has(a.area_id)).map((area) => this.subjectInsight(area, names));
+        const topicMastery = insights.map((topic) => ({ ...topic, ...this.classifyTopicMastery(topic.averagePercentage) }));
+        const weakestTopic = weakTopics[0] || null;
+        const todayQuizCount = today.exams + today.practice;
+        const todayNoteCount = today.lessons;
+        const adaptivePlan = this.buildStudentAdaptivePlan({
+            totalAttempts,
+            weakestTopic,
+            recommendedNoteTitle: String(noteRows[0]?.title || ''),
+            todayQuizCount,
+            todayNoteCount,
+            todayResultViewCount: today.results_viewed,
+        });
+        return {
+            recentAttempts,
+            topicMastery,
+            weakTopics,
+            strongTopics,
+            adaptivePlan,
+            questionOfDay,
+            missedPatterns: missedTopics.map((area) => ({
+                courseTitle: names.course.get(area.course_id) || 'General',
+                subjectName: names.subject.get(area.subject_id) || '',
+                topicName: (area.area_id > 0 ? names.topic.get(area.area_id) : '')
+                    || names.subject.get(area.subject_id) || 'General',
+                lessonTitle: '',
+                questionType: '',
+                missCount: area.wrong,
+                answeredCount: area.answered,
+                missRate: Math.round(area.wrong_rate * 100),
+                latestMissedAt: area.last_wrong_at,
+                patternLabel: `${Math.round(area.wrong_rate * 100)}% wrong of ${area.answered}`,
+            })),
+        };
+    }
+    goalsAndSnapshot(stats, recentDays, weakestArea, weakestTopic) {
+        const today = stats.today;
+        const bits = stats.todayBits || 0;
+        const goal = (key, bit, title, description) => ({
+            key, title, description, completed: (bits & bit) !== 0, progressText: `${(bits & bit) !== 0 ? 1 : 0}/1 done`,
+        });
+        const dailyGoals = [
+            goal('lesson_today', progress_write_1.TODAY.LESSON, 'Finish 1 lesson', 'Read a lesson to the end and tap Done.'),
+            goal('exam_today', progress_write_1.TODAY.EXAM, 'Finish 1 exam', 'Sit one exam from the Q-Bank.'),
+            goal('practice_today', progress_write_1.TODAY.PRACTICE, 'Finish 1 practice', 'Complete one practice set.'),
+            goal('flashcards_today', progress_write_1.TODAY.FLASHCARDS, 'Review flashcards', 'Study at least one flashcard.'),
+        ];
+        const completedGoals = dailyGoals.filter((goal) => goal.completed).length;
+        const weekStart = this.shiftDayKey(today.day, -6);
+        const twoWeeksStart = this.shiftDayKey(today.day, -13);
+        const windows = [];
+        for (const key of ['last_7', 'previous_7']) {
+            const list = (stats.recentResults || []).filter((r) => {
+                const day = (0, streak_2.localDateKey)(new Date(r.at));
+                return key === 'last_7' ? day >= weekStart : day >= twoWeeksStart && day < weekStart;
+            });
+            if (!list.length)
+                continue;
+            const pct = list.reduce((sum, r) => sum + r.pct, 0);
+            windows.push({ window_key: key, attempts_count: list.length, average_percentage: pct / list.length });
+        }
+        const totalAttempts = stats.attemptsTotal;
+        const performanceSnapshot = this.buildStudentPerformanceSnapshot({
+            totalAttempts,
+            averagePercentage: stats.averagePercentage,
+            passRate: totalAttempts > 0 ? (stats.passedTotal / totalAttempts) * 100 : 0,
+            quizDayStreak: stats.streak,
+            dailyGoalsCompleted: completedGoals,
+            dailyGoalsTotal: dailyGoals.length,
+            performanceWindows: windows,
+        });
+        return { dailyGoals, completedGoals, performanceSnapshot };
+    }
+    subjectInsight(area, names) {
+        return {
+            topicName: names.subject.get(area.area_id) || 'General',
+            courseTitle: names.course.get(area.course_id) || 'General',
+            averagePercentage: Number(((1 - area.wrong_rate) * 100).toFixed(2)),
+            attemptsCount: area.answered,
+        };
+    }
+    async recentAttempts(userId, limit = 5) {
+        const attempts = (await (0, recent_results_1.loadRecentResults)(this.db, userId))
+            .slice(0, Math.max(1, Math.min(5, limit)))
+            .map((r) => ({
+            id: r.quizId, quiz_id: r.quizId, score: r.correct ?? Math.round((r.pct / 100) * r.questionCount),
+            total_questions: r.questionCount, percentage: r.pct, pass_status: r.passed ? 'pass' : 'fail', submitted_at: r.at,
+        }));
+        if (!attempts.length)
+            return [];
+        const byId = await (0, recent_results_1.loadQuizInfo)(this.db, attempts.map((a) => a.quiz_id));
+        const names = await this.areaNames();
+        return attempts.map((row) => {
+            const quiz = byId.get(Number(row.quiz_id));
+            return {
+                id: row.id,
+                quizTitle: (quiz?.student_title || '').trim() || quiz?.quiz_title || '',
+                quizNumber: Number(quiz?.quiz_number || 0),
+                displayTitleMode: quiz?.display_title_mode === 'title' ? 'title' : 'number',
+                courseTitle: names.course.get(Number(quiz?.course_id)) || '',
+                topicName: names.subject.get(Number(quiz?.topic_id)) || '',
+                score: row.score,
+                totalQuestions: row.total_questions,
+                percentage: Number(row.percentage || 0),
+                passStatus: row.pass_status,
+                submittedAt: row.submitted_at,
+            };
+        });
+    }
+    async areaNames() {
+        const structure = await this.courseStructure.get();
+        if (this.namesCache?.builtAt === structure.builtAt)
+            return this.namesCache.names;
+        const names = {
+            course: new Map(structure.courses.map((c) => [Number(c.id), String(c.course_title)])),
+            subject: new Map(structure.subjects.map((s) => [Number(s.id), String(s.topic_name)])),
+            topic: new Map(structure.topics.map((t) => [Number(t.id), String(t.subtopic_name)])),
+            lessonSubject: new Map(structure.lessons.map((l) => [Number(l.id), Number(l.topic_id) || 0])),
+        };
+        this.namesCache = { builtAt: structure.builtAt, names };
+        return names;
+    }
+    async activeQuizCount() {
+        return (await this.studentCatalogue.get()).quizCount;
+    }
+    shiftDayKey(key, days) {
+        const [y, m, d] = key.split('-').map(Number);
+        const date = new Date(Date.UTC(y, m - 1, d + days));
+        return date.toISOString().slice(0, 10);
+    }
     async recordStudentActivity(authorization, dto) {
         const student = await this.findActiveStudentByToken(this.extractToken(authorization));
-        await this.db.execute('INSERT INTO study_activity_events (user_id, activity_type, item_id, event_type) VALUES (?, ?, ?, ?)', [student.id, dto.activityType, dto.itemId ?? null, dto.eventType || null]);
+        if (dto.activityType === 'practice_completed') {
+            await this.studyStats.ensureBuilt(student.id);
+            const day = study_stats_service_1.StudyStatsService.todayKey();
+            const w = (0, progress_write_1.progressWrite)(day, { practices: (0, progress_write_1.takeRideAlong)() });
+            if (w.seq.params.length)
+                await this.db.execute(`UPDATE student_study_summary SET ${w.streak.sql}, ${w.pay.sql}, ${w.seq.sql} WHERE user_id = ?`, [...w.streak.params, ...w.pay.params, ...w.seq.params, student.id]);
+        }
         if (dto.activityType.endsWith('_protection_attempt')) {
             console.warn(JSON.stringify({
                 event: 'content_protection_attempt',
@@ -912,34 +599,64 @@ let DashboardService = DashboardService_1 = class DashboardService {
         this.webQuestionPoolInflight = task;
         return task;
     }
-    async pickAppQuestionId(studentId) {
+    async appQuestionIdRange() {
+        const version = await (0, content_version_1.getContentVersion)(this.db);
+        if (this.questionIdRange?.version === version)
+            return this.questionIdRange;
         const [[range]] = await this.db.execute(`SELECT MIN(id) AS min_id, MAX(id) AS max_id FROM questions`);
-        const minId = Number(range?.min_id || 0);
-        const maxId = Number(range?.max_id || 0);
-        if (!minId || !maxId)
+        this.questionIdRange = { version, min: Number(range?.min_id || 0), max: Number(range?.max_id || 0) };
+        return this.questionIdRange;
+    }
+    async computeAppQuestion(studentId) {
+        const { min, max } = await this.appQuestionIdRange();
+        if (!min || !max)
             return null;
-        const start = minId + this.getDashboardQuestionOffset(studentId, maxId - minId + 1);
-        const first = (from) => this.db.execute(`SELECT q.id
-       FROM questions q
-       WHERE q.id >= ?
-         AND ${DashboardService_1.DASHBOARD_QUESTION_ELIGIBLE}
-       ORDER BY q.id ASC
-       LIMIT 1`, [from]);
-        const [rows] = await first(start);
-        if (rows[0])
-            return Number(rows[0].id);
-        const [wrapped] = await first(minId);
-        return wrapped[0] ? Number(wrapped[0].id) : null;
+        let from = min + this.getDashboardQuestionOffset(studentId, max - min + 1);
+        let wrapped = false;
+        for (let tries = 0; tries < 6; tries += 1) {
+            const [rows] = await this.db.execute(`SELECT id, question_text, question_type, course_id, topic_id, subtopic_id, options_json
+           FROM questions FORCE INDEX (idx_questions_status_type_id)
+          WHERE status = 'active' AND question_type = 'sba' AND id >= ?
+          ORDER BY id ASC
+          LIMIT 1`, [from]);
+            const question = rows[0];
+            if (!question) {
+                if (wrapped)
+                    return null;
+                wrapped = true;
+                from = min;
+                continue;
+            }
+            const options = (0, question_content_1.optionsOf)(Number(question.id), question.options_json);
+            const correct = options.filter((o) => o.is_correct === 1).length;
+            if (options.length !== 5 || correct !== 1) {
+                from = Number(question.id) + 1;
+                continue;
+            }
+            const names = await this.areaNames();
+            return {
+                id: Number(question.id),
+                questionType: question.question_type,
+                questionText: question.question_text,
+                courseTitle: names.course.get(Number(question.course_id)) || '',
+                subjectName: names.subject.get(Number(question.topic_id)) || '',
+                topicName: names.topic.get(Number(question.subtopic_id)) || names.subject.get(Number(question.topic_id)) || '',
+                options: options.map((o) => ({
+                    id: Number(o.id),
+                    optionLabel: String(o.option_label ?? ''),
+                    optionText: String(o.option_text ?? ''),
+                    isCorrect: Number(o.is_correct) === 1,
+                })),
+            };
+        }
+        return null;
     }
     async computeRandomDashboardQuestion(studentId, appClient) {
-        let pickedId;
         if ((0, mobile_client_util_1.isMobileAppClient)(appClient)) {
-            pickedId = await this.pickAppQuestionId(studentId);
+            return this.computeAppQuestion(studentId);
         }
-        else {
-            const pool = await this.getWebQuestionPool();
-            pickedId = pool.length ? pool[this.getDashboardQuestionOffset(studentId, pool.length)] : null;
-        }
+        const pool = await this.getWebQuestionPool();
+        const pickedId = pool.length ? pool[this.getDashboardQuestionOffset(studentId, pool.length)] : null;
         if (!pickedId) {
             return null;
         }
@@ -949,7 +666,8 @@ let DashboardService = DashboardService_1 = class DashboardService {
          q.question_type,
          c.course_title,
          subj.topic_name AS subject_name,
-         sub.subtopic_name AS topic_name
+         sub.subtopic_name AS topic_name,
+         q.options_json
        FROM questions q
        LEFT JOIN courses c ON c.id = q.course_id
        LEFT JOIN topics subj ON subj.id = q.topic_id
@@ -960,10 +678,7 @@ let DashboardService = DashboardService_1 = class DashboardService {
         if (!question) {
             return null;
         }
-        const [optionRows] = await this.db.execute(`SELECT id, question_id, option_label, option_text, is_correct
-       FROM question_options
-       WHERE question_id = ?
-       ORDER BY option_label ASC, id ASC`, [question.id]);
+        const optionRows = (0, question_content_1.optionsOf)(Number(question.id), question.options_json);
         return {
             id: Number(question.id),
             questionType: question.question_type,
@@ -993,6 +708,14 @@ let DashboardService = DashboardService_1 = class DashboardService {
         return token;
     }
     async findActiveStudentByToken(sessionToken) {
+        if ((0, access_token_1.looksLikeAccessToken)(sessionToken)) {
+            const user = (0, token_user_1.userFromAccessToken)(sessionToken);
+            if (user.role !== 'student')
+                throw new common_1.UnauthorizedException('Student access required');
+            if (user.status !== 'active')
+                throw new common_1.UnauthorizedException('Your student account is not active yet');
+            return user;
+        }
         const [rows] = await this.db.execute(`SELECT id, role, status, full_name
        FROM users
        WHERE session_token = ?
@@ -1025,15 +748,15 @@ let DashboardService = DashboardService_1 = class DashboardService {
         }
         return String(day).slice(0, 10);
     }
-    classifyTopicMastery(averagePercentage, attemptsCount) {
-        if (attemptsCount >= 3 && averagePercentage >= 75) {
+    classifyTopicMastery(averagePercentage) {
+        if (averagePercentage >= 75) {
             return {
                 mastery: 'strong',
                 masteryLabel: 'Strong',
-                masteryNote: 'Reliable scores across repeated attempts.',
+                masteryNote: 'Mostly right answers across your recent questions.',
             };
         }
-        if (averagePercentage >= 50 || attemptsCount >= 2) {
+        if (averagePercentage >= 50) {
             return {
                 mastery: 'improving',
                 masteryLabel: 'Improving',
@@ -1062,22 +785,18 @@ DashboardService.WEB_QUESTION_POOL_TTL_MS = 60 * 60 * 1000;
 DashboardService.DASHBOARD_QUESTION_ELIGIBLE = `
        q.status = 'active'
          AND q.question_type = 'sba'
-         AND (
-           SELECT COUNT(*)
-           FROM question_options qo
-           WHERE qo.question_id = q.id
-         ) = 5
-         AND (
-           SELECT COUNT(*)
-           FROM question_options qo
-           WHERE qo.question_id = q.id
-             AND qo.is_correct = 1
-         ) = 1`;
+         AND ${(0, question_content_1.sqlOptionCount)('q')} = 5
+         AND ${(0, question_content_1.sqlCorrectCount)('q')} = 1`;
 exports.DashboardService = DashboardService = DashboardService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,
         courses_service_1.CoursesService,
-        xp_service_1.XpService])
+        xp_service_1.XpService,
+        users_service_1.UsersService,
+        subscriptions_service_1.SubscriptionsService,
+        study_stats_service_1.StudyStatsService,
+        course_structure_service_1.CourseStructureService,
+        student_catalogue_service_1.StudentCatalogueService])
 ], DashboardService);
 //# sourceMappingURL=dashboard.service.js.map

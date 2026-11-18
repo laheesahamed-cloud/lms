@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
+import '../../state/kept_content.dart';
 
 // ── defensive coercion helpers (match app convention) ──
 String _s(dynamic v) => v == null ? '' : v.toString();
@@ -107,15 +108,16 @@ class EcgRepository {
   EcgRepository(this._client);
 
   Future<List<EcgTopic>> topics() async {
-    final res = await _client.dio.get('/student/ecg/topics');
-    final data = res.data as Map<String, dynamic>;
+    final data = Map<String, dynamic>.from(
+        await keptPerVersion('ecg_topics', () async => (await _client.dio.get('/student/ecg/topics')).data) as Map);
     final list = (data['topics'] as List?) ?? const [];
     return list.map(EcgTopic.fromJson).toList();
   }
 
   Future<EcgTopicDetail> topic(int id) async {
-    final res = await _client.dio.get('/student/ecg/topics/$id');
-    final data = res.data as Map<String, dynamic>;
+    final data = Map<String, dynamic>.from(await keptPerVersion(
+        'ecg_topic_$id', () async => (await _client.dio.get('/student/ecg/topics/$id')).data,
+        needsPlan: true) as Map);
     final topic = data['topic'] == null ? null : EcgTopic.fromJson(data['topic']);
     final cards = (data['cards'] as List?)?.map(EcgCard.fromJson).toList() ?? <EcgCard>[];
     return EcgTopicDetail(topic: topic, cards: cards);

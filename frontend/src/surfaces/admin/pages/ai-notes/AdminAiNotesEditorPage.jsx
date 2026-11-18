@@ -218,14 +218,19 @@ const editorUi = {
 
 export function AdminAiNotesEditorPage({
   engineKey = 'gemini',
-  routeBase = '/ai-notes',
-  listLabel = 'Lessons',
+  // Lessons are listed on the Structure page ("Courses" in the menu).
+  listPath = '/structure',
+  listLabel = 'Courses',
   generatorLabel = 'active AI provider',
 }) {
   const { id }    = useParams();
   const navigate  = useNavigate();
   // Set when the lesson was opened from the Courses page, so Back returns to that folder.
-  const returnTo  = useLocation().state?.returnTo || null;
+  const locationState = useLocation().state;
+  const returnTo  = locationState?.returnTo || null;
+  // Lists handed over by the Structure page (courses, the course's subjects, the
+  // subject's topics), so the dropdowns don't need fetching again.
+  const structureContext = locationState?.structureContext || null;
   const bookRef   = useRef(null);
   const [printing, setPrinting] = useState(false);
   const saveTimer = useRef(null);
@@ -350,8 +355,15 @@ export function AdminAiNotesEditorPage({
     return () => { cancelled = true; };
   }, [engineKey, id]);
 
-  // Load courses once on mount
-  useEffect(() => { adminGetCourses().then(setCourses).catch(() => {}); }, []);
+  // Load courses once on mount — unless the Structure page handed them over.
+  useEffect(() => {
+    if (Array.isArray(structureContext?.courses) && structureContext.courses.length) {
+      setCourses(structureContext.courses);
+      return;
+    }
+    adminGetCourses().then(setCourses).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load topics when course changes (but don't reset if we're loading initial data)
   const initialLoad = useRef(true);
@@ -372,18 +384,27 @@ export function AdminAiNotesEditorPage({
   // After initial note loads, populate dropdowns then allow cascade
   useEffect(() => {
     if (!note) return;
+    // Use the Structure page's lists when they are for this lesson's course and
+    // subject; otherwise (opened directly, or the lesson lives elsewhere) fetch.
+    const ctx = structureContext;
     const loadDropdowns = async () => {
       if (note.courseId) {
-        const t = await adminGetTopics(note.courseId).catch(() => []);
+        const t = ctx && String(ctx.courseId) === String(note.courseId) && Array.isArray(ctx.topics)
+          ? ctx.topics
+          : await adminGetTopics(note.courseId).catch(() => []);
         setTopics(t);
         if (note.topicId) {
-          const s = await adminGetSubtopics(note.topicId).catch(() => []);
+          const s = ctx && String(ctx.topicId) === String(note.topicId) && Array.isArray(ctx.subtopics)
+            ? ctx.subtopics
+            : await adminGetSubtopics(note.topicId).catch(() => []);
           setSubtopics(s);
         }
       }
       initialLoad.current = false;
     };
     loadDropdowns();
+    // Runs once per loaded note; the handed-over lists are fixed for the visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note]);
 
   const clearSaveStatusLater = useCallback((delay) => {
@@ -1028,7 +1049,7 @@ export function AdminAiNotesEditorPage({
   const lessonCreated = (noteData?.pages || []).some((pg) => (pg.sections || []).length > 0);
 
   if (loading) return <div className={editorUi.loadingFallback}>Loading…</div>;
-  if (!note)   return <div className={editorUi.notFoundFallback}>Not found. <button className={ui.secondaryAction} onClick={() => navigate(returnTo || routeBase)}>Back</button></div>;
+  if (!note)   return <div className={editorUi.notFoundFallback}>Not found. <button className={ui.secondaryAction} onClick={() => navigate(returnTo || listPath)}>Back</button></div>;
 
   return (
     <div className={editorUi.editorShell}>
@@ -1036,11 +1057,11 @@ export function AdminAiNotesEditorPage({
       {/* top bar */}
       <div className={editorUi.topBar}>
         <button className={cx(ui.secondaryAction, 'shrink-0 !w-auto px-3 py-1.5 text-[13px]')}
-                onClick={() => navigate(returnTo || routeBase)}><BackIcon/> {returnTo ? 'Back' : listLabel}</button>
+                onClick={() => navigate(returnTo || listPath)}><BackIcon/> {returnTo ? 'Back' : listLabel}</button>
         <BreadcrumbTrail
           className="lms-editor-breadcrumb max-[700px]:hidden"
           items={[
-            { label: listLabel, to: routeBase },
+            { label: listLabel, to: listPath },
             { label: title || note?.title || 'Lesson' },
           ]}
         />

@@ -15,7 +15,6 @@ export declare class CreateQuestionDto {
     category: 'past' | 'past_paper' | 'mock' | 'ai';
     questionType: 'sba' | 'true_false';
     questionText: string;
-    keywordsText?: string;
     explanation?: string;
     explanationImageUrl?: string | null;
     questionApproach?: string;

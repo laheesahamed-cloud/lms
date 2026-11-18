@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsString()
@@ -9,6 +9,19 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   avatarKey?: string;
+
+  // Sent by the onboarding screen (required there); Profile edits leave them out.
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(64)
+  universityCountry?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  university?: string;
 
   @Type(() => Number)
   @IsInt()

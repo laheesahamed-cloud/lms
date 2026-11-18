@@ -18,7 +18,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -34,7 +34,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -149,7 +149,7 @@ export declare class SettingsController {
         cancelUrl: string;
         notifyUrl: string;
         autoActivatePaidSubscriptions: boolean;
-        appCheckoutMode: "native" | "web";
+        appCheckoutMode: "web" | "native";
         hasAppMerchantSecret: boolean;
         maskedAppMerchantSecret: string;
         ok: boolean;
@@ -185,7 +185,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "all" | "app" | "login" | "landing";
         title: string;
         body: string;
         buttonLabel: string;
@@ -228,7 +228,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -244,7 +244,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -269,7 +269,7 @@ export declare class SettingsController {
     }>;
     testAiProvider(authorization: string | undefined, dto: CreateAiProviderDto): Promise<{
         ok: boolean;
-        providerKey: "gemini" | "openai" | "claude" | "openrouter";
+        providerKey: "openai" | "gemini" | "claude" | "openrouter";
         providerLabel: string;
         message: string;
         modeOptions: any;
@@ -338,7 +338,7 @@ export declare class SettingsController {
         cancelUrl: string;
         notifyUrl: string;
         autoActivatePaidSubscriptions: boolean;
-        appCheckoutMode: "native" | "web";
+        appCheckoutMode: "web" | "native";
         hasAppMerchantSecret: boolean;
         maskedAppMerchantSecret: string;
         ok: boolean;
@@ -379,7 +379,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "all" | "app" | "login" | "landing";
         title: string;
         body: string;
         buttonLabel: string;
@@ -422,7 +422,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -438,7 +438,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -465,7 +465,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -481,7 +481,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -508,7 +508,7 @@ export declare class SettingsController {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -524,7 +524,7 @@ export declare class SettingsController {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;

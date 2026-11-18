@@ -1,8 +1,11 @@
+import { lessonIdsFromBits } from '../../common/utils/lesson-bits';
 import { forgetUserSessions } from '../auth/session-cache';
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { AuthService } from '../auth/auth.service';
+import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as bcrypt from 'bcryptjs';
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
+import { searchWords, wordSearchFilter } from '../../common/utils/word-search';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import {
   effectivePermissions,
@@ -14,6 +17,7 @@ import {
 } from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { loadQuizInfo, loadRecentResults } from '../../common/utils/recent-results';
 import { UpdateUserAccessDto } from './dto/update-user-access.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
@@ -35,7 +39,11 @@ type UserManagementActor = {
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Pool,
+    // Deleting a user is the same soft delete as a student's own account deletion.
+    @Optional() private readonly authService?: AuthService,
+  ) {}
 
   async findAll(actor: UserManagementActor, filters: { search?: string; status?: string; role?: string } & PaginationInput) {
     this.assertActiveStaff(actor);
@@ -43,7 +51,7 @@ export class UsersService {
     let sql = `
       SELECT id, full_name, email, role, status, created_at
       FROM users
-      WHERE 1 = 1
+      WHERE 1 = 1 AND deleted_at IS NULL
     `;
     const params: Array<string | number> = [];
 
@@ -71,44 +79,101 @@ export class UsersService {
     return rows.map((row) => this.mapUser(row));
   }
 
+  /**
+   * Users page, in pages of 50: inactive accounts first, then active, newest
+   * first inside each (the old order), read by index ("after" = the last row's
+   * "status:id"), so each page reads only its own rows. Before, the page got
+   * the first 100 and paged them in the browser: the rest couldn't be reached
+   * without a search. A search (word start on name / e-mail, FULLTEXT) returns
+   * its matches in the same order, up to 100.
+   */
+  async findPage(actor: UserManagementActor, filters: { search?: string; status?: string; role?: string; after?: string }) {
+    this.assertActiveStaff(actor);
+    const role = this.resolveVisibleRoleFilter(actor, filters.role);
+    const statuses = filters.status === 'active' || filters.status === 'inactive' ? [filters.status] : ['inactive', 'active'];
+    const columns = 'id, full_name, email, role, status, created_at';
+    const rank = (status: string) => (status === 'inactive' ? 0 : 1);
+
+    const search = wordSearchFilter(['full_name', 'email'], searchWords(String(filters.search || '')));
+    if (filters.search?.trim()) {
+      if (!search) return { items: [], next: null };
+      const where = [search.sql, 'deleted_at IS NULL', `status IN (${statuses.map(() => '?').join(', ')})`];
+      const params: Array<string | number> = [...search.params, ...statuses];
+      if (role) { where.push('role = ?'); params.push(role); }
+      const [rows] = await this.db.query<UserRow[]>(`SELECT ${columns} FROM users WHERE ${where.join(' AND ')} LIMIT 100`, params);
+      rows.sort((a, b) => rank(String(a.status)) - rank(String(b.status)) || Number(b.id) - Number(a.id));
+      return { items: rows.map((row) => this.mapUser(row)), next: null };
+    }
+
+    const PAGE = 50;
+    const [afterStatus, afterIdRaw] = String(filters.after || '').split(':');
+    const afterId = Number(afterIdRaw);
+    const startAt = statuses.indexOf(afterStatus);
+    const items: UserRow[] = [];
+    let next: string | null = null;
+    for (let i = Math.max(0, startAt); i < statuses.length && !next; i += 1) {
+      const status = statuses[i];
+      const where = ['status = ?', 'deleted_at IS NULL'];
+      const params: Array<string | number> = [status];
+      if (role) { where.push('role = ?'); params.push(role); }
+      if (i === startAt && Number.isInteger(afterId) && afterId > 0) { where.push('id < ?'); params.push(afterId); }
+      const want = PAGE - items.length;
+      // (role, status) and (status) indexes both end in the primary key, so
+      // "ORDER BY id DESC" walks the index and stops at the page's last row.
+      const [rows] = await this.db.query<UserRow[]>(
+        `SELECT ${columns} FROM users FORCE INDEX (${role ? 'idx_users_role_status_live' : 'idx_users_status_live'})
+         WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?`, [...params, want + 1]);
+      items.push(...rows.slice(0, want));
+      if (rows.length > want) next = `${status}:${items[items.length - 1].id}`;
+      else if (items.length === PAGE && i < statuses.length - 1) next = `${status}:${items[items.length - 1].id}`;
+    }
+    return { items: items.map((row) => this.mapUser(row)), next };
+  }
+
   /// `today` is the admin's own calendar date (YYYY-MM-DD) so "new today" follows
   /// the day they are looking at, not the server's clock; anything else falls back
   /// to the database's current date.
-  async summary(actor: UserManagementActor, today?: string) {
+  ///
+  /// Two index reads: one pass over (role, status) for the counts, and today's
+  /// sign-ups by (created_at) — examined = returned for the second. `db` lets
+  /// the Admin Hub run it on its own single connection.
+  async summary(actor: UserManagementActor, today?: string, db: Pick<Pool, 'query'> | Pick<PoolConnection, 'query'> = this.db) {
     this.assertActiveStaff(actor);
-    const where = this.canManageStaff(actor) ? '' : "WHERE role = 'student'";
+    const studentsOnly = !this.canManageStaff(actor);
     const hasDay = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today);
-    const dayClause = hasDay ? 'DATE(created_at) = ?' : 'DATE(created_at) = CURDATE()';
-    const dayParams = hasDay ? [today] : [];
-    const [rows] = await this.db.execute<RowDataPacket[]>(`
-      SELECT
-        COUNT(*) AS total_users,
-        SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS pending_users,
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_users,
-        SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS admin_users,
-        SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) AS student_users,
-        SUM(CASE WHEN ${dayClause} AND deleted_at IS NULL THEN 1 ELSE 0 END) AS new_today
-      FROM users
-      ${where}
-    `, dayParams);
+    const [groups] = await db.query<RowDataPacket[]>(
+      // Deleted (anonymized) accounts are not users any more.
+      'SELECT role, status, COUNT(*) AS n FROM users FORCE INDEX (idx_users_role_status_live) WHERE deleted_at IS NULL GROUP BY role, status');
+    const [todayRows] = await db.query<RowDataPacket[]>(
+      `SELECT id, full_name, email, role, deleted_at IS NULL AS live
+       FROM users FORCE INDEX (idx_users_created)
+       WHERE ${hasDay
+         ? 'created_at >= ? AND created_at < CAST(? AS DATE) + INTERVAL 1 DAY'
+         : 'created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY'}`,
+      hasDay ? [today, today] : []);
 
-    const [newRows] = await this.db.execute<RowDataPacket[]>(`
-      SELECT full_name, email
-      FROM users
-      WHERE ${dayClause} AND deleted_at IS NULL ${where ? "AND role = 'student'" : ''}
-      ORDER BY id DESC
-      LIMIT 3
-    `, dayParams);
-
-    const row = rows[0] || {};
+    const counts = { total: 0, pending: 0, active: 0, admin: 0, student: 0 };
+    for (const g of groups) {
+      if (studentsOnly && g.role !== 'student') continue;
+      const n = Number(g.n || 0);
+      counts.total += n;
+      if (g.status === 'inactive') counts.pending += n;
+      if (g.status === 'active') counts.active += n;
+      if (g.role === 'admin') counts.admin += n;
+      if (g.role === 'student') counts.student += n;
+    }
+    // New today: not deleted (and students only for staff who cannot see staff).
+    const newToday = todayRows
+      .filter((u) => Number(u.live) === 1 && (!studentsOnly || u.role === 'student'))
+      .sort((a, b) => Number(b.id) - Number(a.id));
     return {
-      totalUsers: Number(row.total_users || 0),
-      pendingUsers: Number(row.pending_users || 0),
-      activeUsers: Number(row.active_users || 0),
-      adminUsers: Number(row.admin_users || 0),
-      studentUsers: Number(row.student_users || 0),
-      newToday: Number(row.new_today || 0),
-      newTodayLatest: newRows.map((user) => ({ name: String(user.full_name || ''), email: String(user.email || '') })),
+      totalUsers: counts.total,
+      pendingUsers: counts.pending,
+      activeUsers: counts.active,
+      adminUsers: counts.admin,
+      studentUsers: counts.student,
+      newToday: newToday.length,
+      newTodayLatest: newToday.slice(0, 3).map((user) => ({ name: String(user.full_name || ''), email: String(user.email || '') })),
     };
   }
 
@@ -180,7 +245,7 @@ export class UsersService {
     }
     this.assertCanManageTarget(actor, user);
 
-    const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows]] = await Promise.all([
+    const [[subscriptionRows], [attemptRows], [progressRows]] = await Promise.all([
       this.db.execute<RowDataPacket[]>(
         `SELECT
            us.id,
@@ -197,33 +262,33 @@ export class UsersService {
          LIMIT 8`,
         [id]
       ),
+      // 10.44: the student's recent results (summary row) with quiz titles.
+      loadRecentResults(this.db, id).then(async (results) => {
+        const info = await loadQuizInfo(this.db, results.map((r) => r.quizId));
+        return [results.map((r) => ({
+          id: r.quizId,
+          quiz_id: r.quizId,
+          quiz_title: (info.get(r.quizId)?.student_title || '').trim() || info.get(r.quizId)?.quiz_title || '',
+          score: r.pct,
+          percentage: r.pct,
+          pass_status: r.passed ? 'pass' : 'fail',
+          submitted_at: r.at || null,
+        })) as unknown as RowDataPacket[], []] as [RowDataPacket[], unknown];
+      }),
+      // Lesson progress from the student's summary row (10.15): the bitmap's
+      // finished lessons and the last active day (1 row by primary key).
       this.db.execute<RowDataPacket[]>(
-        `SELECT qa.id, qa.quiz_id, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
-                qa.score, qa.percentage, qa.pass_status, qa.submitted_at
-         FROM quiz_attempts qa
-         INNER JOIN quizzes q ON q.id = qa.quiz_id
-         WHERE qa.user_id = ?
-         ORDER BY qa.submitted_at DESC, qa.id DESC
-         LIMIT 10`,
+        `SELECT lessons_done, last_active_day FROM student_study_summary WHERE user_id = ? LIMIT 1`,
         [id]
-      ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT
-           COUNT(*) AS tracked_lessons,
-           SUM(status = 'completed') AS completed_lessons,
-           AVG(progress_percent) AS average_progress,
-           MAX(updated_at) AS last_progress_at
-         FROM student_lesson_progress
-         WHERE user_id = ?`,
-        [id]
-      ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT item_type, COUNT(*) AS total
-         FROM study_bookmarks
-         WHERE user_id = ?
-         GROUP BY item_type`,
-        [id]
-      ),
+      ).then(([rows]) => {
+        const finished = lessonIdsFromBits(rows[0]?.lessons_done).length;
+        return [[{
+          tracked_lessons: finished,
+          completed_lessons: finished,
+          average_progress: finished ? 100 : null,
+          last_progress_at: rows[0]?.last_active_day || null,
+        } as unknown as RowDataPacket], []] as [RowDataPacket[], unknown];
+      }),
     ]);
 
     const progress = progressRows[0] || {};
@@ -252,10 +317,6 @@ export class UsersService {
         percentage: Number(row.percentage || 0),
         passStatus: String(row.pass_status || ''),
         submittedAt: row.submitted_at || null,
-      })),
-      bookmarks: bookmarkRows.map((row) => ({
-        itemType: String(row.item_type || ''),
-        total: Number(row.total || 0),
       })),
     };
   }
@@ -470,7 +531,7 @@ export class UsersService {
   async delete(actor: UserManagementActor, id: number) {
     this.assertActiveStaff(actor);
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
       [id]
     );
 
@@ -486,7 +547,12 @@ export class UsersService {
       await this.assertAnotherActiveAdminExists(id);
     }
 
-    await this.db.execute('DELETE FROM users WHERE id = ?', [id]);
+    // Soft delete (decision 2026-11-14): the row and its history stay, so the
+    // student's subscriptions and payments still add up in Finance; name and
+    // e-mail are anonymized, login locked, active subscriptions cancelled.
+    // A hard delete left their subscriptions and requests behind as orphans.
+    if (!this.authService) throw new Error('AuthService is required to delete users');
+    await this.authService.softDeleteUser(id, 'admin');
     await this.logAdminAuditEvent({
       eventType: isStaffRole(user.role) ? 'user.staff_deleted' : 'user.student_deleted',
       actorId: actor.id,
@@ -626,18 +692,6 @@ export class UsersService {
     summary: string;
     metadata?: unknown;
   }) {
-    await this.db.execute(
-      `INSERT INTO admin_audit_events
-        (event_type, actor_id, target_type, target_id, summary, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        input.eventType,
-        input.actorId || null,
-        input.targetType || null,
-        input.targetId || null,
-        input.summary,
-        input.metadata === undefined ? null : JSON.stringify(input.metadata),
-      ]
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
   }
 }

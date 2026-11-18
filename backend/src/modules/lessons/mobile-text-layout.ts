@@ -139,3 +139,20 @@ export function calmTextForPhone(noteData: unknown): unknown {
   if (Array.isArray(data.sections)) next.sections = calmSections(data.sections);
   return scrubPlainTextFieldsForPhone(next);
 }
+
+// 10.34: the app's lesson reply leaves out what it never draws — empty
+// strings / lists / nulls on objects (a missing field reads the same as an
+// empty one in the app) and `visual_style` (the website's colour list; the app
+// has its own colours). Values inside lists stay where they are, so table cells
+// keep their columns; text, highlights and numbers are untouched. ~10% smaller.
+export function compactForPhone(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(compactForPhone);
+  if (!value || typeof value !== 'object') return value;
+  const out: Json = {};
+  for (const [key, v] of Object.entries(value as Json)) {
+    if (key === 'visual_style') continue;
+    if (v === '' || v === null || v === undefined || (Array.isArray(v) && v.length === 0)) continue;
+    out[key] = compactForPhone(v);
+  }
+  return out;
+}

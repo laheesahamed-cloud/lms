@@ -1900,7 +1900,9 @@ export function TakeQuizPage() {
       clearExamAutosaveRetry();
       syncExamSessionFromSave(result);
       const submittedAttemptId = getSubmittedAttemptId(result);
-      if (result?.success) {
+      // 10.16-W: answers are no longer saved on the server while the exam is
+      // open — the local draft IS the save, so it stays until submit.
+      if (result?.success && !result?.localOnly) {
         clearExamDraft(quizId);
       }
       if (submittedAttemptId && result?.submitted) {

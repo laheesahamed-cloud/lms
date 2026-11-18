@@ -13,15 +13,20 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
+const lesson_bits_1 = require("../../common/utils/lesson-bits");
 const session_cache_1 = require("../auth/session-cache");
 const common_1 = require("@nestjs/common");
+const auth_service_1 = require("../auth/auth.service");
 const bcrypt = require("bcryptjs");
 const pagination_1 = require("../../common/utils/pagination");
+const word_search_1 = require("../../common/utils/word-search");
 const database_tokens_1 = require("../../database/database.tokens");
 const role_permissions_1 = require("../auth/role-permissions");
+const recent_results_1 = require("../../common/utils/recent-results");
 let UsersService = class UsersService {
-    constructor(db) {
+    constructor(db, authService) {
         this.db = db;
+        this.authService = authService;
     }
     async findAll(actor, filters) {
         this.assertActiveStaff(actor);
@@ -29,7 +34,7 @@ let UsersService = class UsersService {
         let sql = `
       SELECT id, full_name, email, role, status, created_at
       FROM users
-      WHERE 1 = 1
+      WHERE 1 = 1 AND deleted_at IS NULL
     `;
         const params = [];
         if (filters.search?.trim()) {
@@ -51,39 +56,91 @@ let UsersService = class UsersService {
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapUser(row));
     }
-    async summary(actor, today) {
+    async findPage(actor, filters) {
         this.assertActiveStaff(actor);
-        const where = this.canManageStaff(actor) ? '' : "WHERE role = 'student'";
+        const role = this.resolveVisibleRoleFilter(actor, filters.role);
+        const statuses = filters.status === 'active' || filters.status === 'inactive' ? [filters.status] : ['inactive', 'active'];
+        const columns = 'id, full_name, email, role, status, created_at';
+        const rank = (status) => (status === 'inactive' ? 0 : 1);
+        const search = (0, word_search_1.wordSearchFilter)(['full_name', 'email'], (0, word_search_1.searchWords)(String(filters.search || '')));
+        if (filters.search?.trim()) {
+            if (!search)
+                return { items: [], next: null };
+            const where = [search.sql, 'deleted_at IS NULL', `status IN (${statuses.map(() => '?').join(', ')})`];
+            const params = [...search.params, ...statuses];
+            if (role) {
+                where.push('role = ?');
+                params.push(role);
+            }
+            const [rows] = await this.db.query(`SELECT ${columns} FROM users WHERE ${where.join(' AND ')} LIMIT 100`, params);
+            rows.sort((a, b) => rank(String(a.status)) - rank(String(b.status)) || Number(b.id) - Number(a.id));
+            return { items: rows.map((row) => this.mapUser(row)), next: null };
+        }
+        const PAGE = 50;
+        const [afterStatus, afterIdRaw] = String(filters.after || '').split(':');
+        const afterId = Number(afterIdRaw);
+        const startAt = statuses.indexOf(afterStatus);
+        const items = [];
+        let next = null;
+        for (let i = Math.max(0, startAt); i < statuses.length && !next; i += 1) {
+            const status = statuses[i];
+            const where = ['status = ?', 'deleted_at IS NULL'];
+            const params = [status];
+            if (role) {
+                where.push('role = ?');
+                params.push(role);
+            }
+            if (i === startAt && Number.isInteger(afterId) && afterId > 0) {
+                where.push('id < ?');
+                params.push(afterId);
+            }
+            const want = PAGE - items.length;
+            const [rows] = await this.db.query(`SELECT ${columns} FROM users FORCE INDEX (${role ? 'idx_users_role_status_live' : 'idx_users_status_live'})
+         WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?`, [...params, want + 1]);
+            items.push(...rows.slice(0, want));
+            if (rows.length > want)
+                next = `${status}:${items[items.length - 1].id}`;
+            else if (items.length === PAGE && i < statuses.length - 1)
+                next = `${status}:${items[items.length - 1].id}`;
+        }
+        return { items: items.map((row) => this.mapUser(row)), next };
+    }
+    async summary(actor, today, db = this.db) {
+        this.assertActiveStaff(actor);
+        const studentsOnly = !this.canManageStaff(actor);
         const hasDay = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today);
-        const dayClause = hasDay ? 'DATE(created_at) = ?' : 'DATE(created_at) = CURDATE()';
-        const dayParams = hasDay ? [today] : [];
-        const [rows] = await this.db.execute(`
-      SELECT
-        COUNT(*) AS total_users,
-        SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS pending_users,
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_users,
-        SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS admin_users,
-        SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) AS student_users,
-        SUM(CASE WHEN ${dayClause} AND deleted_at IS NULL THEN 1 ELSE 0 END) AS new_today
-      FROM users
-      ${where}
-    `, dayParams);
-        const [newRows] = await this.db.execute(`
-      SELECT full_name, email
-      FROM users
-      WHERE ${dayClause} AND deleted_at IS NULL ${where ? "AND role = 'student'" : ''}
-      ORDER BY id DESC
-      LIMIT 3
-    `, dayParams);
-        const row = rows[0] || {};
+        const [groups] = await db.query('SELECT role, status, COUNT(*) AS n FROM users FORCE INDEX (idx_users_role_status_live) WHERE deleted_at IS NULL GROUP BY role, status');
+        const [todayRows] = await db.query(`SELECT id, full_name, email, role, deleted_at IS NULL AS live
+       FROM users FORCE INDEX (idx_users_created)
+       WHERE ${hasDay
+            ? 'created_at >= ? AND created_at < CAST(? AS DATE) + INTERVAL 1 DAY'
+            : 'created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY'}`, hasDay ? [today, today] : []);
+        const counts = { total: 0, pending: 0, active: 0, admin: 0, student: 0 };
+        for (const g of groups) {
+            if (studentsOnly && g.role !== 'student')
+                continue;
+            const n = Number(g.n || 0);
+            counts.total += n;
+            if (g.status === 'inactive')
+                counts.pending += n;
+            if (g.status === 'active')
+                counts.active += n;
+            if (g.role === 'admin')
+                counts.admin += n;
+            if (g.role === 'student')
+                counts.student += n;
+        }
+        const newToday = todayRows
+            .filter((u) => Number(u.live) === 1 && (!studentsOnly || u.role === 'student'))
+            .sort((a, b) => Number(b.id) - Number(a.id));
         return {
-            totalUsers: Number(row.total_users || 0),
-            pendingUsers: Number(row.pending_users || 0),
-            activeUsers: Number(row.active_users || 0),
-            adminUsers: Number(row.admin_users || 0),
-            studentUsers: Number(row.student_users || 0),
-            newToday: Number(row.new_today || 0),
-            newTodayLatest: newRows.map((user) => ({ name: String(user.full_name || ''), email: String(user.email || '') })),
+            totalUsers: counts.total,
+            pendingUsers: counts.pending,
+            activeUsers: counts.active,
+            adminUsers: counts.admin,
+            studentUsers: counts.student,
+            newToday: newToday.length,
+            newTodayLatest: newToday.slice(0, 3).map((user) => ({ name: String(user.full_name || ''), email: String(user.email || '') })),
         };
     }
     async listStaff(actor) {
@@ -136,7 +193,7 @@ let UsersService = class UsersService {
             throw new common_1.NotFoundException('User not found');
         }
         this.assertCanManageTarget(actor, user);
-        const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows]] = await Promise.all([
+        const [[subscriptionRows], [attemptRows], [progressRows]] = await Promise.all([
             this.db.execute(`SELECT
            us.id,
            us.status,
@@ -150,24 +207,27 @@ let UsersService = class UsersService {
          WHERE us.user_id = ?
          ORDER BY us.end_date DESC, us.id DESC
          LIMIT 8`, [id]),
-            this.db.execute(`SELECT qa.id, qa.quiz_id, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
-                qa.score, qa.percentage, qa.pass_status, qa.submitted_at
-         FROM quiz_attempts qa
-         INNER JOIN quizzes q ON q.id = qa.quiz_id
-         WHERE qa.user_id = ?
-         ORDER BY qa.submitted_at DESC, qa.id DESC
-         LIMIT 10`, [id]),
-            this.db.execute(`SELECT
-           COUNT(*) AS tracked_lessons,
-           SUM(status = 'completed') AS completed_lessons,
-           AVG(progress_percent) AS average_progress,
-           MAX(updated_at) AS last_progress_at
-         FROM student_lesson_progress
-         WHERE user_id = ?`, [id]),
-            this.db.execute(`SELECT item_type, COUNT(*) AS total
-         FROM study_bookmarks
-         WHERE user_id = ?
-         GROUP BY item_type`, [id]),
+            (0, recent_results_1.loadRecentResults)(this.db, id).then(async (results) => {
+                const info = await (0, recent_results_1.loadQuizInfo)(this.db, results.map((r) => r.quizId));
+                return [results.map((r) => ({
+                        id: r.quizId,
+                        quiz_id: r.quizId,
+                        quiz_title: (info.get(r.quizId)?.student_title || '').trim() || info.get(r.quizId)?.quiz_title || '',
+                        score: r.pct,
+                        percentage: r.pct,
+                        pass_status: r.passed ? 'pass' : 'fail',
+                        submitted_at: r.at || null,
+                    })), []];
+            }),
+            this.db.execute(`SELECT lessons_done, last_active_day FROM student_study_summary WHERE user_id = ? LIMIT 1`, [id]).then(([rows]) => {
+                const finished = (0, lesson_bits_1.lessonIdsFromBits)(rows[0]?.lessons_done).length;
+                return [[{
+                            tracked_lessons: finished,
+                            completed_lessons: finished,
+                            average_progress: finished ? 100 : null,
+                            last_progress_at: rows[0]?.last_active_day || null,
+                        }], []];
+            }),
         ]);
         const progress = progressRows[0] || {};
         return {
@@ -195,10 +255,6 @@ let UsersService = class UsersService {
                 percentage: Number(row.percentage || 0),
                 passStatus: String(row.pass_status || ''),
                 submittedAt: row.submitted_at || null,
-            })),
-            bookmarks: bookmarkRows.map((row) => ({
-                itemType: String(row.item_type || ''),
-                total: Number(row.total || 0),
             })),
         };
     }
@@ -363,7 +419,7 @@ let UsersService = class UsersService {
     }
     async delete(actor, id) {
         this.assertActiveStaff(actor);
-        const [rows] = await this.db.execute('SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1', [id]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [id]);
         const user = rows[0];
         if (!user) {
             throw new common_1.NotFoundException('User not found');
@@ -375,7 +431,9 @@ let UsersService = class UsersService {
         if (user.role === 'admin' && user.status === 'active') {
             await this.assertAnotherActiveAdminExists(id);
         }
-        await this.db.execute('DELETE FROM users WHERE id = ?', [id]);
+        if (!this.authService)
+            throw new Error('AuthService is required to delete users');
+        await this.authService.softDeleteUser(id, 'admin');
         await this.logAdminAuditEvent({
             eventType: (0, role_permissions_1.isStaffRole)(user.role) ? 'user.staff_deleted' : 'user.student_deleted',
             actorId: actor.id,
@@ -482,22 +540,14 @@ let UsersService = class UsersService {
         }
     }
     async logAdminAuditEvent(input) {
-        await this.db.execute(`INSERT INTO admin_audit_events
-        (event_type, actor_id, target_type, target_id, summary, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?)`, [
-            input.eventType,
-            input.actorId || null,
-            input.targetType || null,
-            input.targetId || null,
-            input.summary,
-            input.metadata === undefined ? null : JSON.stringify(input.metadata),
-        ]);
+        void 0;
     }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object])
+    __param(1, (0, common_1.Optional)()),
+    __metadata("design:paramtypes", [Object, auth_service_1.AuthService])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

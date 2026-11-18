@@ -1,3 +1,4 @@
+import '../../utils/count_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -262,7 +263,7 @@ class _CourseCard extends StatelessWidget {
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
                     letterSpacing: -0.2, color: c.inkStrong)),
             const SizedBox(height: 3),
-            Text('${group.lessonCount} lesson${group.lessonCount == 1 ? '' : 's'}',
+            Text('${countPlus(group.lessonCount)} lesson${group.lessonCount == 1 ? '' : 's'}',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.inkSoft)),
           ]),
         ),

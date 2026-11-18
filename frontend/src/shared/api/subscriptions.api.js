@@ -40,9 +40,39 @@ export async function fetchAdminSubscriptionRequests() {
   return response.data;
 }
 
-export async function fetchSubscriptionAudit() {
-  const response = await apiClient.get('/subscriptions/admin/audit');
+export async function fetchSubscriptionAudit(limit) {
+  const response = await apiClient.get('/subscriptions/admin/audit', { params: limit ? { limit } : {} });
   return response.data;
+}
+
+// Subscriptions page header: counts + course list, one small request.
+export async function fetchSubscriptionsOverview() {
+  const response = await apiClient.get('/subscriptions/admin/overview');
+  return response.data;
+}
+
+// Every subscription except the free plan, without plan features per row.
+export async function fetchAdminPaidSubscriptions() {
+  const response = await apiClient.get('/subscriptions/admin/paid');
+  return response.data;
+}
+
+// Finance "Gateway totals" (online payment transactions per status).
+export async function fetchPaymentTotals() {
+  const response = await apiClient.get('/subscriptions/admin/payment-totals');
+  return Array.isArray(response.data) ? response.data : [];
+}
+
+// Assign form: students by name or e-mail (up to 20).
+export async function searchSubscriptionStudents(q, { signal } = {}) {
+  const response = await apiClient.get('/subscriptions/admin/students', { params: { q }, signal });
+  return Array.isArray(response.data) ? response.data : [];
+}
+
+// Lesson titles: by id (a subscription's details) or all (lesson scope in the assign form).
+export async function fetchSubscriptionLessonTitles(ids) {
+  const response = await apiClient.get('/subscriptions/admin/lessons', { params: ids ? { ids: ids.join(',') } : {} });
+  return Array.isArray(response.data) ? response.data : [];
 }
 
 export async function fetchSubscriptionCoupons() {

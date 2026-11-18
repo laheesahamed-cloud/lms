@@ -1,3 +1,4 @@
+import '../../utils/count_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -260,7 +261,7 @@ class _CourseCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 course.totalLessons > 0
-                    ? '${course.totalLessons} lessons'
+                    ? '${countPlus(course.totalLessons)} lessons'
                     : (course.subjectCount > 0 ? '${course.subjectCount} subjects' : 'Course'),
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.inkMuted),
               ),

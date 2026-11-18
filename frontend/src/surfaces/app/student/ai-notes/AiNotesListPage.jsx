@@ -246,7 +246,8 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
   const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
   // "Free" is a filter inside the course: the same cards, keeping only the free
   // lessons (and dropping any subject or topic left empty).
-  const hasFree = subjects.some((s) => subjectNotes(s).some((n) => n.isFree));
+  // 10.21: the website lists only lessons that open here, so no "Free" chip.
+  const hasFree = false;
   const freeOnly = activeSubj === FREE_CHIP;
   const visibleSubjects = freeOnly
     ? subjects
@@ -287,6 +288,7 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
           <strong>{visibleNotes.length} {visibleNotes.length === 1 ? 'Lesson' : 'Lessons'}</strong>
         </div>
       </div>
+
 
       {subjects.length > 1 || hasFree ? (
         <div className="student-lessons-filter-bar">

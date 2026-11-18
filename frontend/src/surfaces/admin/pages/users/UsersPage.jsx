@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { createUser, deleteUser, fetchUsers, fetchUsersSummary, updateUser, updateUserStatus } from '../../../../shared/api/users.api.js';
+import { createUser, deleteUser, fetchUsersPage, fetchUsersSummary, updateUser, updateUserStatus } from '../../../../shared/api/users.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
@@ -105,6 +105,9 @@ export function UsersPage() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [page, setPage] = useState(1);
+  // The server sends 50 at a time; Next loads more when the shown ones run out.
+  const [nextCursor, setNextCursor] = useState(null);
+  const lastParamsRef = useRef({});
 
   const showToast = useCallback((text, type = 'success') => {
     setToast({ text, type });
@@ -118,9 +121,11 @@ export function UsersPage() {
 
     try {
       const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value));
-      const data = await fetchUsers(params);
+      lastParamsRef.current = params;
+      const data = await fetchUsersPage(params);
       if (usersRequestIdRef.current === requestId) {
-        setUsers(data);
+        setUsers(Array.isArray(data?.items) ? data.items : []);
+        setNextCursor(data?.next || null);
       }
     } catch (loadError) {
       if (usersRequestIdRef.current === requestId) {
@@ -132,6 +137,26 @@ export function UsersPage() {
       }
     }
   }, [showToast]);
+
+  const [loadingMore, setLoadingMore] = useState(false);
+  async function handleNextPage() {
+    if (page < Math.ceil(users.length / PAGE_SIZE)) {
+      setPage(page + 1);
+      return;
+    }
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await fetchUsersPage({ ...lastParamsRef.current, after: nextCursor });
+      setUsers((current) => [...current, ...(Array.isArray(data?.items) ? data.items : [])]);
+      setNextCursor(data?.next || null);
+      setPage(page + 1);
+    } catch (loadError) {
+      showToast(getErrorMessage(loadError, 'Unable to load users'), 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const loadSummary = useCallback(async () => {
     try {
@@ -464,11 +489,11 @@ export function UsersPage() {
         <section className={cx(ui.panelCard, 'grid gap-3 !p-4')}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="m-0 text-[15px] font-black text-ink-strong">
-              User accounts <span className="ml-1 font-bold text-ink-soft">· {users.length}</span>
+              User accounts <span className="ml-1 font-bold text-ink-soft">· {users.length}{nextCursor ? '+' : ''}</span>
             </h2>
             {users.length > PAGE_SIZE ? (
               <span className="text-[12.5px] font-bold text-ink-soft">
-                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, users.length)} of {users.length}
+                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, users.length)} of {users.length}{nextCursor ? '+' : ''}
               </span>
             ) : null}
           </div>
@@ -566,11 +591,11 @@ export function UsersPage() {
             </table>
           </div>
 
-          {pageCount > 1 ? (
+          {pageCount > 1 || nextCursor ? (
             <div className="flex items-center justify-between gap-2">
               <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>← Previous</button>
-              <span className="text-[12.5px] font-bold text-ink-soft">Page {currentPage} of {pageCount}</span>
-              <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Next →</button>
+              <span className="text-[12.5px] font-bold text-ink-soft">Page {currentPage} of {pageCount}{nextCursor ? '+' : ''}</span>
+              <button type="button" className={cx(ui.secondaryAction, '!min-h-9 !px-3')} disabled={(currentPage >= pageCount && !nextCursor) || loadingMore} onClick={handleNextPage}>{loadingMore ? 'Loading…' : 'Next →'}</button>
             </div>
           ) : null}
         </section>

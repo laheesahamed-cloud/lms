@@ -26,6 +26,20 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateProfileDto.prototype, "avatarKey", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(64),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "universityCountry", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(160),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "university", void 0);
+__decorate([
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(1),

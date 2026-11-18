@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
+import '../../state/kept_content.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -66,14 +67,16 @@ class AuscultationRepository {
   AuscultationRepository(this._client);
 
   Future<List<AuscTopic>> topics(String category) async {
-    final res = await _client.dio.get('/auscultation/topics', queryParameters: {'category': category});
-    final list = ((res.data as Map)['topics'] as List?) ?? const [];
+    final data = await keptPerVersion('ausc_topics_$category',
+        () async => (await _client.dio.get('/auscultation/topics', queryParameters: {'category': category})).data);
+    final list = ((data as Map)['topics'] as List?) ?? const [];
     return list.map(AuscTopic.fromJson).toList();
   }
 
   Future<AuscTopicDetail> topic(int id) async {
-    final res = await _client.dio.get('/auscultation/topics/$id');
-    final data = res.data as Map;
+    final data = await keptPerVersion(
+        'ausc_topic_$id', () async => (await _client.dio.get('/auscultation/topics/$id')).data,
+        needsPlan: true) as Map;
     final topic = data['topic'] == null ? null : AuscTopic.fromJson(data['topic']);
     final cards = (data['cards'] as List?)?.map(AuscCard.fromJson).toList() ?? <AuscCard>[];
     return AuscTopicDetail(topic: topic, cards: cards);
@@ -86,7 +89,10 @@ class AuscultationRepository {
   }
 
   /// Fetch an audio clip's raw bytes + mime (auth handled by the dio interceptor).
-  Future<({Uint8List bytes, String mime})> audioBytes(String kind, int id) async {
+  Future<({Uint8List bytes, String mime})> audioBytes(String kind, int id) =>
+      keptBytesPerVersion('ausc_${kind}_$id', () => _audioBytes(kind, id)); // 10.19: kept per version
+
+  Future<({Uint8List bytes, String mime})> _audioBytes(String kind, int id) async {
     final res = await _client.dio.get<List<int>>(
       '/auscultation/$kind/$id/audio',
       options: Options(responseType: ResponseType.bytes),

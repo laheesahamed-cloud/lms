@@ -1,7 +1,10 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { bumpCounts, COUNTED_LESSON } from '../../common/utils/structure-counts';
+import { applyQuizCountChanges, readSubjectQuizStates } from '../../common/utils/quiz-counts';
 import { CreateTopicDto } from './dto/create-topic.dto';
+import { forgetContentHistory } from '../../common/utils/content-history';
 import { UpdateTopicDto } from './dto/update-topic.dto';
 
 type TopicRow = RowDataPacket & {
@@ -14,6 +17,7 @@ type TopicRow = RowDataPacket & {
   created_at?: string | null;
   course_title?: string;
   subtopic_count?: number;
+  lesson_count?: number;
 };
 
 type TopicEntity = {
@@ -26,6 +30,7 @@ type TopicEntity = {
   createdAt: string | null;
   courseTitle?: string;
   subtopicCount?: number;
+  lessonCount?: number;
 };
 
 type ContentActor = {
@@ -48,35 +53,30 @@ type TopicSnapshot = {
 export class TopicsService {
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
 
+  // Subject lists read the stored topic and lesson counts (structure-counts.ts)
+  // instead of joining and counting every subtopic, so a course's subjects are
+  // one indexed read of exactly those rows (idx_topics_sort: course_id, sort_order).
   async findAll(courseId?: number) {
-    let sql = `
-      SELECT
-        t.id,
-        t.course_id,
-        t.topic_name,
-        t.topic_description,
-        t.status,
-        t.sort_order,
-        t.created_at,
-        c.course_title,
-        COUNT(s.id) AS subtopic_count
-      FROM topics t
-      INNER JOIN courses c ON c.id = t.course_id
-      LEFT JOIN subtopics s ON s.topic_id = t.id
-    `;
-    const params: Array<number> = [];
+    const columns = `t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.sort_order, t.created_at,
+        t.subtopic_count, t.lesson_count`;
 
     if (courseId) {
-      sql += ' WHERE t.course_id = ?';
-      params.push(courseId);
+      // One course: only its subjects. The caller (the Structure page) already
+      // has the course and its name from the course it opened, so it isn't read
+      // again: one row per subject listed.
+      const [rows] = await this.db.execute<TopicRow[]>(
+        `SELECT ${columns} FROM topics t WHERE t.course_id = ? ORDER BY t.sort_order ASC, t.id ASC`,
+        [courseId]
+      );
+      return rows.map((row) => this.mapTopic(row));
     }
 
-    sql += `
-      GROUP BY t.id, t.course_id, t.topic_name, t.topic_description, t.status, t.sort_order, t.created_at, c.course_title
-      ORDER BY t.sort_order ASC, t.id ASC
-    `;
-
-    const [rows] = await this.db.execute<TopicRow[]>(sql, params);
+    const [rows] = await this.db.execute<TopicRow[]>(
+      `SELECT ${columns}, c.course_title
+       FROM topics t
+       INNER JOIN courses c ON c.id = t.course_id
+       ORDER BY t.sort_order ASC, t.id ASC`
+    );
     return rows.map((row) => this.mapTopic(row));
   }
 
@@ -136,7 +136,7 @@ export class TopicsService {
         `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM topics WHERE course_id = ?`,
         [snapshot.courseId]
       );
-      const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 10;
+      const nextSortOrder = Number(orderRows[0]?.maxOrder || 0) + 1000; // gap rank (structure-order.ts)
 
       const [result] = await connection.execute<ResultSetHeader>(
         'INSERT INTO topics (course_id, topic_name, topic_description, status, sort_order) VALUES (?, ?, ?, ?, ?)',
@@ -149,7 +149,9 @@ export class TopicsService {
         ]
       );
 
-      await this.replaceSubtopics(connection, result.insertId, snapshot.subtopics);
+      await this.syncSubtopics(connection, result.insertId, snapshot.subtopics);
+      // One more subject on its course (same transaction).
+      await bumpCounts(connection, 'courses', 'subject_count', [[snapshot.courseId, 1]]);
       await this.recordContentVersion(connection, 'topic', result.insertId, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'topic', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
       await this.recordContentAudit(connection, {
@@ -192,19 +194,10 @@ export class TopicsService {
     try {
       await connection.beginTransaction();
 
-      await connection.execute(
-        'UPDATE topics SET course_id = ?, topic_name = ?, topic_description = ?, status = ? WHERE id = ?',
-        [
-          snapshot.courseId,
-          snapshot.topicName,
-          snapshot.topicDescription,
-          snapshot.status,
-          id,
-        ]
-      );
+      await this.writeTopicSnapshot(connection, id, snapshot);
 
       if (Array.isArray(updateTopicDto.subtopics)) {
-        await this.replaceSubtopics(connection, id, snapshot.subtopics);
+        await this.syncSubtopics(connection, id, snapshot.subtopics);
       }
       await this.recordContentVersion(connection, 'topic', id, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'topic', id, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -238,8 +231,29 @@ export class TopicsService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
+      // Deleting a subject also deletes its lessons (foreign key ON DELETE
+      // CASCADE). Lock them first (lessons → subject → course, the same order
+      // as lesson saves) and count the ones the Structure page counts, per
+      // course, so the course loses exactly those.
+      const [counted] = await connection.execute<RowDataPacket[]>(
+        `SELECT course_id, SUM(${COUNTED_LESSON}) AS n FROM lessons WHERE topic_id = ? GROUP BY course_id FOR UPDATE`, [id],
+      );
+      // Its assessments stay (foreign key ON DELETE SET NULL) but lose their
+      // subject, so their counts move to the course's "no subject" bucket.
+      const quizzesBefore = await readSubjectQuizStates(connection, id);
+      const [subjectRows] = await connection.execute<RowDataPacket[]>(
+        'SELECT course_id FROM topics WHERE id = ? FOR UPDATE', [id],
+      );
+      const [goneSubtopics] = await connection.execute<RowDataPacket[]>('SELECT id FROM subtopics WHERE topic_id = ?', [id]);
       await connection.execute('DELETE FROM subtopics WHERE topic_id = ?', [id]);
       await connection.execute('DELETE FROM topics WHERE id = ?', [id]);
+      await forgetContentHistory(connection, 'topic', [id]);
+      await forgetContentHistory(connection, 'subtopic', goneSubtopics.map((r) => Number(r.id)));
+      await applyQuizCountChanges(connection, quizzesBefore, quizzesBefore.map((q) => ({ ...q, topic_id: null })));
+      if (subjectRows[0]) {
+        await bumpCounts(connection, 'courses', 'subject_count', [[Number(subjectRows[0].course_id), -1]]);
+        await bumpCounts(connection, 'courses', 'lesson_count', counted.map((r) => [Number(r.course_id), -Number(r.n || 0)] as [number, number]));
+      }
       await this.recordContentAudit(connection, {
         entityType: 'topic',
         entityId: id,
@@ -261,36 +275,10 @@ export class TopicsService {
     }
   }
 
-  /** Bulk-set topics.sort_order from an admin-reordered list of subjects
-   * within one course — each id gets (its index + 1) * 10. */
-  async reorder(orderedIds: number[]) {
-    const ids = orderedIds.filter((id) => Number.isFinite(id) && id > 0);
-    if (!ids.length) return { ok: true };
-    await Promise.all(
-      ids.map((id, index) =>
-        this.db.execute(`UPDATE topics SET sort_order = ? WHERE id = ?`, [(index + 1) * 10, id])
-      )
-    );
-    return { ok: true };
-  }
-
   async listVersions(id: number) {
-    await this.findOne(id);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'topic' AND entity_id = ?
-       ORDER BY version_number DESC`,
-      [id]
-    );
-
-    return rows.map((row) => ({
-      id: Number(row.id),
-      versionNumber: Number(row.version_number),
-      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-      createdAt: row.created_at || null,
-      snapshot: this.parseSnapshotJson(row.snapshot_json),
-    }));
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id;
+    return [];
   }
 
   async markDraft(id: number, actor?: ContentActorInput) {
@@ -324,63 +312,9 @@ export class TopicsService {
   }
 
   async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
-    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-      throw new BadRequestException('Version number is invalid');
-    }
-
-    if (!this.canReviewContent(actor)) {
-      throw new ForbiddenException('Review permission is required to rollback published topic content');
-    }
-
-    const existing = await this.findOne(id);
-    const [versionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'topic' AND entity_id = ? AND version_number = ?
-       LIMIT 1`,
-      [id, versionNumber]
-    );
-
-    if (!versionRows[0]) {
-      throw new NotFoundException('Content version not found');
-    }
-
-    const snapshot = this.parseTopicSnapshot(versionRows[0].snapshot_json);
-    this.validateTopicPayload(snapshot);
-    await this.ensureCourseExists(snapshot.courseId);
-
-    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
-    const connection = await this.db.getConnection();
-    try {
-      await connection.beginTransaction();
-      await this.writeTopicSnapshot(connection, id, snapshot);
-      await this.replaceSubtopics(connection, id, snapshot.subtopics);
-      await this.recordContentVersion(connection, 'topic', id, snapshot, this.getActorId(actor));
-      await this.setWorkflowState(connection, 'topic', id, workflowState, this.getActorId(actor));
-      await this.recordContentAudit(connection, {
-        entityType: 'topic',
-        entityId: id,
-        action: 'rolled_back',
-        summary: `Topic ${id} rolled back to version ${versionNumber}`,
-        actorId: this.getActorId(actor),
-        before: existing,
-        after: snapshot,
-      });
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-
-    return {
-      ok: true,
-      id,
-      rolledBackToVersion: versionNumber,
-      status: snapshot.status,
-      workflowState,
-    };
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id; void versionNumber; void actor;
+    throw new BadRequestException('Version history is not kept any more.');
   }
 
   private async transitionWorkflow(
@@ -453,18 +387,45 @@ export class TopicsService {
     });
   }
 
+  // Used by the subject edit and the version rollback. Moving a subject to
+  // another course takes its lessons with it, and moves its subject count and
+  // its lessons' count from the old course to the new one (2 counter rows).
+  // Lock order: lessons, then the subject, then courses (same as lesson saves).
   private async writeTopicSnapshot(connection: PoolConnection, id: number, topic: TopicSnapshot) {
+    const [current] = await connection.execute<RowDataPacket[]>('SELECT course_id FROM topics WHERE id = ?', [id]);
+    const movingCourse = current[0] && Number(current[0].course_id) !== Number(topic.courseId);
+    if (movingCourse) {
+      const [counted] = await connection.execute<RowDataPacket[]>(
+        `SELECT course_id, SUM(${COUNTED_LESSON}) AS n FROM lessons WHERE topic_id = ? GROUP BY course_id FOR UPDATE`, [id],
+      );
+      // Its assessments move with it too (their counts are kept per subject).
+      const quizzesBefore = (await readSubjectQuizStates(connection, id)).filter((q) => q.is_general === 0);
+      const [locked] = await connection.execute<RowDataPacket[]>('SELECT course_id FROM topics WHERE id = ? FOR UPDATE', [id]);
+      const oldCourse = Number(locked[0].course_id);
+      await connection.execute('UPDATE lessons SET course_id = ? WHERE topic_id = ?', [topic.courseId, id]);
+      await connection.execute('UPDATE quizzes SET course_id = ? WHERE topic_id = ? AND is_general = 0', [topic.courseId, id]);
+      // Subject counts stay; only the courses' assessment totals move.
+      await applyQuizCountChanges(connection, quizzesBefore, quizzesBefore.map((q) => ({ ...q, course_id: Number(topic.courseId) })));
+      const lessonsMoved = counted.reduce((t, r) => t + Number(r.n || 0), 0);
+      await connection.execute(
+        `UPDATE topics SET course_id = ?, topic_name = ?, topic_description = ?, status = ?,
+           sort_order = (SELECT next_rank FROM (SELECT COALESCE(MAX(sort_order), 0) + 1000 AS next_rank FROM topics WHERE course_id = ?) r)
+         WHERE id = ?`,
+        [topic.courseId, topic.topicName, topic.topicDescription, topic.status, topic.courseId, id],
+      );
+      await bumpCounts(connection, 'courses', 'subject_count', [[oldCourse, -1], [topic.courseId, 1]]);
+      await bumpCounts(connection, 'courses', 'lesson_count', [
+        ...counted.map((r) => [Number(r.course_id), -Number(r.n || 0)] as [number, number]),
+        [topic.courseId, lessonsMoved],
+      ]);
+      return;
+    }
     await connection.execute(
-      'UPDATE topics SET course_id = ?, topic_name = ?, topic_description = ?, status = ? WHERE id = ?',
-      [
-        topic.courseId,
-        topic.topicName,
-        topic.topicDescription,
-        topic.status,
-        id,
-      ]
+      'UPDATE topics SET topic_name = ?, topic_description = ?, status = ? WHERE id = ?',
+      [topic.topicName, topic.topicDescription, topic.status, id],
     );
   }
+
 
   private parseSnapshotJson(value: unknown) {
     if (value && typeof value === 'object') {
@@ -506,15 +467,8 @@ export class TopicsService {
     snapshot: unknown,
     actorId?: number,
   ) {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
-      [entityType, entityId]
-    );
-    const versionNumber = Number(rows[0]?.next_version || 1);
-    await connection.execute(
-      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
-      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void snapshot; void actorId;
   }
 
   private async setWorkflowState(
@@ -524,15 +478,8 @@ export class TopicsService {
     workflowState: ContentWorkflowState,
     actorId?: number,
   ) {
-    await connection.execute(
-      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`,
-      [entityType, entityId, workflowState, actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void workflowState; void actorId;
   }
 
   private async recordContentAudit(
@@ -547,20 +494,7 @@ export class TopicsService {
       after?: unknown;
     }
   ) {
-    await connection.execute(
-      `INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        event.entityType,
-        event.entityId,
-        event.action,
-        event.actorId || null,
-        event.summary,
-        event.before === undefined ? null : JSON.stringify(event.before),
-        event.after === undefined ? null : JSON.stringify(event.after),
-      ]
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
   }
 
   private getActorId(actor?: ContentActorInput) {
@@ -602,18 +536,35 @@ export class TopicsService {
     }
   }
 
-  private async replaceSubtopics(connection: Pool | any, topicId: number, subtopics: string[]) {
-    const cleaned = this.normalizeSubtopicNames(subtopics);
-
-    await connection.execute('DELETE FROM subtopics WHERE topic_id = ?', [topicId]);
-
-    for (const subtopic of cleaned) {
+  // Brings a subject's topics in line with a list of names WITHOUT recreating
+  // them: existing topics keep their id and place (so their lessons stay with
+  // them), names no longer listed are deleted, and new names are added at the
+  // end. The subject's topic count changes by exactly that difference.
+  private async syncSubtopics(connection: PoolConnection, topicId: number, subtopics: string[]) {
+    const wanted = this.normalizeSubtopicNames(subtopics);
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      'SELECT id, subtopic_name, sort_order FROM subtopics WHERE topic_id = ? FOR UPDATE', [topicId],
+    );
+    const key = (name: string) => String(name || '').trim().toLowerCase();
+    const wantedKeys = new Set(wanted.map(key));
+    const existingKeys = new Set(rows.map((r) => key(r.subtopic_name)));
+    const toDelete = rows.filter((r) => !wantedKeys.has(key(r.subtopic_name))).map((r) => Number(r.id));
+    const toAdd = wanted.filter((name) => !existingKeys.has(key(name)));
+    if (toDelete.length) {
+      await connection.execute(`DELETE FROM subtopics WHERE id IN (${toDelete.map(() => '?').join(', ')})`, toDelete);
+      await forgetContentHistory(connection, 'subtopic', toDelete);
+    }
+    let rank = rows.reduce((max, r) => Math.max(max, Number(r.sort_order) || 0), 0);
+    for (const name of toAdd) {
+      rank += 1000; // gap rank (structure-order.ts)
       await connection.execute(
-        'INSERT INTO subtopics (topic_id, subtopic_name, status) VALUES (?, ?, ?)',
-        [topicId, subtopic, 'active']
+        'INSERT INTO subtopics (topic_id, subtopic_name, status, sort_order) VALUES (?, ?, ?, ?)',
+        [topicId, name, 'active', rank],
       );
     }
+    await bumpCounts(connection, 'topics', 'subtopic_count', [[topicId, toAdd.length - toDelete.length]]);
   }
+
 
   private normalizeSubtopicNames(subtopics: string[]) {
     return Array.from(
@@ -637,6 +588,7 @@ export class TopicsService {
       createdAt: row.created_at || null,
       courseTitle: row.course_title,
       subtopicCount: Number(row.subtopic_count || 0),
+      ...(row.lesson_count !== undefined ? { lessonCount: Number(row.lesson_count) } : {}),
     };
   }
 }

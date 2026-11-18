@@ -18,6 +18,11 @@ class AppUser {
   /// screen before still deserves to be asked.
   final bool needsProfileSetup;
 
+  /// When the student's plan ends (null = no end / no plan), and whether it
+  /// renews by itself (Apple). For the phone's own "plan ends soon" reminders.
+  final DateTime? accessUntil;
+  final bool accessRenews;
+
   const AppUser({
     required this.id,
     required this.fullName,
@@ -27,6 +32,8 @@ class AppUser {
     this.avatar,
     this.avatarKey = '',
     this.needsProfileSetup = false,
+    this.accessUntil,
+    this.accessRenews = false,
   });
 
   AppUser copyWith({
@@ -43,6 +50,8 @@ class AppUser {
         avatar: avatar,
         avatarKey: avatarKey ?? this.avatarKey,
         needsProfileSetup: needsProfileSetup ?? this.needsProfileSetup,
+        accessUntil: accessUntil,
+        accessRenews: accessRenews,
       );
 
   String get initials {
@@ -69,5 +78,7 @@ class AppUser {
         // signed-in student the first time they opened a newer app build.
         needsProfileSetup:
             j['needsProfileSetup'] == true || j['needs_profile_setup'] == 1,
+        accessUntil: DateTime.tryParse('${j['accessUntil'] ?? ''}')?.toLocal(),
+        accessRenews: j['accessRenews'] == true,
       );
 }

@@ -27,6 +27,25 @@ export class FlashcardsController {
     return this.svc.listDecks(student.id, rawToken(auth), appClient);
   }
 
+  // Phone-side flashcards: a lesson's cards (downloaded once, kept on the
+  // phone) and the student's review history (imported once).
+  @Get('cards')
+  async cards(
+    @Query('lessonIds') lessonIds: string | undefined,
+    @Headers('authorization') auth?: string,
+    @Headers('x-app-client') appClient?: string,
+  ) {
+    const student = await this.authService.requireStudent(auth);
+    const ids = String(lessonIds || '').split(',').map((v) => Number(v.trim()));
+    return this.svc.cardsForLessons(Number(student.id), ids, appClient);
+  }
+
+  @Get('reviews/export')
+  async exportReviews(@Headers('authorization') auth?: string) {
+    const student = await this.authService.requireStudent(auth);
+    return this.svc.exportReviews(Number(student.id));
+  }
+
   @Get('queue')
   async queue(
     @Query('noteIds') noteIds: string,

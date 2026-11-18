@@ -1,4 +1,6 @@
+import '../../utils/count_plus.dart';
 import 'dart:async';
+import '../../core/perf_log.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,11 +20,15 @@ import '../flashcards/flashcards_repository.dart';
 import '../lessons/lessons_repository.dart';
 import '../lessons/lesson_models.dart';
 import 'dashboard_repository.dart';
+import '../../state/study_days.dart';
 import 'first_streak_popup.dart';
 import '../search/global_search_page.dart';
 import '../../services/streak_reminders.dart';
+import '../../services/plan_reminders.dart';
+import '../notifications/announcement_widgets.dart';
 import '../../widgets/shell_insets.dart';
 import '../../widgets/profile_avatar.dart';
+import 'question_of_day.dart';
 
 String _timeAgo(String iso) {
   final dt = DateTime.tryParse(iso)?.toLocal();
@@ -107,8 +113,14 @@ class DashboardPage extends ConsumerWidget {
     return 'Good evening';
   }
 
+  static bool _firstBuildMarked = false;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!_firstBuildMarked && ref.read(studentDashboardProvider).hasValue) {
+      _firstBuildMarked = true;
+      PerfLog.mark('study hub shown with data');
+    }
     // Whenever fresh dashboard data comes in, reconcile the "streak ends
     // tonight" reminder against it — a no-op if the streak is 0 or today's
     // quiz is already done, since reconcile() always cancels-then-reschedules.
@@ -120,6 +132,10 @@ class DashboardPage extends ConsumerWidget {
           doneToday: d.quizDoneToday,
           graceActive: d.streakGraceActive,
         );
+        // Weekly local reminder naming the weakest subject (step 4).
+        final weak = d.weakTopics.isEmpty ? null : d.weakTopics.first;
+        PlanReminders.reconcileWeak(
+            subject: weak?.topicName ?? '', course: weak?.courseTitle ?? '');
       }
     });
     final c = context.c;
@@ -142,6 +158,11 @@ class DashboardPage extends ConsumerWidget {
     final isPortrait = mq.orientation == Orientation.portrait;
     final isPhonePortrait = isPortrait && mq.size.width < 600;
     final mascotAsset = _kMascots[DateTime.now().day % _kMascots.length];
+    // iPad: the photo spans a much wider screen at the same height, so it
+    // was zoomed into a thin slice. A taller header there shows about half
+    // of it, close to what the phone shows (2026-11-17, mock B). The room goes
+    // under the bell + profile row, so those stay at the top.
+    final heroExtra = mq.size.width >= 700 ? 140.0 : 0.0;
     final kids = <Widget>[
       // Top bar: notifications + profile
       Row(
@@ -196,7 +217,7 @@ class DashboardPage extends ConsumerWidget {
           ),
         ],
       ),
-      const SizedBox(height: 2),
+      SizedBox(height: 2 + heroExtra),
       // Hero
       Text('${_greeting()}, $name',
           style: TextStyle(
@@ -216,8 +237,12 @@ class DashboardPage extends ConsumerWidget {
       const SizedBox(height: 14),
       const GlobalSearch(),
       const SizedBox(height: 14),
-      // Phone portrait: hero full-width, mood card hidden.
-      // iPad portrait + landscape: side by side.
+      // Admin announcement: a banner here, or a centre card shown once (step 4).
+      const AnnouncementBanner(),
+      const AnnouncementCardHost(),
+      // Phone portrait: hero full width, course progress further down.
+      // iPad: the continue card and course progress side by side, 2.5 : 1.5
+      // (the old "Study status" card is gone, 2026-11-17).
       if (isPhonePortrait)
         _ContinueCard(name: name, mascotAsset: mascotAsset)
       else
@@ -226,22 +251,21 @@ class DashboardPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                flex: 3,
+                flex: 5,
                 child: _ContinueCard(name: name, mascotAsset: mascotAsset),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                flex: 1,
-                child: const _StudyMoodCard(),
-              ),
+              const Expanded(flex: 3, child: _CourseProgressCard()),
             ],
           ),
         ),
       const SizedBox(height: 14),
       const _MetricRow(),
       const SizedBox(height: 14),
-      const _CourseProgressCard(),
-      const SizedBox(height: 14),
+      if (isPhonePortrait) ...[
+        const _CourseProgressCard(),
+        const SizedBox(height: 14),
+      ],
       const _StreakHeatmapCard(),
       const SizedBox(height: 14),
       const _QuickActions(),
@@ -253,7 +277,7 @@ class DashboardPage extends ConsumerWidget {
             children: const [
               Expanded(child: _StudyPlanCard()),
               SizedBox(width: 14),
-              Expanded(child: _AnalyticsCard()),
+              Expanded(child: _AnalyticsCard(fill: true)),
             ],
           ),
         )
@@ -289,7 +313,7 @@ class DashboardPage extends ConsumerWidget {
             top: -(safeTop + 14),
             left: -16,
             right: -16,
-            height: safeTop + _HubHero.toCardTop + _HubHero.intoCard,
+            height: safeTop + heroExtra + _HubHero.toCardTop + _HubHero.intoCard,
             child: const _HubHero(),
           ),
           kids[0],
@@ -299,7 +323,7 @@ class DashboardPage extends ConsumerWidget {
 
     final list = ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: EdgeInsets.fromLTRB(16, safeTop + 14, 16, 28 + shellNavInset(context)),
+      padding: EdgeInsets.fromLTRB(16, safeTop + 14, 16, shellScrollEnd(context)),
       children: reduced
           ? kids
           : AnimationConfiguration.toStaggeredList(
@@ -370,7 +394,13 @@ class _HubHero extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(asset, fit: BoxFit.cover, alignment: Alignment.centerRight),
+            Image.asset(asset,
+                fit: BoxFit.cover,
+                // iPad: the picture slid up inside the header, so more of the
+                // desk shows and less sky (2026-11-17). Phone: as before.
+                alignment: MediaQuery.sizeOf(context).width >= 700
+                    ? const Alignment(1, 0.35)
+                    : Alignment.centerRight),
             // Down the picture: a touch of shade at the very top so the status
             // bar and the avatar row stay readable over the lamp, then clear
             // through the middle, then all the way to the page colour so the
@@ -427,22 +457,6 @@ const _kMascots = [
   'assets/mascots/vibe-vial-stetho.webp',
 ];
 
-// ── Study Mood card helpers ────────────────────────────────────────────────
-class _MoodData {
-  final String value;
-  final String text;
-  final int meter;
-  const _MoodData(this.value, this.text, this.meter);
-}
-
-_MoodData _studyMood(int readiness, int streak, int weeklyAttempts) {
-  if (readiness >= 80) return const _MoodData('Exam ready pace', 'Your readiness is strong. Keep reviewing weak areas to stay sharp.', 92);
-  if (streak >= 5) return const _MoodData('Consistent progress', 'You have a strong streak. Keep one small task planned for today.', 84);
-  if (weeklyAttempts >= 3) return const _MoodData('Practice in progress', 'You have attempted several practice sets. Review mistakes before starting more.', 72);
-  if (readiness > 0) return _MoodData('Building readiness', 'You have started making progress. Finish one focused lesson or quiz next.', readiness.clamp(38, 100));
-  return const _MoodData('Ready to begin', "Start with one short practice set or one lesson to build today's progress.", 34);
-}
-
 class _MetricRow extends ConsumerWidget {
   const _MetricRow();
   @override
@@ -475,10 +489,9 @@ class _MetricRow extends ConsumerWidget {
     final String avgHint;
     if (avgAttempts == 0) {
       avgHint = 'No exams yet';
-    } else if (avgAttempts == 1) {
-      avgHint = '1 exam';
     } else if (avgDeltaShown == 0) {
-      avgHint = 'No change';
+      // 10.29: best mark per exam, so the hint is how many exams it covers.
+      avgHint = '$avgAttempts exam${avgAttempts == 1 ? '' : 's'}';
     } else {
       // Bare "+4%" / "-4%" — the minus sign comes free from the int.
       avgHint = '${avgDeltaShown > 0 ? '+' : ''}$avgDeltaShown%';
@@ -882,84 +895,6 @@ class _ContinueCard extends ConsumerWidget {
   }
 }
 
-// ── Study Mood Card — compact status strip (≈ 1/4 hero height) ────────────
-class _StudyMoodCard extends ConsumerWidget {
-  const _StudyMoodCard();
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.c;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final d = ref
-        .watch(studentDashboardProvider)
-        .maybeWhen(data: (x) => x, orElse: () => null);
-    final mood = _studyMood(
-      d?.readiness ?? 0,
-      d?.quizDayStreak ?? 0,
-      d?.performanceSnapshot.weeklyAttempts ?? 0,
-    );
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: DashAccents.cyan.tint(dark),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(Icons.insights_outlined,
-                size: 17, color: DashAccents.cyan.textOn(dark)),
-          ),
-          const Spacer(),
-          Text('STUDY\nSTATUS',
-              style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  height: 1.3,
-                  color: c.inkMuted)),
-          const SizedBox(height: 4),
-          Text(mood.value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                  color: c.inkStrong)),
-          const SizedBox(height: 6),
-          Text(mood.text,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 10,
-                  fontStyle: FontStyle.italic,
-                  height: 1.4,
-                  color: c.inkSoft)),
-          const SizedBox(height: 8),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: mood.meter / 100.0),
-            duration: const Duration(milliseconds: 900),
-            curve: AppCurves.easeOut,
-            builder: (_, v, child) => ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                value: v,
-                minHeight: 5,
-                backgroundColor: c.surface2,
-                valueColor: AlwaysStoppedAnimation(DashAccents.cyan.color),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _CourseProgressCard extends ConsumerWidget {
   const _CourseProgressCard();
   @override
@@ -1018,7 +953,7 @@ class _CourseProgressCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${s.completedLessons} / ${s.totalLessons} lessons',
+                    Text('${s.completedLessons} / ${countPlus(s.totalLessons)} lessons',
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -1284,14 +1219,16 @@ class _QuickActions extends StatelessWidget {
   ];
   @override
   Widget build(BuildContext context) {
+    // iPad: all six in one row (2026-11-17); phone: two rows of three.
+    final perRow = MediaQuery.sizeOf(context).width >= 700 ? 6 : 3;
     return Column(
       children: [
-        for (int r = 0; r < _items.length; r += 3)
+        for (int r = 0; r < _items.length; r += perRow)
           Padding(
             padding: EdgeInsets.only(top: r == 0 ? 0 : 10),
             child: Row(
               children: [
-                for (int i = r; i < r + 3 && i < _items.length; i++) ...[
+                for (int i = r; i < r + perRow && i < _items.length; i++) ...[
                   if (i != r) const SizedBox(width: 10),
                   Expanded(
                     child: _QuickTile(
@@ -1387,90 +1324,88 @@ class _PlanItem {
   });
 }
 
+/// Holds a lower card's place while its data loads, in the same glass card
+/// and spinner the course progress card uses, so nothing jumps on arrival.
+class _LowerCardPlaceholder extends StatelessWidget {
+  final double height;
+  const _LowerCardPlaceholder({required this.height});
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(18),
+      child: SizedBox(
+          height: height - 36,
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+    );
+  }
+}
+
 class _StudyPlanCard extends ConsumerWidget {
   const _StudyPlanCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
-    final d = ref.watch(studentDashboardProvider).maybeWhen(
-        data: (x) => x, orElse: () => null);
+    // 10.29: today's route = the 4 goals of the day (lesson, exam, practice,
+    // flashcards), ticked from today's bits on the phone — no request. The
+    // suggestions come from the lists the phone already holds.
+    final dash = ref.watch(studentDashboardProvider);
+    if (dash.isLoading && !dash.hasValue) return const _LowerCardPlaceholder(height: 220);
+    final d = dash.maybeWhen(data: (x) => x, orElse: () => null);
+    final bits = d?.todayBits ?? 0;
     final quizzes = ref
         .watch(quizListProvider)
         .maybeWhen(data: (x) => x, orElse: () => const <QuizListItem>[]);
     final notes = ref
         .watch(lessonsListProvider)
         .maybeWhen(data: (x) => x, orElse: () => const <LessonListItem>[]);
-
     final weak = (d != null && d.weakTopics.isNotEmpty) ? d.weakTopics.first : null;
     final recQuiz = _pickQuiz(quizzes, weak);
-    final recNote = notes.isNotEmpty ? notes.first : null;
-    final latestAttempt = (d != null && d.recentAttempts.isNotEmpty) ? d.recentAttempts.first : null;
-
-    // Completion detection via actionType — avoids fragile keyword collisions.
-    final doneTypes = (d?.adaptivePlan ?? [])
-        .where((s) => s.status == 'done')
-        .map((s) => s.actionType)
-        .toSet();
-
-    // Same calendar day, not "within 24 hours". The card is titled "Today's
-    // route", but a rolling window meant a quiz sat at 11pm yesterday left
-    // today's Practice step already ticked when the app was opened this
-    // morning — before the user had practised at all today.
-    final lastSubmitted =
-        DateTime.tryParse(latestAttempt?.submittedAt ?? '')?.toLocal();
-    final now = DateTime.now();
-    final practiceToday = lastSubmitted != null &&
-        lastSubmitted.year == now.year &&
-        lastSubmitted.month == now.month &&
-        lastSubmitted.day == now.day;
+    LessonListItem? recNote;
+    for (final n in notes) {
+      if (!n.locked && !n.lessonCompleted) {
+        recNote = n;
+        break;
+      }
+    }
+    final quizDetail = recQuiz != null
+        ? [recQuiz.courseTitle, recQuiz.subjectName].where((s) => s.isNotEmpty).join(' · ')
+        : 'Any set you can finish today';
 
     final steps = [
       _PlanItem(
-        label: 'Practice',
-        icon: Icons.play_arrow_rounded,
-        title: weak != null
-            ? 'Answer questions on ${weak.topicName}'
-            : recQuiz?.displayName ?? 'Do one focused practice set',
-        detail: weak != null
-            ? (weak.courseTitle.isEmpty ? 'Weak area' : weak.courseTitle)
-            : (recQuiz != null
-                ? [recQuiz.courseTitle, recQuiz.subjectName]
-                    .where((s) => s.isNotEmpty)
-                    .join(' · ')
-                : 'Use any short set you can finish today'),
-        done: practiceToday || doneTypes.contains('quiz'),
-        // Exam mode so the attempt is graded + saved to the DB — that's what
-        // flips this step to "done" and feeds results/weak-topics.
-        route: recQuiz != null ? '/app/quizzes/${recQuiz.id}?exam=1' : '/app/quizzes',
-      ),
-      _PlanItem(
-        label: 'Review',
-        icon: Icons.rate_review_rounded,
-        title: latestAttempt != null
-            ? 'Review your latest answers'
-            : 'Check your results page',
-        detail: latestAttempt != null
-            ? '${latestAttempt.quizTitle} · ${latestAttempt.percentage.round()}%'
-            : 'Complete an exam to see results',
-        done: doneTypes.contains('results'),
-        // '/app/results/:id' is the score summary; the answers live at
-        // '/app/review/:id'. This step is labelled "Review your latest
-        // answers", so it should land on the answers rather than making the
-        // user find the "Review answers" button on the summary and tap again.
-        route: latestAttempt != null
-            ? '/app/review/${latestAttempt.id}'
-            : '/app/results',
-      ),
-      _PlanItem(
         label: 'Lesson',
         icon: Icons.menu_book_rounded,
-        title: recNote?.title ?? 'Open one lesson note',
-        detail: recNote != null ? 'Lesson note' : 'Study one topic in depth',
-        done: doneTypes.contains('note'),
-        route: recNote != null
-            ? '/app/study/lesson/${recNote.lessonId}'
-            : '/app/lessons',
+        title: recNote?.title ?? 'Finish one lesson',
+        detail: recNote != null
+            ? [recNote.subjectName, recNote.topicName].where((s) => s.trim().isNotEmpty).join(' › ')
+            : 'Read a lesson to the end and tap Done',
+        done: bits & 1 != 0,
+        route: recNote != null ? '/app/study/lesson/${recNote.canvasId}' : '/app/lessons',
+      ),
+      _PlanItem(
+        label: 'Exam',
+        icon: Icons.assignment_turned_in_rounded,
+        title: recQuiz != null ? recQuiz.displayName : 'Sit one exam',
+        detail: quizDetail,
+        done: bits & 2 != 0,
+        route: recQuiz != null ? '/app/quizzes/${recQuiz.id}?exam=1' : '/app/exams',
+      ),
+      _PlanItem(
+        label: 'Practice',
+        icon: Icons.play_arrow_rounded,
+        title: recQuiz != null ? 'Practise ${recQuiz.displayName}' : 'Do one practice set',
+        detail: quizDetail,
+        done: bits & 4 != 0,
+        route: recQuiz != null ? '/app/quizzes/${recQuiz.id}' : '/app/quizzes',
+      ),
+      _PlanItem(
+        label: 'Flashcards',
+        icon: Icons.style_rounded,
+        title: 'Review your flashcards',
+        detail: 'At least one card today',
+        done: bits & 8 != 0,
+        route: '/app/flashcards',
       ),
     ];
 
@@ -1602,73 +1537,79 @@ class _PlanRow extends StatelessWidget {
 }
 
 class _AnalyticsCard extends ConsumerWidget {
-  const _AnalyticsCard();
+  /// [fill]: the card sits beside Today's route (wide screens) and is as tall
+  /// as it — the chart then grows to fill the card instead of leaving space.
+  final bool fill;
+  const _AnalyticsCard({this.fill = false});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
-    final d = ref
-        .watch(studentDashboardProvider)
-        .maybeWhen(data: (x) => x, orElse: () => null);
-    if (d == null) return const SizedBox.shrink();
-    final snap = d.performanceSnapshot;
-    final values = d.recentAttempts.isNotEmpty
-        ? (d.recentAttempts.take(7).toList().reversed
-            .map((a) => clampPct(a.percentage).toDouble())
-            .toList())
-        : <double>[];
+    // 10.29: one bar per day the student studied (days with nothing done are
+    // skipped), from the study days on the phone — no request.
+    final daysAsync = ref.watch(studyDaysProvider);
+    if (daysAsync.isLoading && !daysAsync.hasValue) return const _LowerCardPlaceholder(height: 180);
+    final days = daysAsync.maybeWhen(data: (x) => x, orElse: () => const <StudyDay>[])
+        .where((d) => d.bits != 0 || d.marksCount > 0)
+        .toList();
+    // Goals the server already has for today (another device, the website)
+    // show on today's bar too.
+    final serverBits = ref.watch(studentDashboardProvider).maybeWhen(data: (x) => x.todayBits, orElse: () => 0);
+    if (serverBits != 0) {
+      final t = StudyDays.today();
+      final i = days.indexWhere((x) => x.day == t);
+      if (i >= 0) {
+        final x = days[i];
+        days[i] = StudyDay(t, x.bits | serverBits, x.marksSum, x.marksCount);
+      } else {
+        days.add(StudyDay(t, serverBits, 0, 0));
+      }
+    }
+    final chart = CustomPaint(
+                painter: _StudyDayBarsPainter(
+                  days: days,
+                  today: StudyDays.today(),
+                  grid: c.line,
+                  label: c.inkSoft,
+                  strong: c.inkStrong,
+                  empty: c.inkMuted.withValues(alpha: 0.45),
+                  dotOn: c.primary,
+                  dotOff: c.line,
+                  red: DashAccents.rose.color,
+                  amber: DashAccents.amber.color,
+                  green: DashAccents.green.color,
+                ),
+              );
     return GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('Readiness: ${snap.readinessLabel}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: c.inkStrong)),
+          Text('Readiness',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: c.inkStrong)),
+          const SizedBox(height: 10),
+          if (days.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text('Finish a lesson, exam or practice to start your study bars.',
+                  style: TextStyle(fontSize: 13, color: c.inkSoft)),
+            )
+          else if (fill)
+            Expanded(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 104),
+                child: SizedBox(width: double.infinity, child: chart),
               ),
-              GestureDetector(
-                onTap: () => context.push('/app/results'),
-                child: Text('Results',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: c.accent)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _AnalyticStat(
-                  value: '${snap.weeklyAttempts}', label: 'Last 7 days'),
-              const SizedBox(width: 14),
-              _AnalyticStat(
-                  value: '${clampPct(snap.weeklyAverage)}%', label: 'Average'),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 64,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _SparklinePainter(
-                values: values,
-                fallbackAvg: clampPct(snap.weeklyAverage).toDouble(),
-                line: DashAccents.cyan.color,
-                grid: c.line,
-              ),
-            ),
-          ),
-          if (snap.trendLabel.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(snap.trendLabel,
-                style: TextStyle(fontSize: 13, color: c.inkSoft)),
+            )
+          else
+            SizedBox(height: 104, width: double.infinity, child: chart),
+          if (days.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('Bar = day\'s average marks · dots = goals done',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.5, color: c.inkSoft)),
           ],
         ],
       ),
@@ -1676,116 +1617,191 @@ class _AnalyticsCard extends ConsumerWidget {
   }
 }
 
-class _AnalyticStat extends StatelessWidget {
-  final String value;
-  final String label;
-  const _AnalyticStat({required this.value, required this.label});
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: c.surface2,
-          borderRadius: BorderRadius.circular(AppRadius.inner),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value,
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: c.inkStrong)),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 12, color: c.inkSoft)),
-          ],
-        ),
-      ),
-    );
-  }
-}
+/// Readiness bars (10.29): one bar per study day, height = that day's average
+/// marks, coloured by the 50 and 75 lines; a day with no marks is a short grey
+/// bar; four dots under each bar = the goals done that day.
+class _StudyDayBarsPainter extends CustomPainter {
+  final List<StudyDay> days;
+  final String today;
+  final Color grid, label, strong, empty, dotOn, dotOff, red, amber, green;
+  _StudyDayBarsPainter({
+    required this.days,
+    required this.today,
+    required this.grid,
+    required this.label,
+    required this.strong,
+    required this.empty,
+    required this.dotOn,
+    required this.dotOff,
+    required this.red,
+    required this.amber,
+    required this.green,
+  });
 
-class _SparklinePainter extends CustomPainter {
-  final List<double> values;
-  final double fallbackAvg;
-  final Color line;
-  final Color grid;
-  _SparklinePainter(
-      {required this.values,
-      required this.fallbackAvg,
-      required this.line,
-      required this.grid});
+  void _text(Canvas canvas, String s, Offset at, Color color, {double size = 10, bool center = false, FontWeight w = FontWeight.w600}) {
+    final tp = TextPainter(
+      text: TextSpan(text: s, style: TextStyle(fontSize: size, color: color, fontWeight: w)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, center ? at - Offset(tp.width / 2, 0) : at);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final pts = values.isNotEmpty
-        ? values
-        : [
-            (fallbackAvg - 16).clamp(0, 100).toDouble(),
-            fallbackAvg,
-            (fallbackAvg + 10).clamp(0, 100).toDouble(),
-          ];
-    // gridlines
-    final gridPaint = Paint()
-      ..color = grid.withValues(alpha: 0.6)
-      ..strokeWidth = 1;
-    for (final f in [0.2, 0.5, 0.8]) {
-      final y = size.height * f;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-    final n = pts.length;
-    Offset at(int i) {
-      final x = n == 1 ? size.width / 2 : (i / (n - 1)) * size.width;
-      final y = size.height - (pts[i].clamp(0, 100) / 100) * (size.height - 6) - 3;
-      return Offset(x, y);
-    }
+    const left = 22.0, labelH = 14.0, dotsH = 12.0;
+    final chartH = size.height - labelH - dotsH - 4;
+    // Room above a 100% bar so it doesn't touch the card's title.
+    const headroom = 12.0;
+    double yFor(num pct) => headroom + (chartH - headroom) * (1 - pct / 100);
 
-    final path = Path()..moveTo(at(0).dx, at(0).dy);
-    for (int i = 1; i < n; i++) {
-      path.lineTo(at(i).dx, at(i).dy);
+    // 50 and 75 lines (dashed), with their numbers.
+    for (final line in const [(75, true), (50, false)]) {
+      final y = yFor(line.$1);
+      final color = line.$2 ? green : amber;
+      final paint = Paint()
+        ..color = color.withValues(alpha: 0.8)
+        ..strokeWidth = 1;
+      for (var x = left; x < size.width; x += 7) {
+        canvas.drawLine(Offset(x, y), Offset((x + 4).clamp(0, size.width), y), paint);
+      }
+      _text(canvas, '${line.$1}', Offset(0, y - 6), color, size: 9.5);
     }
-    // area
-    final area = Path.from(path)
-      ..lineTo(at(n - 1).dx, size.height)
-      ..lineTo(at(0).dx, size.height)
-      ..close();
-    canvas.drawPath(
-        area, Paint()..color = line.withValues(alpha: 0.20));
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = line
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round,
-    );
-    final last = at(n - 1);
-    canvas.drawCircle(last, 4, Paint()..color = line);
-    canvas.drawCircle(
-        last, 4, Paint()..color = line.withValues(alpha: 0.25)..strokeWidth = 4
-          ..style = PaintingStyle.stroke);
+    canvas.drawLine(Offset(left, chartH), Offset(size.width, chartH), Paint()..color = grid..strokeWidth = 1);
+
+    final n = days.length;
+    final slot = (size.width - left) / StudyDays.keep;
+    final barW = (slot * 0.62).clamp(6.0, 22.0);
+    // Bars start at the left and grow to the right, one per study day.
+    final startX = left;
+    for (var i = 0; i < n; i++) {
+      final d = days[i];
+      final cx = startX + slot * i + slot / 2;
+      final avg = d.average;
+      final Color color = avg == null ? empty : avg >= 75 ? green : avg >= 50 ? amber : red;
+      final top = avg == null ? chartH - 4 : yFor(avg.clamp(2, 100));
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTRB(cx - barW / 2, top, cx + barW / 2, chartH), const Radius.circular(4)),
+        Paint()..color = color,
+      );
+      // Goal dots: lesson, exam, practice, flashcards.
+      const bitsOrder = [1, 2, 4, 8];
+      final dotR = (barW / 9).clamp(1.4, 2.4);
+      final gap = dotR * 2.6;
+      final dotsLeft = cx - gap * 1.5;
+      for (var k = 0; k < 4; k++) {
+        canvas.drawCircle(Offset(dotsLeft + gap * k, chartH + 7), dotR,
+            Paint()..color = d.bits & bitsOrder[k] != 0 ? dotOn : dotOff);
+      }
+      final isToday = d.day == today;
+      // Only today is named; the other bars carry no number.
+      if (isToday) {
+        _text(canvas, 'Today', Offset(cx, chartH + dotsH + 2), strong, size: 9.5, center: true);
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _SparklinePainter old) =>
-      old.values != values || old.fallbackAvg != fallbackAvg;
+  bool shouldRepaint(covariant _StudyDayBarsPainter old) =>
+      old.days != days || old.today != today || old.dotOn != dotOn;
 }
 
-class _DailyQuestionCard extends ConsumerWidget {
+/// Question of the Day (OPTIMIZE 10.31): answered right here — the 5 options
+/// and the right one are already on the phone, so a tap costs no request.
+/// The question stays until it is answered; see [QuestionOfDayStore].
+class _DailyQuestionCard extends ConsumerStatefulWidget {
   const _DailyQuestionCard();
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DailyQuestionCard> createState() => _DailyQuestionCardState();
+}
+
+class _DailyQuestionCardState extends ConsumerState<_DailyQuestionCard> {
+  // Taps made on this screen, before the saved state catches up.
+  final Set<int> _wrong = {};
+  bool _gotIt = false;
+
+  static const _green = Color(0xFF16A34A);
+  static const _red = Color(0xFFDC2626);
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.c;
-    final q = ref
-        .watch(studentDashboardProvider)
-        .maybeWhen(data: (d) => d.questionOfDay, orElse: () => null);
-    if (q == null) return const SizedBox.shrink();
-    final crumb = [q.subjectName, q.courseTitle]
-        .where((s) => s.isNotEmpty)
-        .join(' · ');
+    final async = ref.watch(questionOfDayProvider);
+    if (async.isLoading && !async.hasValue) return const _LowerCardPlaceholder(height: 260);
+    final st = async.maybeWhen(data: (d) => d, orElse: () => null);
+    if (st == null) return const SizedBox.shrink();
+    final q = st.question;
+    final rightIndex = q.options.indexWhere((o) => o.isCorrect);
+    // A wrong tap only marks that option; the right one is never shown until
+    // the student finds it (2026-11-17).
+    final wrong = {...st.wrong, ..._wrong};
+    final gotIt = _gotIt || st.answered;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final crumb = [q.subjectName, q.courseTitle].where((s) => s.isNotEmpty).join(' · ');
+
+    Widget option(int i) {
+      final o = q.options[i];
+      final isRight = gotIt && i == rightIndex;
+      final isWrong = wrong.contains(i);
+      Color border = c.line, bg = c.cardElevated, labelBg = c.surface2, labelFg = c.inkMedium;
+      if (isRight) {
+        border = _green;
+        bg = _green.withValues(alpha: 0.09);
+        labelBg = _green;
+        labelFg = Colors.white;
+      } else if (isWrong) {
+        border = _red;
+        bg = _red.withValues(alpha: 0.08);
+        labelBg = _red;
+        labelFg = Colors.white;
+      }
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: InkWell(
+          onTap: (gotIt || isWrong)
+              ? null
+              : () {
+                  if (i == rightIndex) {
+                    setState(() => _gotIt = true);
+                    QuestionOfDayStore.answer(i);
+                  } else {
+                    setState(() => _wrong.add(i));
+                    QuestionOfDayStore.wrong(i);
+                  }
+                },
+          borderRadius: BorderRadius.circular(13),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: border, width: (isRight || isWrong) ? 1.6 : 1),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: labelBg, shape: BoxShape.circle),
+                  child: Text(o.optionLabel.isNotEmpty ? o.optionLabel : String.fromCharCode(65 + i),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: labelFg)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(o.optionText,
+                      style: TextStyle(fontSize: 14.5, height: 1.35, color: c.inkStrong)),
+                ),
+                if (isRight) const Icon(Icons.check_rounded, size: 19, color: _green),
+                if (isWrong) const Icon(Icons.close_rounded, size: 19, color: _red),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -1796,30 +1812,23 @@ class _DailyQuestionCard extends ConsumerWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.0,
-                  color: DashAccents.amber.textOn(
-                      Theme.of(context).brightness == Brightness.dark))),
+                  color: DashAccents.amber.textOn(dark))),
           const SizedBox(height: 8),
           Text(q.questionText,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 15,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                  color: c.inkStrong)),
+              style: TextStyle(fontSize: 15, height: 1.35, fontWeight: FontWeight.w600, color: c.inkStrong)),
           if (crumb.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(crumb, style: TextStyle(fontSize: 12.5, color: c.inkSoft)),
           ],
-          const SizedBox(height: 14),
-          AppButton('Answer in Q-Bank',
-              kind: AppButtonKind.soft,
-              expand: true,
-              leading: Icon(Icons.bolt_rounded,
-                  color: DashAccents.amber.textOn(
-                      Theme.of(context).brightness == Brightness.dark),
-                  size: 19),
-              onPressed: () => context.push('/app/quizzes')),
+          const SizedBox(height: 4),
+          for (var i = 0; i < q.options.length; i++) option(i),
+          if (gotIt || wrong.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              gotIt ? 'Correct — a new question tomorrow.' : 'Not quite — try again.',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: gotIt ? _green : _red),
+            ),
+          ],
         ],
       ),
     );
@@ -1952,18 +1961,22 @@ class _MascotCard extends ConsumerWidget {
       onTap: () => context.push('/app/flashcards'),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: LinearGradient(colors: [
-                c.accent.withValues(alpha: 0.22),
-                c.primary.withValues(alpha: 0.18),
-              ]),
-            ),
-            child: Icon(Icons.psychology_alt_outlined, color: c.accent, size: 30),
-          ),
+          // Flat tinted square + the flashcards icon, the same as the
+          // Flashcards tile on the Study page (2026-11-17: the head icon on a
+          // glowing gradient looked out of place).
+          Builder(builder: (context) {
+            final dark = Theme.of(context).brightness == Brightness.dark;
+            return Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.inner),
+                color: DashAccents.violet.tint(dark),
+              ),
+              child: Icon(Icons.style_outlined, size: 22, color: DashAccents.violet.textOn(dark)),
+            );
+          }),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchAdminReports } from '../../../../shared/api/workspace.api.js';
 import { fetchCourses } from '../../../../shared/api/courses.api.js';
-import { fetchUsers } from '../../../../shared/api/users.api.js';
+import { adminSearch } from '../../../../shared/api/aiNotes.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../../../../shared/utils/userIdentity.js';
@@ -131,7 +131,10 @@ export function AdminReportsPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [courses, setCourses] = useState([]);
-  const [students, setStudents] = useState([]);
+  // Student filter: searched on the server (was the first 100 students only).
+  const [studentQuery, setStudentQuery] = useState('');
+  const [studentHits, setStudentHits] = useState([]);
+  const [pickedStudent, setPickedStudent] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,13 +157,9 @@ export function AdminReportsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      fetchCourses().catch(() => []),
-      fetchUsers({ role: 'student' }).catch(() => []),
-    ]).then(([courseRows, studentRows]) => {
+    fetchCourses().catch(() => []).then((courseRows) => {
       if (cancelled) return;
       setCourses(courseRows);
-      setStudents(studentRows);
     });
     return () => {
       cancelled = true;
@@ -175,10 +174,32 @@ export function AdminReportsPage() {
     () => courses.find((course) => String(course.id) === String(appliedFilters.courseId)),
     [appliedFilters.courseId, courses]
   );
-  const selectedStudent = useMemo(
-    () => students.find((student) => String(student.id) === String(appliedFilters.userId)),
-    [appliedFilters.userId, students]
-  );
+  const selectedStudent = pickedStudent && String(pickedStudent.id) === String(appliedFilters.userId) ? pickedStudent : null;
+
+  useEffect(() => {
+    const q = studentQuery.trim();
+    if (q.length < 2 || (pickedStudent && q === getAdminUserIdentifier(pickedStudent))) {
+      setStudentHits([]);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      adminSearch(q, { only: 'students', signal: controller.signal })
+        .then((hits) => { if (!controller.signal.aborted) setStudentHits(Array.isArray(hits?.students) ? hits.students : []); })
+        .catch(() => { if (!controller.signal.aborted) setStudentHits([]); });
+    }, 250);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [studentQuery, pickedStudent]);
+
+  function pickStudent(student) {
+    setPickedStudent(student);
+    setStudentQuery(student ? getAdminUserIdentifier(student) : '');
+    setStudentHits([]);
+    setFilters((current) => ({ ...current, userId: student ? String(student.id) : '' }));
+  }
 
   function handleFilterChange(event) {
     const { name, value } = event.target;
@@ -191,6 +212,7 @@ export function AdminReportsPage() {
   }
 
   function handleResetFilters() {
+    pickStudent(null);
     setFilters(emptyFilters);
     setAppliedFilters(emptyFilters);
   }
@@ -241,12 +263,29 @@ export function AdminReportsPage() {
               </label>
               <label className={ui.formLabel}>
                 Student
-                <select className={ui.input} name="userId" value={filters.userId} onChange={handleFilterChange}>
-                    <option value="">All students</option>
-                    {students.map((student) => (
-                      <option value={student.id} key={student.id}>{getAdminUserIdentifier(student)}</option>
-                    ))}
-                </select>
+<div className="relative">
+                  <input
+                    className={ui.input}
+                    type="search"
+                    value={studentQuery}
+                    placeholder="All students (type a name or e-mail)"
+                    autoComplete="off"
+                    onChange={(event) => {
+                      setStudentQuery(event.target.value);
+                      if (!event.target.value.trim()) pickStudent(null);
+                    }}
+                  />
+                  {studentHits.length ? (
+                    <div className="absolute z-10 mt-1 grid w-full gap-0.5 rounded-lg border border-line-soft bg-surface-card p-1 shadow-card">
+                      {studentHits.map((student) => (
+                        <button key={student.id} type="button" className="cursor-pointer rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-sm hover:bg-surface-2"
+                                onClick={() => pickStudent(student)}>
+                          {getAdminUserIdentifier(student)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </label>
             </div>
           </form>

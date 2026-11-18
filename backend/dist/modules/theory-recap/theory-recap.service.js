@@ -19,6 +19,8 @@ const app_only_content_exception_1 = require("../../common/exceptions/app-only-c
 const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const question_access_util_1 = require("../../common/utils/question-access.util");
 const ai_service_1 = require("../ai/ai.service");
+const question_content_1 = require("../../common/utils/question-content");
+const quiz_stamp_1 = require("../../common/utils/quiz-stamp");
 let TheoryRecapService = class TheoryRecapService {
     constructor(db, aiService) {
         this.db = db;
@@ -42,85 +44,44 @@ let TheoryRecapService = class TheoryRecapService {
         return rows.length > 0;
     }
     async getByQuestionId(questionId) {
-        const [rows] = await this.db.execute(`SELECT
-         id, question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
-         etiology, pathophysiology, clinical_features, investigations, treatment, key_points, mnemonic,
-         generated_by, reviewed_status, created_at, updated_at
-       FROM question_theory_recaps
-       WHERE question_id = ?
-       LIMIT 1`, [questionId]);
-        const row = rows[0];
+        const [rows] = await this.db.execute('SELECT recap_json FROM questions WHERE id = ? LIMIT 1', [questionId]);
+        const row = (0, question_content_1.recapOf)(questionId, rows[0]?.recap_json);
         if (!row)
             return null;
         return this.mapRow(row);
     }
     async upsert(questionId, dto, generatedBy = 'manual') {
         const existing = await this.getByQuestionId(questionId);
-        if (existing) {
-            await this.db.execute(`UPDATE question_theory_recaps SET
-          concept_name = ?,
-          hierarchy_course = ?,
-          hierarchy_subject = ?,
-          hierarchy_topic = ?,
-          hierarchy_lesson = ?,
-          etiology = ?,
-          pathophysiology = ?,
-          clinical_features = ?,
-          investigations = ?,
-          treatment = ?,
-          key_points = ?,
-          mnemonic = ?,
-          generated_by = ?,
-          reviewed_status = ?,
-          updated_at = NOW()
-        WHERE question_id = ?`, [
-                dto.conceptName || null,
-                dto.hierarchyCourse || null,
-                dto.hierarchySubject || null,
-                dto.hierarchyTopic || null,
-                dto.hierarchyLesson || null,
-                this.serializeArray(dto.etiology),
-                this.serializeArray(dto.pathophysiology),
-                this.serializeArray(dto.clinicalFeatures),
-                this.serializeArray(dto.investigations),
-                this.serializeArray(dto.treatment),
-                this.serializeArray(dto.keyPoints),
-                dto.mnemonic || null,
-                generatedBy,
-                dto.reviewedStatus || existing.reviewedStatus,
-                questionId,
-            ]);
-        }
-        else {
-            await this.db.execute(`INSERT INTO question_theory_recaps
-          (question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
-           etiology, pathophysiology, clinical_features, investigations, treatment, key_points,
-           mnemonic, generated_by, reviewed_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-                questionId,
-                dto.conceptName || null,
-                dto.hierarchyCourse || null,
-                dto.hierarchySubject || null,
-                dto.hierarchyTopic || null,
-                dto.hierarchyLesson || null,
-                this.serializeArray(dto.etiology),
-                this.serializeArray(dto.pathophysiology),
-                this.serializeArray(dto.clinicalFeatures),
-                this.serializeArray(dto.investigations),
-                this.serializeArray(dto.treatment),
-                this.serializeArray(dto.keyPoints),
-                dto.mnemonic || null,
-                generatedBy,
-                dto.reviewedStatus || 'pending',
-            ]);
-        }
+        const now = new Date().toISOString();
+        const recap = {
+            id: existing?.id ?? questionId,
+            concept_name: dto.conceptName || null,
+            hierarchy_course: dto.hierarchyCourse || null,
+            hierarchy_subject: dto.hierarchySubject || null,
+            hierarchy_topic: dto.hierarchyTopic || null,
+            hierarchy_lesson: dto.hierarchyLesson || null,
+            etiology: this.serializeArray(dto.etiology),
+            pathophysiology: this.serializeArray(dto.pathophysiology),
+            clinical_features: this.serializeArray(dto.clinicalFeatures),
+            investigations: this.serializeArray(dto.investigations),
+            treatment: this.serializeArray(dto.treatment),
+            key_points: this.serializeArray(dto.keyPoints),
+            mnemonic: dto.mnemonic || null,
+            generated_by: generatedBy,
+            reviewed_status: dto.reviewedStatus || existing?.reviewedStatus || 'pending',
+            created_at: existing?.createdAt ?? now,
+            updated_at: now,
+        };
+        await this.db.execute('UPDATE questions SET recap_json = ? WHERE id = ?', [JSON.stringify(recap), questionId]);
+        await (0, quiz_stamp_1.bumpQuizStamps)(this.db, { questionIds: [questionId] });
         return this.getByQuestionId(questionId);
     }
     async generateForQuestion(questionId) {
         const question = await this.loadQuestionContext(questionId);
         if (!question)
             throw new common_1.NotFoundException('Question not found');
-        const [optionRows] = await this.db.execute(`SELECT option_label, option_text, is_correct FROM question_options WHERE question_id = ? ORDER BY option_label ASC`, [questionId]);
+        const [optRows] = await this.db.execute('SELECT options_json FROM questions WHERE id = ? LIMIT 1', [questionId]);
+        const optionRows = (0, question_content_1.optionsOf)(questionId, optRows[0]?.options_json);
         const recap = await this.aiService.generateTheoryRecap({
             questionText: question.question_text,
             questionType: question.question_type,
@@ -153,7 +114,8 @@ let TheoryRecapService = class TheoryRecapService {
         }, 'ai');
     }
     async delete(questionId) {
-        await this.db.execute('DELETE FROM question_theory_recaps WHERE question_id = ?', [questionId]);
+        await this.db.execute('UPDATE questions SET recap_json = NULL WHERE id = ?', [questionId]);
+        await (0, quiz_stamp_1.bumpQuizStamps)(this.db, { questionIds: [questionId] });
         return { success: true };
     }
     async bulkGenerate(questionIds) {

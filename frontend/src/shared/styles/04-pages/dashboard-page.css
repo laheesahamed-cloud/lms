@@ -2260,7 +2260,6 @@
 .study-hub-page .study-plan-card,
 .study-hub-page .study-course-progress-card,
 .study-hub-page .study-upcoming-card,
-.study-hub-page .study-exam-countdown-card,
 .study-hub-page .study-analytics-card,
 .study-hub-page .study-mood-card,
 .study-hub-page .study-question-card {
@@ -2277,7 +2276,6 @@
 
 .study-hub-page .study-course-progress-card,
 .study-hub-page .study-upcoming-card,
-.study-hub-page .study-exam-countdown-card,
 .study-hub-page .study-analytics-card {
   display: grid;
   gap: 12px;
@@ -2447,40 +2445,6 @@
   color: #fca5a5;
 }
 
-.study-hub-page .study-exam-countdown-main {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-}
-
-.study-hub-page .study-exam-countdown-main > span {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  border-radius: 17px;
-  background: rgba(96, 165, 250, 0.16);
-  color: #60a5fa;
-}
-
-.study-hub-page .study-exam-countdown-main strong {
-  display: block;
-  color: #ffffff;
-  font-size: 32px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 900;
-  line-height: 0.95;
-}
-
-.study-hub-page .study-exam-countdown-main small {
-  color: #94a3b8;
-  font-size: var(--type-size-2xs);
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.study-hub-page .study-exam-countdown-card p,
 .study-hub-page .study-analytics-card p {
   margin: 0;
   color: #c7d2fe;
@@ -2592,11 +2556,9 @@
 
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-course-progress-card,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-upcoming-card,
-:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-exam-countdown-card,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-analytics-card,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-course-progress-card,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-upcoming-card,
-:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-exam-countdown-card,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-analytics-card {
   background: var(--surface-card);
   box-shadow: var(--ds-card-shadow);
@@ -2611,13 +2573,11 @@
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-course-overview strong,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-course-row strong,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-upcoming-copy strong,
-:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-exam-countdown-main strong,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-analytics-grid strong,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-course-ring span,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-course-overview strong,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-course-row strong,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-upcoming-copy strong,
-:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-exam-countdown-main strong,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-analytics-grid strong {
   color: #0F172A;
 }
@@ -2635,7 +2595,6 @@
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-course-overview small,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-course-row small,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-upcoming-copy small,
-:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-exam-countdown-main small,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-server-clock,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-analytics-grid small,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-analytics-grid em,
@@ -2643,7 +2602,6 @@
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-course-overview small,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-course-row small,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-upcoming-copy small,
-:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-exam-countdown-main small,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-server-clock,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-analytics-grid small,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-analytics-grid em,
@@ -2651,45 +2609,9 @@
   color: #66738d;
 }
 
-:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-exam-countdown-card p,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-analytics-card p,
-:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-exam-countdown-card p,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-analytics-card p {
   color: #40516d;
-}
-
-@media (min-width: 760px) {
-
-.study-hub-page .study-medical-audit-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* "Coming up" inside the Exam countdown card: only in the side-by-side layout,
-   where the card is stretched to the height of Course progress. */
-.study-hub-page .study-exam-agenda {
-  display: none;
-}
-
-.study-hub-page .study-exam-agenda__link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-primary);
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-@media (min-width: 760px) {
-
-.study-hub-page .study-exam-agenda {
-    display: grid;
-    align-self: end;
-    gap: 8px;
-    padding-top: 12px;
-    border-top: 1px solid var(--line-soft);
-  }
 }
 
 @media (max-width: 380px) {

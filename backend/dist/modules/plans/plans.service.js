@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const subscription_catalog_1 = require("./subscription-catalog");
+const admin_read_cache_1 = require("../../common/utils/admin-read-cache");
 let PlansService = class PlansService {
     constructor(db) {
         this.db = db;
@@ -25,11 +26,12 @@ let PlansService = class PlansService {
         return this.listPlans(false);
     }
     async findActive() {
-        return this.listPlans(true);
+        const plans = await (0, admin_read_cache_1.cachedAdminRead)('public.allPlans', () => this.listPlans(false), 3_600_000);
+        return plans.filter((plan) => String(plan.status) === 'active');
     }
     async findById(id) {
-        const plans = await this.listPlans(false, id);
-        const plan = plans[0];
+        const remembered = await (0, admin_read_cache_1.cachedAdminRead)('public.allPlans', () => this.listPlans(false), 3_600_000);
+        const plan = remembered.find((p) => Number(p.id) === Number(id)) || (await this.listPlans(false, id))[0];
         if (!plan) {
             throw new common_1.NotFoundException('Plan not found');
         }
@@ -43,7 +45,7 @@ let PlansService = class PlansService {
             return new Map();
         }
         const requestedIds = new Set(cleanIds);
-        const plans = await this.listPlans(false);
+        const plans = await (0, admin_read_cache_1.cachedAdminRead)('public.allPlans', () => this.listPlans(false), 3_600_000);
         return new Map(plans
             .filter((plan) => requestedIds.has(Number(plan.id)))
             .map((plan) => [Number(plan.id), plan]));

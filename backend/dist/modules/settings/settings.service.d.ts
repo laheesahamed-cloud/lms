@@ -119,6 +119,7 @@ export declare class SettingsService {
     private buildPublicSettings;
     private getPublicAuthSettings;
     private getPublicGoogleClientId;
+    private newContentNotificationsCache;
     isNewContentNotificationsEnabled(): Promise<boolean>;
     updateGeneralSettings(input: {
         whatsappNumber?: string;
@@ -206,7 +207,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -230,7 +231,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -308,6 +309,45 @@ export declare class SettingsService {
         hasAppMerchantSecret: boolean;
         maskedAppMerchantSecret: string;
     }>;
+    studentPaymentSettingsFrom(raw: Awaited<ReturnType<SettingsService['getRawPaymentSettings']>>): {
+        enabled: boolean;
+        currency: "LKR";
+        buttonLabel: string;
+        bankTransferDetails: string;
+        configured: boolean;
+        sandboxMode?: undefined;
+        checkoutTitle?: undefined;
+        supportText?: undefined;
+        merchantId?: undefined;
+        hasMerchantSecret?: undefined;
+        maskedMerchantSecret?: undefined;
+        returnUrl?: undefined;
+        cancelUrl?: undefined;
+        notifyUrl?: undefined;
+        autoActivatePaidSubscriptions?: undefined;
+        appCheckoutMode?: undefined;
+        hasAppMerchantSecret?: undefined;
+        maskedAppMerchantSecret?: undefined;
+    } | {
+        enabled: boolean;
+        sandboxMode: boolean;
+        currency: "LKR";
+        checkoutTitle: string;
+        buttonLabel: string;
+        supportText: string;
+        bankTransferDetails: string;
+        configured: boolean;
+        merchantId: string;
+        hasMerchantSecret: boolean;
+        maskedMerchantSecret: string;
+        returnUrl: string;
+        cancelUrl: string;
+        notifyUrl: string;
+        autoActivatePaidSubscriptions: boolean;
+        appCheckoutMode: "native" | "web";
+        hasAppMerchantSecret: boolean;
+        maskedAppMerchantSecret: string;
+    };
     getPayHereCheckoutSettings(): Promise<PayHerePaymentSettings>;
     updatePaymentSettings(input: Partial<PayHerePaymentSettings>): Promise<{
         note: string;
@@ -361,7 +401,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -392,7 +432,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -678,6 +718,9 @@ export declare class SettingsService {
         note: string;
         encryptionStatus: string;
     }>;
+    private settingsSnapshot;
+    private settingsSnapshotLoad;
+    private settingsMap;
     private getSettingValue;
     private getSettingMap;
     private getAvailabilityMode;
@@ -687,13 +730,18 @@ export declare class SettingsService {
     private normalizeAvailabilityUnlockCode;
     private normalizeAvailabilityUnlockAttempt;
     private getRawPaymentSettings;
+    private readPaymentSettings;
     private getRawSmtpSettings;
     private normalizeSmtpBrandText;
     private renderSmtpTestHtml;
     private getRawPopupAlertSettings;
     private getRawPopupAlertSettingsFromValues;
-    getRawApnsSettings(): Promise<ApnsSettings>;
-    getRawFcmSettings(): Promise<FcmSettings>;
+    getRawPushSettings(): Promise<{
+        apns: ApnsSettings;
+        fcm: FcmSettings;
+    }>;
+    getRawApnsSettings(preloaded?: Map<string, string>): Promise<ApnsSettings>;
+    getRawFcmSettings(preloaded?: Map<string, string>): Promise<FcmSettings>;
     private serializeSmtpSettings;
     private serializePopupAlertSettings;
     private serializePublicPopupAlertSettings;

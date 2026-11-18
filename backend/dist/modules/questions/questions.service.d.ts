@@ -1,6 +1,5 @@
 import { Pool } from 'mysql2/promise';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
-import { BulkUpdateQuestionKeywordsDto } from './dto/bulk-update-question-keywords.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 type QuestionFilters = {
@@ -8,7 +7,6 @@ type QuestionFilters = {
     status?: string;
     type?: string;
     category?: string;
-    keywords?: string;
     usage?: string;
     courseId?: number;
     subjectId?: number;
@@ -23,6 +21,8 @@ type QuestionFilters = {
     page?: number;
     offset?: number;
     random?: boolean;
+    after?: number;
+    slim?: boolean;
 };
 type ContentActor = {
     id: number;
@@ -45,13 +45,13 @@ export declare class QuestionsService {
         category: string;
         questionType: "sba" | "true_false";
         questionText: string;
-        keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
         questionApproach: string;
         questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
+        updatedAt: string | Date | null;
         courseTitle: string;
         subjectName: string;
         topicName: string;
@@ -65,6 +65,7 @@ export declare class QuestionsService {
         unused: number;
         used: number;
     }>;
+    private loadCountsByFilters;
     meta(): Promise<{
         courses: {
             id: number;
@@ -95,8 +96,93 @@ export declare class QuestionsService {
             examSource: string;
             keywordsText: string;
         }[];
-        keywordSuggestions: string[];
     }>;
+    metaFolders(): Promise<{
+        courses: {
+            id: number;
+            courseTitle: string;
+        }[];
+        subjects: {
+            id: number;
+            courseId: number;
+            subjectName: string;
+        }[];
+        topics: never[];
+        lessons: never[];
+        papers: {
+            id: number;
+            paperTitle: string;
+            year: number;
+            examSource: string;
+            keywordsText: string;
+        }[];
+    }>;
+    metaSubject(topicId: number): Promise<{
+        topicId: number;
+        topics: {
+            id: number;
+            subjectId: number;
+            courseId: number;
+            topicName: string;
+        }[];
+        lessons: {
+            id: number;
+            courseId: number;
+            subjectId: number;
+            topicId: number | null;
+            lessonTitle: string;
+        }[];
+    }>;
+    fixLinkCounts(after: number): Promise<{
+        lastId: number;
+        done: boolean;
+        maxId: number;
+        fixed: {
+            id: number;
+            stored: number;
+            actual: number;
+        }[];
+        changed: {
+            id: number;
+            stored: number;
+            actual: number;
+        }[];
+        courseCounts: Record<number, number>;
+        courseTotals: Record<number, number> | undefined;
+    }>;
+    fixCourseQuestionTotals(counts: unknown, expected: unknown): Promise<{
+        fixed: {
+            id: number;
+            name: string;
+            stored: number;
+            actual: number;
+        }[];
+        changed: {
+            id: number;
+            name: string;
+            stored: number;
+            actual: number;
+        }[];
+    }>;
+    metaSubjects(topicIds: number[]): Promise<{
+        subjects: {
+            topicId: number;
+            topics: {
+                id: number;
+                subjectId: number;
+                courseId: number;
+                topicName: string;
+            }[];
+            lessons: {
+                id: number;
+                courseId: number;
+                subjectId: number;
+                topicId: number | null;
+                lessonTitle: string;
+            }[];
+        }[];
+    }>;
+    private loadMeta;
     findOne(id: number): Promise<{
         options: {
             id: number;
@@ -115,13 +201,13 @@ export declare class QuestionsService {
         category: string;
         questionType: "sba" | "true_false";
         questionText: string;
-        keywordsText: string;
         explanation: string;
         explanationImageUrl: string;
         questionApproach: string;
         questionApproachHighlights: string[];
         status: "active" | "inactive";
         createdAt: string | null;
+        updatedAt: string | Date | null;
         courseTitle: string;
         subjectName: string;
         topicName: string;
@@ -165,18 +251,7 @@ export declare class QuestionsService {
         linkedQuestionCount: number;
         linkedQuizCount: number;
     }>;
-    bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto: BulkUpdateQuestionKeywordsDto, actor?: ContentActorInput): Promise<{
-        ok: boolean;
-        updatedCount: number;
-        keywords: string[];
-    }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
@@ -195,13 +270,7 @@ export declare class QuestionsService {
         status: "active" | "inactive";
         workflowState: ContentWorkflowState;
     }>;
-    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "draft" | "published";
-    }>;
+    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<void>;
     private ensureHierarchyExists;
     private buildQuestionSnapshot;
     private buildQuestionSnapshotFromEntity;
@@ -235,10 +304,6 @@ export declare class QuestionsService {
     private normalizeImportStatus;
     private parseImportBoolean;
     private normalizeLookup;
-    private normalizeKeywords;
-    private normalizeKeywordArray;
-    private getKeywordSuggestions;
-    private syncQuestionKeywords;
     private cleanExplanationImage;
     private serializeApproachHighlights;
     private parseApproachHighlights;

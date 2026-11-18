@@ -26,8 +26,12 @@ export class UsersController {
     @Query('limit') limit?: string,
     @Query('page') page?: string,
     @Query('offset') offset?: string,
+    @Query('paged') paged?: string,
+    @Query('after') after?: string,
   ) {
     const actor = await this.authService.requireAdmin(authorization);
+    // Users page: pages of 50 by index ({ items, next }).
+    if (paged === '1') return this.usersService.findPage(actor, { search, status, role, after });
     return this.usersService.findAll(actor, {
       search,
       status,

@@ -358,7 +358,7 @@ function DeleteDialog({ state, onChoose, onCancel, onConfirm }) {
                 <strong className="text-[14px] text-ink-strong">Delete the {noun} and their questions</strong>
                 <span className="text-[12.5px] leading-relaxed text-ink-soft">
                   {onlyHere
-                    ? `Permanently deletes the ${onlyHere} question${onlyHere === 1 ? '' : 's'} used only here, with their answer options, quick theory, reports and students' saved answers.`
+                    ? `Permanently deletes the ${onlyHere} question${onlyHere === 1 ? '' : 's'} used only here, with their answer options, quick theory and reports.`
                     : 'There are no questions used only by these assessments.'}
                   {shared ? ` ${shared} question${shared === 1 ? ' is' : 's are'} also used by other assessments and will be kept.` : ''}
                 </span>
@@ -369,7 +369,7 @@ function DeleteDialog({ state, onChoose, onCancel, onConfirm }) {
 
         {preview?.attempts ? (
           <p className="m-0 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[12.5px] leading-relaxed text-amber-800 dark:text-amber-200">
-            Students have taken these {preview.attempts} time{preview.attempts === 1 ? '' : 's'}. Those attempts will no longer show in their results.
+            Students hold {preview.attempts} recent result{preview.attempts === 1 ? '' : 's'} for these. Those results will no longer show in their results list.
           </p>
         ) : null}
 
@@ -404,6 +404,25 @@ export function QuizzesPage() {
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [summary, setSummary] = useState([]);
+  // Assessment rows come without course/subject names (slim list: no lookups
+  // in the database); the names come from the lists this page already holds.
+  const namesRef = useRef({ courses: new Map(), subjects: new Map() });
+  useEffect(() => {
+    const courseNames = new Map();
+    const subjectNames = new Map();
+    for (const row of summary) {
+      courseNames.set(Number(row.courseId), row.courseTitle);
+      if (row.topicId) subjectNames.set(Number(row.topicId), row.subjectName);
+    }
+    for (const course of courses) courseNames.set(Number(course.id), course.courseTitle);
+    for (const subject of subjects) subjectNames.set(Number(subject.id), subject.subjectName);
+    namesRef.current = { courses: courseNames, subjects: subjectNames };
+  }, [summary, courses, subjects]);
+  const withNames = (rows) => (Array.isArray(rows) ? rows : []).map((quiz) => ({
+    ...quiz,
+    courseTitle: quiz.courseTitle || namesRef.current.courses.get(Number(quiz.courseId)) || '',
+    subjectName: quiz.subjectName || namesRef.current.subjects.get(Number(quiz.topicId)) || '',
+  }));
   const [folders, setFolders] = useState({});
   const [searchResults, setSearchResults] = useState({ items: [], loading: false, more: false, error: '' });
   const [filters, setFilters] = useState(quizInitialFilters);
@@ -457,7 +476,8 @@ export function QuizzesPage() {
 
   const loadMeta = useCallback(async () => {
     try {
-      const meta = await fetchQuizzesMeta();
+      // Only courses and subjects are shown here; the editors load their own lists.
+      const meta = await fetchQuizzesMeta({ scope: 'folders' });
       setCourses(meta.courses || []);
       setSubjects(meta.subjects || []);
     } catch (loadError) {
@@ -479,18 +499,21 @@ export function QuizzesPage() {
     const key = subjectKey(subject);
     setFolders((current) => ({ ...current, [key]: { ...(reset ? {} : current[key]), loading: true, error: '' } }));
     try {
-      const have = reset ? 0 : (foldersRef.current[key]?.items?.length || 0);
+      // Next page = "after the last id shown" (reads only the rows it returns).
+      const shown = reset ? [] : (foldersRef.current[key]?.items || []);
+      const lastId = shown.length ? shown[shown.length - 1].id : null;
       const data = await fetchQuizzes({
         ...buildParams(appliedFilters.current),
         courseId: subject.courseId,
         topicId: subject.isGeneral ? 'general' : subject.topicId,
         limit: PAGE_SIZE,
-        offset: have,
+        ...(lastId ? { after: lastId } : {}),
         order: 'asc',
+        slim: 1,
       });
       setFolders((current) => ({
         ...current,
-        [key]: { items: [...(reset ? [] : current[key]?.items || []), ...data], loading: false, error: '' },
+        [key]: { items: [...(reset ? [] : current[key]?.items || []), ...withNames(data)], loading: false, error: '' },
       }));
     } catch (loadError) {
       setFolders((current) => ({
@@ -507,10 +530,11 @@ export function QuizzesPage() {
   const loadSearch = useCallback(async (nextFilters, { reset = true } = {}) => {
     setSearchResults((current) => ({ ...(reset ? { items: [] } : current), loading: true, more: false, error: '' }));
     try {
-      const have = reset ? 0 : searchRef.current.items.length;
-      const data = await fetchQuizzes({ ...buildParams(nextFilters), limit: PAGE_SIZE, offset: have, order: 'asc' });
+      const shown = reset ? [] : searchRef.current.items;
+      const lastId = shown.length ? shown[shown.length - 1].id : null;
+      const data = await fetchQuizzes({ ...buildParams(nextFilters), limit: PAGE_SIZE, ...(lastId ? { after: lastId } : {}), order: 'asc', slim: 1 });
       setSearchResults((current) => ({
-        items: [...(reset ? [] : current.items), ...data], loading: false, more: data.length === PAGE_SIZE, error: '',
+        items: [...(reset ? [] : current.items), ...withNames(data)], loading: false, more: data.length === PAGE_SIZE, error: '',
       }));
     } catch (loadError) {
       setSearchResults((current) => ({ ...current, loading: false, error: getErrorMessage(loadError, 'Unable to search') }));

@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
 import { useNavigate } from 'react-router-dom';
 import { fetchStudentQuizzes, prefetchStudentQuiz, readStudentQuizzesCache } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -17,12 +18,9 @@ const PLATFORM = detectPlatform();
 
 // How many of the top practice quizzes to warm during idle so a tap opens from
 // cache. Bounded to stay gentle on shared hosting; payloads are deduped/cached.
-const PRACTICE_PREFETCH_COUNT = 4;
 
 function getQuizRowLabel(quiz, index) {
-  if (quiz.displayTitleMode === 'number' && quiz.quizNumber) {
-    return `Quiz ${Number(quiz.quizNumber)}`;
-  }
+  // One name per quiz (10.25): no "Quiz N" number display.
   return getQuizTitleText(quiz) || quiz.quizTitle || `Practice set ${index + 1}`;
 }
 
@@ -340,7 +338,8 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
   const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
   // "Free" is a filter inside the course: the same cards, keeping only the free
   // sets (and dropping any subject left empty).
-  const hasFree = useMemo(() => quizzes.some((quiz) => quiz.isFree), [quizzes]);
+  // 10.21: the website lists only sets that open here, so no "Free" chip.
+  const hasFree = false;
   const freeOnly = activeSubject === FREE_CHIP;
   const subjects = useMemo(() => {
     const map = new Map();
@@ -544,14 +543,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
           cancelPreload = runWhenIdle(() => {
             const mode = isExamPage ? 'exam' : 'practice';
             preloadRouteByPath(`/quizzes/${firstOpenQuiz.id}?mode=${mode}`);
-            // Warm the first few practice payloads during idle so a tap opens
-            // straight from cache instead of waiting on the network. Exam is
-            // excluded on purpose — loading an exam starts a timed session.
-            if (!isExamPage) {
-              openQuizzes
-                .slice(0, PRACTICE_PREFETCH_COUNT)
-                .forEach((quiz) => prefetchStudentQuiz(quiz.id, { mode: 'practice' }));
-            }
+            // 10.21: no background pre-loading — a quiz file loads when it is opened.
           });
         }
         cancelBookmarks = runWhenIdle(async () => {
@@ -579,17 +571,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     }
   }
 
-  function handleViewPackages() {
-    if (!accessPromptQuiz) return;
-    navigate('/subscriptions', {
-      state: {
-        lockedFeature: accessPromptQuiz.accessFeature || (isExamPage ? 'examMode' : 'practiceMode'),
-        accessScope: accessPromptQuiz.courseId ? 'courses' : 'all',
-        courseIds: accessPromptQuiz.courseId ? [accessPromptQuiz.courseId] : [],
-      },
-    });
-    setAccessPromptQuiz(null);
-  }
+
 
   function handleSelectCourse(courseName) {
     setCourseFilter(courseName);
@@ -845,32 +827,16 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             aria-labelledby="quiz-access-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="grid justify-items-center gap-3 text-center">
-              <span className="grid size-12 shrink-0 place-items-center rounded-full border border-amber-400/35 bg-amber-400/12 text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] dark:text-amber-300">
-                <IcoLock/>
-              </span>
-              <h2 id="quiz-access-title" className="m-0 text-[17px] font-extrabold text-ink-strong">
-                Premium {isExamPage ? 'exam' : 'practice set'}
-              </h2>
-              <p className="m-0 max-w-[280px] text-[13px] leading-relaxed text-ink-soft">
-                This {isExamPage ? 'exam' : 'practice set'} is not included in your current package.
-              </p>
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-2">
+            {/* 10.23 W7: a locked set is "Continue in the app" — decided from the
+                list the browser holds, no request. */}
+            <AppOnlyGate contentLabel={isExamPage ? 'exam' : 'practice set'} title="Continue in the app" />
+            <div className="mt-3 grid">
               <button
                 type="button"
                 className={cx(ui.secondaryButton, 'min-h-11 px-4 text-xs')}
                 onClick={() => setAccessPromptQuiz(null)}
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={cx(ui.primaryAction, 'min-h-11 px-4 text-xs')}
-                onClick={handleViewPackages}
-              >
-                View packages
+                Close
               </button>
             </div>
           </div>

@@ -79,6 +79,7 @@ let CoursesController = class CoursesController {
 exports.CoursesController = CoursesController;
 __decorate([
     (0, common_1.Get)('landing-summary'),
+    (0, common_1.Header)('Cache-Control', 'public, max-age=60, stale-while-revalidate=300'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)

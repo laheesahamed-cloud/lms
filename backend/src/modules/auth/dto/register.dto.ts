@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsString, Matches, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -7,6 +7,17 @@ export class RegisterDto {
 
   @IsEmail()
   email!: string;
+
+  // 2026-11-17: the university's country (picked from a list) and its name (typed), required.
+  @IsString()
+  @MinLength(2)
+  @MaxLength(64)
+  universityCountry!: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  university!: string;
 
   @IsString()
   @MinLength(10)

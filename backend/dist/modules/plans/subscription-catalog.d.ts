@@ -70,7 +70,7 @@ export declare const DEFAULT_PLAN_BLUEPRINTS: readonly [{
     readonly sortOrder: 4;
     readonly recommended: 0;
     readonly status: "active";
-    readonly featureKeys: readonly [...string[], "dynamic_quiz_randomization"];
+    readonly featureKeys: string[];
 }];
 export declare const APPLE_IAP_PRODUCTS: readonly [{
     readonly productId: "app.xyndrome.lk.weekly";

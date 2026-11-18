@@ -22,6 +22,7 @@ const path_1 = require("path");
 const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const plans_service_1 = require("../plans/plans.service");
+const word_search_1 = require("../../common/utils/word-search");
 const settings_service_1 = require("../settings/settings.service");
 const apple_iap_service_1 = require("./apple-iap.service");
 const SUBSCRIPTION_LIST_COLUMNS = `
@@ -105,6 +106,209 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             featureCategories: featureCatalog.categories,
             features: featureCatalog.features,
         };
+    }
+    async adminDashboardFinance(db, day) {
+        const serverToday = this.toDateOnly(new Date());
+        const today = day || serverToday;
+        const [[activeRow]] = await db.query(`SELECT COUNT(*) AS n FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_status_end)
+       INNER JOIN users student ON student.id = us.user_id
+       WHERE us.status = 'active'`);
+        const [expiringRows] = await db.query(`SELECT us.plan_id, us.payment_status,
+         (us.access_expires_at IS NOT NULL AND us.access_expires_at <= UTC_TIMESTAMP()) AS access_lapsed
+       FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_status_end)
+       INNER JOIN users student ON student.id = us.user_id
+       WHERE us.status = 'active' AND us.end_date BETWEEN ? AND ?`, [serverToday, this.addDays(serverToday, 6)]);
+        const [recentRows] = await db.query(`SELECT us.id, us.plan_id, us.payment_status, us.amount_paid, us.payment_date, us.updated_at,
+         student.full_name AS student_name, COALESCE(us.payer_email, student.email) AS student_email
+       FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_collected)
+       INNER JOIN users student ON student.id = us.user_id
+       WHERE us.is_collected = 1
+       ORDER BY us.created_at DESC, us.id DESC
+       LIMIT 4`);
+        const [todayRows] = await db.query(`SELECT us.amount_paid
+       FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_collected_day)
+       INNER JOIN users student ON student.id = us.user_id
+       WHERE us.is_collected = 1
+         AND (us.payment_date = ? OR (us.payment_date IS NULL AND us.updated_at >= ? AND us.updated_at < CAST(? AS DATE) + INTERVAL 1 DAY))`, [today, today, today]);
+        const [pendingRows] = await db.query(`SELECT sr.id, sr.plan_id, sr.invoice_id, sr.payment_amount, sr.payment_currency, sr.requested_at,
+         (sr.payment_proof_data_url IS NOT NULL AND sr.payment_proof_data_url <> '') AS has_proof,
+         student.full_name AS student_name, COALESCE(sr.payer_email, student.email) AS student_email
+       FROM subscription_requests sr FORCE INDEX (idx_subscription_requests_visible)
+       INNER JOIN users student ON student.id = sr.user_id
+       WHERE sr.admin_visible = 1 AND sr.status = 'pending'
+       ORDER BY sr.requested_at DESC, sr.id DESC`);
+        const queueRows = pendingRows.slice(0, 5);
+        const pendingPaidRows = pendingRows.filter((r) => Number(r.payment_amount || 0) > 0).slice(0, 3);
+        const shown = [...recentRows, ...queueRows, ...pendingPaidRows];
+        const planIds = [...new Set([...expiringRows, ...shown].map((r) => Number(r.plan_id)).filter((v) => v > 0))];
+        const [planRows] = planIds.length
+            ? await db.query('SELECT id, name, slug, price, regular_price, offer_price, offer_enabled FROM plans WHERE id IN (?)', [planIds])
+            : [[]];
+        const plans = new Map(planRows.map((p) => {
+            const regularPrice = Number(p.regular_price ?? p.price ?? 0);
+            const offerPrice = p.offer_price === null || p.offer_price === undefined ? null : Number(p.offer_price);
+            const effectivePrice = Number(p.offer_enabled) === 1 && offerPrice !== null ? offerPrice : regularPrice;
+            return [Number(p.id), { name: String(p.name || ''), slug: String(p.slug || ''), effectivePrice }];
+        }));
+        const who = (r) => ({ studentName: String(r.student_name || ''), studentEmail: String(r.student_email || '') });
+        const request = (r) => ({
+            id: Number(r.id),
+            ...who(r),
+            planName: plans.get(Number(r.plan_id))?.name || '',
+            invoiceId: r.invoice_id ? String(r.invoice_id) : null,
+            paymentAmount: r.payment_amount === null || r.payment_amount === undefined ? null : Number(r.payment_amount),
+            paymentCurrency: String(r.payment_currency || ''),
+            planCurrency: this.normalizePaymentCurrency(null),
+            hasProof: Number(r.has_proof) === 1,
+            requestedAt: this.timestampValueToText(r.requested_at),
+        });
+        return {
+            currency: this.normalizePaymentCurrency(null),
+            activeSubscriptions: Number(activeRow?.n || 0),
+            expiringSoon: expiringRows.filter((r) => Number(r.access_lapsed) !== 1
+                && !this.isFreePlanAssignment(r.payment_status, plans.get(Number(r.plan_id)) || {})).length,
+            todayRevenue: todayRows.reduce((t, r) => t + Number(r.amount_paid || 0), 0),
+            pendingRequests: pendingRows.length,
+            pendingAmount: pendingRows.reduce((t, r) => t + Number(r.payment_amount || 0), 0),
+            approvalQueue: queueRows.map(request),
+            pendingPayments: pendingPaidRows.map(request),
+            recentPayments: recentRows.map((r) => ({
+                id: Number(r.id),
+                ...who(r),
+                planName: plans.get(Number(r.plan_id))?.name || '',
+                amountPaid: Number(r.amount_paid || 0),
+                planCurrency: this.normalizePaymentCurrency(null),
+                paymentStatus: String(r.payment_status || ''),
+                collectedAt: r.payment_date ? this.dateValueToText(r.payment_date) : this.timestampValueToText(r.updated_at),
+            })),
+        };
+    }
+    isListedFree(paymentStatus, plan) {
+        return String(paymentStatus || '') === 'free_plan'
+            || (String(plan?.name || '').trim().toLowerCase() === 'free' && Number(plan?.effectivePrice || 0) <= 0);
+    }
+    async loadSlimPlans(db) {
+        const [rows] = await db.query('SELECT id, name, slug, price, regular_price, offer_price, offer_enabled, currency, duration_days, recommended FROM plans');
+        return new Map(rows.map((p) => {
+            const regularPrice = Number(p.regular_price ?? p.price ?? 0);
+            const offerPrice = p.offer_price === null || p.offer_price === undefined ? null : Number(p.offer_price);
+            const offerEnabled = Number(p.offer_enabled) === 1;
+            return [Number(p.id), {
+                    id: Number(p.id), name: String(p.name || ''), slug: String(p.slug || ''), currency: String(p.currency || 'LKR'),
+                    regularPrice, offerPrice, offerEnabled, effectivePrice: offerEnabled && offerPrice !== null ? offerPrice : regularPrice,
+                    durationDays: Number(p.duration_days || 0), recommended: Number(p.recommended) === 1,
+                    features: [], enabledFeatures: [], featureKeys: [],
+                }];
+        }));
+    }
+    async adminSubscriptionsOverview() {
+        const conn = await this.db.getConnection();
+        try {
+            const serverToday = this.toDateOnly(new Date());
+            const plans = await this.loadSlimPlans(conn);
+            const freePlanIds = [...plans.values()].filter((p) => this.isListedFree('', p)).map((p) => p.id);
+            const expiringFreeIds = [...plans.values()].filter((p) => this.isFreePlan(p)).map((p) => p.id);
+            const [[students]] = await conn.query("SELECT COUNT(*) AS n FROM users FORCE INDEX (idx_users_role_status_live) WHERE role = 'student' AND deleted_at IS NULL");
+            const [[pending]] = await conn.query(`SELECT COUNT(*) AS n FROM subscription_requests sr FORCE INDEX (idx_subscription_requests_visible)
+         INNER JOIN users student ON student.id = sr.user_id
+         WHERE sr.admin_visible = 1 AND sr.status = 'pending'`);
+            const [[paid]] = await conn.query(`SELECT COUNT(*) AS total,
+           COALESCE(SUM(us.status = 'active'), 0) AS active,
+           COALESCE(SUM(us.status = 'active' AND us.end_date BETWEEN ? AND ?
+             AND NOT (us.access_expires_at IS NOT NULL AND us.access_expires_at <= UTC_TIMESTAMP())
+             AND us.plan_id NOT IN (?)), 0) AS expiring
+         FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_payment_status)
+         INNER JOIN users student ON student.id = us.user_id
+         -- The three non-free values (the index is not used for "<> 'free_plan'").
+         WHERE us.payment_status IN ('manual', 'paid', 'unpaid') AND us.plan_id NOT IN (?)`, [serverToday, this.addDays(serverToday, 6), expiringFreeIds.length ? expiringFreeIds : [0], freePlanIds.length ? freePlanIds : [0]]);
+            const [courses] = await conn.query('SELECT id, course_title FROM courses');
+            return {
+                students: Number(students?.n || 0),
+                pendingRequests: Number(pending?.n || 0),
+                paidTotal: Number(paid?.total || 0),
+                activePaid: Number(paid?.active || 0),
+                expiringSoon: Number(paid?.expiring || 0),
+                courses: courses.map((c) => ({ id: Number(c.id), courseTitle: String(c.course_title || '') })),
+            };
+        }
+        finally {
+            conn.release();
+        }
+    }
+    async findAdminPaidList() {
+        const conn = await this.db.getConnection();
+        try {
+            const plans = await this.loadSlimPlans(conn);
+            const [rows] = await conn.query(`SELECT ${SUBSCRIPTION_LIST_COLUMNS}, us.payer_email
+         FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_payment_status)
+         -- The three non-free values (the index is not used for "<> 'free_plan'").
+         WHERE us.payment_status IN ('manual', 'paid', 'unpaid')`);
+            const time = (v) => (v instanceof Date ? v.getTime() : new Date(String(v || 0)).getTime()) || 0;
+            const listed = rows
+                .filter((row) => !this.isListedFree(row.payment_status, plans.get(Number(row.plan_id))))
+                .sort((a, b) => time(b.created_at) - time(a.created_at) || Number(b.id) - Number(a.id));
+            const userIds = [...new Set(listed.flatMap((row) => [Number(row.user_id), Number(row.assigned_by || 0)]).filter((v) => v > 0))];
+            const [userRows] = userIds.length
+                ? await conn.query('SELECT id, full_name, email FROM users FORCE INDEX (PRIMARY) WHERE id IN (?)', [userIds])
+                : [[]];
+            const users = new Map(userRows.map((u) => [Number(u.id), u]));
+            const result = [];
+            for (const row of listed) {
+                const student = users.get(Number(row.user_id));
+                if (!student)
+                    continue;
+                const plan = plans.get(Number(row.plan_id));
+                if (!plan)
+                    continue;
+                const admin = row.assigned_by ? users.get(Number(row.assigned_by)) : undefined;
+                const mapped = await this.mapSubscription({
+                    ...row,
+                    student_name: student.full_name,
+                    student_email: row.payer_email || student.email,
+                    assigned_by_name: admin?.full_name || '',
+                    assigned_by_email: admin?.email || '',
+                    plan_name: plan.name,
+                    plan_regular_price: plan.regularPrice,
+                    plan_offer_price: plan.offerPrice,
+                    plan_offer_enabled: plan.offerEnabled ? 1 : 0,
+                    plan_currency: plan.currency,
+                    plan_duration_days: plan.durationDays,
+                    plan_recommended: plan.recommended ? 1 : 0,
+                }, plan);
+                delete mapped.planFeatures;
+                delete mapped.enabledFeatures;
+                delete mapped.featureKeys;
+                result.push(mapped);
+            }
+            return result;
+        }
+        finally {
+            conn.release();
+        }
+    }
+    async paymentTotals() {
+        const [rows] = await this.db.query(`SELECT status, COUNT(*) AS count_value, SUM(amount) AS amount_total
+       FROM payment_transactions GROUP BY status`);
+        return rows.map((row) => ({
+            status: String(row.status || 'unknown'),
+            currency: 'LKR',
+            count: Number(row.count_value || 0),
+            amount: Number(row.amount_total || 0),
+        }));
+    }
+    async searchStudentsForAssign(query) {
+        const filter = (0, word_search_1.wordSearchFilter)(['full_name', 'email'], (0, word_search_1.searchWords)(String(query || '')));
+        if (!filter)
+            return [];
+        const [rows] = await this.db.query(`SELECT id, full_name, email, status FROM users WHERE ${filter.sql} AND role = 'student' AND deleted_at IS NULL LIMIT 20`, filter.params);
+        return rows.map((r) => ({ id: Number(r.id), fullName: String(r.full_name || ''), email: String(r.email || ''), status: String(r.status || '') }));
+    }
+    async findLessonTitles(ids) {
+        const clean = (ids || []).filter((v) => Number.isInteger(v) && v > 0).slice(0, 500);
+        const [rows] = await this.db.query(`SELECT l.id, l.lesson_title, l.course_id, c.course_title
+       FROM lessons l INNER JOIN courses c ON c.id = l.course_id
+       WHERE l.is_public = 1 AND l.engine_key = 'gemini' ${ids ? 'AND l.id IN (?)' : ''}`, ids ? [clean.length ? clean : [0]] : []);
+        return rows.map((r) => ({ id: Number(r.id), lessonTitle: String(r.lesson_title || ''), courseId: Number(r.course_id), courseTitle: String(r.course_title || '') }));
     }
     async findAdminList(pagination = {}) {
         const { limit, offset } = (0, pagination_1.normalizePagination)(pagination, { defaultLimit: 50, maxLimit: 100 });
@@ -251,8 +455,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
             ...quote,
         };
     }
-    async requestManualPayment(userId, dto) {
-        const student = await this.getStudentOrThrow(userId);
+    async requestManualPayment(userId, dto, known) {
+        const student = known && Number(known.id) === Number(userId)
+            ? { id: Number(known.id), fullName: String(known.fullName || ''), email: String(known.email || ''), status: String(known.status || 'active') }
+            : await this.getStudentOrThrow(userId);
         const plan = await this.plansService.findById(dto.planId);
         const scope = this.normalizeAccessScope(dto.accessScope, dto.courseIds, dto.lessonIds);
         const proofDataUrl = String(dto.proofDataUrl || '').trim();
@@ -544,8 +750,12 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            await connection.execute(`INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('subscription_invoice_next', '1122')`);
-            const [rows] = await connection.execute(`SELECT setting_value FROM system_settings WHERE setting_key = 'subscription_invoice_next' FOR UPDATE`);
+            const lockCounter = () => connection.execute(`SELECT setting_value FROM system_settings WHERE setting_key = 'subscription_invoice_next' FOR UPDATE`);
+            let [rows] = await lockCounter();
+            if (!rows.length) {
+                await connection.execute(`INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('subscription_invoice_next', '1122')`);
+                [rows] = await lockCounter();
+            }
             const current = Math.max(1122, Number(rows[0]?.setting_value || 1122));
             const next = current + 1;
             await connection.execute(`UPDATE system_settings SET setting_value = ? WHERE setting_key = 'subscription_invoice_next'`, [String(next)]);
@@ -597,14 +807,13 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          plans.currency AS plan_currency,
          admin.full_name AS resolved_by_name,
          admin.email AS resolved_by_email
-       FROM subscription_requests sr
+       FROM subscription_requests sr FORCE INDEX (idx_subscription_requests_visible)
        INNER JOIN users student ON student.id = sr.user_id
        INNER JOIN plans ON plans.id = sr.plan_id
        LEFT JOIN users admin ON admin.id = sr.resolved_by
-       WHERE sr.invoice_id IS NULL
-          OR sr.payment_proof_data_url IS NOT NULL
-          OR sr.status = 'approved'
-          OR sr.subscription_id IS NOT NULL
+       -- admin_visible = not an abandoned online checkout (same rule as
+       -- before, as an indexed VIRTUAL column), so abandoned ones aren't read.
+       WHERE sr.admin_visible = 1
        ORDER BY FIELD(sr.status, 'pending', 'approved', 'rejected', 'cancelled'), sr.requested_at DESC, sr.id DESC`);
         return rows.map((row) => this.mapRequest(row));
     }
@@ -665,36 +874,31 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         return { ok: true, id: requestId, subscriptionId };
     }
     async getStudentBilling(userId) {
-        const [currentRows] = await this.db.execute(`SELECT
-         ${SUBSCRIPTION_LIST_COLUMNS},
-         plans.name AS plan_name,
-         plans.regular_price AS plan_regular_price,
-         plans.offer_price AS plan_offer_price,
-         plans.offer_enabled AS plan_offer_enabled,
-         plans.currency AS plan_currency,
-         plans.duration_days AS plan_duration_days,
-         plans.recommended AS plan_recommended
+        const [rawHistoryRows] = await this.db.execute(`SELECT ${SUBSCRIPTION_LIST_COLUMNS}
        FROM user_subscriptions us
-       INNER JOIN plans ON plans.id = us.plan_id
        WHERE us.user_id = ?
-       ORDER BY FIELD(us.status, 'active', 'pending', 'expired', 'cancelled'), us.end_date DESC, us.id DESC
-       LIMIT 1`, [userId]);
-        const [historyRows] = await this.db.execute(`SELECT
-         ${SUBSCRIPTION_LIST_COLUMNS},
-         admin.full_name AS assigned_by_name,
-         plans.name AS plan_name,
-         plans.regular_price AS plan_regular_price,
-         plans.offer_price AS plan_offer_price,
-         plans.offer_enabled AS plan_offer_enabled,
-         plans.currency AS plan_currency,
-         plans.duration_days AS plan_duration_days,
-         plans.recommended AS plan_recommended
-       FROM user_subscriptions us
-       INNER JOIN plans ON plans.id = us.plan_id
-       LEFT JOIN users admin ON admin.id = us.assigned_by
-       WHERE us.user_id = ?
-       ORDER BY us.created_at DESC, us.id DESC
-       LIMIT 12`, [userId]);
+       ORDER BY us.id DESC
+       LIMIT 13`, [userId]);
+        const historyRows = this.withPlanColumns(rawHistoryRows, await this.plansService.findByIds(rawHistoryRows.map((row) => Number(row.plan_id))));
+        let currentRows;
+        if (historyRows.length > 12) {
+            historyRows.length = 12;
+            const [rawCurrent] = await this.db.execute(`SELECT ${SUBSCRIPTION_LIST_COLUMNS}
+         FROM user_subscriptions us
+         WHERE us.user_id = ?
+         ORDER BY FIELD(us.status, 'active', 'pending', 'expired', 'cancelled'), us.end_date DESC, us.id DESC
+         LIMIT 1`, [userId]);
+            currentRows = this.withPlanColumns(rawCurrent, await this.plansService.findByIds(rawCurrent.map((row) => Number(row.plan_id))));
+        }
+        else {
+            const rank = (status) => ['active', 'pending', 'expired', 'cancelled'].indexOf(String(status)) + 1;
+            const endOf = (row) => {
+                const t = new Date(row.end_date).getTime();
+                return Number.isFinite(t) ? t : -Infinity;
+            };
+            const best = [...historyRows].sort((a, b) => rank(a.status) - rank(b.status) || endOf(b) - endOf(a) || Number(b.id) - Number(a.id))[0];
+            currentRows = best ? [best] : [];
+        }
         const availablePlans = await this.plansService.findActive();
         const planMap = await this.loadSubscriptionPlanMap([...currentRows, ...historyRows]);
         const paymentSettings = await this.settingsService.getPayHereCheckoutSettings();
@@ -704,7 +908,7 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
                 .filter((subscription) => !subscription.isFreePlan),
             availablePlans,
             requests: await this.findStudentRequests(userId),
-            payment: await this.settingsService.getStudentPaymentSettings(),
+            payment: this.settingsService.studentPaymentSettingsFrom(paymentSettings),
             appCheckoutMode: paymentSettings.appCheckoutMode,
         };
     }
@@ -1232,7 +1436,8 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
         });
         return { ok: true, id };
     }
-    async findAuditEvents() {
+    async findAuditEvents(limit = 80) {
+        const take = Math.min(200, Math.max(1, Math.trunc(Number(limit) || 80)));
         const [rows] = await this.db.execute(`SELECT
          sae.id,
          sae.subscription_id,
@@ -1250,8 +1455,10 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
        FROM subscription_audit_events sae
        LEFT JOIN users actor ON actor.id = sae.actor_id
        LEFT JOIN users student ON student.id = sae.user_id
-       ORDER BY sae.created_at DESC, sae.id DESC
-       LIMIT 80`);
+       -- Newest first by id (same order as by time: ids only grow), so only
+       -- the rows shown are read.
+       ORDER BY sae.id DESC
+       LIMIT ${take}`);
         return rows.map((row) => ({
             id: Number(row.id),
             subscriptionId: row.subscription_id ? Number(row.subscription_id) : null,
@@ -1428,9 +1635,11 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          u.full_name AS user_name, u.email AS user_email,
          p.name AS plan_name,
          s.status AS subscription_status, s.end_date AS subscription_end_date
-       FROM iap_transactions t
+       -- Newest first by primary key, so only the rows shown are read (it
+       -- scanned and sorted the whole table before).
+       FROM iap_transactions t FORCE INDEX (PRIMARY)
        LEFT JOIN users u ON u.id = t.user_id
-       LEFT JOIN plans p ON p.apple_product_id = t.product_id
+       LEFT JOIN plans p FORCE INDEX (idx_plans_apple_product) ON p.apple_product_id = t.product_id
        LEFT JOIN user_subscriptions s ON s.id = t.subscription_id
        WHERE ${filters.join(' AND ')}
        ORDER BY t.id DESC
@@ -1599,20 +1808,32 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
          sr.payment_proof_data_url,
          sr.access_scope,
          sr.course_ids_json,
-         sr.lesson_ids_json,
-         plans.name AS plan_name,
-         plans.regular_price AS plan_regular_price,
-         plans.offer_price AS plan_offer_price,
-         plans.offer_enabled AS plan_offer_enabled,
-         plans.currency AS plan_currency,
-         admin.full_name AS resolved_by_name
+         sr.lesson_ids_json
        FROM subscription_requests sr
-       INNER JOIN plans ON plans.id = sr.plan_id
-       LEFT JOIN users admin ON admin.id = sr.resolved_by
        WHERE sr.user_id = ?
-       ORDER BY FIELD(sr.status, 'pending', 'approved', 'rejected', 'cancelled'), sr.requested_at DESC, sr.id DESC
+       ORDER BY sr.id DESC
        LIMIT 12`, [userId]);
-        return rows.map((row) => this.mapRequest(row));
+        const rank = (status) => ['pending', 'approved', 'rejected', 'cancelled'].indexOf(String(status)) + 1;
+        rows.sort((a, b) => rank(a.status) - rank(b.status) || Number(b.id) - Number(a.id));
+        const withPlans = this.withPlanColumns(rows, await this.plansService.findByIds(rows.map((row) => Number(row.plan_id))));
+        return withPlans.map((row) => this.mapRequest(row));
+    }
+    withPlanColumns(rows, plans) {
+        return rows
+            .filter((row) => plans.has(Number(row.plan_id)))
+            .map((row) => {
+            const plan = plans.get(Number(row.plan_id));
+            return {
+                ...row,
+                plan_name: plan.name,
+                plan_regular_price: plan.regularPrice,
+                plan_offer_price: plan.offerPrice,
+                plan_offer_enabled: plan.offerEnabled ? 1 : 0,
+                plan_currency: plan.currency,
+                plan_duration_days: plan.durationDays,
+                plan_recommended: plan.recommended ? 1 : 0,
+            };
+        });
     }
     async findPaymentTransaction(orderId) {
         const [rows] = await this.db.execute(`SELECT

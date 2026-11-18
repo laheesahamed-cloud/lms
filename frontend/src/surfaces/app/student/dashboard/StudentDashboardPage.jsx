@@ -8,6 +8,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentQuizzes, readStudentQuizzesCache, fetchStudentResults, readStudentResultsCache } from '../../../../shared/api/quizAttempts.api.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache } from '../../../../shared/api/studyBookmarks.api.js';
 import { fetchPlannerAgenda, readPlannerAgendaCache } from '../../../../shared/api/workspace.api.js';
+import { catalogueCourseProgress } from '../../../../shared/api/catalogue.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { preloadRouteByPath } from '../../../../app/routePreloading.js';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
@@ -965,83 +966,6 @@ function UpcomingTasksCard({ items, serverDateKey, onOpenItem, onOpenPlanner }) 
   );
 }
 
-function ExamCountdownCard({ item, serverClock, onOpen, agenda = [], onOpenItem, onOpenPlanner }) {
-  const serverDateKey = serverClock?.dateKey || '';
-  const hasDueDate = Boolean(item?.dueAt);
-  const daysLeft = hasDueDate ? daysFromServerDate(item.dueAt, serverDateKey) : null;
-  const countdownValue = hasDueDate
-    ? daysLeft === 0
-      ? 'Today'
-      : daysLeft !== null
-        ? Math.max(0, daysLeft)
-        : '--'
-    : item ? 'Open' : '--';
-  const countdownLabel = hasDueDate && daysLeft !== 0 ? 'days left' : hasDueDate ? 'exam day' : 'no date set';
-  const openRoute = item ? agendaRoute(item, '/exams') : appRoute('/exams');
-
-  return (
-    <section className="study-card study-exam-countdown-card" aria-label="Exam countdown">
-      <div className="study-plan-card__head">
-        <div>
-          <span className="study-eyebrow">Exam countdown</span>
-          <strong>{item?.title || 'No exam scheduled'}</strong>
-        </div>
-        <button type="button" onPointerDown={() => preloadStudyRoute(openRoute)} onTouchStart={() => preloadStudyRoute(openRoute)} onFocus={() => preloadStudyRoute(openRoute)} onClick={onOpen}>{item ? 'Open' : 'Exams'}</button>
-      </div>
-      <div className="study-exam-countdown-main">
-        <span><Icon name="calendar" /></span>
-        <div>
-          <strong>{countdownValue}</strong>
-          <small>{countdownLabel}</small>
-        </div>
-      </div>
-      <p>
-        {hasDueDate
-          ? `${formatServerDueLabel(item.dueAt, serverDateKey)} · Due ${item.dueAt}`
-          : item
-            ? 'This exam is available, but Planner has no scheduled due date.'
-            : 'Add an exam task in Planner to show a server-date countdown.'}
-      </p>
-      {import.meta.env.DEV ? (
-        <small className="study-server-clock">Server date {serverDateKey || 'unknown'} · {serverClock?.timeZone || 'server-local'}</small>
-      ) : null}
-
-      {/* Side-by-side with Course progress this card is stretched to match it
-          and reads as empty, so on wide layouts it carries the next few planner
-          items too. Hidden on narrow screens, where the card is short anyway. */}
-      <div className="study-exam-agenda" aria-label="Coming up">
-        <span className="study-eyebrow">Coming up</span>
-        {agenda.length ? (
-          <div className="study-upcoming-list">
-            {agenda.map((entry) => (
-              <button
-                type="button"
-                className={`study-upcoming-row is-${String(entry.status || 'optional').replace(/_/g, '-')}`}
-                key={entry.id}
-                onPointerDown={() => preloadStudyRoute(agendaRoute(entry))}
-                onTouchStart={() => preloadStudyRoute(agendaRoute(entry))}
-                onFocus={() => preloadStudyRoute(agendaRoute(entry))}
-                onClick={() => onOpenItem(entry)}
-              >
-                <span className="study-upcoming-type">{titleCaseLabel(entry.type)}</span>
-                <span className="study-upcoming-copy">
-                  <strong>{cleanPlannerTitle(entry.title)}</strong>
-                  <small>{formatServerDueLabel(entry.dueAt, serverDateKey)} · {getAgendaCourseLabel(entry)}</small>
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="study-empty-copy">
-            Nothing else is planned.{' '}
-            <button type="button" className="study-exam-agenda__link" onClick={onOpenPlanner}>Open Planner</button>
-          </p>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function AnalyticsSnapshotCard({ snapshot, progressNote, attempts, onOpenResults }) {
   const weeklyAttempts = Number(snapshot?.weeklyAttempts || 0);
   const weeklyAverage = clampPercent(snapshot?.weeklyAverage);
@@ -1117,6 +1041,14 @@ export function StudentDashboardPage() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [heroMascot] = useState(pickDashboardHeroMascot);
+  // 10.49: course progress the app's way — from the catalogue and the
+  // finished-lessons bitmap held in the browser (the server no longer sends it).
+  const [courseCards, setCourseCards] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    catalogueCourseProgress().then((cards) => { if (!cancelled) setCourseCards(cards); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [reloadKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1234,8 +1166,8 @@ export function StudentDashboardPage() {
       : appRoute('/quizzes');
   const continueLabel = nextQuizId ? 'Start practice' : recommendedNote?.id ? 'Review lesson' : 'Open quizzes';
 
-  const courseProgress = dashboard.courseProgress;
-  const courseProgressSummary = dashboard.courseProgressSummary;
+  const courseProgress = courseCards?.courseProgress ?? dashboard.courseProgress;
+  const courseProgressSummary = courseCards?.courseProgressSummary ?? dashboard.courseProgressSummary;
   const serverDateKey = dashboard.serverClock?.dateKey || '';
   const courseCount = useMemo(() => {
     if (courseProgress.length) return courseProgress.length;
@@ -1374,9 +1306,6 @@ export function StudentDashboardPage() {
       const bOrder = bDays === null ? Number.POSITIVE_INFINITY : bDays;
       return aOrder - bOrder || Number(b?.priority || 0) - Number(a?.priority || 0);
     });
-  const nextExamItem = upcomingAgendaItems.find((item) => item.type === 'exam' && item.dueAt)
-    || upcomingAgendaItems.find((item) => item.type === 'exam')
-    || null;
 
   const onNavigate = (route, options) => {
     void nativeImpact(ImpactStyle.Light);
@@ -1480,14 +1409,6 @@ export function StudentDashboardPage() {
             summary={courseProgressSummary}
             onOpenCourse={(course) => onNavigate(appRoute('/courses'), { state: { selectedCourseId: course.id } })}
             onOpenCourses={() => onNavigate(appRoute('/courses'))}
-          />
-          <ExamCountdownCard
-            item={nextExamItem}
-            serverClock={dashboard.serverClock}
-            onOpen={() => onNavigate(nextExamItem ? agendaRoute(nextExamItem, '/exams') : appRoute('/exams'))}
-            agenda={upcomingAgendaItems.filter((entry) => entry.id !== nextExamItem?.id).slice(0, 3)}
-            onOpenItem={(entry) => onNavigate(agendaRoute(entry))}
-            onOpenPlanner={() => onNavigate(appRoute('/planner'))}
           />
         </section>
 

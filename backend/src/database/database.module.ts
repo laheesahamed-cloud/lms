@@ -1,3 +1,4 @@
+import { traceQueries } from '../common/dev/query-trace';
 import { Global, Inject, Injectable, Logger, Module, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as mysql from 'mysql2/promise';
@@ -56,7 +57,8 @@ class DatabaseShutdownService implements OnApplicationShutdown {
       provide: DATABASE_CONNECTION,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        return mysql.createPool({
+        // Dev load monitor only (DEV_QUERY_TRACE=1, never in production): tags each statement with its request.
+        return traceQueries(mysql.createPool({
           host: configService.get<string>('database.host'),
           port: configService.get<number>('database.port'),
           user: configService.get<string>('database.user'),
@@ -70,7 +72,7 @@ class DatabaseShutdownService implements OnApplicationShutdown {
           queueLimit: configService.get<number>('database.queueLimit') || 100,
           enableKeepAlive: true,
           keepAliveInitialDelay: 0,
-        });
+        }));
       },
     },
     DatabaseWarmupService,

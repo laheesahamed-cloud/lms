@@ -37,6 +37,7 @@ const RefundPolicyPage = lazyNamed(() => import('../surfaces/website/pages/Refun
 const CookiePolicyPage = lazyNamed(() => import('../surfaces/website/pages/CookiePolicyPage.jsx'),       'CookiePolicyPage');
 const DeleteAccountPage = lazyNamed(() => import('../surfaces/website/pages/DeleteAccountPage.jsx'),      'DeleteAccountPage');
 const SupportPage = lazyNamed(() => import('../surfaces/website/pages/SupportPage.jsx'),                  'SupportPage');
+const TryPage = lazyNamed(() => import('../surfaces/website/pages/TryPage.jsx'), 'TryPage');
 
 const AdminDashboardPage = lazyNamed(() => import('../surfaces/admin/pages/dashboard/AdminDashboardPage.jsx'), 'AdminDashboardPage');
 const QuizzesPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizzesPage.jsx'), 'QuizzesPage');
@@ -52,7 +53,6 @@ const UsersPage = lazyNamed(() => import('../surfaces/admin/pages/users/UsersPag
 const AdminStudentDetailPage = lazyNamed(() => import('../surfaces/admin/pages/users/AdminStudentDetailPage.jsx'), 'AdminStudentDetailPage');
 const AdminRolesPage = lazyNamed(() => import('../surfaces/admin/pages/roles/AdminRolesPage.jsx'), 'AdminRolesPage');
 const AdminSettingsPage = lazyNamed(() => import('../surfaces/admin/pages/settings/AdminSettingsPage.jsx'), 'AdminSettingsPage');
-const AdminSetupPage = lazyNamed(() => import('../surfaces/admin/pages/setup/AdminSetupPage.jsx'), 'AdminSetupPage');
 const AdminAnnouncementsPage = lazyNamed(() => import('../surfaces/admin/pages/announcements/AdminAnnouncementsPage.jsx'), 'AdminAnnouncementsPage');
 const AdminReportsPage = lazyNamed(() => import('../surfaces/admin/pages/reports/AdminReportsPage.jsx'), 'AdminReportsPage');
 const StudentDashboardPage = lazyNamed(() => import('../surfaces/app/student/dashboard/StudentDashboardPage.jsx'), 'StudentDashboardPage');
@@ -78,7 +78,6 @@ const AdminAuscultationPage = lazyNamed(() => import('../surfaces/admin/pages/au
 const AdminOscePage = lazyNamed(() => import('../surfaces/admin/pages/osce/AdminOscePage.jsx'), 'AdminOscePage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
 const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
-const AdminAiNotesListPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
 const AdminAiNotesEditorPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesEditorPage.jsx'), 'AdminAiNotesEditorPage');
 const StudentQuizzesPage = lazyNamed(() => import('../surfaces/app/student/quizzes/StudentQuizzesPage.jsx'), 'StudentQuizzesPage');
 const TakeQuizPage = lazyNamed(() => import('../surfaces/app/student/quizzes/TakeQuizPage.jsx'), 'TakeQuizPage');
@@ -108,11 +107,9 @@ const roleRoutePreloaders = {
     ['/quizzes/new', QuizBuilderPage.preload],
     ['/subscriptions', AdminSubscriptionsPage.preload],
     ['/finance', AdminFinancePage.preload],
-    ['/ai-notes', AdminAiNotesListPage.preload],
     ['/users', UsersPage.preload],
     ['/announcements', AdminAnnouncementsPage.preload],
     ['/reports', AdminReportsPage.preload],
-    ['/setup', AdminSetupPage.preload],
     ['/settings', AdminSettingsPage.preload],
   ]),
   student: new Map([
@@ -497,12 +494,10 @@ const adminPanelRoutes = [
     ),
   },
   {
+    // The separate Lessons list was merged into Structure (lessons live under
+    // course → subject → topic; search, add, publish/hide are there).
     path: 'ai-notes',
-    element: withSuspense(
-      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
-        <AdminAiNotesListPage />
-      </ProtectedRoute>
-    ),
+    element: <Navigate to="/admin/structure" replace />,
   },
   {
     path: 'ai-notes/:id',
@@ -599,14 +594,6 @@ const adminPanelRoutes = [
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
         <AdminOscePage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: 'setup',
-    element: withSuspense(
-      <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
-        <AdminSetupPage />
       </ProtectedRoute>
     ),
   },
@@ -852,6 +839,11 @@ const router = createBrowserRouter([
       {
         path: 'support',
         element: withSuspense(<SupportPage />),
+      },
+      {
+        // 10.21: public free samples — one lesson, three questions, one flashcard.
+        path: 'try',
+        element: withSuspense(<TryPage />),
       },
       {
         path: 'launch-preview/:mode',
@@ -1125,7 +1117,7 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute>
                 <RoleSwitch
-                  admin={withSuspense(<AdminAiNotesListPage />)}
+                  admin={<Navigate to="/admin/structure" replace />}
                   student={<LegacyStudentLessonsRedirect />}
                   adminPermissions={['content.manage']}
                 />
@@ -1197,14 +1189,6 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute role="admin" requiredPermissions={['reports.view']}>
                 {withSuspense(<AdminReportsPage />)}
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: 'setup',
-            element: (
-              <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
-                {withSuspense(<AdminSetupPage />)}
               </ProtectedRoute>
             ),
           },

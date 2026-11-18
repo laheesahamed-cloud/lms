@@ -89,7 +89,17 @@ class MockPool {
       return [{ affectedRows: 1 } as T, []];
     }
 
+    // Active subscriptions, read once per request (profile + plan scopes).
+    if (normalizedSql.startsWith('SELECT plans.name AS plan_name, plans.slug AS plan_slug, us.status AS subscription_status')) {
+      return [[] as T, []];
+    }
+
     if (normalizedSql.startsWith('SELECT plans.name AS plan_name, us.status AS subscription_status')) {
+      return [[] as T, []];
+    }
+
+    // Subscription scopes read once when the signed access token is issued.
+    if (normalizedSql.startsWith('SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json')) {
       return [[] as T, []];
     }
 
@@ -299,6 +309,13 @@ class SettingsPool {
       }
       const isUnlock = params[0] === 'site_availability_unlock_code';
       return [(isUnlock && this.unlockCode ? [{ setting_key: params[0], setting_value: this.unlockCode }] : []) as T, []];
+    }
+    // 10.48: the settings service reads the whole (small) table once into memory.
+    if (normalized === 'SELECT setting_key, setting_value FROM system_settings') {
+      const rows = [];
+      if (this.unlockCode) rows.push({ setting_key: 'site_availability_unlock_code', setting_value: this.unlockCode });
+      if (this.newContentSwitch !== null) rows.push({ setting_key: 'new_content_notifications_enabled', setting_value: this.newContentSwitch });
+      return [rows as T, []];
     }
     throw new Error(`Unexpected SQL in settings regression test: ${normalized}`);
   }

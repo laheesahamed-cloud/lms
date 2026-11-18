@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { fetchStudentCourses, fetchStudentCourseDetail, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
+import { fetchStudentCourses, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -77,37 +77,8 @@ export function StudentCoursesPage() {
     };
   }, []);
 
-  // Pre-warm each course's detail in the background (at idle), so opening any
-  // course is instant — mirrors how the lesson list arrives fully pre-loaded.
-  // Staggered + capped so it stays gentle on the API. fetchStudentCourseDetail
-  // is cache-backed, so this never refetches a course already warm/fresh.
-  useEffect(() => {
-    if (!courses.length || typeof window === 'undefined') return undefined;
-    let cancelled = false;
-    const timers = [];
-    const prefetch = () => {
-      courses.slice(0, 8).forEach((course, index) => {
-        const courseId = typeof course === 'object' && course ? course.id ?? course.courseId : course;
-        if (!courseId) return;
-        timers.push(window.setTimeout(() => {
-          if (!cancelled) fetchStudentCourseDetail(courseId).catch(() => {});
-        }, index * 500));
-      });
-    };
-    let cancelIdle = () => {};
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(prefetch, { timeout: 1500 });
-      cancelIdle = () => window.cancelIdleCallback(idleId);
-    } else {
-      const timer = window.setTimeout(prefetch, 600);
-      cancelIdle = () => window.clearTimeout(timer);
-    }
-    return () => {
-      cancelled = true;
-      cancelIdle();
-      timers.forEach((timer) => window.clearTimeout(timer));
-    };
-  }, [courses]);
+  // 10.25: no background download of every course's detail — a course's
+  // detail loads when it's opened (was 4 extra requests, ~36 KB per visit).
 
   useEffect(() => {
     setSelectedCourseId(location.state?.selectedCourseId || null);

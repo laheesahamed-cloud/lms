@@ -4,6 +4,7 @@ import { beginNetworkActivity, endNetworkActivity } from '../stores/networkActiv
 import { clearServerNotResponding, markServerNotResponding } from '../stores/serverStatusStore.js';
 import { detectPlatform } from '../platform/detect.js';
 import { getLoginPath, resolveApiBaseUrl, resolveApiBaseUrls } from '../platform/config.js';
+import { clearStudentAccess, getStudentAccess } from '../stores/studentAccess.js';
 import { requestSpaNavigation } from '../routing/spaNavigation.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
@@ -170,6 +171,17 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    // 10.22 (W6): student requests carry the signed access token, so the server
+    // knows the student without database work. Sign-in, start-up and token
+    // renewal keep using the session cookie.
+    const access = getStudentAccess();
+    const url = String(config.url || '');
+    if (access && !/^\/?(auth\/|app\/start)/.test(url.replace(/^https?:\/\/[^/]+\/api/, ''))) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${access}`;
+      config.__studentAccess = true;
+    }
   }
 
   return config;
@@ -253,6 +265,15 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const requestConfig = error?.config;
+    // An expired or revoked access token: drop it and ask again once with the
+    // session cookie (the next page load renews the token).
+    if (requestConfig?.__studentAccess && error?.response?.status === 401 && !requestConfig.__studentAccessRetried) {
+      clearStudentAccess();
+      requestConfig.__studentAccessRetried = true;
+      requestConfig.__studentAccess = false;
+      if (requestConfig.headers) delete requestConfig.headers.Authorization;
+      return apiClient(requestConfig);
+    }
     const currentBaseUrl = String(requestConfig?.baseURL || API_BASE_URL);
     const currentHost =
       typeof window !== 'undefined' && window.location ? window.location.hostname : '';

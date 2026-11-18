@@ -25,7 +25,7 @@ export const XP = {
   /** Below this score an attempt earns nothing (blank or guessed). */
   MIN_PERCENT: 30,
   /** A lesson must have been open this long before completing it pays. */
-  LESSON_MIN_SECONDS: 60,
+  LESSON_MIN_SECONDS: 120,
   /** An exam finished faster than this per question pays nothing. */
   EXAM_MIN_SECONDS_PER_QUESTION: 2,
   /** XP per level. */

@@ -7,8 +7,15 @@ export const recordDrugSpin = () =>
   apiClient.post('/student/drugs/record').then((r) => r.data).catch(() => null);
 
 // Admin
-export const adminListDrugs = (page = 1, limit = 30, search = '') =>
-  apiClient.get('/admin/drugs', { params: { page, limit, search } }).then((r) => r.data);
+// Without a search, pages continue "after" the last drug shown ({ id, name });
+// the total comes with the first page only.
+export const adminListDrugs = (page = 1, limit = 30, search = '', after = null) =>
+  apiClient.get('/admin/drugs', {
+    params: { page, limit, search, ...(after && !search ? { afterId: after.id, afterName: after.name } : {}) },
+  }).then((r) => r.data);
+// "Select all": every id (or the search's matches).
+export const adminListDrugIds = (search = '') =>
+  apiClient.get('/admin/drugs', { params: { search, idsOnly: 1 } }).then((r) => r.data);
 
 export const adminGetDrug = (id) =>
   apiClient.get(`/admin/drugs/${id}`).then((r) => r.data);

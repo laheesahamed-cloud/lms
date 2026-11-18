@@ -16,6 +16,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const core_1 = require("@nestjs/core");
+const student_catalogue_service_1 = require("../courses/student-catalogue.service");
+const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const auth_service_1 = require("./auth.service");
 const auth_token_util_1 = require("./auth-token.util");
 const login_dto_1 = require("./dto/login.dto");
@@ -30,21 +33,38 @@ const reset_password_dto_1 = require("./dto/reset-password.dto");
 const verify_email_otp_dto_1 = require("./dto/verify-email-otp.dto");
 const resend_email_otp_dto_1 = require("./dto/resend-email-otp.dto");
 let AuthController = AuthController_1 = class AuthController {
-    constructor(authService, configService) {
+    constructor(authService, configService, moduleRef) {
         this.authService = authService;
         this.configService = configService;
+        this.moduleRef = moduleRef;
         this.logger = new common_1.Logger(AuthController_1.name);
     }
-    async login(loginDto, nativeHeader, request, response) {
+    async withAppStart(result, appClient, lastNoticeId, request) {
+        if (!(0, mobile_client_util_1.isMobileAppClient)(appClient) || !result?.accessToken || !result?.user)
+            return result;
+        const { featureAccess: _f, ...user } = result.user;
+        try {
+            const startPayload = this.moduleRef.get('START_PAYLOAD', { strict: false });
+            const headers = request?.headers || {};
+            const progressOpts = (0, student_catalogue_service_1.progressOptions)(headers['x-progress-format'], headers['x-progress-version']);
+            const start = await startPayload.build(String(user.role), result.accessToken, Number(lastNoticeId) || 0, Number(user.id) || 0, progressOpts);
+            return { ...result, user, start };
+        }
+        catch (error) {
+            this.logger.warn(`Sign-in start payload skipped: ${error?.message || error}`);
+            return { ...result, user };
+        }
+    }
+    async login(loginDto, nativeHeader, appClient, lastNoticeId, request, response) {
         const result = await this.authService.login(loginDto);
         if (result.sessionToken) {
             this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         }
         if (this.shouldExposeSessionToken(nativeHeader)) {
-            return result;
+            return this.withAppStart(result, appClient, lastNoticeId, request);
         }
         const { sessionToken: _sessionToken, ...safeResult } = result;
-        return safeResult;
+        return this.withAppStart(safeResult, appClient, lastNoticeId, request);
     }
     async register(registerDto, nativeHeader, request, response) {
         const result = await this.authService.register(registerDto);
@@ -57,26 +77,26 @@ let AuthController = AuthController_1 = class AuthController {
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
     }
-    async verifyEmailOtp(verifyEmailOtpDto, nativeHeader, request, response) {
+    async verifyEmailOtp(verifyEmailOtpDto, nativeHeader, appClient, lastNoticeId, request, response) {
         const result = await this.authService.verifyEmailOtp(verifyEmailOtpDto);
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
-            return result;
+            return this.withAppStart(result, appClient, lastNoticeId, request);
         }
         const { sessionToken: _sessionToken, ...safeResult } = result;
-        return safeResult;
+        return this.withAppStart(safeResult, appClient, lastNoticeId, request);
     }
     resendEmailOtp(resendEmailOtpDto) {
         return this.authService.resendEmailOtp(resendEmailOtpDto);
     }
-    async googleLogin(googleLoginDto, nativeHeader, request, response) {
+    async googleLogin(googleLoginDto, nativeHeader, appClient, lastNoticeId, request, response) {
         const result = await this.authService.loginWithGoogle(googleLoginDto);
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
-            return result;
+            return this.withAppStart(result, appClient, lastNoticeId, request);
         }
         const { sessionToken: _sessionToken, ...safeResult } = result;
-        return safeResult;
+        return this.withAppStart(safeResult, appClient, lastNoticeId, request);
     }
     async googleCodeLogin(googleCodeLoginDto, nativeHeader, requestedWith, origin, request, response) {
         let result;
@@ -95,7 +115,7 @@ let AuthController = AuthController_1 = class AuthController {
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
     }
-    async appleLogin(appleLoginDto, nativeHeader, request, response) {
+    async appleLogin(appleLoginDto, nativeHeader, appClient, lastNoticeId, request, response) {
         let result;
         try {
             result = await this.authService.loginWithApple(appleLoginDto);
@@ -108,10 +128,10 @@ let AuthController = AuthController_1 = class AuthController {
         }
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
-            return result;
+            return this.withAppStart(result, appClient, lastNoticeId, request);
         }
         const { sessionToken: _sessionToken, ...safeResult } = result;
-        return safeResult;
+        return this.withAppStart(safeResult, appClient, lastNoticeId, request);
     }
     async appleWebCallbackPost(body, request, response) {
         await this.handleAppleWebCallback(body || {}, request, response);
@@ -185,6 +205,9 @@ let AuthController = AuthController_1 = class AuthController {
     me(authorization, cookie) {
         return this.authService.me(authorization || this.authorizationFromCookie(cookie));
     }
+    renewAccessToken(authorization, cookie) {
+        return this.authService.renewAccessToken(authorization || this.authorizationFromCookie(cookie));
+    }
     async logout(authorization, cookie, request, response) {
         this.clearSessionCookie(response, request);
         return this.authService.logout(authorization || this.authorizationFromCookie(cookie));
@@ -200,7 +223,9 @@ let AuthController = AuthController_1 = class AuthController {
     resetPassword(resetPasswordDto) {
         return this.authService.resetPassword(resetPasswordDto);
     }
-    updateProfile(authorization, updateProfileDto) {
+    updateProfile(authorization, updateProfileDto, appClient) {
+        if ((0, mobile_client_util_1.isMobileAppClient)(appClient))
+            return this.authService.updateProfileLean(authorization, updateProfileDto);
         return this.authService.updateProfile(authorization, updateProfileDto);
     }
     completeProfileSetup(authorization) {
@@ -304,10 +329,12 @@ __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('x-lms-native')),
-    __param(2, (0, common_1.Req)()),
-    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Headers)('x-app-client')),
+    __param(3, (0, common_1.Headers)('x-last-notice-id')),
+    __param(4, (0, common_1.Req)()),
+    __param(5, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object, Object, Object]),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object, Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 __decorate([
@@ -324,10 +351,12 @@ __decorate([
     (0, common_1.Post)('verify-email-otp'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('x-lms-native')),
-    __param(2, (0, common_1.Req)()),
-    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Headers)('x-app-client')),
+    __param(3, (0, common_1.Headers)('x-last-notice-id')),
+    __param(4, (0, common_1.Req)()),
+    __param(5, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [verify_email_otp_dto_1.VerifyEmailOtpDto, Object, Object, Object]),
+    __metadata("design:paramtypes", [verify_email_otp_dto_1.VerifyEmailOtpDto, Object, Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "verifyEmailOtp", null);
 __decorate([
@@ -341,10 +370,12 @@ __decorate([
     (0, common_1.Post)('google'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('x-lms-native')),
-    __param(2, (0, common_1.Req)()),
-    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Headers)('x-app-client')),
+    __param(3, (0, common_1.Headers)('x-last-notice-id')),
+    __param(4, (0, common_1.Req)()),
+    __param(5, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [google_login_dto_1.GoogleLoginDto, Object, Object, Object]),
+    __metadata("design:paramtypes", [google_login_dto_1.GoogleLoginDto, Object, Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "googleLogin", null);
 __decorate([
@@ -363,10 +394,12 @@ __decorate([
     (0, common_1.Post)('apple'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('x-lms-native')),
-    __param(2, (0, common_1.Req)()),
-    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Headers)('x-app-client')),
+    __param(3, (0, common_1.Headers)('x-last-notice-id')),
+    __param(4, (0, common_1.Req)()),
+    __param(5, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [apple_login_dto_1.AppleLoginDto, Object, Object, Object]),
+    __metadata("design:paramtypes", [apple_login_dto_1.AppleLoginDto, Object, Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "appleLogin", null);
 __decorate([
@@ -395,6 +428,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "me", null);
+__decorate([
+    (0, common_1.Post)('token'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Headers)('cookie')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "renewAccessToken", null);
 __decorate([
     (0, common_1.Post)('logout'),
     __param(0, (0, common_1.Headers)('authorization')),
@@ -433,8 +474,9 @@ __decorate([
     (0, common_1.Patch)('profile'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('x-app-client')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, update_profile_dto_1.UpdateProfileDto]),
+    __metadata("design:paramtypes", [Object, update_profile_dto_1.UpdateProfileDto, String]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "updateProfile", null);
 __decorate([
@@ -455,6 +497,7 @@ __decorate([
 exports.AuthController = AuthController = AuthController_1 = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        core_1.ModuleRef])
 ], AuthController);
 //# sourceMappingURL=auth.controller.js.map

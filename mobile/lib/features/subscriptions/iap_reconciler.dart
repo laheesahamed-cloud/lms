@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/apple_iap.dart';
 import '../../state/auth_controller.dart';
 import 'subscriptions_repository.dart';
+import '../../state/catalogue.dart';
+import '../../state/saved_first.dart';
 
 /// Keeps the server's view of a subscription in step with StoreKit's.
 ///
@@ -89,6 +91,9 @@ class IapReconciler {
       // renewal, Ask-to-Buy approval, refund, launch/resume replay — refreshes,
       // and no future caller can forget to.
       _ref.invalidate(billingProvider);
+      // 10.19: the Planner's paid-plan flag lives in the progress reply.
+      freshNext('progress');
+      _ref.invalidate(studentProgressProvider);
 
       // Only now is the purchase safe to finish: Apple keeps replaying an
       // unfinished transaction, which is exactly the recovery we want if the

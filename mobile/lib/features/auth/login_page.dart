@@ -34,7 +34,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    // One plain message for a missing / badly typed email or password, shown
+    // where the server's answer shows (no separate field messages).
+    final email = _email.text.trim();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email) || _password.text.isEmpty) {
+      ref.read(authControllerProvider.notifier).showError('Enter a correct email and password.');
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     final res = await ref
@@ -110,9 +116,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           AutofillHints.username,
                           AutofillHints.email
                         ],
-                        validator: (v) => (v == null || !v.contains('@'))
-                            ? 'Enter a valid email'
-                            : null,
                       ),
                       AuthField(
                         label: 'Password',
@@ -121,9 +124,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         autofillHints: const [AutofillHints.password],
                         onToggleObscure: () =>
                             setState(() => _obscure = !_obscure),
-                        validator: (v) => (v == null || v.isEmpty)
-                            ? 'Enter your password'
-                            : null,
                       ),
                       Align(
                         alignment: Alignment.centerRight,

@@ -20,8 +20,8 @@ let WorkspaceController = class WorkspaceController {
     constructor(workspaceService) {
         this.workspaceService = workspaceService;
     }
-    listAdminAnnouncements(authorization) {
-        return this.workspaceService.listAdminAnnouncements(authorization);
+    listAdminAnnouncements(authorization, after) {
+        return this.workspaceService.listAdminAnnouncements(authorization, after ? Number(after) : undefined);
     }
     createAnnouncement(authorization, body) {
         return this.workspaceService.createAnnouncement(authorization, body);
@@ -95,8 +95,9 @@ __decorate([
     (0, common_1.Get)('announcements/admin'),
     (0, permissions_decorator_1.RequirePermissions)('notifications.manage'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('after')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], WorkspaceController.prototype, "listAdminAnnouncements", null);
 __decorate([

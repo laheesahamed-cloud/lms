@@ -8,7 +8,7 @@ export declare class QuizzesController {
     private readonly quizzesService;
     private readonly authService;
     constructor(quizzesService: QuizzesService, authService: AuthService);
-    findAll(search?: string, courseId?: string, topicId?: string, status?: string, limit?: string, page?: string, offset?: string, order?: string): Promise<{
+    findAll(search?: string, courseId?: string, topicId?: string, status?: string, limit?: string, page?: string, offset?: string, order?: string, after?: string, slim?: string): Promise<{
         id: number;
         courseId: number;
         topicId: number | null;
@@ -23,25 +23,10 @@ export declare class QuizzesController {
         examModeOnly: number;
         adminName: string;
         studentTitle: string;
-        displayTitleMode: string;
+        displayTitleMode: "title";
         quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
-        blueprint: {
-            sections: {
-                id: string;
-                title: string;
-                targetCount: number;
-                courseId: number | null;
-                subjectId: number | null;
-                topicId: number | null;
-                lessonId: number | null;
-                paperId: number | null;
-                category: string;
-                questionType: string;
-            }[];
-        };
-        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;
@@ -65,7 +50,7 @@ export declare class QuizzesController {
         total: number;
         active: number;
     }[]>;
-    meta(includeQuestions?: string): Promise<{
+    meta(includeQuestions?: string, scope?: string): Promise<{
         courses: {
             id: number;
             courseTitle: string;
@@ -74,50 +59,6 @@ export declare class QuizzesController {
             id: number;
             courseId: number;
             subjectName: string;
-        }[];
-        topics: {
-            id: number;
-            subjectId: number;
-            courseId: number;
-            topicName: string;
-        }[];
-        lessons: {
-            id: number;
-            courseId: number;
-            subjectId: number;
-            topicId: number | null;
-            lessonTitle: string;
-        }[];
-        papers: {
-            id: number;
-            paperTitle: string;
-            year: number;
-            examSource: string;
-            keywordsText: string;
-        }[];
-        keywordSuggestions: string[];
-        categories: string[];
-        questionTypes: string[];
-        usedQuestionIds: number[];
-        questions: {
-            id: number;
-            courseId: number;
-            subjectId: number | null;
-            topicId: number | null;
-            lessonId: number | null;
-            paperId: number | null;
-            subtopic: string;
-            category: string;
-            questionType: string;
-            questionText: string;
-            keywordsText: string;
-            usageCount: number;
-            usedInAnyQuiz: boolean;
-            courseTitle: string;
-            subjectName: string;
-            topicName: string;
-            lessonTitle: string;
-            paperTitle: string;
         }[];
     }>;
     findOne(id: number): Promise<{
@@ -136,25 +77,10 @@ export declare class QuizzesController {
         examModeOnly: number;
         adminName: string;
         studentTitle: string;
-        displayTitleMode: string;
+        displayTitleMode: "title";
         quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
-        blueprint: {
-            sections: {
-                id: string;
-                title: string;
-                targetCount: number;
-                courseId: number | null;
-                subjectId: number | null;
-                topicId: number | null;
-                lessonId: number | null;
-                paperId: number | null;
-                category: string;
-                questionType: string;
-            }[];
-        };
-        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;
@@ -169,38 +95,26 @@ export declare class QuizzesController {
         lessonTitle: string;
         paperTitle: string;
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "archived" | "in_review";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
-    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<void>;
     create(authorization: string | undefined, createQuizDto: CreateQuizDto): Promise<{
         ok: boolean;
         id: number;

@@ -1,0 +1,17 @@
+/* "Continue in the app" (OPTIMIZE 10.21): premium content lives in the app. */
+.app-gate { text-align: center; padding: 32px 20px; border-radius: 22px; background: var(--surface-card, #fff); border: 1px solid var(--line-soft, #e2e8f0); }
+.app-gate-phone { display: grid; place-items: center; width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 18px; background: var(--color-primary-light, rgba(37, 99, 235, .1)); color: var(--brand-primary, #2563eb); }
+.app-gate-phone svg { width: 28px; height: 28px; }
+.app-gate-title { margin: 0; font-size: 19px; font-weight: 800; color: var(--ink-strong, #0f172a); }
+.app-gate-body { max-width: 400px; margin: 8px auto 0; font-size: 14px; line-height: 1.55; color: var(--ink-soft, #475569); }
+.app-gate-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
+.app-gate-badge { display: inline-flex; align-items: center; gap: 10px; min-width: 168px; padding: 9px 16px 9px 12px; border-radius: 12px; background: #0b0b0d; color: #fff; text-decoration: none; text-align: left; transition: transform .15s ease, opacity .15s ease; }
+.app-gate-badge:hover { transform: translateY(-1px); }
+.app-gate-badge.is-soon { opacity: .55; cursor: default; }
+.app-gate-badge.is-soon:hover { transform: none; }
+.app-gate-logo { width: 26px; height: 26px; flex: none; }
+.app-gate-badge-text { display: flex; flex-direction: column; line-height: 1.1; }
+.app-gate-badge-small { font-size: 10.5px; opacity: .85; }
+.app-gate-badge-big { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.app-gate-soon { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-muted, #64748b); }
+:root[data-theme="dark"] .app-gate-badge, .dark .app-gate-badge { background: #fff; color: #0b0b0d; }

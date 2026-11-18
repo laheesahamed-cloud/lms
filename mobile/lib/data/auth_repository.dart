@@ -1,3 +1,5 @@
+import '../state/notice_store.dart';
+import '../state/catalogue.dart' show savedProgressVersion;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api_client.dart';
@@ -6,7 +8,10 @@ import 'models.dart';
 class AuthResult {
   final String token;
   final AppUser user;
-  AuthResult(this.token, this.user);
+  /// Phone sign-in only (step 5): what the first screen needs — Study Hub top,
+  /// notices, announcements, catalogue version — so no follow-up requests.
+  final Map? start;
+  AuthResult(this.token, this.user, {this.start});
 }
 
 /// Result of a login/register call: EITHER a live session, OR a pending email
@@ -31,8 +36,8 @@ class AuthRepository {
   AuthRepository(this.api);
 
   Future<AuthOutcome> login(String email, String password) async {
-    final r = await api.dio
-        .post('/auth/login', data: {'email': email, 'password': password});
+    final r = await api.dio.post('/auth/login',
+        data: {'email': email, 'password': password}, options: await _signInOptions());
     return _outcome(r);
   }
 
@@ -42,10 +47,14 @@ class AuthRepository {
     required String password,
     required String confirmPassword,
     required bool acceptedTerms,
+    required String country,
+    required String university,
   }) async {
     final r = await api.dio.post('/auth/register', data: {
       'fullName': fullName,
       'email': email,
+      'universityCountry': country,
+      'university': university,
       'password': password,
       'confirmPassword': confirmPassword,
       'acceptedTerms': acceptedTerms,
@@ -56,8 +65,8 @@ class AuthRepository {
   /// Verify the 6-digit onboarding code. On success the backend returns a normal
   /// session payload (token via body or `lms_session` cookie), exactly like login.
   Future<AuthResult> verifyEmailOtp(String email, String code) async {
-    final r = await api.dio
-        .post('/auth/verify-email-otp', data: {'email': email, 'code': code});
+    final r = await api.dio.post('/auth/verify-email-otp',
+        data: {'email': email, 'code': code}, options: await _signInOptions());
     return _withCookieToken(r, _parse(r.data));
   }
 
@@ -74,7 +83,7 @@ class AuthRepository {
   /// Signs in (or auto-creates the account) with a Google ID token, mirroring
   /// the web flow. Same session handling as [login] (cookie -> Bearer).
   Future<AuthResult> loginWithGoogle(String idToken) async {
-    final r = await api.dio.post('/auth/google', data: {'credential': idToken});
+    final r = await api.dio.post('/auth/google', data: {'credential': idToken}, options: await _signInOptions());
     return _withCookieToken(r, _parse(r.data));
   }
 
@@ -85,28 +94,57 @@ class AuthRepository {
     final r = await api.dio.post('/auth/apple', data: {
       'identityToken': identityToken,
       if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
-    });
+    }, options: await _signInOptions());
     return _withCookieToken(r, _parse(r.data));
   }
 
-  Future<AppUser> me() async {
-    final r = await api.dio.get('/auth/me');
-    final data = r.data;
-    final u = (data is Map && data['user'] != null) ? data['user'] : data;
-    return AppUser.fromJson(Map<String, dynamic>.from(u as Map));
+  /// The ONE cold-open request (OPTIMIZE 10.2 #2): renews the access token and
+  /// returns the user, the catalogue version and Study Hub in one reply.
+  /// [lastNoticeId]: the newest notice this phone holds, so the reply carries
+  /// only newer ones (plus the active in-app announcements).
+  Future<({AppUser user, Object? dashboard, int? contentVersion, Map raw})> start({int lastNoticeId = 0}) async {
+    // Finished-lessons bitmap (10.14): the reply carries it only if ours is out of date.
+    final have = await savedProgressVersion();
+    final r = await api.dio.post('/app/start', data: {
+      'lastNoticeId': lastNoticeId,
+      'progressFormat': 'bits',
+      'progressVersion': ?have,
+    });
+    final data = r.data as Map;
+    return (
+      user: AppUser.fromJson(Map<String, dynamic>.from(data['user'] as Map)),
+      dashboard: data['dashboard'],
+      contentVersion: (data['contentVersion'] as num?)?.toInt(),
+      raw: data,
+    );
   }
 
   Future<AppUser> updateProfile({
+    AppUser? current,
     required String fullName,
     String? avatarKey,
+    String? country,
+    String? university,
   }) async {
     final r = await api.dio.patch('/auth/profile', data: {
       'fullName': fullName,
       if (avatarKey != null && avatarKey.isNotEmpty) 'avatarKey': avatarKey,
+      if (country != null && country.isNotEmpty) 'universityCountry': country,
+      if (university != null && university.isNotEmpty) 'university': university,
     });
     final data = r.data;
     final u = (data is Map && data['user'] != null) ? data['user'] : data;
-    return AppUser.fromJson(Map<String, dynamic>.from(u as Map));
+    final m = Map<String, dynamic>.from(u as Map);
+    // 2026-11-17: the server sends the phone only the changed fields (one
+    // UPDATE, no reads); the rest of the user is kept from the current copy.
+    if (current != null && m['email'] == null) {
+      return current.copyWith(
+        fullName: (m['fullName'] as String?) ?? fullName,
+        avatarKey: (m['avatarKey'] as String?) ?? avatarKey,
+        needsProfileSetup: m['needsProfileSetup'] == true,
+      );
+    }
+    return AppUser.fromJson(m);
   }
 
   /// Records that the welcome screen was answered without changing the name —
@@ -154,10 +192,18 @@ class AuthRepository {
       });
 
   Future<void> logout() async {
-    try {
-      await api.dio.post('/auth/logout');
-    } catch (_) {
-      // best-effort; local token is cleared regardless
+    // Best-effort; the local token is cleared regardless. A request that never
+    // reached the server (no response — e.g. a stale connection after a server
+    // restart) is tried once more, so the server session is really ended.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        await api.dio.post('/auth/logout');
+        return;
+      } on DioException catch (e) {
+        if (e.response != null) return; // the server answered: nothing to retry
+      } catch (_) {
+        return;
+      }
     }
   }
 
@@ -168,6 +214,20 @@ class AuthRepository {
   }
 
   /// Distinguishes a verification-required response from a real session.
+  /// The newest notice this phone holds for the last account, so the sign-in
+  /// reply carries only newer ones.
+  Future<Options> _signInOptions() async {
+    // The last account's saved bitmap version ("userId:version"): the server
+    // answers "unchanged" only for that same account (10.14).
+    final last = await NoticeStore.lastAccount();
+    final have = last == null ? null : await savedProgressVersion(uid: last);
+    return Options(headers: {
+      'X-Last-Notice-Id': '${await NoticeStore.lastIdForLastAccount()}',
+      'X-Progress-Format': 'bits',
+      'X-Progress-Version': ?have,
+    });
+  }
+
   AuthOutcome _outcome(Response r) {
     final m = (r.data is Map) ? Map<String, dynamic>.from(r.data) : {};
     if (m['emailVerificationRequired'] == true) {
@@ -183,7 +243,8 @@ class AuthRepository {
     final m = Map<String, dynamic>.from(data as Map);
     final token = (m['sessionToken'] ?? m['token'] ?? '').toString();
     final u = m['user'] ?? m;
-    return AuthResult(token, AppUser.fromJson(Map<String, dynamic>.from(u as Map)));
+    return AuthResult(token, AppUser.fromJson(Map<String, dynamic>.from(u as Map)),
+        start: m['start'] is Map ? m['start'] as Map : null);
   }
 
   /// The backend strips `sessionToken` from the login/register body and only
@@ -197,7 +258,7 @@ class AuthRepository {
     for (final c in cookies) {
       final m = RegExp(r'lms_session=([^;]+)').firstMatch(c);
       if (m != null && m.group(1)!.isNotEmpty) {
-        return AuthResult(Uri.decodeComponent(m.group(1)!), parsed.user);
+        return AuthResult(Uri.decodeComponent(m.group(1)!), parsed.user, start: parsed.start);
       }
     }
     return parsed;

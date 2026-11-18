@@ -10,12 +10,12 @@ import '../../theme/motion.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/profile_avatar.dart';
+import '../../widgets/country_field.dart';
 
 /// Shown once, after an Apple or Google sign-in that CREATED the account — see
 /// [AppUser.needsProfileSetup], which the server sets then and clears as soon
-/// as this screen is answered. Asks for a nickname and an avatar, and can be
-/// skipped: it is a courtesy, not a gate, and a wall in front of a new account
-/// costs sign-ups.
+/// as this screen is answered. Asks for a name, country, university and an
+/// avatar — required since 2026-11-17 (no Skip).
 class ProfileSetupPage extends ConsumerStatefulWidget {
   const ProfileSetupPage({super.key});
 
@@ -27,6 +27,8 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _intro;
   final _name = TextEditingController();
+  final _university = TextEditingController();
+  String _country = '';
   late String _avatarKey;
   bool _saving = false;
   String? _error;
@@ -57,12 +59,14 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
       _name.text = user.fullName.trim();
     }
     _name.addListener(() => setState(() {}));
+    _university.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _intro.dispose();
     _name.dispose();
+    _university.dispose();
     super.dispose();
   }
 
@@ -76,7 +80,12 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
     if (save) {
       final err = await ref
           .read(authControllerProvider.notifier)
-          .updateProfile(fullName: _name.text.trim(), avatarKey: _avatarKey);
+          .updateProfile(
+            fullName: _name.text.trim(),
+            avatarKey: _avatarKey,
+            country: _country,
+            university: _university.text.trim(),
+          );
       if (!mounted) return;
       if (err != null) {
         setState(() {
@@ -102,7 +111,10 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final ready = _name.text.trim().length >= 2;
+    final ready =
+        _name.text.trim().length >= 2 &&
+        _country.isNotEmpty &&
+        _university.text.trim().length >= 2;
     // Honours the OS setting: with Reduce Motion on, everything is simply
     // already in place.
     final reduced = Motion.reduced(context);
@@ -157,198 +169,273 @@ class _ProfileSetupPageState extends ConsumerState<ProfileSetupPage>
                 // Centred in the viewport rather than stacked at the top, which
                 // left the screen bottom-heavy with empty space — and still
                 // scrolls once the keyboard takes half the height.
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: box.maxHeight - 32),
-                  child: IntrinsicHeight(
-                    child: FadeTransition(
-                      opacity: reduced
-                          ? const AlwaysStoppedAnimation(1.0)
-                          : body,
-                      child: SlideTransition(
-                        position: reduced
-                            ? const AlwaysStoppedAnimation(Offset.zero)
-                            : Tween(
-                                begin: const Offset(0, 0.06),
-                                end: Offset.zero,
-                              ).animate(body),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Center(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: ProfileAvatar.from(
-                                  avatarKey: _avatarKey,
-                                  size: 48,
-                                  radius: 0,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              'Hi, future doctor',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 23,
-                                height: 1.15,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.6,
-                                color: c.inkStrong,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Xyndrome is here for every step from here to your final exam.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.45,
-                                color: c.inkSoft,
-                              ),
-                            ),
-                            const SizedBox(height: 22),
-
-                            Text(
-                              'What should we call you?',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: c.inkStrong,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _name,
-                              autofocus: true,
-                              textCapitalization: TextCapitalization.words,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) =>
-                                  ready ? _finish(save: true) : null,
-                              onTapOutside: (_) =>
-                                  FocusManager.instance.primaryFocus?.unfocus(),
-                              style: TextStyle(
-                                color: c.inkStrong,
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Nickname',
-                                hintStyle: TextStyle(
-                                  color: c.inkMuted,
-                                  fontSize: 14.5,
-                                ),
-                                filled: true,
-                                fillColor: c.surface2,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 14,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(13),
-                                  borderSide: BorderSide(color: c.line),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(13),
-                                  borderSide: BorderSide(
-                                    color: c.primary,
-                                    width: 1.4,
+                // Phone width on a tablet (like sign-in): centred, never
+                // stretched edge to edge (the avatars stretched into strips).
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: box.maxHeight - 32,
+                      maxWidth: 440,
+                    ),
+                    child: IntrinsicHeight(
+                      child: FadeTransition(
+                        opacity: reduced
+                            ? const AlwaysStoppedAnimation(1.0)
+                            : body,
+                        child: SlideTransition(
+                          position: reduced
+                              ? const AlwaysStoppedAnimation(Offset.zero)
+                              : Tween(
+                                  begin: const Offset(0, 0.06),
+                                  end: Offset.zero,
+                                ).animate(body),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Center(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: ProfileAvatar.from(
+                                    avatarKey: _avatarKey,
+                                    size: 48,
+                                    radius: 0,
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 20),
-
-                            Text(
-                              'Pick your avatar',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: c.inkStrong,
+                              const SizedBox(height: 14),
+                              Text(
+                                'Hi, future doctor',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 23,
+                                  height: 1.15,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.6,
+                                  color: c.inkStrong,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                for (final a in kProfileAvatars) ...[
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () =>
-                                          setState(() => _avatarKey = a.key),
-                                      child: AnimatedContainer(
-                                        duration: AppDur.micro,
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            15,
+                              const SizedBox(height: 8),
+                              Text(
+                                'Xyndrome is here for every step from here to your final exam.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.45,
+                                  color: c.inkSoft,
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+
+                              Text(
+                                'What should we call you?',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.inkStrong,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _name,
+                                autofocus: true,
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.next,
+                                onSubmitted: (_) =>
+                                    ready ? _finish(save: true) : null,
+                                onTapOutside: (_) => FocusManager
+                                    .instance
+                                    .primaryFocus
+                                    ?.unfocus(),
+                                style: TextStyle(
+                                  color: c.inkStrong,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Nickname',
+                                  hintStyle: TextStyle(
+                                    color: c.inkMuted,
+                                    fontSize: 14.5,
+                                  ),
+                                  filled: true,
+                                  fillColor: c.surface2,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: BorderSide(color: c.line),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: BorderSide(
+                                      color: c.primary,
+                                      width: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'University',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.inkStrong,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              CountryField(
+                                hint: 'Country',
+                                onChanged: (v) => setState(() => _country = v),
+                                style: TextStyle(
+                                  color: c.inkStrong,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                decoration: InputDecoration(
+                                  hintStyle: TextStyle(
+                                    color: c.inkMuted,
+                                    fontSize: 14.5,
+                                  ),
+                                  filled: true,
+                                  fillColor: c.surface2,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: BorderSide(color: c.line),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: BorderSide(
+                                      color: c.primary,
+                                      width: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _university,
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.done,
+                                onTapOutside: (_) => FocusManager
+                                    .instance
+                                    .primaryFocus
+                                    ?.unfocus(),
+                                style: TextStyle(
+                                  color: c.inkStrong,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                decoration: InputDecoration(
+                                  hintStyle: TextStyle(
+                                    color: c.inkMuted,
+                                    fontSize: 14.5,
+                                  ),
+                                  filled: true,
+                                  fillColor: c.surface2,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: BorderSide(color: c.line),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: BorderSide(
+                                      color: c.primary,
+                                      width: 1.4,
+                                    ),
+                                  ),
+                                ).copyWith(hintText: 'University name'),
+                              ),
+                              const SizedBox(height: 20),
+
+                              Text(
+                                'Pick your avatar',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.inkStrong,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  for (final a in kProfileAvatars) ...[
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () =>
+                                            setState(() => _avatarKey = a.key),
+                                        child: AnimatedContainer(
+                                          duration: AppDur.micro,
+                                          padding: const EdgeInsets.all(2),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              15,
+                                            ),
+                                            border: Border.all(
+                                              color: _avatarKey == a.key
+                                                  ? c.primary
+                                                  : Colors.transparent,
+                                              width: 2,
+                                            ),
                                           ),
-                                          border: Border.all(
-                                            color: _avatarKey == a.key
-                                                ? c.primary
-                                                : Colors.transparent,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            11,
-                                          ),
-                                          child: ProfileAvatar(
-                                            avatar: a,
-                                            size: 44,
-                                            radius: 0,
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              11,
+                                            ),
+                                            child: ProfileAvatar(
+                                              avatar: a,
+                                              size: 44,
+                                              radius: 0,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  if (a != kProfileAvatars.last)
-                                    const SizedBox(width: 5),
+                                    if (a != kProfileAvatars.last)
+                                      const SizedBox(width: 5),
+                                  ],
                                 ],
-                              ],
-                            ),
+                              ),
 
-                            if (_error != null) ...[
-                              const SizedBox(height: 14),
-                              Text(
-                                _error!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: c.error,
+                              if (_error != null) ...[
+                                const SizedBox(height: 14),
+                                Text(
+                                  _error!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: c.error,
+                                  ),
+                                ),
+                              ],
+
+                              const SizedBox(height: 24),
+                              Center(
+                                child: AppButton(
+                                  'Get started',
+                                  kind: AppButtonKind.cta,
+                                  loading: _saving,
+                                  onPressed: ready
+                                      ? () => _finish(save: true)
+                                      : null,
                                 ),
                               ),
                             ],
-
-                            const SizedBox(height: 24),
-                            Center(
-                              child: AppButton(
-                                'Get started',
-                                kind: AppButtonKind.cta,
-                                loading: _saving,
-                                onPressed: ready
-                                    ? () => _finish(save: true)
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Center(
-                              child: TextButton(
-                                onPressed: _saving
-                                    ? null
-                                    : () => _finish(save: false),
-                                child: Text(
-                                  'Skip for now',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.inkMuted,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),

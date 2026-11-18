@@ -92,7 +92,6 @@ ${JSON.stringify([
       'Inferior ST elevation with ongoing ischaemic pain is a STEMI. Primary PCI '
       + 'is the reperfusion strategy of choice whenever it can be delivered within '
       + '120 minutes of diagnosis.',
-    keywords: ['STEMI', 'reperfusion', 'inferior MI'],
 
     approach:
       '1. "A 58-year-old man" - age and sex put him in the group where '
@@ -225,7 +224,6 @@ export function buildGlobalDefaults() {
     category: 'mock',
     questionType: 'sba',
     paperId: '',
-    keywordsText: '',
   };
 }
 
@@ -238,7 +236,6 @@ export function createEmptyQuestion(seed = {}) {
     questionType: '',
     category: '',
     paperId: '',
-    keywordsText: '',
     explanation: '',
     // "How to approach this question" — the student-facing reasoning
     // walkthrough, and the stem phrases it quotes. Blank until AI fills them,
@@ -330,17 +327,6 @@ function mapAnswerTokenToLabel(token) {
   const normalized = String(token || '').trim().toUpperCase();
   if (optionLabels.includes(normalized)) return normalized;
   return '';
-}
-
-function mergeKeywords(globalKeywords, localKeywords) {
-  return Array.from(
-    new Set(
-      `${globalKeywords || ''},${localKeywords || ''}`
-        .split(',')
-        .map((keyword) => keyword.trim())
-        .filter(Boolean)
-    )
-  ).join(', ');
 }
 
 function stripJsonArtifacts(value) {
@@ -570,11 +556,6 @@ export function parseJsonQuestions(rawInput, defaults) {
       questionType,
       category: defaults.category || 'mock',
       paperId: defaults.paperId || '',
-      keywordsText: normalizeWhitespace(
-        Array.isArray(source.keywords)
-          ? source.keywords.join(', ')
-          : source.keywordsText || source.tags || ''
-      ),
       explanation: topLevelExplanation || optionExplanationSummary,
       questionApproach: normalizeWhitespace(
         source.questionApproach || source.approach || ''
@@ -733,8 +714,7 @@ export function parseRawQuestions(rawInput, defaults) {
       questionType: defaults.questionType || 'sba',
       category: defaults.category || 'mock',
       paperId: defaults.paperId || '',
-      keywordsText: '',
-      explanation,
+        explanation,
       options,
       parserConfidence: warnings.length > 1 ? 'low' : warnings.length === 1 ? 'medium' : 'high',
       parserWarnings: warnings,
@@ -864,7 +844,6 @@ export function resolveQuestion(question, defaults, usePerQuestionHierarchy) {
     category: question.category || defaults.category,
     questionType: question.questionType || defaults.questionType,
     paperId: question.paperId || defaults.paperId,
-    keywordsText: mergeKeywords(defaults.keywordsText, question.keywordsText),
     // Carried through from the defaults so validateQuestion can tell a
     // DELIBERATELY course-wide question from one whose subject was forgotten.
     // Both look like an empty subjectId, and only the caller knows which.
@@ -997,7 +976,6 @@ export function buildQuestionSignature(question, resolved) {
     questionType: resolved.questionType,
     category: resolved.category,
     paperId: resolved.paperId || null,
-    keywordsText: resolved.keywordsText,
     explanation: normalizeWhitespace(buildCombinedExplanation(question)),
     questionApproach: normalizeWhitespace(question.questionApproach || ''),
     questionApproachHighlights: (question.questionApproachHighlights || []).join('|'),
@@ -1032,7 +1010,6 @@ export async function saveQuestionRecord({ question, resolved }) {
     category: resolved.category,
     questionType: resolved.questionType,
     questionText: question.questionText,
-    keywordsText: resolved.keywordsText,
     explanation: buildCombinedExplanation(question),
     questionApproach: question.questionApproach || '',
     questionApproachHighlights: Array.isArray(question.questionApproachHighlights)

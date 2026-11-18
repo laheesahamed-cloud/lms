@@ -1,3 +1,4 @@
+import { CourseStructureService } from './course-structure.service';
 import { Pool } from 'mysql2/promise';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
@@ -17,7 +18,8 @@ export declare class CoursesService {
     private readonly authService;
     private readonly plansService;
     private readonly xpService;
-    constructor(db: Pool, authService: AuthService, plansService: PlansService, xpService: XpService);
+    private readonly courseStructure;
+    constructor(db: Pool, authService: AuthService, plansService: PlansService, xpService: XpService, courseStructure: CourseStructureService);
     getLandingSummary(): Promise<{
         topics: {
             id: number;
@@ -29,7 +31,11 @@ export declare class CoursesService {
             title: string;
         }[];
     }>;
+    private loadLandingSummary;
     findAll(): Promise<{
+        subjectCount?: number | undefined;
+        lessonCount?: number | undefined;
+        sortOrder?: number | undefined;
         id: number;
         courseTitle: string;
         courseCode: string;
@@ -50,13 +56,7 @@ export declare class CoursesService {
         ok: boolean;
         id: number;
     }>;
-    listVersions(id: number): Promise<{
-        id: number;
-        versionNumber: number;
-        createdBy: number | null;
-        createdAt: any;
-        snapshot: any;
-    }[]>;
+    listVersions(id: number): Promise<never[]>;
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
@@ -75,19 +75,15 @@ export declare class CoursesService {
         status: "active" | "inactive";
         workflowState: ContentWorkflowState;
     }>;
-    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
-        ok: boolean;
-        id: number;
-        rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
-    }>;
+    rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<void>;
     findStudentCourses(authorization?: string): Promise<{
         subjectCount: any;
         progressPercent: any;
         completedLessonsCount: any;
         totalLessonsCount: any;
         actionLabel: string;
+        lessonCount?: number | undefined;
+        sortOrder?: number | undefined;
         id: number;
         courseTitle: string;
         courseCode: string;
@@ -103,6 +99,9 @@ export declare class CoursesService {
             totalSubjectsCount: any;
             completedLessonsCount: any;
             totalLessonsCount: any;
+            subjectCount?: number | undefined;
+            lessonCount?: number | undefined;
+            sortOrder?: number | undefined;
             id: number;
             courseTitle: string;
             courseCode: string;
@@ -114,13 +113,25 @@ export declare class CoursesService {
         subjects: any;
     }>;
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
+        progressVersion?: number | undefined;
         ok: boolean;
         lessonId: number;
-        status: "not_started" | "in_progress" | "completed";
+        status: "completed";
         progressPercent: number;
         actionLabel: string;
-        xp: import("../xp/xp.service").XpResult | undefined;
+        xp: {
+            awarded: number;
+            capped: boolean;
+            reason?: "low_score" | "too_fast" | "unverified" | "too_soon" | "nothing_new";
+        };
+    } | {
+        ok: boolean;
+        lessonId: number;
+        status: "completed" | "not_started" | "in_progress";
+        progressPercent: number;
+        actionLabel: string;
     }>;
+    private completeLesson;
     markLessonOpened(lessonId: number, authorization?: string): Promise<{
         ok: boolean;
     }>;
@@ -140,11 +151,7 @@ export declare class CoursesService {
     private validateCoursePayload;
     private findById;
     private loadHierarchyForCourses;
-    private static readonly COURSE_STRUCTURE_TTL_MS;
-    private readonly courseStructureCache;
-    private readonly courseStructureInflight;
     private getCourseStructure;
-    private readCourseStructure;
     private buildHierarchy;
     private getLessonAccessProfile;
     private parseIdList;

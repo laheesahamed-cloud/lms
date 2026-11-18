@@ -28,6 +28,16 @@ export declare class DrugsService implements OnModuleInit, OnModuleDestroy {
     onModuleDestroy(): void;
     private refreshSettings;
     getSettings(): DrugsSettings;
+    private drugsCopy;
+    private drugsLoading;
+    private drugs;
+    drugList(): Promise<{
+        v: number;
+        drugs: [number, string, string][];
+    }>;
+    drugItem(id: number): Promise<Record<string, unknown> | null>;
+    spinsUsed(userId: number): Promise<number>;
+    recordSpins(userId: number, count: number): Promise<void>;
     private pickRandomDrugs;
     getBatch(userId: number, count: number): Promise<{
         drugs: {
@@ -42,11 +52,17 @@ export declare class DrugsService implements OnModuleInit, OnModuleDestroy {
     checkSubscription(userId: number): Promise<boolean>;
     getSpinCount(userId: number): Promise<number>;
     recordSpin(userId: number): Promise<void>;
-    listDrugs(page: number, limit: number, search: string): Promise<{
+    listDrugs(page: number, limit: number, search: string, after?: {
+        id: number;
+        name: string;
+    } | null): Promise<{
         drugs: RowDataPacket[];
-        total: number;
+        total: number | null;
         page: number;
         limit: number;
+    }>;
+    listDrugIds(search: string): Promise<{
+        ids: number[];
     }>;
     getDrug(id: number): Promise<RowDataPacket>;
     createDrug(data: Record<string, any>): Promise<{

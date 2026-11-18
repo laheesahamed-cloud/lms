@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
@@ -14,7 +14,9 @@ export class CoursesController {
     private readonly authService: AuthService,
   ) {}
 
+  // Same answer for every visitor: browsers and a CDN may keep it for a minute.
   @Get('landing-summary')
+  @Header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
   getLandingSummary() {
     return this.coursesService.getLandingSummary();
   }

@@ -1,3 +1,6 @@
+import { getScopeRows } from '../../common/auth/subscription-scope';
+import { CourseStructureService } from './course-structure.service';
+import { finishedLessons } from '../../common/utils/lesson-bits';
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
@@ -8,6 +11,8 @@ import { XpService } from '../xp/xp.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UpdateStudentLessonProgressDto } from './dto/update-student-lesson-progress.dto';
+import { forgetContentHistory } from '../../common/utils/content-history';
+import { cachedAdminRead } from '../../common/utils/admin-read-cache';
 
 type CourseRow = RowDataPacket & {
   id: number;
@@ -17,6 +22,9 @@ type CourseRow = RowDataPacket & {
   exam_type: string;
   status: 'active' | 'inactive';
   created_at?: string | null;
+  sort_order?: number;
+  lesson_count?: number;
+  subject_count?: number;
 };
 
 type SubjectRow = RowDataPacket & {
@@ -90,9 +98,15 @@ export class CoursesService {
     private readonly authService: AuthService,
     private readonly plansService: PlansService,
     private readonly xpService: XpService,
+    private readonly courseStructure: CourseStructureService,
   ) {}
 
-  async getLandingSummary() {
+  // Public, identical for every visitor: remembered 60s (cleared on content saves).
+  getLandingSummary() {
+    return cachedAdminRead('public.landing-summary', () => this.loadLandingSummary(), 60_000);
+  }
+
+  private async loadLandingSummary() {
     const [topics] = await this.db.execute<RowDataPacket[]>(
       `SELECT t.id, t.topic_name, COUNT(q.id) AS question_count
        FROM topics t
@@ -119,7 +133,11 @@ export class CoursesService {
 
   async findAll() {
     const [rows] = await this.db.execute<CourseRow[]>(
-      'SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses ORDER BY course_title ASC'
+      // Admin course list: stored counts and the course order index, so it reads
+      // exactly one row per course. Waits for a recount only if a save made one due.
+      // FORCE INDEX: with only a handful of courses MariaDB would otherwise scan and
+      // sort (reading each row twice); the index already holds the order.
+      'SELECT id, course_title, course_code, description, exam_type, status, created_at, sort_order, lesson_count, subject_count FROM courses FORCE INDEX (idx_courses_sort) ORDER BY sort_order ASC, id ASC'
     );
 
     return rows.map((row) => this.mapCourse(row));
@@ -133,8 +151,10 @@ export class CoursesService {
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
+      // A new course goes to the end of the admin order.
       const [result] = await connection.execute<ResultSetHeader>(
-        'INSERT INTO courses (course_title, course_code, description, exam_type, status) VALUES (?, ?, ?, ?, ?)',
+        `INSERT INTO courses (course_title, course_code, description, exam_type, status, sort_order)
+         SELECT ?, ?, ?, ?, ?, COALESCE(MAX(sort_order), 0) + 1000 FROM courses`,
         [
           snapshot.courseTitle,
           snapshot.courseCode,
@@ -219,6 +239,7 @@ export class CoursesService {
     try {
       await connection.beginTransaction();
       await connection.execute('DELETE FROM courses WHERE id = ?', [id]);
+      await forgetContentHistory(connection, 'course', [id]);
       await this.recordContentAudit(connection, {
         entityType: 'course',
         entityId: id,
@@ -242,22 +263,9 @@ export class CoursesService {
   }
 
   async listVersions(id: number) {
-    await this.findById(id);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'course' AND entity_id = ?
-       ORDER BY version_number DESC`,
-      [id]
-    );
-
-    return rows.map((row) => ({
-      id: Number(row.id),
-      versionNumber: Number(row.version_number),
-      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-      createdAt: row.created_at || null,
-      snapshot: this.parseSnapshotJson(row.snapshot_json),
-    }));
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id;
+    return [];
   }
 
   async markDraft(id: number, actor?: ContentActorInput) {
@@ -291,71 +299,15 @@ export class CoursesService {
   }
 
   async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
-    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-      throw new BadRequestException('Version number is invalid');
-    }
-
-    if (!this.canReviewContent(actor)) {
-      throw new ForbiddenException('Review permission is required to rollback published course content');
-    }
-
-    const existing = await this.findById(id);
-    const [versionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'course' AND entity_id = ? AND version_number = ?
-       LIMIT 1`,
-      [id, versionNumber]
-    );
-
-    if (!versionRows[0]) {
-      throw new NotFoundException('Content version not found');
-    }
-
-    const snapshot = this.parseCourseSnapshot(versionRows[0].snapshot_json);
-    this.validateCoursePayload(snapshot);
-
-    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
-    const connection = await this.db.getConnection();
-    try {
-      await connection.beginTransaction();
-      await this.writeCourseSnapshot(connection, id, snapshot);
-      await this.recordContentVersion(connection, 'course', id, snapshot, this.getActorId(actor));
-      await this.setWorkflowState(connection, 'course', id, workflowState, this.getActorId(actor));
-      await this.recordContentAudit(connection, {
-        entityType: 'course',
-        entityId: id,
-        action: 'rolled_back',
-        summary: `Course ${id} rolled back to version ${versionNumber}`,
-        actorId: this.getActorId(actor),
-        before: existing,
-        after: snapshot,
-      });
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-
-    return {
-      ok: true,
-      id,
-      rolledBackToVersion: versionNumber,
-      status: snapshot.status,
-      workflowState,
-    };
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void id; void versionNumber; void actor;
+    throw new BadRequestException('Version history is not kept any more.');
   }
 
   async findStudentCourses(authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
-    const [courseRows] = await this.db.execute<CourseRow[]>(
-      `SELECT id, course_title, course_code, description, exam_type, status, created_at
-       FROM courses
-       WHERE status = 'active'
-       ORDER BY course_title ASC`
-    );
+    // Active courses, by title, from the shared snapshot (0 rows per request).
+    const courseRows = (await this.courseStructure.get()).courses as unknown as CourseRow[];
 
     if (courseRows.length === 0) {
       return [];
@@ -382,15 +334,7 @@ export class CoursesService {
 
   async findStudentCourseDetail(courseId: number, authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
-    const [courseRows] = await this.db.execute<CourseRow[]>(
-      `SELECT id, course_title, course_code, description, exam_type, status, created_at
-       FROM courses
-       WHERE id = ? AND status = 'active'
-       LIMIT 1`,
-      [courseId]
-    );
-
-    const courseRow = courseRows[0];
+    const courseRow = (await this.courseStructure.get()).courses.find((c) => Number(c.id) === Number(courseId)) as unknown as CourseRow | undefined;
     if (!courseRow) {
       throw new NotFoundException('Course not found');
     }
@@ -414,64 +358,45 @@ export class CoursesService {
 
   async updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
-    const [lessonRows] = await this.db.execute<LessonHierarchyRow[]>(
-      `SELECT id, course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status
-       FROM lessons
-       WHERE id = ? AND status = 'active'
-       LIMIT 1`,
-      [lessonId]
-    );
-
-    const lesson = lessonRows[0];
-    if (!lesson) {
-      throw new NotFoundException('Lesson not found');
-    }
-    const accessProfile = await this.getLessonAccessProfile(student.id);
-    const hasLessonAccess = this.canAccessLesson(lesson, accessProfile);
-    if (!hasLessonAccess) {
-      throw new NotFoundException('Upgrade to access this lesson');
-    }
-
+    if (dto.status === 'completed') return this.completeLesson(student.id, lessonId, dto.readSeconds);
+    // "In progress" / "not started" are no longer stored (10.15): lesson
+    // progress is the finished-lessons bitmap only, and nothing reads a
+    // started state. Answer as before, without a write.
     const normalized = this.normalizeProgressPayload(dto);
-
-    await this.db.execute(
-      `INSERT INTO student_lesson_progress
-        (user_id, course_id, subject_id, topic_id, lesson_id, status, progress_percent, started_at, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-        course_id = VALUES(course_id),
-        subject_id = VALUES(subject_id),
-        topic_id = VALUES(topic_id),
-        status = VALUES(status),
-        progress_percent = VALUES(progress_percent),
-        started_at = VALUES(started_at),
-        completed_at = VALUES(completed_at),
-        updated_at = CURRENT_TIMESTAMP`,
-      [
-        student.id,
-        lesson.course_id,
-        lesson.topic_id,
-        Number(lesson.subtopic_id || 0),
-        lesson.id,
-        normalized.status,
-        normalized.progressPercent,
-        normalized.startedAt,
-        normalized.completedAt,
-      ]
-    );
-
-    // XP is paid only for a real completion, and never lets the completion fail.
-    const xp = normalized.status === 'completed'
-      ? await this.xpService.onLessonCompleted(student.id, lesson.id)
-      : undefined;
-
     return {
       ok: true,
-      lessonId: lesson.id,
+      lessonId,
       status: normalized.status,
       progressPercent: normalized.progressPercent,
       actionLabel: this.getLessonActionLabel(normalized.status),
+    };
+  }
+
+  /**
+   * "Done" (OPTIMIZE 10.15): the lesson and the plan are checked from the
+   * shared course snapshot (in memory) and the signed token — no SQL — and the
+   * completion is ONE statement on the student's summary row (XpService):
+   * bit, version, XP, streak, today's count. No per-lesson row, no day row.
+   */
+  private async completeLesson(userId: number, lessonId: number, readSeconds?: number) {
+    const structure = await this.courseStructure.get();
+    const lesson = structure.lessons.find((l) => Number(l.id) === lessonId);
+    if (!lesson || lesson.status !== 'active') throw new NotFoundException('Lesson not found');
+    const profile = await this.getLessonAccessProfile(userId);
+    if (!this.canAccessLesson(lesson as unknown as LessonHierarchyRow, profile)) {
+      throw new NotFoundException('Upgrade to access this lesson');
+    }
+    const { progressVersion, ...xp } = await this.xpService.onLessonCompleted(userId, lessonId, readSeconds);
+    return {
+      ok: true,
+      lessonId,
+      status: 'completed' as const,
+      progressPercent: 100,
+      actionLabel: this.getLessonActionLabel('completed'),
       xp,
+      // The finished-lessons bitmap's new version (10.14): the phone flips the
+      // bit itself and keeps this number instead of downloading progress again.
+      ...(progressVersion ? { progressVersion } : {}),
     };
   }
 
@@ -609,15 +534,8 @@ export class CoursesService {
     snapshot: unknown,
     actorId?: number,
   ) {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
-      [entityType, entityId]
-    );
-    const versionNumber = Number(rows[0]?.next_version || 1);
-    await connection.execute(
-      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
-      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void snapshot; void actorId;
   }
 
   private async setWorkflowState(
@@ -627,15 +545,8 @@ export class CoursesService {
     workflowState: ContentWorkflowState,
     actorId?: number,
   ) {
-    await connection.execute(
-      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`,
-      [entityType, entityId, workflowState, actorId || null]
-    );
+    // 10.39: content history tables dropped (never read by the app, website or admin pages).
+    void connection; void entityType; void entityId; void workflowState; void actorId;
   }
 
   private async recordContentAudit(
@@ -650,20 +561,7 @@ export class CoursesService {
       after?: unknown;
     }
   ) {
-    await connection.execute(
-      `INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        event.entityType,
-        event.entityId,
-        event.action,
-        event.actorId || null,
-        event.summary,
-        event.before === undefined ? null : JSON.stringify(event.before),
-        event.after === undefined ? null : JSON.stringify(event.after),
-      ]
-    );
+    void 0; // 10.37: change history no longer stored (table dropped, never read)
   }
 
   private getActorId(actor?: ContentActorInput) {
@@ -725,74 +623,27 @@ export class CoursesService {
 
     const placeholders = sqlPlaceholders(courseIds);
     const { subjectRows, topicRows, lessonRows } = await this.getCourseStructure(courseIds);
-    const [progressRows] = await this.db.execute<ProgressRow[]>(
-      `SELECT lesson_id, status, progress_percent, started_at, completed_at
-       FROM student_lesson_progress
-       WHERE user_id = ? AND course_id IN (${placeholders})`,
-      [userId, ...courseIds]
-    );
+    // Finished lessons from the student's bitmap (10.15: 1 row by primary key,
+    // the one place lesson progress is kept).
+    const done = await finishedLessons(this.db, userId);
+    const progressRows = lessonRows
+      .filter((lesson) => done.has(Number(lesson.id)))
+      .map((lesson) => ({ lesson_id: Number(lesson.id), status: 'completed', progress_percent: 100, started_at: null, completed_at: null }) as unknown as ProgressRow);
     return this.buildHierarchy(courseIds, subjectRows, topicRows, lessonRows, progressRows, accessProfile);
   }
 
-  // Subjects, topics and ready lessons of a set of courses are the same for
-  // every student with that set, and the dashboard, the boot call and the
-  // Courses page each read all three. They are shared for 30 seconds; only the
-  // student's own progress is read per request.
-  private static readonly COURSE_STRUCTURE_TTL_MS = 30_000;
-  private readonly courseStructureCache = new Map<string, {
-    value: { subjectRows: SubjectRow[]; topicRows: TopicRow[]; lessonRows: LessonHierarchyRow[] };
-    expiresAt: number;
-  }>();
-  private readonly courseStructureInflight = new Map<string, Promise<{ subjectRows: SubjectRow[]; topicRows: TopicRow[]; lessonRows: LessonHierarchyRow[] }>>();
-
-  private getCourseStructure(courseIds: number[]) {
-    const key = courseIds.join(',');
-    const cached = this.courseStructureCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
-    const running = this.courseStructureInflight.get(key);
-    if (running) return running;
-    const task = this.readCourseStructure(courseIds)
-      .then((value) => {
-        if (this.courseStructureCache.size > 200) this.courseStructureCache.clear();
-        this.courseStructureCache.set(key, { value, expiresAt: Date.now() + CoursesService.COURSE_STRUCTURE_TTL_MS });
-        return value;
-      })
-      .finally(() => this.courseStructureInflight.delete(key));
-    this.courseStructureInflight.set(key, task);
-    return task;
-  }
-
-  private async readCourseStructure(courseIds: number[]) {
-    const placeholders = sqlPlaceholders(courseIds);
-    const [subjectRows] = await this.db.execute<SubjectRow[]>(
-      `SELECT id, course_id, topic_name, status
-       FROM topics
-       WHERE status = 'active' AND course_id IN (${placeholders})
-       ORDER BY sort_order ASC, id ASC`,
-      courseIds
-    );
-    const [topicRows] = await this.db.execute<TopicRow[]>(
-      `SELECT s.id, s.topic_id, s.subtopic_name, s.status
-       FROM subtopics s
-       INNER JOIN topics t ON t.id = s.topic_id
-       WHERE s.status = 'active' AND t.course_id IN (${placeholders})
-       ORDER BY s.sort_order ASC, s.id ASC`,
-      courseIds
-    );
-    // Same "actually ready to study" filter as the Study/Lessons canvas list
-    // (LessonsService.canvasStudentList) — otherwise a lesson that's still an
-    // empty draft (no note/PDF content yet) or was "deleted" (soft-delete only
-    // clears content + is_public, see canvasAdminRemove) keeps inflating this
-    // course's lesson count/list forever even though students can't open it.
-    const [lessonRows] = await this.db.execute<LessonHierarchyRow[]>(
-      `SELECT id, course_id, topic_id, subtopic_id, lesson_title, video_url, is_free, status
-       FROM lessons
-       WHERE status = 'active' AND is_public = 1 AND (note_data IS NOT NULL OR pdf_url IS NOT NULL)
-         AND course_id IN (${placeholders})
-       ORDER BY sort_order ASC, id ASC`,
-      courseIds
-    );
-    return { subjectRows, topicRows, lessonRows };
+  // Subjects, topics and ready lessons are the same for every student: they
+  // come from the shared snapshot (CourseStructureService), built once per
+  // catalogue version in small slices. Only the student's own progress is
+  // read per request.
+  private async getCourseStructure(courseIds: number[]) {
+    const wanted = new Set(courseIds.map(Number));
+    const structure = await this.courseStructure.get();
+    return {
+      subjectRows: structure.subjects.filter((row) => wanted.has(Number(row.course_id))) as unknown as SubjectRow[],
+      topicRows: structure.topics.filter((row) => wanted.has(Number(row.course_id))) as unknown as TopicRow[],
+      lessonRows: structure.lessons.filter((row) => wanted.has(Number(row.course_id))) as unknown as LessonHierarchyRow[],
+    };
   }
 
   private buildHierarchy(
@@ -879,19 +730,8 @@ export class CoursesService {
   }
 
   private async getLessonAccessProfile(userId: number): Promise<LessonAccessProfile> {
-    const [rows] = await this.db.execute<AccessScopeRow[]>(
-      `
-        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
-        FROM user_subscriptions us
-        INNER JOIN plans ON plans.id = us.plan_id
-        WHERE us.user_id = ?
-          AND us.status = 'active'
-          AND us.start_date <= CURDATE()
-          AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-      `,
-      [userId]
-    );
+    // From this request's signed token when present (no SQL), else the database.
+    const rows = await getScopeRows<AccessScopeRow>(this.db, userId);
 
     const profile: LessonAccessProfile = {
       hasAnyPaidLessonAccess: rows.length > 0,
@@ -1089,6 +929,10 @@ export class CoursesService {
       examType: row.exam_type,
       status: row.status,
       createdAt: row.created_at || null,
+      // Only on the admin list, which selects the stored counts.
+      ...(row.sort_order !== undefined ? { sortOrder: Number(row.sort_order) } : {}),
+      ...(row.lesson_count !== undefined ? { lessonCount: Number(row.lesson_count) } : {}),
+      ...(row.subject_count !== undefined ? { subjectCount: Number(row.subject_count) } : {}),
     };
   }
 }

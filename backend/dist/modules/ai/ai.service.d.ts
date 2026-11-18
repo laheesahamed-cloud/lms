@@ -59,9 +59,9 @@ export declare class AiService {
             subject: string;
             topic: string;
             lesson: string;
-            category: "past_paper" | "mock" | "ai";
+            category: "ai" | "past_paper" | "mock";
             questionType: "sba" | "true_false";
-            difficulty: "easy" | "medium" | "hard";
+            difficulty: "medium" | "easy" | "hard";
             numberOfQuestions: number;
             instruction: string;
         };
@@ -73,8 +73,8 @@ export declare class AiService {
             subject: string;
             topic: string;
             lesson: string;
-            category: "past_paper" | "mock" | "ai";
-            difficulty: "easy" | "medium" | "hard";
+            category: "ai" | "past_paper" | "mock";
+            difficulty: "medium" | "easy" | "hard";
             explanation: string;
             question_text: string;
         } | {
@@ -87,8 +87,8 @@ export declare class AiService {
             subject: string;
             topic: string;
             lesson: string;
-            category: "past_paper" | "mock" | "ai";
-            difficulty: "easy" | "medium" | "hard";
+            category: "ai" | "past_paper" | "mock";
+            difficulty: "medium" | "easy" | "hard";
             explanation: string;
             question_text: string;
         })[];

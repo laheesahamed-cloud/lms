@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 /*
  * FinalCTA — section 10. Pastel gradient-mesh background (never flat),
  * DM Serif headline, store badges, Instagram, trust line.
@@ -32,11 +33,17 @@ export function FinalCTA() {
       <div className="lpv2-brand-rule" aria-hidden="true" />
       <div className="relative overflow-hidden px-6 py-24 text-center md:py-32" style={{ background: MESH }}>
         <div className="relative z-[1] mx-auto max-w-2xl">
-          <img src={`${ASSET}landing/logo.png`} alt="xyndrome" width="120" height="92" className="mx-auto mb-7 h-16 w-auto" />
+          <img src={`${ASSET}landing/logo.webp`} alt="xyndrome" width="120" height="92" className="mx-auto mb-7 h-16 w-auto" />
           <h2 className="font-display text-[clamp(40px,8vw,80px)] leading-[1.02] text-[#111118]">Download the app.</h2>
           <p className="mx-auto mt-5 max-w-md text-[15px] text-[#6b7280] md:text-base">
             Write-on notes, a teaching Q-Bank, your own flashcards, mock exams and a study planner — all in one app.
           </p>
+
+          {/* The free demo (/try) — the real lesson, practice and exam screens */}
+          <Link to="/try" className="mt-8 inline-flex items-center gap-1.5 px-3 py-2 text-[15px] font-extrabold no-underline">
+            <span style={{ background: 'linear-gradient(135deg,#4aa3f4 0%,#5274f3 52%,#6d35df 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Give it a free try — you might like it</span>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ color: '#5274f3' }}><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </Link>
 
           {/* Store badges — link out once the URLs are set, plain images until then */}
           <div className="mt-9 flex flex-wrap items-center justify-center gap-4">

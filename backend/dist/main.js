@@ -3,6 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveTrustProxy = resolveTrustProxy;
 exports.configureApp = configureApp;
 exports.bootstrap = bootstrap;
+const mobile_client_util_1 = require("./common/utils/mobile-client.util");
+const subscription_scope_1 = require("./common/auth/subscription-scope");
+const ride_along_interceptor_1 = require("./common/interceptors/ride-along.interceptor");
+const database_tokens_1 = require("./database/database.tokens");
+const content_version_1 = require("./common/utils/content-version");
+const query_trace_1 = require("./common/dev/query-trace");
 const core_1 = require("@nestjs/core");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
@@ -13,6 +19,8 @@ const { json, urlencoded } = express;
 const path = require('path');
 const app_module_1 = require("./app.module");
 const database_exception_filter_1 = require("./common/filters/database-exception.filter");
+const deadlock_retry_interceptor_1 = require("./common/interceptors/deadlock-retry.interceptor");
+const admin_read_cache_1 = require("./common/utils/admin-read-cache");
 const auth_service_1 = require("./modules/auth/auth.service");
 const performance_metrics_1 = require("./performance-metrics");
 const signed_media_util_1 = require("./common/utils/signed-media.util");
@@ -298,7 +306,7 @@ function rewriteApiBoundary(path, method) {
             return `/api/admin/auscultation${restPath}`;
         if (resource === 'osce')
             return `/api/admin/osce${restPath}`;
-        if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'setup', 'papers', 'theory-recap', 'smart-notes', 'ai'].includes(resource)) {
+        if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'papers', 'theory-recap', 'ai'].includes(resource)) {
             return `/api/${resource}${restPath}`;
         }
     }
@@ -306,10 +314,27 @@ function rewriteApiBoundary(path, method) {
         if (resource === 'dashboard') {
             if (rest[0] === 'activity')
                 return '/api/dashboard/student/activity';
+            if (rest[0] === 'sync')
+                return '/api/dashboard/student/sync';
+            if (rest[0] === 'top')
+                return '/api/dashboard/student/top';
+            if (rest[0] === 'more')
+                return '/api/dashboard/student/more';
+            if (rest[0] === 'question')
+                return '/api/dashboard/student/question';
             return '/api/dashboard/student';
         }
         if (resource === 'boot')
             return '/api/boot/student';
+        if (resource === 'catalogue') {
+            if (rest[0] === 'index')
+                return '/api/catalogue/student/index';
+            if (rest[0] === 'parts')
+                return '/api/catalogue/student/parts';
+            return '/api/catalogue/student';
+        }
+        if (resource === 'progress')
+            return '/api/catalogue/student/progress';
         if (resource === 'courses') {
             if (rest[0] === 'lessons' && rest[2] === 'progress')
                 return `/api/courses/student/lessons/${rest[1]}/progress`;
@@ -353,8 +378,6 @@ function rewriteApiBoundary(path, method) {
             return `/api/ecg${restPath}`;
         if (resource === 'auscultation')
             return `/api/auscultation${restPath}`;
-        if (resource === 'bookmarks')
-            return `/api/study-bookmarks${restPath}`;
         if (resource === 'notifications')
             return `/api/notifications${restPath}`;
         if (resource === 'planner')
@@ -395,6 +418,11 @@ function resolveTrustProxy(raw) {
     return value;
 }
 async function configureApp(app) {
+    app.use(subscription_scope_1.requestContextMiddleware);
+    if (query_trace_1.queryTraceEnabled)
+        app.use(query_trace_1.queryTraceMiddleware);
+    const contentDb = app.get(database_tokens_1.DATABASE_CONNECTION);
+    (0, content_version_1.watchContentVersion)(contentDb);
     const configService = app.get(config_1.ConfigService);
     const authService = app.get(auth_service_1.AuthService);
     app.getHttpAdapter().getInstance().set('trust proxy', resolveTrustProxy(configService.get('TRUST_PROXY')));
@@ -427,6 +455,10 @@ async function configureApp(app) {
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
             const extension = path.extname(String(filePath || '')).slice(1).toLowerCase();
             res.setHeader('Content-Disposition', INLINE_SAFE_UPLOAD_EXTENSIONS.has(extension) ? 'inline' : 'attachment');
+            const file = String(filePath || '').replace(/\\/g, '/');
+            if (/\/lesson-notes\//.test(file) && ['webp', 'png', 'jpg', 'jpeg', 'gif'].includes(extension)) {
+                res.setHeader('Cache-Control', /\/[0-9a-f]{16}\.[a-z]+$/i.test(file) ? 'public, max-age=31536000, immutable' : 'public, max-age=86400');
+            }
         },
     };
     const serveUploads = express.static(uploadsRoot, uploadsStaticOpts);
@@ -462,12 +494,27 @@ async function configureApp(app) {
     app.use('/api/uploads', serveNonSensitiveUploads);
     app.use(restoreApiPrefixForMountedApp);
     app.use((req, res, next) => {
+        const path = String(req.path || req.url || '').split('?')[0];
+        const method = String(req.method || 'GET').toUpperCase();
+        if ((0, admin_read_cache_1.isContentWrite)(method, path)) {
+            res.on('finish', () => (0, admin_read_cache_1.clearAdminReadCache)());
+        }
+        if ((0, content_version_1.isCatalogueWrite)(method, path)) {
+            res.on('finish', () => {
+                if (res.statusCode < 400)
+                    (0, content_version_1.bumpContentVersion)(contentDb).catch(() => { });
+            });
+        }
+        next();
+    });
+    app.use((req, res, next) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('X-Frame-Options', 'DENY');
         res.setHeader('Referrer-Policy', 'no-referrer');
         res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
         res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
-        res.setHeader('Content-Security-Policy', contentSecurityPolicy);
+        const appJson = (0, mobile_client_util_1.isMobileAppClient)(req.headers?.['x-app-client']) && !/^\/api\/embed(?:\/|$)/.test(String(req.path || ''));
+        res.setHeader('Content-Security-Policy', appJson ? "default-src 'none'; frame-ancestors 'none'" : contentSecurityPolicy);
         res.removeHeader('X-Powered-By');
         next();
     });
@@ -789,6 +836,8 @@ async function configureApp(app) {
         credentials: true,
     });
     app.useGlobalFilters(new database_exception_filter_1.DatabaseExceptionFilter(app.get(core_1.HttpAdapterHost)));
+    app.useGlobalInterceptors(new deadlock_retry_interceptor_1.DeadlockRetryInterceptor());
+    app.useGlobalInterceptors(new ride_along_interceptor_1.RideAlongInterceptor(app.get(database_tokens_1.DATABASE_CONNECTION)));
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         transform: true,

@@ -7,6 +7,7 @@ import { CreateSubscriptionFeatureDto } from './dto/create-subscription-feature.
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { UpdateSubscriptionFeatureDto } from './dto/update-subscription-feature.dto';
 import { SUBSCRIPTION_FEATURE_CATEGORIES } from './subscription-catalog';
+import { cachedAdminRead } from '../../common/utils/admin-read-cache';
 
 type PlanRow = RowDataPacket & {
   id: number;
@@ -54,13 +55,22 @@ export class PlansService {
     return this.listPlans(false);
   }
 
+  // Public, identical for every visitor: remembered up to an hour and cleared
+  // on every plan / admin save (admin-read-cache.ts), so changes show at once.
+  // 10.35: taken from the same remembered list as findByIds (one load after a
+  // restart or a plan save instead of two — the same plans, features and plan
+  // features were read twice). Same order: listPlans sorts active first.
   async findActive() {
-    return this.listPlans(true);
+    const plans = await cachedAdminRead('public.allPlans', () => this.listPlans(false), 3_600_000);
+    return plans.filter((plan: any) => String(plan.status) === 'active');
   }
 
   async findById(id: number) {
-    const plans = await this.listPlans(false, id);
-    const plan = plans[0];
+    // 10.50 F1: from the remembered list (cleared on every plan save) — the
+    // checkout, slip upload and approval each read plan + all features fresh.
+    // A plan not in it (just created elsewhere) falls back to one direct read.
+    const remembered = await cachedAdminRead('public.allPlans', () => this.listPlans(false), 3_600_000);
+    const plan = remembered.find((p: any) => Number(p.id) === Number(id)) || (await this.listPlans(false, id))[0];
     if (!plan) {
       throw new NotFoundException('Plan not found');
     }
@@ -80,7 +90,10 @@ export class PlansService {
     }
 
     const requestedIds = new Set(cleanIds);
-    const plans = await this.listPlans(false);
+    // Every plan with its features, the same for everyone: remembered 60 s
+    // and cleared on plan saves, like findActive (step 5: /subscriptions/me
+    // read plans, features and plan features on every call).
+    const plans = await cachedAdminRead('public.allPlans', () => this.listPlans(false), 3_600_000);
     return new Map(
       plans
         .filter((plan) => requestedIds.has(Number(plan.id)))

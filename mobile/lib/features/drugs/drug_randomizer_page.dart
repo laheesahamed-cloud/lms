@@ -21,18 +21,41 @@ class DrugRandomizerPage extends ConsumerStatefulWidget {
   ConsumerState<DrugRandomizerPage> createState() => _DrugRandomizerPageState();
 }
 
-class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
+class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> with WidgetsBindingObserver {
   _Phase    _phase      = _Phase.idle;
   DrugItem? _current;
   bool?     _mcqCorrect;
   String?   _error;
+  late final DrugQueueNotifier _drugs = ref.read(drugQueueProvider.notifier);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // 10.19: the light list (only when changed) + the free-spin state.
+    Future.microtask(_drugs.open);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Leaving the app while on this page also counts as leaving it.
+    if (state == AppLifecycleState.paused) _drugs.flush();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // 10.19: this visit's free spins in one request, on leaving the page.
+    _drugs.flush();
+    super.dispose();
+  }
 
   Future<void> _spin() async {
     if (_phase == _Phase.spinning) return;
     HapticFeedback.heavyImpact();
     final svc = ref.read(drugQueueProvider.notifier);
 
-    if (ref.read(drugQueueProvider).queue.isEmpty) {
+    if (ref.read(drugQueueProvider).list.isEmpty) {
       setState(() => _error = 'Could not load — please try again.');
       return;
     }

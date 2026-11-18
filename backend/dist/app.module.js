@@ -7,6 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
+const samples_module_1 = require("./modules/samples/samples.module");
 const path_1 = require("path");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
@@ -18,8 +19,10 @@ const subtopics_module_1 = require("./modules/subtopics/subtopics.module");
 const questions_module_1 = require("./modules/questions/questions.module");
 const quizzes_module_1 = require("./modules/quizzes/quizzes.module");
 const quiz_attempts_module_1 = require("./modules/quiz-attempts/quiz-attempts.module");
-const results_module_1 = require("./modules/results/results.module");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
+const app_start_module_1 = require("./modules/app-start/app-start.module");
+const study_stats_module_1 = require("./modules/study-stats/study-stats.module");
+const notices_module_1 = require("./modules/notices/notices.module");
 const lessons_module_1 = require("./modules/lessons/lessons.module");
 const users_module_1 = require("./modules/users/users.module");
 const uploads_module_1 = require("./modules/uploads/uploads.module");
@@ -27,16 +30,12 @@ const papers_module_1 = require("./modules/papers/papers.module");
 const schema_module_1 = require("./modules/schema/schema.module");
 const ai_module_1 = require("./modules/ai/ai.module");
 const settings_module_1 = require("./modules/settings/settings.module");
-const smart_notes_module_1 = require("./modules/smart-notes/smart-notes.module");
 const flashcards_module_1 = require("./modules/flashcards/flashcards.module");
 const plans_module_1 = require("./modules/plans/plans.module");
 const subscriptions_module_1 = require("./modules/subscriptions/subscriptions.module");
-const study_bookmarks_module_1 = require("./modules/study-bookmarks/study-bookmarks.module");
 const theory_recap_module_1 = require("./modules/theory-recap/theory-recap.module");
-const setup_module_1 = require("./modules/setup/setup.module");
 const workspace_module_1 = require("./modules/workspace/workspace.module");
 const push_notifications_module_1 = require("./modules/push-notifications/push-notifications.module");
-const content_governance_module_1 = require("./modules/content-governance/content-governance.module");
 const boot_module_1 = require("./modules/boot/boot.module");
 const drugs_module_1 = require("./modules/drugs/drugs.module");
 const ecg_module_1 = require("./modules/ecg/ecg.module");
@@ -63,25 +62,24 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             courses_module_1.CoursesModule,
+            samples_module_1.SamplesModule,
             topics_module_1.TopicsModule,
             subtopics_module_1.SubtopicsModule,
             lessons_module_1.LessonsModule,
             questions_module_1.QuestionsModule,
             quizzes_module_1.QuizzesModule,
             quiz_attempts_module_1.QuizAttemptsModule,
-            results_module_1.ResultsModule,
             dashboard_module_1.DashboardModule,
+            app_start_module_1.AppStartModule,
+            study_stats_module_1.StudyStatsModule,
+            notices_module_1.NoticesModule,
             uploads_module_1.UploadsModule,
             papers_module_1.PapersModule,
-            smart_notes_module_1.SmartNotesModule,
             flashcards_module_1.FlashcardsModule,
             plans_module_1.PlansModule,
             subscriptions_module_1.SubscriptionsModule,
-            study_bookmarks_module_1.StudyBookmarksModule,
             theory_recap_module_1.TheoryRecapModule,
-            setup_module_1.SetupModule,
             push_notifications_module_1.PushNotificationsModule,
-            content_governance_module_1.ContentGovernanceModule,
             workspace_module_1.WorkspaceModule,
             boot_module_1.BootModule,
             drugs_module_1.DrugsModule,

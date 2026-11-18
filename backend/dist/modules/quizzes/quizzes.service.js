@@ -13,12 +13,18 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuizzesService = void 0;
+const subscription_scope_1 = require("../../common/auth/subscription-scope");
+const recent_results_1 = require("../../common/utils/recent-results");
+const general_ci_sort_1 = require("../../common/utils/general-ci-sort");
 const common_1 = require("@nestjs/common");
 const pagination_1 = require("../../common/utils/pagination");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 const database_tokens_1 = require("../../database/database.tokens");
+const admin_read_cache_1 = require("../../common/utils/admin-read-cache");
+const content_history_1 = require("../../common/utils/content-history");
+const quiz_counts_1 = require("../../common/utils/quiz-counts");
 const DEFAULT_PASSING_MARKS = 45;
 let QuizzesService = class QuizzesService {
     constructor(db, authService, pushNotificationsService) {
@@ -36,9 +42,8 @@ let QuizzesService = class QuizzesService {
         let where = '';
         const params = [];
         if (filters.search?.trim()) {
-            where += ' AND (COALESCE(NULLIF(quizzes.admin_name, \'\'), quizzes.quiz_title) LIKE ? OR COALESCE(NULLIF(quizzes.student_title, \'\'), quizzes.quiz_title) LIKE ? OR quizzes.quiz_title LIKE ?)';
-            const like = `%${filters.search.trim()}%`;
-            params.push(like, like, like);
+            where += ' AND quizzes.quiz_title LIKE ?';
+            params.push(`%${filters.search.trim()}%`);
         }
         if (filters.courseId && filters.courseId > 0) {
             where += ' AND quizzes.course_id = ?';
@@ -60,6 +65,8 @@ let QuizzesService = class QuizzesService {
         return { where, params };
     }
     async summary(filters) {
+        if (!filters.search?.trim())
+            return this.summaryFromStoredCounts(filters);
         const { where, params } = this.buildListFilter(filters);
         const [rows] = await this.db.execute(`
         SELECT
@@ -89,60 +96,124 @@ let QuizzesService = class QuizzesService {
             active: Number(row.active_count || 0),
         }));
     }
+    async summaryFromStoredCounts(filters) {
+        const courseWhere = filters.courseId && filters.courseId > 0 ? 'WHERE id = ?' : '';
+        const courseParams = courseWhere ? [filters.courseId] : [];
+        const [courses] = await this.db.query(`SELECT id, course_title, quiz_general_total, quiz_general_active, quiz_unfiled_total, quiz_unfiled_active FROM courses ${courseWhere}`, courseParams);
+        const subjectFilter = filters.topicId === 'general'
+            ? null
+            : filters.topicId ? { sql: 'WHERE id = ?', params: [Number(filters.topicId)] }
+                : courseWhere ? { sql: 'WHERE course_id = ?', params: courseParams }
+                    : { sql: '', params: [] };
+        const [subjects] = subjectFilter
+            ? await this.db.query(`SELECT id, course_id, topic_name, quiz_total, quiz_active FROM topics ${subjectFilter.sql}`, subjectFilter.params)
+            : [[]];
+        const pick = (total, active) => (filters.status === 'active'
+            ? { total: active, active }
+            : filters.status === 'inactive' ? { total: total - active, active: 0 } : { total, active });
+        const titleKey = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        const out = [];
+        for (const c of courses) {
+            const id = Number(c.id);
+            const title = String(c.course_title || '');
+            if (filters.topicId === 'general' || !filters.topicId) {
+                const g = pick(Number(c.quiz_general_total), Number(c.quiz_general_active));
+                if (g.total > 0)
+                    out.push({ courseId: id, courseTitle: title, isGeneral: true, topicId: null, subjectName: '', ...g });
+            }
+            if (!filters.topicId) {
+                const u = pick(Number(c.quiz_unfiled_total), Number(c.quiz_unfiled_active));
+                if (u.total > 0)
+                    out.push({ courseId: id, courseTitle: title, isGeneral: false, topicId: null, subjectName: '', ...u });
+            }
+            const rows = subjects
+                .filter((t) => Number(t.course_id) === id)
+                .sort((a, b) => (titleKey(a.topic_name) < titleKey(b.topic_name) ? -1 : titleKey(a.topic_name) > titleKey(b.topic_name) ? 1 : Number(a.id) - Number(b.id)));
+            for (const t of rows) {
+                const v = pick(Number(t.quiz_total), Number(t.quiz_active));
+                if (v.total > 0)
+                    out.push({ courseId: id, courseTitle: title, isGeneral: false, topicId: Number(t.id), subjectName: String(t.topic_name || ''), ...v });
+            }
+        }
+        return out.sort((a, b) => {
+            const x = titleKey(a.courseTitle);
+            const y = titleKey(b.courseTitle);
+            return x < y ? -1 : x > y ? 1 : a.courseId - b.courseId;
+        });
+    }
     async findAll(filters) {
-        const { limit, offset } = (0, pagination_1.normalizePagination)(filters, { defaultLimit: 50, maxLimit: 100 });
+        const { limit, offset: rawOffset } = (0, pagination_1.normalizePagination)(filters, { defaultLimit: 50, maxLimit: 100 });
+        const after = Number.isInteger(filters.after) && Number(filters.after) > 0 ? Number(filters.after) : 0;
+        const offset = after ? 0 : rawOffset;
+        const folderIndexHint = filters.topicId === 'general'
+            ? 'FORCE INDEX (idx_quizzes_course_general)'
+            : filters.topicId ? 'FORCE INDEX (idx_quizzes_topic_general)' : '';
         let sql = `
       SELECT
         quizzes.id,
         quizzes.course_id,
         quizzes.topic_id,
         quizzes.subtopic_id,
-        quizzes.lesson_id,
-        quizzes.paper_id,
+        -- 10.54: the columns no set used were dropped; fixed values keep the admin replies identical.
+        NULL AS lesson_id,
+        NULL AS paper_id,
         quizzes.category,
-        quizzes.collection_tags,
+        '' AS collection_tags,
         quizzes.is_free,
-        quizzes.subtopic,
+        '' AS subtopic,
         quizzes.is_general,
-        quizzes.exam_mode_only,
-        quizzes.admin_name,
-        quizzes.student_title,
-        quizzes.display_title_mode,
+        0 AS exam_mode_only,
+        quizzes.quiz_title AS admin_name,
+        quizzes.quiz_title AS student_title,
+        'title' AS display_title_mode,
         quizzes.quiz_number,
         quizzes.quiz_title,
-        quizzes.quiz_description,
-        NULL AS blueprint_json,
-        quizzes.randomization_mode,
+        '' AS quiz_description,
         quizzes.total_questions,
         quizzes.total_marks,
         quizzes.time_limit,
-        quizzes.hide_time_limit,
+        0 AS hide_time_limit,
         quizzes.passing_marks,
-        quizzes.hide_passing_marks,
+        0 AS hide_passing_marks,
         quizzes.status,
         quizzes.created_at,
-        courses.course_title,
-        topics.topic_name AS subject_name,
-        subtopics.subtopic_name AS topic_name,
-        lessons.lesson_title,
-        papers.paper_title
-      FROM quizzes
-      INNER JOIN courses ON quizzes.course_id = courses.id
+        ${filters.slim
+            ? 'NULL AS course_title, NULL AS subject_name, NULL AS topic_name, NULL AS lesson_title, NULL AS paper_title'
+            : 'courses.course_title, topics.topic_name AS subject_name, subtopics.subtopic_name AS topic_name, NULL AS lesson_title, NULL AS paper_title'}
+      FROM quizzes ${folderIndexHint}
+      ${filters.slim ? '' : `INNER JOIN courses ON quizzes.course_id = courses.id
       LEFT JOIN topics ON quizzes.topic_id = topics.id
-      LEFT JOIN subtopics ON quizzes.subtopic_id = subtopics.id
-      LEFT JOIN lessons ON quizzes.lesson_id = lessons.id
-      LEFT JOIN papers ON quizzes.paper_id = papers.id
+      LEFT JOIN subtopics ON quizzes.subtopic_id = subtopics.id`}
       WHERE 1 = 1
     `;
         const listFilter = this.buildListFilter(filters);
         sql += listFilter.where;
         const params = [...listFilter.params];
+        if (after) {
+            sql += filters.order === 'asc' ? ' AND quizzes.id > ?' : ' AND quizzes.id < ?';
+            params.push(after);
+        }
         sql += filters.order === 'asc' ? ' ORDER BY quizzes.id ASC LIMIT ? OFFSET ?' : ' ORDER BY quizzes.id DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapQuiz(row));
     }
-    async meta(options) {
+    metaFolders() {
+        return (0, admin_read_cache_1.cachedAdminRead)('quizzes.meta:folders', async () => {
+            const [courseRows] = await this.db.query("SELECT id, course_title FROM courses WHERE status = 'active'");
+            const [topicRows] = await this.db.query("SELECT id, course_id, topic_name FROM topics WHERE status = 'active'");
+            (0, general_ci_sort_1.sortByName)(courseRows, (r) => String(r.course_title));
+            (0, general_ci_sort_1.sortByName)(topicRows, (r) => String(r.topic_name));
+            return {
+                courses: courseRows.map((row) => ({ id: Number(row.id), courseTitle: String(row.course_title) })),
+                subjects: topicRows.map((row) => ({ id: Number(row.id), courseId: Number(row.course_id), subjectName: String(row.topic_name) })),
+            };
+        });
+    }
+    meta(options) {
+        return (0, admin_read_cache_1.cachedAdminRead)(`quizzes.meta:${options?.includeQuestions ? 1 : 0}`, () => this.loadMeta(options));
+    }
+    async loadMeta(options) {
         const [courseRows] = await this.db.execute("SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC");
         const [topicRows] = await this.db.execute("SELECT id, course_id, topic_name FROM topics WHERE status = 'active' ORDER BY topic_name ASC");
         const [subtopicRows] = await this.db.execute(`
@@ -198,7 +269,6 @@ let QuizzesService = class QuizzesService {
               q.category,
               q.question_type,
               q.question_text,
-              q.keywords_text,
               c.course_title,
               t.topic_name AS subject_name,
               st.subtopic_name AS topic_name,
@@ -214,7 +284,6 @@ let QuizzesService = class QuizzesService {
             ORDER BY q.id DESC
           `))[0]
             : [];
-        const keywordSuggestions = await this.getKeywordSuggestions(questionRows);
         const categories = Array.from(new Set((categoryRows.length ? categoryRows : questionRows)
             .map((row) => String(row.category || '').trim())
             .filter(Boolean))).sort((left, right) => left.localeCompare(right));
@@ -251,7 +320,6 @@ let QuizzesService = class QuizzesService {
                 examSource: String(row.exam_source),
                 keywordsText: String(row.keywords_text || ''),
             })),
-            keywordSuggestions,
             categories,
             questionTypes,
             usedQuestionIds: Array.from(usageByQuestionId.keys()),
@@ -268,7 +336,6 @@ let QuizzesService = class QuizzesService {
                     category: String(row.category || ''),
                     questionType: String(row.question_type || ''),
                     questionText: String(row.question_text || ''),
-                    keywordsText: String(row.keywords_text || ''),
                     usageCount,
                     usedInAnyQuiz: usageCount > 0,
                     courseTitle: String(row.course_title || ''),
@@ -287,41 +354,38 @@ let QuizzesService = class QuizzesService {
           quizzes.course_id,
           quizzes.topic_id,
           quizzes.subtopic_id,
-          quizzes.lesson_id,
-          quizzes.paper_id,
+          -- 10.54: the columns no set used were dropped; fixed values keep the admin replies identical.
+          NULL AS lesson_id,
+          NULL AS paper_id,
           quizzes.category,
-          quizzes.collection_tags,
+          '' AS collection_tags,
           quizzes.is_free,
-          quizzes.subtopic,
+          '' AS subtopic,
           quizzes.is_general,
-          quizzes.exam_mode_only,
-          quizzes.admin_name,
-          quizzes.student_title,
-          quizzes.display_title_mode,
+          0 AS exam_mode_only,
+          quizzes.quiz_title AS admin_name,
+          quizzes.quiz_title AS student_title,
+          'title' AS display_title_mode,
           quizzes.quiz_number,
           quizzes.quiz_title,
-          quizzes.quiz_description,
-          quizzes.blueprint_json,
-          quizzes.randomization_mode,
+          '' AS quiz_description,
           quizzes.total_questions,
           quizzes.total_marks,
           quizzes.time_limit,
-          quizzes.hide_time_limit,
+          0 AS hide_time_limit,
           quizzes.passing_marks,
-          quizzes.hide_passing_marks,
+          0 AS hide_passing_marks,
           quizzes.status,
           quizzes.created_at,
           courses.course_title,
           topics.topic_name AS subject_name,
           subtopics.subtopic_name AS topic_name,
-          lessons.lesson_title,
-          papers.paper_title
+          NULL AS lesson_title,
+          NULL AS paper_title
         FROM quizzes
         INNER JOIN courses ON quizzes.course_id = courses.id
         LEFT JOIN topics ON quizzes.topic_id = topics.id
         LEFT JOIN subtopics ON quizzes.subtopic_id = subtopics.id
-        LEFT JOIN lessons ON quizzes.lesson_id = lessons.id
-        LEFT JOIN papers ON quizzes.paper_id = papers.id
         WHERE quizzes.id = ?
         LIMIT 1
       `, [id]);
@@ -347,48 +411,32 @@ let QuizzesService = class QuizzesService {
         try {
             await connection.beginTransaction();
             const questionIds = this.cleanQuestionIds(createQuizDto.questionIds);
-            const linkedQuestionIds = this.resolveRandomizationMode(createQuizDto.randomizationMode) === 'dynamic' ? [] : questionIds;
+            const linkedQuestionIds = questionIds;
             const totalQuestions = this.resolveQuizQuestionCount(createQuizDto, questionIds);
             const totalMarks = totalQuestions;
-            const resolvedMode = this.resolveDisplayTitleMode(createQuizDto.displayTitleMode);
-            const newQuizNumber = resolvedMode === 'number'
-                ? await this.resolveNextQuizNumber(connection, createQuizDto)
-                : null;
+            const newQuizNumber = null;
             const [result] = await connection.execute(`
           INSERT INTO quizzes (
-            course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, display_title_mode, quiz_number, quiz_title,
-            quiz_description, blueprint_json, randomization_mode, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            course_id, topic_id, subtopic_id, category, is_free, is_general, quiz_number, quiz_title,
+            total_questions, total_marks, time_limit, passing_marks, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
                 createQuizDto.courseId,
                 createQuizDto.isGeneral === 1 ? null : createQuizDto.topicId ?? null,
                 createQuizDto.isGeneral === 1 ? null : createQuizDto.subtopicId ?? null,
-                createQuizDto.isGeneral === 1 ? null : createQuizDto.lessonId ?? null,
-                createQuizDto.paperId ?? null,
                 (createQuizDto.category || '').trim() || null,
-                this.normalizeKeywords(createQuizDto.collectionTags),
                 createQuizDto.isFree === 1 ? 1 : 0,
-                (createQuizDto.subtopic || '').trim(),
                 createQuizDto.isGeneral,
-                createQuizDto.examModeOnly,
-                this.resolveAdminName(createQuizDto),
-                this.resolveStudentTitle(createQuizDto),
-                resolvedMode,
                 newQuizNumber,
                 this.resolveStudentTitle(createQuizDto),
-                (createQuizDto.quizDescription || '').trim(),
-                this.stringifyBlueprint(createQuizDto.blueprint),
-                this.resolveRandomizationMode(createQuizDto.randomizationMode),
                 totalQuestions,
                 totalMarks,
                 createQuizDto.timeLimit,
-                createQuizDto.hideTimeLimit,
                 this.resolvePassingMarks(createQuizDto.passingMarks),
-                createQuizDto.hidePassingMarks,
                 createQuizDto.status,
             ]);
+            await (0, quiz_counts_1.applyQuizCountChanges)(connection, [], await (0, quiz_counts_1.readQuizStates)(connection, [result.insertId], false));
             await this.replaceQuestionLinks(connection, result.insertId, linkedQuestionIds);
-            await this.appendKeywordsToQuestions(connection, linkedQuestionIds, createQuizDto.collectionTags);
             const snapshot = this.buildQuizSnapshot(createQuizDto);
             await this.recordContentVersion(connection, 'quiz', result.insertId, snapshot, this.getActorId(actor));
             await this.setWorkflowState(connection, 'quiz', result.insertId, createQuizDto.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -431,13 +479,11 @@ let QuizzesService = class QuizzesService {
             subtopic: updateQuizDto.subtopic ?? existing.subtopic ?? '',
             isGeneral: updateQuizDto.isGeneral ?? (existing.isGeneral === 1 ? 1 : 0),
             examModeOnly: updateQuizDto.examModeOnly ?? (existing.examModeOnly === 1 ? 1 : 0),
-            adminName: updateQuizDto.adminName ?? existing.adminName,
-            studentTitle: updateQuizDto.studentTitle ?? existing.studentTitle ?? existing.quizTitle,
-            displayTitleMode: this.resolveDisplayTitleMode(updateQuizDto.displayTitleMode ?? existing.displayTitleMode),
-            quizTitle: updateQuizDto.quizTitle ?? existing.studentTitle ?? existing.quizTitle,
+            adminName: this.quizName(updateQuizDto) || this.quizName(existing),
+            studentTitle: this.quizName(updateQuizDto) || this.quizName(existing),
+            displayTitleMode: this.resolveDisplayTitleMode(),
+            quizTitle: this.quizName(updateQuizDto) || this.quizName(existing),
             quizDescription: updateQuizDto.quizDescription ?? existing.quizDescription ?? '',
-            blueprint: updateQuizDto.blueprint ?? existing.blueprint ?? null,
-            randomizationMode: this.resolveRandomizationMode(updateQuizDto.randomizationMode ?? existing.randomizationMode),
             timeLimit: updateQuizDto.timeLimit ?? existing.timeLimit,
             hideTimeLimit: updateQuizDto.hideTimeLimit ?? (existing.hideTimeLimit === 1 ? 1 : 0),
             passingMarks: updateQuizDto.passingMarks ?? this.resolvePassingMarks(existing.passingMarks),
@@ -451,78 +497,47 @@ let QuizzesService = class QuizzesService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const countsBefore = await (0, quiz_counts_1.readQuizStates)(connection, [id], true);
             const questionIds = this.cleanQuestionIds(merged.questionIds);
-            const linkedQuestionIds = this.resolveRandomizationMode(merged.randomizationMode) === 'dynamic' ? [] : questionIds;
+            const linkedQuestionIds = questionIds;
             const totalQuestions = this.resolveQuizQuestionCount(merged, questionIds);
             const totalMarks = totalQuestions;
-            const resolvedMode = this.resolveDisplayTitleMode(merged.displayTitleMode);
-            let updatedQuizNumber;
-            if (resolvedMode === 'number') {
-                updatedQuizNumber = existing.quizNumber ?? await this.resolveNextQuizNumber(connection, merged, id);
-            }
-            else {
-                updatedQuizNumber = null;
-            }
+            const updatedQuizNumber = null;
             await connection.execute(`
           UPDATE quizzes SET
+            content_stamp = content_stamp + 1,
             course_id = ?,
             topic_id = ?,
             subtopic_id = ?,
-            lesson_id = ?,
-            paper_id = ?,
             category = ?,
-            collection_tags = ?,
             is_free = ?,
-            subtopic = ?,
             is_general = ?,
-            exam_mode_only = ?,
-            admin_name = ?,
-            student_title = ?,
-            display_title_mode = ?,
             quiz_number = ?,
             quiz_title = ?,
-            quiz_description = ?,
-            blueprint_json = ?,
-            randomization_mode = ?,
             total_questions = ?,
             total_marks = ?,
             time_limit = ?,
-            hide_time_limit = ?,
             passing_marks = ?,
-            hide_passing_marks = ?,
             status = ?
           WHERE id = ?
         `, [
                 merged.courseId,
                 merged.isGeneral === 1 ? null : merged.topicId ?? null,
                 merged.isGeneral === 1 ? null : merged.subtopicId ?? null,
-                merged.isGeneral === 1 ? null : merged.lessonId ?? null,
-                merged.paperId ?? null,
                 (merged.category || '').trim() || null,
-                this.normalizeKeywords(merged.collectionTags),
                 merged.isFree === 1 ? 1 : 0,
-                (merged.subtopic || '').trim(),
                 merged.isGeneral,
-                merged.examModeOnly,
-                this.resolveAdminName(merged),
-                this.resolveStudentTitle(merged),
-                resolvedMode,
                 updatedQuizNumber,
                 this.resolveStudentTitle(merged),
-                (merged.quizDescription || '').trim(),
-                this.stringifyBlueprint(merged.blueprint),
-                this.resolveRandomizationMode(merged.randomizationMode),
                 totalQuestions,
                 totalMarks,
                 merged.timeLimit,
-                merged.hideTimeLimit,
                 this.resolvePassingMarks(merged.passingMarks),
-                merged.hidePassingMarks,
                 merged.status,
                 id,
             ]);
+            await (0, quiz_counts_1.applyQuizCountChanges)(connection, countsBefore, await (0, quiz_counts_1.readQuizStates)(connection, [id], false));
             await this.replaceQuestionLinks(connection, id, linkedQuestionIds);
-            await this.appendKeywordsToQuestions(connection, linkedQuestionIds, merged.collectionTags);
             const snapshot = this.buildQuizSnapshot(merged);
             await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
             await this.setWorkflowState(connection, 'quiz', id, merged.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -558,8 +573,13 @@ let QuizzesService = class QuizzesService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const countsBefore = await (0, quiz_counts_1.readQuizStates)(connection, [id], true);
+            const links = await (0, quiz_counts_1.linkCountsForQuizzes)(connection, [id]);
             await connection.execute('DELETE FROM question_quizzes WHERE quiz_id = ?', [id]);
+            await (0, quiz_counts_1.bumpQuestionLinkCounts)(connection, [...links].map(([q, n]) => [q, -n]));
             await connection.execute('DELETE FROM quizzes WHERE id = ?', [id]);
+            await (0, content_history_1.forgetContentHistory)(connection, 'quiz', [id]);
+            await (0, quiz_counts_1.applyQuizCountChanges)(connection, countsBefore, []);
             await this.recordContentAudit(connection, {
                 entityType: 'quiz',
                 entityId: id,
@@ -598,24 +618,24 @@ let QuizzesService = class QuizzesService {
         }
         const sharedSet = new Set(sharedIds);
         const onlyHereIds = questionIds.filter((id) => !sharedSet.has(id));
-        const [attemptRows] = await this.db.execute(`SELECT COUNT(*) AS total FROM quiz_attempts WHERE quiz_id IN (${placeholders})`, ids);
         return {
             ids,
             quizRows,
             questionIds,
             sharedIds,
             onlyHereIds,
-            attempts: Number(attemptRows[0]?.total || 0),
         };
     }
     async bulkDeletePreview(dto) {
         const plan = await this.planBulkDelete(dto.quizIds);
+        const quizIdSet = new Set(plan.ids.map(Number));
+        const attempts = (await (0, recent_results_1.loadRecentResults)(this.db)).filter((r) => quizIdSet.has(r.quizId)).length;
         return {
             quizzes: plan.ids.length,
             questionsInside: plan.questionIds.length,
             questionsOnlyHere: plan.onlyHereIds.length,
             questionsShared: plan.sharedIds.length,
-            attempts: plan.attempts,
+            attempts,
         };
     }
     async bulkSetStatus(dto, actor) {
@@ -656,7 +676,9 @@ let QuizzesService = class QuizzesService {
             const connection = await this.db.getConnection();
             try {
                 await connection.beginTransaction();
-                await connection.execute(`UPDATE quizzes SET status = ? WHERE id IN (${(0, sql_safety_1.sqlPlaceholders)(changedIds)})`, [target, ...changedIds]);
+                const countsBefore = await (0, quiz_counts_1.readQuizStates)(connection, changedIds, true);
+                await connection.execute(`UPDATE quizzes SET status = ?, content_stamp = content_stamp + 1 WHERE id IN (${(0, sql_safety_1.sqlPlaceholders)(changedIds)})`, [target, ...changedIds]);
+                await (0, quiz_counts_1.applyQuizCountChanges)(connection, countsBefore, await (0, quiz_counts_1.readQuizStates)(connection, changedIds, false));
                 for (const { id, quiz } of changes) {
                     const snapshot = this.buildQuizSnapshot({ ...quiz, status: target });
                     await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
@@ -709,8 +731,13 @@ let QuizzesService = class QuizzesService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
+            const countsBefore = await (0, quiz_counts_1.readQuizStates)(connection, plan.ids, true);
+            const links = await (0, quiz_counts_1.linkCountsForQuizzes)(connection, plan.ids);
             await connection.execute(`DELETE FROM question_quizzes WHERE quiz_id IN (${placeholders})`, plan.ids);
+            await (0, quiz_counts_1.bumpQuestionLinkCounts)(connection, [...links].map(([q, n]) => [q, -n]));
             await connection.execute(`DELETE FROM quizzes WHERE id IN (${placeholders})`, plan.ids);
+            await (0, content_history_1.forgetContentHistory)(connection, 'quiz', plan.ids);
+            await (0, quiz_counts_1.applyQuizCountChanges)(connection, countsBefore, []);
             for (const id of plan.ids) {
                 await this.recordContentAudit(connection, {
                     entityType: 'quiz',
@@ -722,18 +749,18 @@ let QuizzesService = class QuizzesService {
                 });
             }
             let deletedQuestions = 0;
+            const questionCourses = [];
             if (deleteQuestions) {
                 for (let i = 0; i < plan.onlyHereIds.length; i += 500) {
                     const chunk = plan.onlyHereIds.slice(i, i + 500);
                     const qp = (0, sql_safety_1.sqlPlaceholders)(chunk);
-                    await connection.execute(`DELETE FROM question_theory_recaps WHERE question_id IN (${qp})`, chunk);
-                    await connection.execute(`DELETE FROM question_keyword_map WHERE question_id IN (${qp})`, chunk);
-                    await connection.execute(`DELETE FROM question_options WHERE question_id IN (${qp})`, chunk);
+                    questionCourses.push(...(await (0, quiz_counts_1.readQuestionCourses)(connection, chunk)));
                     await connection.execute(`DELETE FROM question_reports WHERE question_id IN (${qp})`, chunk);
-                    await connection.execute(`DELETE FROM student_answers WHERE question_id IN (${qp})`, chunk);
                     const [result] = await connection.execute(`DELETE FROM questions WHERE id IN (${qp})`, chunk);
+                    await (0, content_history_1.forgetContentHistory)(connection, 'question', chunk);
                     deletedQuestions += result.affectedRows;
                 }
+                await (0, quiz_counts_1.applyQuestionTotalChanges)(connection, questionCourses, []);
                 if (deletedQuestions) {
                     await this.recordContentAudit(connection, {
                         entityType: 'question',
@@ -762,18 +789,8 @@ let QuizzesService = class QuizzesService {
         }
     }
     async listVersions(id) {
-        await this.findOne(id);
-        const [rows] = await this.db.execute(`SELECT id, version_number, created_by, created_at, snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'quiz' AND entity_id = ?
-       ORDER BY version_number DESC`, [id]);
-        return rows.map((row) => ({
-            id: Number(row.id),
-            versionNumber: Number(row.version_number),
-            createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
-            createdAt: row.created_at || null,
-            snapshot: this.parseSnapshotJson(row.snapshot_json),
-        }));
+        void id;
+        return [];
     }
     async markDraft(id, actor) {
         return this.transitionWorkflow(id, {
@@ -803,69 +820,17 @@ let QuizzesService = class QuizzesService {
         });
     }
     async rollback(id, versionNumber, actor) {
-        if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
-            throw new common_1.BadRequestException('Version number is invalid');
-        }
-        if (!this.canReviewContent(actor)) {
-            throw new common_1.ForbiddenException('Review permission is required to rollback quiz content');
-        }
-        const existing = await this.findOne(id);
-        const [versionRows] = await this.db.execute(`SELECT snapshot_json
-       FROM content_versions
-       WHERE entity_type = 'quiz' AND entity_id = ? AND version_number = ?
-       LIMIT 1`, [id, versionNumber]);
-        if (!versionRows[0]) {
-            throw new common_1.NotFoundException('Quiz version not found');
-        }
-        const snapshot = this.parseQuizSnapshot(versionRows[0].snapshot_json);
-        this.validateQuiz(snapshot);
-        this.assertCanSaveStatus(actor, snapshot.status);
-        const questionIds = this.cleanQuestionIds(snapshot.questionIds);
-        const linkedQuestionIds = this.resolveRandomizationMode(snapshot.randomizationMode) === 'dynamic' ? [] : questionIds;
-        const workflowState = snapshot.status === 'active' ? 'published' : 'draft';
-        const connection = await this.db.getConnection();
-        try {
-            await connection.beginTransaction();
-            await this.writeQuizSnapshot(connection, id, snapshot);
-            await this.replaceQuestionLinks(connection, id, linkedQuestionIds);
-            await this.appendKeywordsToQuestions(connection, linkedQuestionIds, snapshot.collectionTags);
-            await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
-            await this.setWorkflowState(connection, 'quiz', id, workflowState, this.getActorId(actor));
-            await this.recordContentAudit(connection, {
-                entityType: 'quiz',
-                entityId: id,
-                action: 'rolled_back',
-                summary: `Quiz ${id} rolled back to version ${versionNumber}`,
-                actorId: this.getActorId(actor),
-                before: existing,
-                after: snapshot,
-            });
-            await connection.commit();
-        }
-        catch (error) {
-            await connection.rollback();
-            throw error;
-        }
-        finally {
-            connection.release();
-        }
-        return {
-            ok: true,
-            id,
-            rolledBackToVersion: versionNumber,
-            status: snapshot.status,
-            workflowState,
-        };
+        void id;
+        void versionNumber;
+        void actor;
+        throw new common_1.BadRequestException('Version history is not kept any more.');
     }
     validateQuiz(quiz) {
         if (!quiz.courseId || quiz.courseId <= 0) {
             throw new common_1.BadRequestException('Please select a course');
         }
-        if (!this.resolveAdminName(quiz)) {
-            throw new common_1.BadRequestException('Admin name is required');
-        }
-        if (!this.resolveStudentTitle(quiz)) {
-            throw new common_1.BadRequestException('Student title is required');
+        if (!this.quizName(quiz)) {
+            throw new common_1.BadRequestException('Quiz name is required');
         }
         if (quiz.subtopicId && (!quiz.topicId || quiz.topicId <= 0)) {
             throw new common_1.BadRequestException('Please select a subject before selecting a topic');
@@ -874,30 +839,15 @@ let QuizzesService = class QuizzesService {
             throw new common_1.BadRequestException('Please select a subject before selecting a lesson');
         }
         const questionIds = this.cleanQuestionIds(quiz.questionIds || []);
-        const randomizationMode = this.resolveRandomizationMode(quiz.randomizationMode);
-        const blueprintQuestionCount = this.getBlueprintQuestionCount(quiz.blueprint);
-        if (randomizationMode === 'static' && questionIds.length === 0) {
+        if (questionIds.length === 0) {
             throw new common_1.BadRequestException('Please add at least one question to the quiz');
-        }
-        if (randomizationMode === 'dynamic' && blueprintQuestionCount <= 0) {
-            throw new common_1.BadRequestException('Dynamic randomized quizzes need at least one blueprint section with a target count');
         }
     }
     cleanQuestionIds(questionIds = []) {
         return Array.from(new Set((questionIds || []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
     }
-    resolveRandomizationMode(value) {
-        return value === 'dynamic' ? 'dynamic' : 'static';
-    }
-    getBlueprintQuestionCount(blueprint) {
-        return this.normalizeBlueprintPayload(blueprint).sections.reduce((total, section) => {
-            return total + Math.max(0, Number(section.targetCount || 0));
-        }, 0);
-    }
     resolveQuizQuestionCount(quiz, questionIds = this.cleanQuestionIds(quiz.questionIds)) {
-        return this.resolveRandomizationMode(quiz.randomizationMode) === 'dynamic'
-            ? this.getBlueprintQuestionCount(quiz.blueprint)
-            : questionIds.length;
+        return questionIds.length;
     }
     buildQuizSnapshot(quiz) {
         return {
@@ -907,7 +857,7 @@ let QuizzesService = class QuizzesService {
             lessonId: quiz.lessonId ?? null,
             paperId: quiz.paperId ?? null,
             category: quiz.category || '',
-            collectionTags: this.normalizeKeywords(quiz.collectionTags),
+            collectionTags: '',
             isFree: quiz.isFree === 1 ? 1 : 0,
             subtopic: quiz.subtopic || '',
             isGeneral: quiz.isGeneral,
@@ -918,14 +868,12 @@ let QuizzesService = class QuizzesService {
             quizNumber: quiz.quizNumber ?? null,
             quizTitle: this.resolveStudentTitle(quiz),
             quizDescription: quiz.quizDescription || '',
-            blueprint: this.normalizeBlueprintPayload(quiz.blueprint),
-            randomizationMode: this.resolveRandomizationMode(quiz.randomizationMode),
             timeLimit: quiz.timeLimit,
             hideTimeLimit: quiz.hideTimeLimit,
             passingMarks: this.resolvePassingMarks(quiz.passingMarks),
             hidePassingMarks: quiz.hidePassingMarks,
             status: quiz.status,
-            questionIds: this.resolveRandomizationMode(quiz.randomizationMode) === 'dynamic' ? [] : this.cleanQuestionIds(quiz.questionIds),
+            questionIds: this.cleanQuestionIds(quiz.questionIds),
         };
     }
     buildQuizSnapshotFromEntity(quiz, status) {
@@ -947,8 +895,6 @@ let QuizzesService = class QuizzesService {
             quizNumber: quiz.quizNumber ?? null,
             quizTitle: quiz.quizTitle,
             quizDescription: quiz.quizDescription || '',
-            blueprint: quiz.blueprint || null,
-            randomizationMode: this.resolveRandomizationMode(quiz.randomizationMode),
             timeLimit: Number(quiz.timeLimit),
             hideTimeLimit: quiz.hideTimeLimit === 1 ? 1 : 0,
             passingMarks: this.resolvePassingMarks(quiz.passingMarks),
@@ -966,7 +912,9 @@ let QuizzesService = class QuizzesService {
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            await connection.execute('UPDATE quizzes SET status = ? WHERE id = ?', [input.status, id]);
+            const countsBefore = await (0, quiz_counts_1.readQuizStates)(connection, [id], true);
+            await connection.execute('UPDATE quizzes SET status = ?, content_stamp = content_stamp + 1 WHERE id = ?', [input.status, id]);
+            await (0, quiz_counts_1.applyQuizCountChanges)(connection, countsBefore, await (0, quiz_counts_1.readQuizStates)(connection, [id], false));
             await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(input.actor));
             await this.setWorkflowState(connection, 'quiz', id, input.workflowState, this.getActorId(input.actor));
             await this.recordContentAudit(connection, {
@@ -997,64 +945,41 @@ let QuizzesService = class QuizzesService {
     async writeQuizSnapshot(connection, id, quiz) {
         const questionIds = this.cleanQuestionIds(quiz.questionIds);
         const totalQuestions = this.resolveQuizQuestionCount(quiz, questionIds);
+        const countsBefore = await (0, quiz_counts_1.readQuizStates)(connection, [id], true);
         await connection.execute(`
         UPDATE quizzes SET
+          content_stamp = content_stamp + 1,
           course_id = ?,
           topic_id = ?,
           subtopic_id = ?,
-          lesson_id = ?,
-          paper_id = ?,
           category = ?,
-          collection_tags = ?,
           is_free = ?,
-          subtopic = ?,
           is_general = ?,
-          exam_mode_only = ?,
-          admin_name = ?,
-          student_title = ?,
-          display_title_mode = ?,
           quiz_number = ?,
           quiz_title = ?,
-          quiz_description = ?,
-          blueprint_json = ?,
-          randomization_mode = ?,
           total_questions = ?,
           total_marks = ?,
           time_limit = ?,
-          hide_time_limit = ?,
           passing_marks = ?,
-          hide_passing_marks = ?,
           status = ?
         WHERE id = ?
       `, [
             quiz.courseId,
             quiz.isGeneral === 1 ? null : quiz.topicId ?? null,
             quiz.isGeneral === 1 ? null : quiz.subtopicId ?? null,
-            quiz.isGeneral === 1 ? null : quiz.lessonId ?? null,
-            quiz.paperId ?? null,
             (quiz.category || '').trim() || null,
-            this.normalizeKeywords(quiz.collectionTags),
             quiz.isFree === 1 ? 1 : 0,
-            (quiz.subtopic || '').trim(),
             quiz.isGeneral,
-            quiz.examModeOnly,
-            this.resolveAdminName(quiz),
-            this.resolveStudentTitle(quiz),
-            this.resolveDisplayTitleMode(quiz.displayTitleMode),
             quiz.quizNumber ?? null,
             this.resolveStudentTitle(quiz),
-            (quiz.quizDescription || '').trim(),
-            this.stringifyBlueprint(quiz.blueprint),
-            this.resolveRandomizationMode(quiz.randomizationMode),
             totalQuestions,
             totalQuestions,
             quiz.timeLimit,
-            quiz.hideTimeLimit,
             this.resolvePassingMarks(quiz.passingMarks),
-            quiz.hidePassingMarks,
             quiz.status,
             id,
         ]);
+        await (0, quiz_counts_1.applyQuizCountChanges)(connection, countsBefore, await (0, quiz_counts_1.readQuizStates)(connection, [id], false));
     }
     parseSnapshotJson(value) {
         if (value && typeof value === 'object') {
@@ -1095,8 +1020,6 @@ let QuizzesService = class QuizzesService {
             quizNumber: snapshot.quizNumber ? Number(snapshot.quizNumber) : null,
             quizTitle: String(snapshot.quizTitle || snapshot.studentTitle || ''),
             quizDescription: String(snapshot.quizDescription || ''),
-            blueprint: this.normalizeBlueprintPayload(snapshot.blueprint),
-            randomizationMode: this.resolveRandomizationMode(snapshot.randomizationMode),
             timeLimit: Math.max(1, Number(snapshot.timeLimit || 1)),
             hideTimeLimit: Number(snapshot.hideTimeLimit) === 1 ? 1 : 0,
             passingMarks: this.resolvePassingMarks(Number(snapshot.passingMarks || DEFAULT_PASSING_MARKS)),
@@ -1108,30 +1031,21 @@ let QuizzesService = class QuizzesService {
         };
     }
     async recordContentVersion(connection, entityType, entityId, snapshot, actorId) {
-        const [rows] = await connection.execute('SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?', [entityType, entityId]);
-        const versionNumber = Number(rows[0]?.next_version || 1);
-        await connection.execute('INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)', [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void snapshot;
+        void actorId;
     }
     async setWorkflowState(connection, entityType, entityId, workflowState, actorId) {
-        await connection.execute(`INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         workflow_state = VALUES(workflow_state),
-         updated_by = VALUES(updated_by),
-         updated_at = CURRENT_TIMESTAMP`, [entityType, entityId, workflowState, actorId || null]);
+        void connection;
+        void entityType;
+        void entityId;
+        void workflowState;
+        void actorId;
     }
     async recordContentAudit(connection, event) {
-        await connection.execute(`INSERT INTO content_audit_events
-        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`, [
-            event.entityType,
-            event.entityId,
-            event.action,
-            event.actorId || null,
-            event.summary,
-            event.before === undefined ? null : JSON.stringify(event.before),
-            event.after === undefined ? null : JSON.stringify(event.after),
-        ]);
+        void 0;
     }
     getActorId(actor) {
         if (typeof actor === 'number')
@@ -1154,144 +1068,36 @@ let QuizzesService = class QuizzesService {
         }
     }
     async replaceQuestionLinks(connection, quizId, questionIds) {
+        const before = await (0, quiz_counts_1.linkCountsForQuizzes)(connection, [quizId]);
         await connection.execute('DELETE FROM question_quizzes WHERE quiz_id = ?', [quizId]);
         for (const [index, questionId] of questionIds.entries()) {
             await connection.execute('INSERT INTO question_quizzes (question_id, quiz_id, sort_order) VALUES (?, ?, ?)', [questionId, quizId, index + 1]);
         }
+        const after = new Set(questionIds.map(Number));
+        const changes = [];
+        for (const id of before.keys())
+            if (!after.has(id))
+                changes.push([id, -1]);
+        for (const id of after)
+            if (!before.has(id))
+                changes.push([id, 1]);
+        await (0, quiz_counts_1.bumpQuestionLinkCounts)(connection, changes);
     }
-    async appendKeywordsToQuestions(connection, questionIds, rawKeywords) {
-        const keywords = this.normalizeKeywordArray(rawKeywords);
-        if (keywords.length === 0 || questionIds.length === 0) {
-            return;
-        }
-        for (const questionId of questionIds) {
-            const [questionRows] = await connection.execute('SELECT keywords_text FROM questions WHERE id = ? LIMIT 1', [questionId]);
-            if (!questionRows[0]) {
-                continue;
-            }
-            const nextKeywords = Array.from(new Set([
-                ...this.normalizeKeywordArray(String(questionRows[0].keywords_text || '')),
-                ...keywords,
-            ]));
-            const keywordsText = nextKeywords.join(', ');
-            await connection.execute('UPDATE questions SET keywords_text = ? WHERE id = ?', [keywordsText, questionId]);
-            await connection.execute('DELETE FROM question_keyword_map WHERE question_id = ?', [questionId]);
-            for (const keyword of nextKeywords) {
-                await connection.execute('INSERT IGNORE INTO question_keywords (keyword_name) VALUES (?)', [keyword]);
-                const [keywordRows] = await connection.execute('SELECT id FROM question_keywords WHERE keyword_name = ? LIMIT 1', [keyword]);
-                if (!keywordRows[0]) {
-                    continue;
-                }
-                await connection.execute('INSERT IGNORE INTO question_keyword_map (question_id, keyword_id) VALUES (?, ?)', [questionId, Number(keywordRows[0].id)]);
-            }
-        }
-    }
-    normalizeKeywords(raw) {
-        return this.normalizeKeywordArray(raw).join(', ');
-    }
-    normalizeKeywordArray(raw) {
-        return Array.from(new Set(String(raw || '')
-            .split(',')
-            .map((item) => item.trim())
-            .filter(Boolean)));
+    quizName(quiz) {
+        return String(quiz.studentTitle || quiz.quizTitle || quiz.adminName || '').trim();
     }
     resolveAdminName(quiz) {
-        return String(quiz.adminName || quiz.quizTitle || '').trim();
+        return this.quizName(quiz);
     }
     resolveStudentTitle(quiz) {
-        return String(quiz.studentTitle || quiz.quizTitle || '').trim();
+        return this.quizName(quiz);
     }
-    resolveDisplayTitleMode(value) {
-        return value === 'title' ? 'title' : 'number';
-    }
-    async resolveNextQuizNumber(connection, dto, excludeId) {
-        const isGeneral = dto.isGeneral === 1;
-        const courseId = dto.courseId;
-        const topicId = isGeneral ? null : (dto.topicId ?? null);
-        const subtopicId = isGeneral ? null : (dto.subtopicId ?? null);
-        const lessonId = isGeneral ? null : (dto.lessonId ?? null);
-        let sql = `SELECT COALESCE(MAX(quiz_number), 0) + 1 AS next_number FROM quizzes WHERE display_title_mode = 'number' AND quiz_number IS NOT NULL AND course_id = ?`;
-        const params = [courseId];
-        if (lessonId) {
-            sql += ' AND lesson_id = ?';
-            params.push(lessonId);
-        }
-        else if (subtopicId) {
-            sql += ' AND subtopic_id = ? AND (lesson_id IS NULL OR lesson_id = 0)';
-            params.push(subtopicId);
-        }
-        else if (topicId) {
-            sql += ' AND topic_id = ? AND (subtopic_id IS NULL OR subtopic_id = 0) AND (lesson_id IS NULL OR lesson_id = 0)';
-            params.push(topicId);
-        }
-        else {
-            sql += ' AND (topic_id IS NULL OR topic_id = 0)';
-        }
-        if (excludeId) {
-            sql += ' AND id != ?';
-            params.push(excludeId);
-        }
-        const [rows] = await connection.execute(sql, params);
-        return Number(rows[0]?.next_number || 1);
+    resolveDisplayTitleMode(_value) {
+        return 'title';
     }
     optionalPositiveId(value) {
         const numeric = Number(value);
         return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
-    }
-    normalizeBlueprintPayload(blueprint) {
-        if (!blueprint || typeof blueprint !== 'object') {
-            return { sections: [] };
-        }
-        const rawSections = Array.isArray(blueprint.sections)
-            ? blueprint.sections
-            : [];
-        const sections = rawSections.slice(0, 30).map((rawSection, index) => {
-            const section = rawSection && typeof rawSection === 'object'
-                ? rawSection
-                : {};
-            const targetCount = Number(section.targetCount);
-            return {
-                id: String(section.id || `section-${index + 1}`).trim().slice(0, 80) || `section-${index + 1}`,
-                title: String(section.title || `Section ${index + 1}`).trim().slice(0, 120),
-                targetCount: Number.isFinite(targetCount) ? Math.min(Math.max(Math.trunc(targetCount), 0), 500) : 0,
-                courseId: this.optionalPositiveId(section.courseId),
-                subjectId: this.optionalPositiveId(section.subjectId),
-                topicId: this.optionalPositiveId(section.topicId),
-                lessonId: this.optionalPositiveId(section.lessonId),
-                paperId: this.optionalPositiveId(section.paperId),
-                category: String(section.category || '').trim().slice(0, 80),
-                questionType: ['sba', 'true_false'].includes(String(section.questionType || ''))
-                    ? String(section.questionType)
-                    : '',
-            };
-        });
-        return { sections };
-    }
-    stringifyBlueprint(blueprint) {
-        const normalized = this.normalizeBlueprintPayload(blueprint);
-        return normalized.sections.length > 0 ? JSON.stringify(normalized) : null;
-    }
-    parseBlueprint(raw) {
-        if (!raw) {
-            return { sections: [] };
-        }
-        try {
-            return this.normalizeBlueprintPayload(JSON.parse(raw));
-        }
-        catch {
-            return { sections: [] };
-        }
-    }
-    async getKeywordSuggestions(questionRows) {
-        const [keywordRows] = await this.db.execute('SELECT keyword_name FROM question_keywords ORDER BY keyword_name ASC');
-        const tableKeywords = keywordRows.map((row) => String(row.keyword_name).trim()).filter(Boolean);
-        if (tableKeywords.length > 0) {
-            return tableKeywords;
-        }
-        return Array.from(new Set(questionRows
-            .flatMap((row) => String(row.keywords_text || '').split(','))
-            .map((keyword) => keyword.trim())
-            .filter(Boolean))).sort((left, right) => left.localeCompare(right));
     }
     mapQuiz(row) {
         return {
@@ -1313,8 +1119,6 @@ let QuizzesService = class QuizzesService {
             quizNumber: row.quiz_number ? Number(row.quiz_number) : null,
             quizTitle: String(row.student_title || row.quiz_title || ''),
             quizDescription: row.quiz_description || '',
-            blueprint: this.parseBlueprint(row.blueprint_json),
-            randomizationMode: this.resolveRandomizationMode(row.randomization_mode),
             totalQuestions: Number(row.total_questions || 0),
             totalMarks: Number(row.total_marks || 0),
             timeLimit: Number(row.time_limit || 0),
@@ -1341,16 +1145,7 @@ let QuizzesService = class QuizzesService {
         throw new common_1.BadRequestException('This quiz is included with selected course plans');
     }
     async getQuizAccessProfile(userId) {
-        const [rows] = await this.db.execute(`
-        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json
-        FROM user_subscriptions us
-        INNER JOIN plans ON plans.id = us.plan_id
-        WHERE us.user_id = ?
-          AND us.status = 'active'
-          AND us.start_date <= CURDATE()
-          AND us.end_date >= CURDATE()
-          AND (us.access_expires_at IS NULL OR us.access_expires_at > UTC_TIMESTAMP())
-      `, [userId]);
+        const rows = await (0, subscription_scope_1.getScopeRows)(this.db, userId);
         const profile = {
             hasAnyPaidQuizAccess: rows.length > 0,
             hasFullAccess: false,

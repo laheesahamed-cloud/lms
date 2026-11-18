@@ -278,7 +278,6 @@ const breadcrumbRouteLabels = {
     '/ai-notes': 'Lessons',
     '/announcements': 'Announcements',
     '/reports': 'Reports',
-    '/setup': 'Setup',
     '/settings': 'Settings',
     '/users': 'Users',
   },

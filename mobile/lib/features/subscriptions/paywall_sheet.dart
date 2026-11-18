@@ -206,6 +206,8 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
   Future<bool> _redeem(String transactionId, String jws) async {
     await ref.read(redeemAppleTransactionProvider)(jws);
     await finishIapTransaction(transactionId);
+    freshNext('billing');
+    await forgetSavedStartingWith('course:');
     ref.invalidate(billingProvider);
     // Q-Bank's list is a kept-alive provider (fast repeat visits), so it isn't
     // re-fetched on its own after a purchase — without this it kept showing

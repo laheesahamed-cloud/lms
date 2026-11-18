@@ -7,6 +7,12 @@ export async function fetchUsers(params) {
   return response.data;
 }
 
+// Users page: 50 per page by index ({ items, next }); pass `after` = next to continue.
+export async function fetchUsersPage(params) {
+  const response = await apiClient.get('/admin/users', { params: { ...(params || {}), paged: 1 } });
+  return response.data;
+}
+
 export async function fetchUsersSummary(params) {
   const response = await apiClient.get('/admin/users/summary', { params: params || {} });
   return response.data;

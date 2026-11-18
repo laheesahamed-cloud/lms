@@ -61,6 +61,7 @@ let PlansController = class PlansController {
 exports.PlansController = PlansController;
 __decorate([
     (0, common_1.Get)(),
+    (0, common_1.Header)('Cache-Control', 'public, max-age=60, stale-while-revalidate=300'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)

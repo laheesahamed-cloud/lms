@@ -10,5 +10,6 @@ import { SubscriptionsService } from './subscriptions.service';
   imports: [AuthModule, PlansModule, SettingsModule],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, AppleIapService],
+  exports: [SubscriptionsService],
 })
 export class SubscriptionsModule {}

@@ -14,14 +14,18 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var DrugsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DrugsService = void 0;
+const general_ci_sort_1 = require("../../common/utils/general-ci-sort");
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
+const content_version_1 = require("../../common/utils/content-version");
 let DrugsService = DrugsService_1 = class DrugsService {
     constructor(db) {
         this.db = db;
         this.logger = new common_1.Logger(DrugsService_1.name);
         this.settingsCache = { enabled: true, freeLimit: 5 };
         this.refreshTimer = null;
+        this.drugsCopy = null;
+        this.drugsLoading = null;
     }
     onModuleInit() {
         void this.refreshSettings();
@@ -51,6 +55,47 @@ let DrugsService = DrugsService_1 = class DrugsService {
     }
     getSettings() {
         return { ...this.settingsCache };
+    }
+    async drugs() {
+        const v = await (0, content_version_1.getContentVersion)(this.db);
+        if (this.drugsCopy && this.drugsCopy.v === v)
+            return this.drugsCopy;
+        if (!this.drugsLoading) {
+            this.drugsLoading = (async () => {
+                const [rows] = await this.db.query(`SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric,
+                  side_effects, warnings, drug_interactions, pregnancy_info, sl_brand_names
+             FROM drugs WHERE is_active = 1 AND drug_class IS NOT NULL`);
+                const sorted = [...rows];
+                (0, general_ci_sort_1.sortByName)(sorted, (r) => String(r.name));
+                const copy = {
+                    v,
+                    list: sorted.map((r) => [Number(r.id), String(r.name), String(r.drug_class)]),
+                    byId: new Map(rows.map((r) => [Number(r.id), { ...r }])),
+                };
+                this.drugsCopy = copy;
+                return copy;
+            })().finally(() => { this.drugsLoading = null; });
+        }
+        return this.drugsLoading;
+    }
+    async drugList() {
+        const copy = await this.drugs();
+        return { v: copy.v, drugs: copy.list };
+    }
+    async drugItem(id) {
+        const copy = await this.drugs();
+        return copy.byId.get(Number(id)) || null;
+    }
+    async spinsUsed(userId) {
+        const [rows] = await this.db.execute('SELECT drug_spins_used AS used FROM users WHERE id = ? LIMIT 1', [userId]);
+        return Number(rows[0]?.used ?? 0);
+    }
+    async recordSpins(userId, count) {
+        const n = Math.max(0, Math.min(100, Math.trunc(Number(count) || 0)));
+        if (!n)
+            return;
+        const limit = this.settingsCache.freeLimit;
+        await this.db.execute(`UPDATE users SET drug_spins_used = GREATEST(drug_spins_used, LEAST(drug_spins_used + ?, ?)) WHERE id = ?`, [n, limit, userId]);
     }
     async pickRandomDrugs(count) {
         const [idRows] = await this.db.execute(`SELECT id FROM drugs
@@ -106,33 +151,51 @@ let DrugsService = DrugsService_1 = class DrugsService {
     async recordSpin(userId) {
         await this.db.execute(`UPDATE users SET drug_spins_used = drug_spins_used + 1 WHERE id = ?`, [userId]);
     }
-    async listDrugs(page, limit, search) {
-        const offset = (page - 1) * limit;
-        const like = `%${search}%`;
-        const [[countRows], [rows]] = await Promise.all([
-            this.db.execute(`SELECT COUNT(*) AS total FROM drugs WHERE name LIKE ? OR drug_class LIKE ?`, [like, like]),
-            this.db.execute(`SELECT id, name, drug_class, sl_brand_names, is_active, created_at
-         FROM drugs WHERE name LIKE ? OR drug_class LIKE ?
-         ORDER BY name ASC LIMIT ? OFFSET ?`, [like, like, limit, offset]),
-        ]);
-        return { drugs: rows, total: Number(countRows[0].total), page, limit };
+    async listDrugs(page, limit, search, after) {
+        const take = Math.min(100, Math.max(1, Math.trunc(limit) || 30));
+        const pageNo = Math.max(1, Math.trunc(page) || 1);
+        const columns = 'id, name, drug_class, sl_brand_names, is_active, created_at';
+        if (String(search || '').trim()) {
+            const like = `%${String(search).trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+            const [rows] = await this.db.query(`SELECT ${columns} FROM drugs WHERE name LIKE ? OR drug_class LIKE ? LIMIT 500`, [like, like]);
+            (0, general_ci_sort_1.sortByName)(rows, (r) => String(r.name));
+            return { drugs: rows.slice((pageNo - 1) * take, pageNo * take), total: rows.length, page: pageNo, limit: take };
+        }
+        const keyset = after && Number.isInteger(after.id) && after.id > 0;
+        const [rows] = await this.db.query(`SELECT ${columns} FROM drugs FORCE INDEX (idx_drugs_name_id)
+       ${keyset ? 'WHERE name > ? OR (name = ? AND id > ?)' : ''}
+       ORDER BY name ASC, id ASC LIMIT ?`, keyset ? [after.name, after.name, after.id, take] : [take]);
+        let total = null;
+        if (!keyset) {
+            const [[count]] = await this.db.query('SELECT COUNT(*) AS total FROM drugs');
+            total = Number(count?.total || 0);
+        }
+        return { drugs: rows, total, page: pageNo, limit: take };
+    }
+    async listDrugIds(search) {
+        const q = String(search || '').trim();
+        const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+        const [rows] = await this.db.query(`SELECT id FROM drugs ${q ? 'WHERE name LIKE ? OR drug_class LIKE ?' : ''}`, q ? [like, like] : []);
+        return { ids: rows.map((r) => Number(r.id)) };
     }
     async getDrug(id) {
-        const [rows] = await this.db.execute(`SELECT * FROM drugs WHERE id = ?`, [id]);
+        const [rows] = await this.db.execute(`SELECT id, name, drug_class, uses, dosage_adult, dosage_pediatric, side_effects, warnings,
+              drug_interactions, pregnancy_info, sl_brand_names, is_active, created_at, updated_at
+       FROM drugs WHERE id = ?`, [id]);
         return rows[0] ?? null;
     }
     async createDrug(data) {
         const [result] = await this.db.execute(`INSERT INTO drugs
          (name,drug_class,uses,dosage_adult,dosage_pediatric,side_effects,warnings,drug_interactions,pregnancy_info,sl_brand_names)
        VALUES (?,?,?,?,?,?,?,?,?,?)`, [data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
-            data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names]);
+            data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names].map((v) => v ?? null));
         return { id: result.insertId };
     }
     async updateDrug(id, data) {
         await this.db.execute(`UPDATE drugs SET name=?,drug_class=?,uses=?,dosage_adult=?,dosage_pediatric=?,
        side_effects=?,warnings=?,drug_interactions=?,pregnancy_info=?,sl_brand_names=?
-       WHERE id=?`, [data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
-            data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names, id]);
+       WHERE id=?`, [...[data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
+                data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names].map((v) => v ?? null), id]);
     }
     async toggleDrug(id) {
         await this.db.execute(`UPDATE drugs SET is_active = 1 - is_active WHERE id = ?`, [id]);

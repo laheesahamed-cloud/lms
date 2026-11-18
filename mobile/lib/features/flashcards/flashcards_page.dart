@@ -13,6 +13,7 @@ import '../../data/app_error.dart';
 import '../../widgets/adaptive_sheet.dart';
 import '../../state/saved_first.dart';
 import '../../widgets/time_wheel.dart';
+import '../../widgets/compact_switch.dart';
 
 /// Anki-style flashcards: a deck list with New / Learning / Due counts.
 /// Tap a deck to start an FSRS review session.
@@ -96,7 +97,11 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
         _summary(c, result),
         const SizedBox(height: 12),
         if (allNotes.isNotEmpty)
-          SizedBox(
+          // iPad: a compact, centred button instead of one across the whole
+          // screen (2026-11-17). A phone is narrower, so unchanged.
+          CompactSwitch(
+            maxWidth: 420,
+            child: SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: dueNow + result.totalNew == 0
@@ -111,7 +116,7 @@ class _FlashcardsPageState extends ConsumerState<FlashcardsPage> {
                     '${all > n ? '  \u00B7  ${all - n} more' : ''}';
               }()),
             ),
-          ),
+          )),
         const SizedBox(height: 18),
         _decksRow(
           c,

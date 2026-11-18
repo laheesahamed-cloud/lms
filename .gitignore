@@ -52,3 +52,14 @@ backend/test/*.d.ts
 # Full-site backup archives contain backend/.env — never commit them.
 /backups/
 /lesson-images-upload/
+tools/dev-monitor/TEST_ACCOUNT.local.md
+backend/storage/
+
+# Local content and tools kept out of the repository (v7, 2026-11-18)
+lesson-images-*/
+marketing/
+docs/offline-tutor-mockup/
+backend/sql/drug_backup/
+backend/sql/drugs_clean.sql
+backend/sql/drug_classes.sql
+tools/dev-monitor/runs/

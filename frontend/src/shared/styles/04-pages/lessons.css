@@ -1001,3 +1001,16 @@
 .student-app-shell .student-lessons-filter-chip:active {
   transform: scale(0.96);
 }
+
+/* 10.21: premium lessons live in the app — one quiet line per course. */
+.student-lessons-more-in-app {
+  display: block;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft, rgba(37, 99, 235, 0.08));
+  color: var(--accent, #2563eb);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
