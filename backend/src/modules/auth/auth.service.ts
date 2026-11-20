@@ -12,7 +12,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { decryptSecret } from '../../common/utils/ai-provider.utils';
 import { DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
-import { forgetSessionToken, forgetUserSessions, getCachedResolved, getCachedSession, setCachedResolved, setCachedSession } from './session-cache';
+import { forgetSessionToken, forgetUserCache, forgetUserSessions, getCachedResolved, getCachedSession, setCachedResolved, setCachedSession } from './session-cache';
 import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken, isValidSessionTokenFormat } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -1062,7 +1062,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         [fullName, avatarKey, user.id]
       );
     }
-    forgetUserSessions(user.id);
+    forgetUserCache(user.id);
 
     return {
       ok: true,
@@ -1098,7 +1098,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL`,
       [...params, claims.sub, claims.sid]);
     if (!result.affectedRows) throw new UnauthorizedException('Session is invalid or has expired');
-    forgetUserSessions(claims.sub);
+    forgetUserCache(claims.sub);
     return { ok: true, user: { fullName, avatarKey: avatarKey || '', needsProfileSetup: false } };
   }
 
@@ -1111,7 +1111,7 @@ If you did not try to sign in, you can safely ignore this email.`;
   async completeProfileSetup(authorization: string | undefined) {
     const user = await this.findUserFresh(this.extractToken(authorization));
     await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
-    forgetUserSessions(user.id);
+    forgetUserCache(user.id);
     return {
       ok: true,
       user: await this.serializeUser({ ...user, needs_profile_setup: 0 }),

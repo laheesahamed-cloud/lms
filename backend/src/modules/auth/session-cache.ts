@@ -61,6 +61,17 @@ export function forgetSessionToken(tokenHash: string) {
   revokeSessionAccess(tokenHash);
 }
 
+/** Drop this user's cached rows WITHOUT ending their access tokens. For a
+ * profile save (name, avatar, welcome screen): nothing about the session
+ * changed, and ending the tokens there signed build 3 out after the welcome
+ * screen. */
+export function forgetUserCache(userId: number) {
+  const id = Number(userId);
+  for (const [key, entry] of cache) {
+    if (entry.userId === id) cache.delete(key);
+  }
+}
+
 export function forgetUserSessions(userId: number) {
   const id = Number(userId);
   // Every signed access token issued to this user before now stops working

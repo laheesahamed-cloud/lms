@@ -728,7 +728,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         else {
             await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ?, needs_profile_setup = 0 WHERE id = ?', [fullName, avatarKey, user.id]);
         }
-        (0, session_cache_1.forgetUserSessions)(user.id);
+        (0, session_cache_1.forgetUserCache)(user.id);
         return {
             ok: true,
             user: await this.serializeUser({
@@ -759,13 +759,13 @@ If you did not try to sign in, you can safely ignore this email.`;
         WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL`, [...params, claims.sub, claims.sid]);
         if (!result.affectedRows)
             throw new common_1.UnauthorizedException('Session is invalid or has expired');
-        (0, session_cache_1.forgetUserSessions)(claims.sub);
+        (0, session_cache_1.forgetUserCache)(claims.sub);
         return { ok: true, user: { fullName, avatarKey: avatarKey || '', needsProfileSetup: false } };
     }
     async completeProfileSetup(authorization) {
         const user = await this.findUserFresh(this.extractToken(authorization));
         await this.db.execute('UPDATE users SET needs_profile_setup = 0 WHERE id = ?', [user.id]);
-        (0, session_cache_1.forgetUserSessions)(user.id);
+        (0, session_cache_1.forgetUserCache)(user.id);
         return {
             ok: true,
             user: await this.serializeUser({ ...user, needs_profile_setup: 0 }),

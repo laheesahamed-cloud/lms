@@ -7,6 +7,7 @@ exports.getCachedResolved = getCachedResolved;
 exports.setCachedResolved = setCachedResolved;
 exports.forgetSessionToken = forgetSessionToken;
 exports.forgetUserSessions = forgetUserSessions;
+exports.forgetUserCache = forgetUserCache;
 const access_token_1 = require("../../common/auth/access-token");
 exports.SESSION_CACHE_TTL_MS = 10_000;
 const cache = new Map();
@@ -44,6 +45,13 @@ function setCachedResolved(tokenHash, value, scope) {
 function forgetSessionToken(tokenHash) {
     cache.delete(tokenHash);
     (0, access_token_1.revokeSessionAccess)(tokenHash);
+}
+function forgetUserCache(userId) {
+    const id = Number(userId);
+    for (const [key, entry] of cache) {
+        if (entry.userId === id)
+            cache.delete(key);
+    }
 }
 function forgetUserSessions(userId) {
     const id = Number(userId);
