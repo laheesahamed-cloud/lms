@@ -738,7 +738,12 @@ async function configureApp(app) {
                 return;
             }
             const statusCode = Number(error?.status || error?.statusCode || 401);
-            res.status(statusCode).json({ message: error?.message || 'Access denied' });
+            // Keep the error's own code (ACCESS_TOKEN_EXPIRED): the app renews its
+            // access token on that code and only signs out without it. Dropping it here
+            // signed every student out after the welcome screen (it revokes tokens).
+            const body = typeof error?.getResponse === 'function' ? error.getResponse() : null;
+            const code = body && typeof body === 'object' ? body.code : undefined;
+            res.status(statusCode).json(code ? { statusCode, code, message: error?.message || 'Access denied' } : { message: error?.message || 'Access denied' });
         }
     });
     app.use((req, res, next) => {
