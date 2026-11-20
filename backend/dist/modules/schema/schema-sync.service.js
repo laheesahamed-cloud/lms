@@ -24,7 +24,8 @@ const planner_doc_1 = require("../../common/utils/planner-doc");
 const quiz_counts_1 = require("../../common/utils/quiz-counts");
 const question_content_1 = require("../../common/utils/question-content");
 const subscription_catalog_1 = require("../plans/subscription-catalog");
-exports.CRITICAL_SCHEMA_VERSION = '2026-11-18.2';
+const admin_counters_1 = require("../../common/utils/admin-counters");
+exports.CRITICAL_SCHEMA_VERSION = '2026-11-20.1';
 exports.PAYER_EMAIL_TABLES = [
     'user_subscriptions',
     'subscription_requests',
@@ -845,6 +846,25 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
              JOIN subscription_features sf ON sf.id = spf.feature_id
             WHERE sf.feature_key = 'dynamic_quiz_randomization'`);
                 await conn.query(`DELETE FROM subscription_features WHERE feature_key = 'dynamic_quiz_randomization'`);
+            });
+            await step('admin counters table', async () => {
+                await conn.query(`CREATE TABLE IF NOT EXISTS admin_counters (
+             name VARCHAR(80) NOT NULL PRIMARY KEY,
+             value BIGINT NOT NULL DEFAULT 0
+           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+                const [[has]] = await conn.query('SELECT COUNT(*) AS n FROM admin_counters');
+                if (!Number(has?.n))
+                    await (0, admin_counters_1.rebuildAdminCountersOn)(conn);
+            });
+            await step('summary last-active index', async () => {
+                await this.ensureIndex(conn, 'student_study_summary', 'idx_summary_last_active', 'last_active_day');
+            });
+            await step('ecg topic card count', async () => {
+                const [cols] = await conn.execute(`SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecg_topics' AND COLUMN_NAME = 'card_count'`);
+                if (!cols.length) {
+                    await conn.query('ALTER TABLE ecg_topics ADD COLUMN card_count INT UNSIGNED NOT NULL DEFAULT 0');
+                    await conn.query('UPDATE ecg_topics t SET t.card_count = (SELECT COUNT(*) FROM ecg_cards c WHERE c.topic_id = t.id)');
+                }
             });
             if (failed === 0) {
                 await step('record critical_schema_version', () => conn.execute(`INSERT INTO system_settings (setting_key, setting_value) VALUES ('critical_schema_version', ?)

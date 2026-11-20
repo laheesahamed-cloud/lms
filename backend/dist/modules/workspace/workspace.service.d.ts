@@ -279,6 +279,7 @@ export declare class WorkspaceService {
     private logAdminAuditEvent;
     private normalizeAdminReportFilters;
     private appendDateFilter;
+    private inactiveStudents;
     private lessonBitmapStats;
     private appendUserFilter;
     private appendCourseFilter;

@@ -18,6 +18,7 @@ const general_ci_sort_1 = require("../../common/utils/general-ci-sort");
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
 const content_version_1 = require("../../common/utils/content-version");
+const admin_counters_1 = require("../../common/utils/admin-counters");
 let DrugsService = DrugsService_1 = class DrugsService {
     constructor(db) {
         this.db = db;
@@ -167,8 +168,7 @@ let DrugsService = DrugsService_1 = class DrugsService {
        ORDER BY name ASC, id ASC LIMIT ?`, keyset ? [after.name, after.name, after.id, take] : [take]);
         let total = null;
         if (!keyset) {
-            const [[count]] = await this.db.query('SELECT COUNT(*) AS total FROM drugs');
-            total = Number(count?.total || 0);
+            total = (await (0, admin_counters_1.readCounters)(this.db, 'drugs:total')).get('drugs:total') ?? 0;
         }
         return { drugs: rows, total, page: pageNo, limit: take };
     }
@@ -189,6 +189,7 @@ let DrugsService = DrugsService_1 = class DrugsService {
          (name,drug_class,uses,dosage_adult,dosage_pediatric,side_effects,warnings,drug_interactions,pregnancy_info,sl_brand_names)
        VALUES (?,?,?,?,?,?,?,?,?,?)`, [data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
             data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names].map((v) => v ?? null));
+        await (0, admin_counters_1.bumpCounter)(this.db, 'drugs:total', 1);
         return { id: result.insertId };
     }
     async updateDrug(id, data) {
@@ -237,10 +238,14 @@ let DrugsService = DrugsService_1 = class DrugsService {
                 skipped++;
             }
         }
+        if (inserted)
+            await (0, admin_counters_1.bumpCounter)(this.db, 'drugs:total', inserted);
         return { inserted, skipped };
     }
     async deleteDrug(id) {
-        await this.db.execute(`DELETE FROM drugs WHERE id = ?`, [id]);
+        const [res] = await this.db.execute(`DELETE FROM drugs WHERE id = ?`, [id]);
+        if (res.affectedRows > 0)
+            await (0, admin_counters_1.bumpCounter)(this.db, 'drugs:total', -res.affectedRows);
     }
     async updateFeatureSettings(enabled, freeLimit) {
         await Promise.all([

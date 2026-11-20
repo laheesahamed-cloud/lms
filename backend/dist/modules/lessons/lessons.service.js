@@ -36,6 +36,7 @@ const mobile_client_util_1 = require("../../common/utils/mobile-client.util");
 const mobile_text_layout_1 = require("./mobile-text-layout");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 const lesson_bits_1 = require("../../common/utils/lesson-bits");
+const admin_counters_1 = require("../../common/utils/admin-counters");
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
 const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
@@ -934,11 +935,16 @@ let LessonsService = LessonsService_1 = class LessonsService {
             if (action.step === 'set') {
                 if (!Array.isArray(action.subjectIds))
                     throw new common_1.BadRequestException('subjectIds is required');
-                return await (0, structure_counts_1.runCountFixSet)(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
+                const out = await (0, structure_counts_1.runCountFixSet)(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
+                if (Array.isArray(action.finish))
+                    await (0, admin_counters_1.rebuildAdminCounters)(this.db);
+                return out;
             }
             if (!Array.isArray(action.courses))
                 throw new common_1.BadRequestException('courses is required');
-            return await (0, structure_counts_1.finishCountFix)(this.db, action.runId, action.courses);
+            const finished = await (0, structure_counts_1.finishCountFix)(this.db, action.runId, action.courses);
+            await (0, admin_counters_1.rebuildAdminCounters)(this.db);
+            return finished;
         }
         catch (error) {
             if (error instanceof structure_counts_1.CountFixBusyError)

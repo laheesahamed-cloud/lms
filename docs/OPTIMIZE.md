@@ -1462,7 +1462,7 @@ Already small. Check examined = returned at each page's turn (OSCE systems 67 �
 3. **Dashboard:** ✅ **remove the unused "added per day" charts** (P3). The dashboard becomes 1 request with the 4 totals from stored counters.
 4. **Setup page:** ✅ **remove the whole page.** It was a health check (database connected, tables present, settings filled in, row count per table = 15,957 rows per open). The admin checks these in cPanel / phpMyAdmin instead. P8 becomes: remove the admin route, menu item, frontend page and `GET /admin/setup` (backend `modules/setup`), with 0 queries left.
 
-### 9.8 Admin re-measure and next round (2026-11-16) — 📝 decisions settled; runs after the 10.16 website phase (9.9 T3)
+### 9.8 Admin re-measure and next round (2026-11-16) — 📝 decisions settled; runs after the 10.16 website phase (9.9 T3) — ➡️ approved and carried into 10.57 (2026-11-20)
 
 Measured with the live monitor (all clients) on the local copy. The admin website ran on `localhost:5175` against the traced backend on `:3200`. Each page was opened from the menu, the way an admin moves around. Requests · Statements · Rows examined → returned.
 
@@ -4000,10 +4000,245 @@ The app uses only `currentSubscription` (plan name, status, free/unlimited flags
 - Repeat opens the same day stay 0 requests (the app's once-a-day saved copy).
 - Deploy: backend dist + an app build (older app builds keep working; they just get the full reply).
 
+### 10.57 Admin round 2: every page cold-measured, Reports + Gemini + counters — ✅ BUILT locally 2026-11-20 (not committed, not deployed)
+
+**Decisions**
+- ✅ User 2026-11-20: "Ok, we will apply". This covers every item below. It includes the 9.8 items that were already decided but never built (Reports on the summary row, stored admin counters, small fixes).
+- 9.8 decisions still apply:
+  - D1 "hardest questions" from the 5 recent results;
+  - D2 inactive students and active-per-day from the summary row;
+  - D3 the admin session check stays.
+
+**Aims**
+- Every admin page cold open: rows examined ≈ rows returned, and nothing over 1,000 rows.
+- No page loads lists it only needs after a click.
+- A "not changed" (304) reply costs no more than the stored counters it reads.
+
+**Before** (local, 2026-11-20). Each page was loaded cold, in a fresh frame. The admin website was `localhost:5175` with the traced backend on `:3200` and the monitor in all-clients mode. Requests · Statements · Rows examined → returned (page requests only):
+
+| Page | Requests | Statements | Rows examined | Rows returned | vs 9.8 (16 Nov) |
+|---|---|---|---|---|---|
+| Reports | 2 | 13 | 5,143 | 3,046 | 9,644 → 5,143 (10.44) |
+| Gemini AI | 1 | 5 | 4,007 | 1,835 (33 KB) | not measured |
+| Subscriptions | 3 | 11 | 537 | 126 | unchanged |
+| Drugs | 2 | 4 | 389 | 33 | unchanged |
+| Dashboard | 1 | 10 | 323 | 17 | unchanged |
+| Finance | 3 | 5 | 230 | 159 | ✅ allowed |
+| Users | 2 | 6 | 166 | 56 | unchanged |
+| Assessments | 2 | 6 | 104 | 104 | ✅ |
+| OSCE | 2 | 3 | 93 | 12 | unchanged |
+| Questions | 2 | 6 | 69 | 69 | ✅ |
+| ECG | 1 | 1 | 23 | 11 | unchanged |
+| Roles | 1 | 1 | 12 | 6 | ✅ |
+| Structure · Question reports · Auscultation · Announcements · Settings | 1 each | 1–2 | 0–4 | = examined | ✅ |
+| Shell on every cold page (start-up + availability) | 2 | 1 | 1 | 1 | was +4 · +12 · +323 ✅ |
+| **All 17 pages** | **78** | **94** | **11,120** | **5,498** | |
+
+Where the rows go:
+- **Reports:**
+  - the lessons list is read twice (1,494 + 1,494);
+  - lessons per course counts every lesson (1,510 → 4);
+  - "inactive students" still joins the old activity tables (226 → 10, 136 ms);
+  - the summary `lessons_done` is read twice;
+  - the users count reads 113 rows for 1.
+- **Gemini AI** (`/admin/questions/meta` full form):
+  - every active lesson (2,988 → 1,494, 112 ms);
+  - every subtopic joined to topics (917 → 290);
+  - courses and topics with filesort (8 → 4, 94 → 47).
+- **Dashboard:**
+  - users by role/status (113 → 3);
+  - active subscriptions count (192 → 1).
+- **Subscriptions:**
+  - overview: students count (107 → 1), subscription totals (222 → 1);
+  - plans: features with `FIELD` order (70 → 35), plan↔feature links (63 → 63).
+- **Drugs:** `COUNT(*) FROM drugs` (357 → 1).
+- **Users summary:** users by role/status (113 → 3).
+- **OSCE:** subject count joins every topic (59 → 4); category case counts (8 → 2).
+- **ECG:** card count subquery per topic (23 → 11).
+- **Assessments:** `quizzes/meta` and `quizzes/summary` both read courses (4) and topics (47), so the same data is read twice.
+- **304 replies** (Subscriptions overview, Users summary, Courses) run every query before they find nothing changed.
+- **The session row** read on admin requests includes the `password` hash, which the check doesn't use.
+
+**Plan**
+1. **Gemini AI form:** opens with courses and topics only. Subtopics and lessons load for the picked topic only (`WHERE topic_id = ?`, indexed), and are kept in page memory per topic.
+2. **Assessments:** one request returns courses and topics with their quiz totals. The page stops calling `quizzes/meta` separately.
+3. **Reports on the summary row** (9.8 step 4):
+   - lessons per course from `courses.lesson_count`;
+   - the lessons list is not read (the course id comes from the summary / stored counts);
+   - inactive students and active-per-day from `last_active_day` and the 14-day ring;
+   - each summary column is read once;
+   - user counts from the counters row.
+4. **Stored admin counters** (9.8 step 3), in one small row:
+   - students / staff / pending by role and status;
+   - active / expired / expiring subscriptions and their totals;
+   - drugs total.
+
+   The row is adjusted in the same statement as each change, and Fix counts rebuilds it. It serves the Dashboard, the Users summary, the Subscriptions overview and the Drugs total. Their 304 replies are then based on the row, with no recount.
+5. **Small fixes** (9.8 step 5):
+   - OSCE subject count from stored `courses` counts;
+   - ECG card count stored on the topic (adjusted on card add / delete);
+   - plan features read with exact rows (no `FIELD` filesort over every feature);
+   - Settings and Question reports keep their current 1 statement.
+6. **Session row:** name the columns the check needs and drop `password`. The check itself stays (D3).
+7. **Saves** that touch the new counters (user create / delete / status, subscription assign / approve / expire, drug add / delete, ECG card add / delete) are measured before and after.
+8. Re-run the same 17-page cold sweep and record the After numbers here.
+
+**Changes (files)** — planned (built list below under After)
+- Backend (`.ts` + compiled dist):
+  - `admin` questions-meta (form mode + per-topic subtopics / lessons);
+  - quizzes summary;
+  - `reports` service;
+  - `admin/dashboard`;
+  - users summary;
+  - subscriptions overview + plans;
+  - drugs;
+  - ECG topics;
+  - OSCE systems;
+  - auth session read;
+  - schema step for the counters row and the ECG card count (bump `CRITICAL_SCHEMA_VERSION`);
+  - Fix counts.
+- Frontend:
+  - Gemini / ChatGPT AI pages (load on topic pick);
+  - Assessments page (one request).
+
+**Targets** (≈ = estimate)
+
+| Page | Before (Req · Stmt · Rows examined → returned) | Target |
+|---|---|---|
+| Reports | 2 · 13 · 5,143 → 3,046 | 2 · ≤ 6 · ≈ 70 |
+| Gemini AI | 1 · 5 · 4,007 → 1,835 | 1 · 3 · ≈ 55 on open (+ ≈ 10–40 per topic picked) |
+| Subscriptions | 3 · 11 · 537 → 126 | 3 · ≤ 7 · ≈ 150 |
+| Drugs | 2 · 4 · 389 → 33 | 2 · 3 · ≈ 32 |
+| Dashboard | 1 · 10 · 323 → 17 | 1 · ≤ 5 · ≈ 20 |
+| Users | 2 · 6 · 166 → 56 | 2 · 4 · ≈ 56 |
+| Assessments | 2 · 6 · 104 → 104 | 1 · 3 · 52 |
+| OSCE | 2 · 3 · 93 → 12 | 2 · 3 · ≈ 20 |
+| ECG | 1 · 1 · 23 → 11 | 1 · 1 · 11 |
+| **All 17 pages** | **78 · 94 · 11,120 → 5,498** | **≈ 77 · ≈ 70 · ≈ 850** |
+
+**Changes (files)** — built
+- New `backend/src/common/utils/admin-counters.ts`:
+  - table `admin_counters (name, value)` with keys `users:{role}:{status}` (live accounts), `subs:{plan}:{payment_status}:{status}` (subscriptions whose student row exists) and `drugs:total`;
+  - `trackSubscriptionChange` reads the rows an UPDATE will touch (by its own WHERE), then the same rows by id, and moves the counts;
+  - `rebuildAdminCounters` (3 grouped reads).
+- Subscriptions are counted per plan, so the "free plan" rule (from the plan's price) is applied when reading and can change without the counters going wrong.
+- Writes that keep the counters:
+  - `auth.service`: sign-up, Google and Apple first sign-in, free plan on sign-up, account delete (user −1 and its subscriptions cancelled);
+  - `users.service`: admin create, status change (live accounts only), role change, free plan on admin create;
+  - `subscriptions.service`: create (cancel-existing + insert), extend, cancel, payment update, Apple grace / renewal / expiry;
+  - `drugs.service`: create, import (+inserted), delete.
+- Reads:
+  - Admin Hub users and active subscriptions;
+  - Users summary;
+  - Subscriptions overview: students and paid totals, plus expiring soon read by the `(status, end_date)` index;
+  - Drugs total;
+  - Reports users and subscriptions by status (no filters).
+- `schema-sync.service`, version `2026-11-20.1`, three steps:
+  - `admin_counters` created and filled;
+  - `ecg_topics.card_count` added and filled;
+  - index `idx_summary_last_active` on `student_study_summary(last_active_day)`.
+- Fix counts (Structure page) rebuilds the admin counters at its last step (`lessons.service`).
+- `workspace.service` (Reports):
+  - one bitmap pass shared by the lesson total and the course funnel;
+  - the course of the finished lessons only (by id), not every lesson;
+  - lessons per course = `courses.lesson_count`;
+  - inactive students: never-active first (walking user ids, stops at 10), then by the new index; deleted accounts left out.
+- `quizzes.controller` / `quizzes.service`: `GET /admin/quizzes/summary?withFolders=1` returns folder rows + courses + subjects from the same two reads.
+- `ecg.service`: stored `card_count` (+1 on add, −1 on delete); topics sorted in the app.
+- `osce.service`: `courses.subject_count`.
+- `plans.service`: plans and features sorted in the app (no `FIELD` sort pass).
+- `auth.service` session reads: named columns without the password hash (3 queries).
+- Frontend:
+  - `AiQuizGeneratorPage.jsx` (Gemini + ChatGPT): opens with `meta?scope=folders`; topics and lessons load per picked subject (`meta/subject`), kept for the visit;
+  - `QuizzesPage.jsx`: the first load uses `summary?withFolders=1`; `meta?scope=folders` only as a fallback.
+- Not changed: `BulkQuestionInputPage.jsx` still loads the full editor lists. It is not in the 17-page menu sweep; noted for a later round.
+
+**After** (same 17-page cold sweep, 2026-11-20, page requests only):
+
+| Page | Before (Req · Stmt · Rows examined → returned) | After |
+|---|---|---|
+| Reports | 2 · 13 · 5,143 → 3,046 | **2 · 11 · 133 → 92** |
+| Gemini AI | 1 · 5 · 4,007 → 1,835 (33 KB) | **1 · 4 · 52 → 52**; picking a subject: 1 · 4 · 40 → 40 (Cardiology) |
+| Subscriptions | 3 · 11 · 537 → 126 | **3 · 12 · 188 → 144** |
+| Drugs | 2 · 4 · 389 → 33 | **2 · 4 · 33 → 33** |
+| Dashboard | 1 · 10 · 323 → 17 | **1 · 10 · 42 → 36** |
+| Users | 2 · 6 · 166 → 56 | **2 · 6 · 57 → 57** |
+| Assessments | 2 · 6 · 104 → 104 | **1 · 3 · 52 → 52** |
+| OSCE | 2 · 3 · 93 → 12 | **2 · 3 · 38 → 12** |
+| ECG | 1 · 1 · 23 → 11 | **1 · 1 · 11 → 11** (after the in-app sort; the sweep run itself read 22) |
+| Finance · Questions · Roles · the small pages | unchanged | unchanged |
+| **All 17 pages** | **78 · 94 · 11,120 → 5,498** | **79 · 86 · 963 → 758** |
+
+- Every page shows the same figures as before (Users 61 / 60 active / 1 pending; Subscriptions 55 students / 1 pending; 659 assessments).
+- The stored counters were compared with a full recount after the save run: identical.
+- Targets missed:
+  - Dashboard is 10 statements (target ≤ 5), at 42 rows. The 18 subscription counter rows are most of them.
+  - Subscriptions overview went from 6 to 7 statements: the expiring-soon read is now its own small indexed read, at 0 rows today.
+- Gemini's open read was served from the admin read memory in the sweep. Measured on its own it is 4 · 52 → 52, the same as the Questions page folder read.
+
+**Saves** (foreground statements · rows examined, before → after; the catalogue rebuild is shown separately):
+
+| Save | Before | After |
+|---|---|---|
+| Admin create student | 5 · 2 | 7 · 2 |
+| User status change | 2 · 2 | 3 · 2 |
+| Assign subscription | 7 · 145 | 11 · 107 |
+| Cancel subscription | 3 · 2 | 6 · 4 |
+| Delete user (+ cancel their subscriptions) | 8 · 9 | 10 · 11 |
+| Drug create / delete | 1 · 0 / 1 · 1 | 2 · 0 / 2 · 1 |
+| ECG card add / delete | 2 · 1 / 1 · 1 | 3 · 2 / 3 · 3 |
+
+**Found while measuring (not part of 10.57, nothing changed):**
+- Every `/api/admin/*` save raises the catalogue version (`isCatalogueWrite` in `content-version.ts` matches the whole `/api/admin` prefix). That includes users, drugs, ECG and subscriptions saves, none of which is in the students' lists.
+- Each raise:
+  - rebuilds the catalogue snapshots in the background, about 17 statements and ≈ 5,500 rows (structure, flashcard stamps, quiz list);
+  - makes every phone re-download its lists on its next open.
+- Proposal for the user: limit the prefix to the content routes. ➡️ Approved and built as 10.58.
+
+### 10.58 Admin account / subscription saves no longer raise the catalogue version — ✅ BUILT locally 2026-11-20 (not committed, not deployed)
+
+**Decisions**
+- ✅ User 2026-11-20: "Yes, fix it". This answers the finding at the end of 10.57.
+- Correction to that finding: drugs, ECG, OSCE and auscultation saves **keep** raising the version. The drug list students get is cached per version (`drugs.service`, 10.19), and those are study-tool content. The waste was the non-content admin resources only.
+
+**Aims**
+- An admin save of an account, subscription, setting or report status should cost only the save itself.
+- No catalogue rebuild, and no phone re-download, unless student content actually changed.
+
+**Before** (local, monitor in all-clients mode). Requests · Statements · Rows examined → returned:
+
+| Save | Before |
+|---|---|
+| User status change (`PATCH /api/admin/users/:id/status`) | 1 · 10 · 1,849 → 1,848 (the save is 3 statements / 2 rows; +2 for the version bump; +5 for the structure rebuild, 1,846 rows) |
+| Admin create student (`POST /api/admin/users`) | 1 · 14 · 1,849 → 1,849 |
+
+Each one also raised `content_version` (431 → 433 across the two saves), so every phone re-downloads its lists on its next open.
+
+**Plan / Changes (built)**
+- `content-version.ts`, `isCatalogueWrite`: `/api/admin/<resource>` no longer counts as a catalogue write for `users`, `subscriptions`, `settings`, `reports`, `question-reports`, `question-review`, `dashboard` or `ai`. The middleware sees the path before the `/api/admin` rewrite, so these resources were all caught by the `/api/admin` prefix.
+  - `question-reports` only writes `question_reports.status`.
+  - `ai` only generates text. The save that follows goes through `questions` / `lessons` and still bumps.
+- Still bumping: `drugs`, `ecg`, `osce`, `auscultation`, `plans`, `lessons`, `questions`, `quizzes`, `courses`, `topics`, `subtopics`, `papers`, `theory-recap`, `ai-notes`. These were checked one by one against the new rule.
+
+**After** (same saves, backend restarted on the new dist):
+
+| Save | Before | After |
+|---|---|---|
+| User status change | 1 · 10 · 1,849 → 1,848 | **1 · 3 · 2 → 1** |
+| Admin create student | 1 · 14 · 1,849 → 1,849 | **1 · 7 · 2 → 2** |
+
+- `content_version` stayed at 433, and background work was 0 statements.
+- The test users were soft-deleted afterwards. The `users:student:*` counters still match a full recount (54 active, 1 inactive).
+
+**Targets:** a non-content admin save = the save's own statements only ✅. Content saves are unchanged, and they still raise the version ✅.
+
 ## 8. Change log
 
 | Date | Change |
 |---|---|
+| 2026-11-20 | 10.58 built locally: admin user / subscription / settings / report saves no longer raise the catalogue version (status change 10 · 1,849 → 3 · 2; create student 14 · 1,849 → 7 · 2; no phone re-download). Drugs, ECG, OSCE, auscultation and all content routes still raise it. |
+| 2026-11-20 | 10.57 built locally: all 17 admin pages 11,120 → 963 rows examined (Reports 5,143 → 133, Gemini 4,007 → 52, Subscriptions 537 → 188, Dashboard 323 → 42, Drugs 389 → 33); stored admin counters match a full recount; found: every /api/admin save rebuilds the catalogue (≈ 5,500 rows). |
+| 2026-11-20 | 10.57 approved: all 17 admin pages measured cold (78 · 94 · 11,120 → 5,498); Gemini AI form loads lessons per topic (4,007 → ≈ 55), Assessments one request, plus the 9.8 Reports / counters / small fixes; target ≈ 850 rows for the whole sweep. |
 | 2026-11-16 | 10.24 planned: lists by course on demand (index carries counts), Study Hub without the quiz list, saved items and subscriptions examined = returned, lower cards from start-up; phone lists checked (649 sets 188 ms, 1,478 lessons 251 ms). |
 | 2026-11-16 | 10.24 lists-by-course stopped (user: keep the two lists); its server extras (hub, course stats, index counts) and phone loaders removed; subscriptions index, saved-items rows and the shared index request kept. |
 | 2026-11-16 | 10.25: lists 40.4 → 30.2 KB (format 5: id gaps, one-name quiz rows, Q-Bank topics trimmed); one quiz name (admin form, saves, schema step); bookmarks on the device (phone + website, 0 requests); website Courses 5 requests 36 KB → 1 request 0.3 KB; open site 7 · 12 → 6 · 9. |

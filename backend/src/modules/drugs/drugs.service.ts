@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { getContentVersion } from '../../common/utils/content-version';
+import { bumpCounter, readCounters } from '../../common/utils/admin-counters';
 
 export interface DrugsSettings {
   enabled: boolean;
@@ -243,8 +244,8 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
       keyset ? [after!.name, after!.name, after!.id, take] : [take]);
     let total: number | null = null;
     if (!keyset) {
-      const [[count]] = await this.db.query<RowDataPacket[]>('SELECT COUNT(*) AS total FROM drugs');
-      total = Number(count?.total || 0);
+      // 10.57: the stored total (one row), not a count over every drug.
+      total = (await readCounters(this.db, 'drugs:total')).get('drugs:total') ?? 0;
     }
     return { drugs: rows, total, page: pageNo, limit: take };
   }
@@ -276,6 +277,7 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
       [data.name, data.drug_class, data.uses, data.dosage_adult, data.dosage_pediatric,
        data.side_effects, data.warnings, data.drug_interactions, data.pregnancy_info, data.sl_brand_names].map((v) => v ?? null),
     );
+    await bumpCounter(this.db, 'drugs:total', 1); // 10.57
     return { id: result.insertId };
   }
 
@@ -326,11 +328,13 @@ export class DrugsService implements OnModuleInit, OnModuleDestroy {
         if (res.affectedRows > 0) inserted++; else skipped++;
       } catch { skipped++; }
     }
+    if (inserted) await bumpCounter(this.db, 'drugs:total', inserted); // 10.57
     return { inserted, skipped };
   }
 
   async deleteDrug(id: number) {
-    await this.db.execute(`DELETE FROM drugs WHERE id = ?`, [id]);
+    const [res] = await this.db.execute<any>(`DELETE FROM drugs WHERE id = ?`, [id]);
+    if (res.affectedRows > 0) await bumpCounter(this.db, 'drugs:total', -res.affectedRows); // 10.57
   }
 
   async updateFeatureSettings(enabled: boolean, freeLimit: number) {

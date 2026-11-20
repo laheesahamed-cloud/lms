@@ -41,7 +41,10 @@ let QuizzesController = class QuizzesController {
             offset: this.parseNonNegativeNumber(offset),
         });
     }
-    summary(search, courseId, topicId, status) {
+    summary(search, courseId, topicId, status, withFolders) {
+        if (withFolders === '1' && !search?.trim() && !courseId && !topicId && !status) {
+            return this.quizzesService.summaryWithFolders();
+        }
         return this.quizzesService.summary({
             search,
             courseId: courseId ? parseInt(courseId, 10) : undefined,
@@ -143,8 +146,9 @@ __decorate([
     __param(1, (0, common_1.Query)('courseId')),
     __param(2, (0, common_1.Query)('topicId')),
     __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('withFolders')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuizzesController.prototype, "summary", null);
 __decorate([

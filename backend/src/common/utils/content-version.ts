@@ -89,5 +89,12 @@ export function isCatalogueWrite(method: string, path: string) {
   // Announcements, notices and push settings are not catalogue content: they
   // must not make every phone re-download its lists.
   if (/\/(announcements|notifications|push)(\/|$)/.test(path)) return false;
+  // 10.58: the admin website saves through /api/admin/<resource> (rewritten
+  // later). Accounts, subscriptions, coupons, settings, reports and the hub
+  // are not catalogue content: a user or subscription save used to raise the
+  // version, rebuild the student lists (~1,850 rows) and make every phone
+  // re-download them. Drugs, ECG, OSCE, auscultation, plans and all lesson /
+  // question resources still raise it.
+  if (/^\/api\/admin\/(users|subscriptions|settings|reports|question-reports|question-review|dashboard|ai)(\/|$)/.test(path)) return false;
   return CATALOGUE_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix + '/'));
 }

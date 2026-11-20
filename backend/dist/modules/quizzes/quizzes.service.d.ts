@@ -34,6 +34,26 @@ export declare class QuizzesService {
         total: number;
         active: number;
     }[]>;
+    summaryWithFolders(): Promise<{
+        rows: {
+            courseId: number;
+            courseTitle: string;
+            isGeneral: boolean;
+            topicId: number | null;
+            subjectName: string;
+            total: number;
+            active: number;
+        }[];
+        courses: {
+            id: number;
+            courseTitle: string;
+        }[];
+        subjects: {
+            id: number;
+            courseId: number;
+            subjectName: string;
+        }[];
+    }>;
     private summaryFromStoredCounts;
     findAll(filters: {
         search?: string;

@@ -341,7 +341,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "completed" | "not_started" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -539,7 +539,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "completed" | "not_started" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -586,7 +586,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "completed" | "not_started" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

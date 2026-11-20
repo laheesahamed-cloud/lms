@@ -232,7 +232,7 @@ function GlyphPulse() {
 }
 
 const HERO_LINES = [
-  { label: 'All in one clinical platform for medicos', icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>) },
+  { label: 'One clinical platform for medicos', icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>) },
   { label: 'Learn, practise and test', icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" /><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20" /></svg>) },
 ];
 
@@ -396,11 +396,13 @@ export function CinematicHero({
           {tagline1}
         </h1>
         <h1 className="text-days gsap-reveal text-grad-cta text-5xl md:text-7xl lg:text-[6rem] font-extrabold tracking-tighter">{tagline2}</h1>
-        <div className="hero-accents gsap-reveal mt-6 flex flex-col items-center gap-4">
-          <p className="whitespace-nowrap text-[clamp(10.5px,3.1vw,16px)] font-medium leading-relaxed text-white/65">
+        <div className="hero-accents gsap-reveal mt-3 flex flex-col items-center gap-4">
+          {/* The two short lines sit right under the all-in-one line (tight gap); the links keep the wider gap below. */}
+          <div className="flex flex-col items-center gap-1.5">
+          <p className="m-0 whitespace-nowrap text-[clamp(10.5px,3.1vw,16px)] font-medium leading-relaxed text-white/65">
             The all-in-one study app for Sri Lankan medical students.
           </p>
-          <ul className="m-0 flex w-full list-none flex-col items-center gap-2.5 p-0 text-center">
+          <ul className="m-0 flex w-full list-none flex-col items-center gap-1.5 p-0 text-center">
             {HERO_LINES.map((line, i) => (
               <li key={line.label} style={{ '--i': i }} className={cx('cin-point inline-flex items-center gap-2.5 text-[13px] font-medium leading-none text-white/75', animationReady && 'is-in')}>
                 <span className="inline-flex shrink-0 items-center justify-center leading-none text-[#a99cff]">{line.icon}</span>
@@ -408,6 +410,7 @@ export function CinematicHero({
               </li>
             ))}
           </ul>
+          </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
             {/* The free demo (/try): one lesson, one practice set and one exam

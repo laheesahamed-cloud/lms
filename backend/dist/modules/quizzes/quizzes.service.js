@@ -96,18 +96,35 @@ let QuizzesService = class QuizzesService {
             active: Number(row.active_count || 0),
         }));
     }
-    async summaryFromStoredCounts(filters) {
+    async summaryWithFolders() {
+        const folders = { courses: [], subjects: [] };
+        const rows = await this.summaryFromStoredCounts({}, folders);
+        const courses = folders.courses.filter((r) => r.status === 'active');
+        const subjects = folders.subjects.filter((r) => r.status === 'active');
+        (0, general_ci_sort_1.sortByName)(courses, (r) => String(r.course_title));
+        (0, general_ci_sort_1.sortByName)(subjects, (r) => String(r.topic_name));
+        return {
+            rows,
+            courses: courses.map((row) => ({ id: Number(row.id), courseTitle: String(row.course_title) })),
+            subjects: subjects.map((row) => ({ id: Number(row.id), courseId: Number(row.course_id), subjectName: String(row.topic_name) })),
+        };
+    }
+    async summaryFromStoredCounts(filters, folders) {
         const courseWhere = filters.courseId && filters.courseId > 0 ? 'WHERE id = ?' : '';
         const courseParams = courseWhere ? [filters.courseId] : [];
-        const [courses] = await this.db.query(`SELECT id, course_title, quiz_general_total, quiz_general_active, quiz_unfiled_total, quiz_unfiled_active FROM courses ${courseWhere}`, courseParams);
+        const [courses] = await this.db.query(`SELECT id, course_title, status, quiz_general_total, quiz_general_active, quiz_unfiled_total, quiz_unfiled_active FROM courses ${courseWhere}`, courseParams);
         const subjectFilter = filters.topicId === 'general'
             ? null
             : filters.topicId ? { sql: 'WHERE id = ?', params: [Number(filters.topicId)] }
                 : courseWhere ? { sql: 'WHERE course_id = ?', params: courseParams }
                     : { sql: '', params: [] };
         const [subjects] = subjectFilter
-            ? await this.db.query(`SELECT id, course_id, topic_name, quiz_total, quiz_active FROM topics ${subjectFilter.sql}`, subjectFilter.params)
+            ? await this.db.query(`SELECT id, course_id, topic_name, status, quiz_total, quiz_active FROM topics ${subjectFilter.sql}`, subjectFilter.params)
             : [[]];
+        if (folders) {
+            folders.courses = [...courses];
+            folders.subjects = [...subjects];
+        }
         const pick = (total, active) => (filters.status === 'active'
             ? { total: active, active }
             : filters.status === 'inactive' ? { total: total - active, active: 0 } : { total, active });

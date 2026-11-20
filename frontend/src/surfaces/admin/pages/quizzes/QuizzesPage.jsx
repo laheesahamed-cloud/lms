@@ -474,13 +474,17 @@ export function QuizzesPage() {
   const currentFolder = currentSubject ? folders[subjectKey(currentSubject)] : null;
   const searching = Boolean(appliedFilters.current.search.trim());
 
+  const foldersLoaded = useRef(false);
   const loadMeta = useCallback(async () => {
+    if (foldersLoaded.current) return;
+    foldersLoaded.current = true;
     try {
       // Only courses and subjects are shown here; the editors load their own lists.
       const meta = await fetchQuizzesMeta({ scope: 'folders' });
       setCourses(meta.courses || []);
       setSubjects(meta.subjects || []);
     } catch (loadError) {
+      foldersLoaded.current = false;
       setError(getErrorMessage(loadError, 'Unable to load assessment metadata'));
     }
   }, []);
@@ -548,7 +552,18 @@ export function QuizzesPage() {
     setLoading(true);
     try {
       appliedFilters.current = nextFilters;
-      const rows = await fetchQuizzesSummary(buildParams(nextFilters));
+      const params = buildParams(nextFilters);
+      // 10.57: the first load also brings the course and subject names (one request).
+      const wantFolders = !foldersLoaded.current && Object.keys(params).length === 0;
+      const data = await fetchQuizzesSummary(wantFolders ? { withFolders: '1' } : params);
+      const rows = wantFolders && data && !Array.isArray(data) ? data.rows : data;
+      if (wantFolders && data && !Array.isArray(data)) {
+        foldersLoaded.current = true;
+        setCourses(data.courses || []);
+        setSubjects(data.subjects || []);
+      } else if (!foldersLoaded.current) {
+        loadMeta();
+      }
       setSummary(Array.isArray(rows) ? rows : []);
       setFolders({});
       if (nextFilters.search.trim()) loadSearch(nextFilters);
@@ -558,12 +573,11 @@ export function QuizzesPage() {
     } finally {
       setLoading(false);
     }
-  }, [loadSearch]);
+  }, [loadSearch, loadMeta]);
 
   useEffect(() => {
-    loadMeta();
     loadQuizzes(quizInitialFilters);
-  }, [loadMeta, loadQuizzes]);
+  }, [loadQuizzes]);
 
   // Going inside a subject (by click, Back button, or a refreshed URL) loads it.
   useEffect(() => {

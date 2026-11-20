@@ -51,8 +51,13 @@ export class QuizzesController {
     @Query('search') search?: string,
     @Query('courseId') courseId?: string,
     @Query('topicId') topicId?: string,
-    @Query('status') status?: string
+    @Query('status') status?: string,
+    @Query('withFolders') withFolders?: string
   ) {
+    // 10.57: first page load, no filters → folder rows + course/subject names in one reply.
+    if (withFolders === '1' && !search?.trim() && !courseId && !topicId && !status) {
+      return this.quizzesService.summaryWithFolders();
+    }
     return this.quizzesService.summary({
       search,
       courseId: courseId ? parseInt(courseId, 10) : undefined,

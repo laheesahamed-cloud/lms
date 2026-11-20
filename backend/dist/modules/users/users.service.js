@@ -23,6 +23,7 @@ const word_search_1 = require("../../common/utils/word-search");
 const database_tokens_1 = require("../../database/database.tokens");
 const role_permissions_1 = require("../auth/role-permissions");
 const recent_results_1 = require("../../common/utils/recent-results");
+const admin_counters_1 = require("../../common/utils/admin-counters");
 let UsersService = class UsersService {
     constructor(db, authService) {
         this.db = db;
@@ -109,7 +110,7 @@ let UsersService = class UsersService {
         this.assertActiveStaff(actor);
         const studentsOnly = !this.canManageStaff(actor);
         const hasDay = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today);
-        const [groups] = await db.query('SELECT role, status, COUNT(*) AS n FROM users FORCE INDEX (idx_users_role_status_live) WHERE deleted_at IS NULL GROUP BY role, status');
+        const groups = await (0, admin_counters_1.readUserGroups)(db);
         const [todayRows] = await db.query(`SELECT id, full_name, email, role, deleted_at IS NULL AS live
        FROM users FORCE INDEX (idx_users_created)
        WHERE ${hasDay
@@ -172,6 +173,7 @@ let UsersService = class UsersService {
         }
         const nextPermissions = nextRole === 'admin' ? null : JSON.stringify((0, role_permissions_1.sanitizePermissions)(dto.permissions ?? []));
         await this.db.execute('UPDATE users SET role = ?, permissions = ? WHERE id = ?', [nextRole, nextPermissions, id]);
+        await (0, admin_counters_1.moveUserCounter)(this.db, user, { role: nextRole, status: user.status });
         await this.logAdminAuditEvent({
             eventType: 'user.access_changed',
             actorId: actor.id,
@@ -269,6 +271,7 @@ let UsersService = class UsersService {
         const status = createUserDto.status === 'active' ? 'active' : 'inactive';
         const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
         const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)', [createUserDto.fullName.trim(), normalizedEmail, hashedPassword, createUserDto.role, status]);
+        await (0, admin_counters_1.bumpUserCounter)(this.db, createUserDto.role, status, 1);
         const insertId = result.insertId;
         if (createUserDto.role === 'student') {
             await this.assignDefaultEntryPlan(insertId);
@@ -379,7 +382,7 @@ let UsersService = class UsersService {
     }
     async updateStatus(actor, id, updateUserStatusDto) {
         this.assertActiveStaff(actor);
-        const [rows] = await this.db.execute('SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1', [id]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, role, status, created_at, deleted_at FROM users WHERE id = ? LIMIT 1', [id]);
         const user = rows[0];
         if (!user) {
             throw new common_1.NotFoundException('User not found');
@@ -400,6 +403,8 @@ let UsersService = class UsersService {
             await this.db.execute('UPDATE users SET status = ?, session_token = NULL, session_expires_at = NULL WHERE id = ?', [status, id]);
             (0, session_cache_1.forgetUserSessions)(id);
         }
+        if (!user.deleted_at)
+            await (0, admin_counters_1.moveUserCounter)(this.db, user, { role: user.role, status });
         await this.logAdminAuditEvent({
             eventType: 'user.status_changed',
             actorId: actor.id,
@@ -494,6 +499,7 @@ let UsersService = class UsersService {
           user_id, plan_id, assigned_by, notes, status, payment_status, start_date, end_date
         ) VALUES (?, ?, NULL, 'Auto-assigned Free plan on admin-created student account', 'active', 'free_plan', ?, ?)
       `, [userId, Number(entryPlan.id), toDateOnly(startDate), '9999-12-31']);
+        await (0, admin_counters_1.countNewSubscription)(this.db, { plan_id: entryPlan.id, payment_status: 'free_plan', status: 'active' });
     }
     assertActiveStaff(actor) {
         if (!(0, role_permissions_1.isStaffRole)(actor.role) || actor.status !== 'active') {

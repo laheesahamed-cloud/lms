@@ -114,7 +114,16 @@ export function VerifyEmailPage() {
     try {
       const data = await verifyEmail({ email, code });
       const nextPath = canonicalizeForwardPathForUser(requestedPath, data?.user) || data?.redirectPath || '/dashboard';
-      navigate(nextPath, { replace: true });
+      // A new student sees the welcome screen once (name + avatar), like the
+      // app, then goes on to where they were heading (2026-11-20).
+      if (data?.user?.role === 'student') {
+        navigate('/welcome', {
+          replace: true,
+          state: { next: nextPath, universityCountry: location.state?.universityCountry, university: location.state?.university },
+        });
+      } else {
+        navigate(nextPath, { replace: true });
+      }
     } catch (error) {
       setDigits(Array(CODE_LENGTH).fill(''));
       focusInput(0);

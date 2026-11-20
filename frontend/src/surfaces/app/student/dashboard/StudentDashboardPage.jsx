@@ -222,47 +222,6 @@ function isSameStudyDay(value, reference = new Date()) {
     date.getDate() === reference.getDate();
 }
 
-function getStudyMood({ attempts, readinessScore, streak }) {
-  if (readinessScore >= 80) {
-    return {
-      label: 'Study status',
-      value: 'Exam ready pace',
-      text: 'Your readiness is strong. Keep reviewing weak areas to stay sharp.',
-      meter: 92,
-    };
-  }
-  if (streak >= 5) {
-    return {
-      label: 'Study status',
-      value: 'Consistent progress',
-      text: 'You have a strong streak. Keep one small task planned for today.',
-      meter: 84,
-    };
-  }
-  if (attempts >= 3) {
-    return {
-      label: 'Study status',
-      value: 'Practice in progress',
-      text: 'You have attempted several practice sets. Review mistakes before starting more.',
-      meter: 72,
-    };
-  }
-  if (readinessScore > 0) {
-    return {
-      label: 'Study status',
-      value: 'Building readiness',
-      text: 'You have started making progress. Finish one focused lesson or quiz next.',
-      meter: Math.max(38, readinessScore),
-    };
-  }
-  return {
-    label: 'Study status',
-    value: 'Ready to begin',
-    text: 'Start with one short practice set or one lesson to build today’s progress.',
-    meter: 34,
-  };
-}
-
 function buildDashboardLevelProgress(dashboard) {
   const explicitXp = Number(dashboard.totalXp ?? dashboard.xp ?? dashboard.experiencePoints ?? 0);
   // The server now saves XP and sends it as a number (even 0). Use it whenever
@@ -792,28 +751,6 @@ function DailyQuestionCard({ question }) {
   );
 }
 
-function StudyMoodCard({ mood, className = '' }) {
-  const cardClassName = ['study-card study-mood-card', className].filter(Boolean).join(' ');
-
-  return (
-    <section className={cardClassName} aria-label="Study mood">
-      <span className="study-mood-orbit" aria-hidden="true" />
-      <div className="study-mood-main">
-        <StudyMascot variant="brain" mood="loading" size="sm" label="Study mood mascot" />
-        <div>
-          <span className="study-eyebrow">{mood.label}</span>
-          <strong>{mood.value}</strong>
-        </div>
-      </div>
-      <p>{mood.text}</p>
-      <div className="study-mood-meter" aria-label={`${mood.value}: ${mood.meter}%`}>
-        <span style={{ width: '100%', transform: `scaleX(${clampPercent(mood.meter) / 100})`, transformOrigin: 'left center' }} />
-      </div>
-      <small>Based on today’s activity</small>
-    </section>
-  );
-}
-
 function StudyPlanCard({ items, onOpenPlanner }) {
   const visibleItems = items.slice(0, 3);
 
@@ -857,12 +794,16 @@ function StudyPlanCard({ items, onOpenPlanner }) {
 }
 
 function CourseProgressCard({ courses, summary, onOpenCourse, onOpenCourses }) {
+  // Compact, like the app's card (2026-11-20): ring + lesson count, then one
+  // line per course (name · bar · %), furthest-along courses first.
   const visibleCourses = [...courses]
-    .sort((a, b) => Number(a.progressPercent || 0) - Number(b.progressPercent || 0))
+    .sort((a, b) => Number(b.progressPercent || 0) - Number(a.progressPercent || 0))
     .slice(0, 3);
   const completedLessons = Number(summary?.completedLessons || 0);
   const totalLessons = Number(summary?.totalLessons || 0);
   const overallProgress = clampPercent(summary?.overallProgressPercent);
+  const inProgress = Number(summary?.visibleCourses || courses.length || 0);
+  const preloadCourses = () => preloadStudyRoute(appRoute('/courses'));
 
   return (
     <section
@@ -870,12 +811,9 @@ function CourseProgressCard({ courses, summary, onOpenCourse, onOpenCourses }) {
       aria-label="Course progress"
       style={{ '--course-progress': `${overallProgress}%` }}
     >
-      <div className="study-plan-card__head">
-        <div>
-          <span className="study-eyebrow">Course progress</span>
-          <strong>{overallProgress}% overall</strong>
-        </div>
-        <button type="button" onPointerDown={() => preloadStudyRoute(appRoute('/courses'))} onTouchStart={() => preloadStudyRoute(appRoute('/courses'))} onFocus={() => preloadStudyRoute(appRoute('/courses'))} onClick={onOpenCourses}>Courses</button>
+      <div className="study-course-head">
+        <strong>Course progress</strong>
+        <button type="button" onPointerDown={preloadCourses} onTouchStart={preloadCourses} onFocus={preloadCourses} onClick={onOpenCourses}>Courses</button>
       </div>
 
       <div className="study-course-overview">
@@ -890,36 +828,35 @@ function CourseProgressCard({ courses, summary, onOpenCourse, onOpenCourses }) {
           <span>{overallProgress}%</span>
         </div>
         <div>
-          <strong>{completedLessons}/{totalLessons}</strong>
-          <small>completed lessons from the course page source</small>
+          <strong>{completedLessons.toLocaleString()} / {totalLessons.toLocaleString()} lessons</strong>
+          <small>{inProgress} course{inProgress === 1 ? '' : 's'} in progress</small>
         </div>
       </div>
 
-      <div className="study-course-list">
-        {visibleCourses.length ? visibleCourses.map((course) => {
-          const progress = clampPercent(course.progressPercent);
-          return (
-            <button
-              type="button"
-              className="study-course-row"
-              key={course.id || course.courseTitle}
-              onPointerDown={() => preloadStudyRoute(appRoute('/courses'))}
-              onTouchStart={() => preloadStudyRoute(appRoute('/courses'))}
-              onFocus={() => preloadStudyRoute(appRoute('/courses'))}
-              onClick={() => onOpenCourse(course)}
-            >
-              <span>
-                <strong>{course.courseTitle || 'Course'}</strong>
-                <small>{Number(course.completedLessonsCount || 0)}/{Number(course.totalLessonsCount || 0)} lessons · {course.examType || 'Medical course'}</small>
-              </span>
-              <em>{progress}%</em>
-              <i aria-hidden="true"><b style={{ width: '100%', transform: `scaleX(${progress / 100})`, transformOrigin: 'left center' }} /></i>
-            </button>
-          );
-        }) : (
-          <p className="study-empty-copy">No active course lessons are available for this student account yet.</p>
-        )}
-      </div>
+      {visibleCourses.length ? (
+        <div className="study-course-lines">
+          {visibleCourses.map((course) => {
+            const progress = clampPercent(course.progressPercent);
+            return (
+              <button
+                type="button"
+                className="study-course-line"
+                key={course.id || course.courseTitle}
+                onPointerDown={preloadCourses}
+                onTouchStart={preloadCourses}
+                onFocus={preloadCourses}
+                onClick={() => onOpenCourse(course)}
+              >
+                <span>{course.courseTitle || 'Course'}</span>
+                <i aria-hidden="true"><b style={{ width: '100%', transform: `scaleX(${progress / 100})`, transformOrigin: 'left center' }} /></i>
+                <em>{progress}%</em>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="study-empty-copy">No active course lessons are available for this student account yet.</p>
+      )}
     </section>
   );
 }
@@ -1153,11 +1090,6 @@ export function StudentDashboardPage() {
   const readinessScore = clampPercent(dashboard.performanceSnapshot?.readinessScore || dashboard.avgScore);
   const levelProgress = useMemo(() => buildDashboardLevelProgress(dashboard), [dashboard]);
   const examAverage = useMemo(() => computeExamAverage(examResults), [examResults]);
-  const studyMood = getStudyMood({
-    attempts: dashboard.totalAttempts,
-    readinessScore,
-    streak: dashboard.quizDayStreak,
-  });
   const nextQuizId = getQuizId(recommendedQuiz);
   const continueTarget = nextQuizId
     ? appRoute(`/quizzes/${nextQuizId}`)
@@ -1327,10 +1259,6 @@ export function StudentDashboardPage() {
               <span className="skeleton-pulse min-h-[112px] rounded-[22px]" />
               <span className="skeleton-pulse min-h-[112px] rounded-[22px]" />
             </section>
-            <section className="study-medical-audit-grid">
-              <span className="skeleton-pulse min-h-[260px] rounded-[22px]" />
-              <span className="skeleton-pulse min-h-[260px] rounded-[22px]" />
-            </section>
             <span className="skeleton-pulse min-h-[220px] rounded-[22px]" />
           </div>
         </div>
@@ -1385,7 +1313,13 @@ export function StudentDashboardPage() {
             </div>
           </section>
 
-          <StudyMoodCard mood={studyMood} className="study-mood-card--desktop" />
+          {/* Course progress sits where the old "Study status" card was (2026-11-20, same as the app). */}
+          <CourseProgressCard
+            courses={courseProgress}
+            summary={courseProgressSummary}
+            onOpenCourse={(course) => onNavigate(appRoute('/courses'), { state: { selectedCourseId: course.id } })}
+            onOpenCourses={() => onNavigate(appRoute('/courses'))}
+          />
         </div>
 
         <section className="study-metric-grid" aria-label="Dashboard stats">
@@ -1401,15 +1335,6 @@ export function StudentDashboardPage() {
               index={index}
             />
           ))}
-        </section>
-
-        <section className="study-medical-audit-grid" aria-label="Medical LMS dashboard checks">
-          <CourseProgressCard
-            courses={courseProgress}
-            summary={courseProgressSummary}
-            onOpenCourse={(course) => onNavigate(appRoute('/courses'), { state: { selectedCourseId: course.id } })}
-            onOpenCourses={() => onNavigate(appRoute('/courses'))}
-          />
         </section>
 
         <section className="study-card study-streak-card">
@@ -1463,8 +1388,6 @@ export function StudentDashboardPage() {
             onOpenResults={() => onNavigate(appRoute('/results'))}
           />
         </div>
-
-        <StudyMoodCard mood={studyMood} className="study-mood-card--mobile" />
 
         <DailyQuestionCard question={dashboard.questionOfDay} />
 

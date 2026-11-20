@@ -18,6 +18,7 @@ const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const subscription_catalog_1 = require("./subscription-catalog");
 const admin_read_cache_1 = require("../../common/utils/admin-read-cache");
+const general_ci_sort_1 = require("../../common/utils/general-ci-sort");
 let PlansService = class PlansService {
     constructor(db) {
         this.db = db;
@@ -253,8 +254,12 @@ let PlansService = class PlansService {
             sql += ' AND id = ?';
             params.push(planId);
         }
-        sql += ` ORDER BY sort_order ASC, FIELD(status, 'active', 'inactive'), regular_price ASC, id ASC`;
         const [planRows] = await this.db.execute(sql, params);
+        const statusRank = (v) => ['active', 'inactive'].indexOf(String(v)) + 1;
+        planRows.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)
+            || statusRank(a.status) - statusRank(b.status)
+            || Number(a.regular_price ?? 0) - Number(b.regular_price ?? 0)
+            || Number(a.id) - Number(b.id));
         const features = await this.getFeatures(false);
         const featureMap = await this.getPlanFeatureMap(planRows.map((row) => Number(row.id)));
         const featureById = new Map(features.map((feature) => [feature.id, feature]));
@@ -275,8 +280,10 @@ let PlansService = class PlansService {
         if (activeOnly) {
             sql += " AND status = 'active'";
         }
-        sql += ' ORDER BY FIELD(category, ?, ?, ?, ?, ?, ?, ?), feature_name ASC';
-        const [rows] = await this.db.execute(sql, [...subscription_catalog_1.SUBSCRIPTION_FEATURE_CATEGORIES]);
+        const [rows] = await this.db.execute(sql);
+        const categoryRank = (v) => subscription_catalog_1.SUBSCRIPTION_FEATURE_CATEGORIES.indexOf(String(v)) + 1;
+        (0, general_ci_sort_1.sortByName)(rows, (r) => String(r.feature_name));
+        rows.sort((a, b) => categoryRank(a.category) - categoryRank(b.category));
         return rows.map((row) => ({
             id: Number(row.id),
             featureName: String(row.feature_name),

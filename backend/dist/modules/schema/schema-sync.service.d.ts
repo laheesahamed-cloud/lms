@@ -1,6 +1,6 @@
 import { OnModuleInit } from '@nestjs/common';
 import { Pool } from 'mysql2/promise';
-export declare const CRITICAL_SCHEMA_VERSION = "2026-11-18.2";
+export declare const CRITICAL_SCHEMA_VERSION = "2026-11-20.1";
 export declare const PAYER_EMAIL_TABLES: readonly ["user_subscriptions", "subscription_requests", "payment_transactions", "subscription_audit_events"];
 export declare class SchemaSyncService implements OnModuleInit {
     private readonly db;

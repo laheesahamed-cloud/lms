@@ -14,6 +14,7 @@ import { ManualPaymentRequestDto } from './dto/manual-payment-request.dto';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
 import { SubscriptionCouponDto } from './dto/subscription-coupon.dto';
 import { AppleIapService, AppleTransaction } from './apple-iap.service';
+import { countNewSubscription, readCounters, readSubscriptionGroups, trackSubscriptionChange } from '../../common/utils/admin-counters';
 
 type SubscriptionRow = RowDataPacket & {
   /** Apple's exact expiry; NULL for manual/bank-transfer/PayHere subscriptions. */
@@ -254,10 +255,11 @@ export class SubscriptionsService {
 
     // Only rows whose student still exists, like the Subscriptions list (a
     // hard user delete leaves its subscriptions behind; see OPTIMIZE P9).
-    const [[activeRow]] = await db.query<RowDataPacket[]>(
-      `SELECT COUNT(*) AS n FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_status_end)
-       INNER JOIN users student ON student.id = us.user_id
-       WHERE us.status = 'active'`);
+    // 10.57: from the stored counters (one row per plan / payment / status).
+    const activeCount = (await readSubscriptionGroups(db))
+      .filter((g) => g.status === 'active')
+      .reduce((sum, g) => sum + g.n, 0);
+    const activeRow = { n: activeCount };
     // Days left 1–7 (same reading as the Subscriptions list: end date counted
     // on the server's date, Apple's exact expiry wins, free plans excluded).
     const [expiringRows] = await db.query<RowDataPacket[]>(
@@ -379,23 +381,32 @@ export class SubscriptionsService {
       const plans = await this.loadSlimPlans(conn);
       const freePlanIds = [...plans.values()].filter((p) => this.isListedFree('', p)).map((p) => p.id);
       const expiringFreeIds = [...plans.values()].filter((p) => this.isFreePlan(p)).map((p) => p.id);
-      const [[students]] = await conn.query<RowDataPacket[]>(
-        "SELECT COUNT(*) AS n FROM users FORCE INDEX (idx_users_role_status_live) WHERE role = 'student' AND deleted_at IS NULL");
+      // 10.57: students and subscription totals from the stored counters.
+      const userCounters = await readCounters(conn, 'users:student:');
+      const students = { n: [...userCounters.values()].reduce((sum, n) => sum + n, 0) };
       const [[pending]] = await conn.query<RowDataPacket[]>(
         `SELECT COUNT(*) AS n FROM subscription_requests sr FORCE INDEX (idx_subscription_requests_visible)
          INNER JOIN users student ON student.id = sr.user_id
          WHERE sr.admin_visible = 1 AND sr.status = 'pending'`);
-      const [[paid]] = await conn.query<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total,
-           COALESCE(SUM(us.status = 'active'), 0) AS active,
-           COALESCE(SUM(us.status = 'active' AND us.end_date BETWEEN ? AND ?
-             AND NOT (us.access_expires_at IS NOT NULL AND us.access_expires_at <= UTC_TIMESTAMP())
-             AND us.plan_id NOT IN (?)), 0) AS expiring
-         FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_payment_status)
+      // Paid = the three non-free payment values on a non-free plan (same rule as before).
+      const PAID = new Set(['manual', 'paid', 'unpaid']);
+      const paidGroups = (await readSubscriptionGroups(conn))
+        .filter((g) => PAID.has(g.paymentStatus) && !freePlanIds.includes(g.planId));
+      // Expiring: only active rows ending in the next 7 days, by the (status, end_date) index.
+      const [expiringRows] = await conn.query<RowDataPacket[]>(
+        `SELECT us.plan_id, us.payment_status, us.access_expires_at <= UTC_TIMESTAMP() AS lapsed
+         FROM user_subscriptions us FORCE INDEX (idx_user_subscriptions_status_end)
          INNER JOIN users student ON student.id = us.user_id
-         -- The three non-free values (the index is not used for "<> 'free_plan'").
-         WHERE us.payment_status IN ('manual', 'paid', 'unpaid') AND us.plan_id NOT IN (?)`,
-        [serverToday, this.addDays(serverToday, 6), expiringFreeIds.length ? expiringFreeIds : [0], freePlanIds.length ? freePlanIds : [0]]);
+         WHERE us.status = 'active' AND us.end_date BETWEEN ? AND ?`,
+        [serverToday, this.addDays(serverToday, 6)]);
+      const paid = {
+        total: paidGroups.reduce((sum, g) => sum + g.n, 0),
+        active: paidGroups.filter((g) => g.status === 'active').reduce((sum, g) => sum + g.n, 0),
+        expiring: expiringRows.filter((r) => PAID.has(String(r.payment_status))
+          && !freePlanIds.includes(Number(r.plan_id))
+          && !expiringFreeIds.includes(Number(r.plan_id))
+          && Number(r.lapsed) !== 1).length,
+      };
       const [courses] = await conn.query<RowDataPacket[]>('SELECT id, course_title FROM courses');
       return {
         students: Number(students?.n || 0),
@@ -1769,14 +1780,14 @@ export class SubscriptionsService {
   async extendSubscription(id: number, days: number, notes: string | undefined, adminId: number) {
     const subscription = await this.getSubscriptionOrThrow(id);
     const cleanDays = Math.max(1, Number(days || 0));
-    await this.db.execute(
+    await trackSubscriptionChange(this.db, 'id = ?', [id], () => this.db.execute(
       `UPDATE user_subscriptions
        SET end_date = DATE_ADD(GREATEST(end_date, CURDATE()), INTERVAL ? DAY),
            status = 'active',
            notes = CONCAT(COALESCE(notes, ''), ?)
        WHERE id = ?`,
       [cleanDays, notes ? `\nExtended ${cleanDays} day(s): ${notes.trim()}` : `\nExtended ${cleanDays} day(s).`, id]
-    );
+    ));
 
     await this.logAudit({
       subscriptionId: id,
@@ -1846,13 +1857,13 @@ export class SubscriptionsService {
 
   async cancelSubscription(id: number, notes: string | undefined, adminId: number) {
     const subscription = await this.getSubscriptionOrThrow(id);
-    await this.db.execute(
+    await trackSubscriptionChange(this.db, 'id = ?', [id], () => this.db.execute(
       `UPDATE user_subscriptions
        SET status = 'cancelled',
            notes = CONCAT(COALESCE(notes, ''), ?)
        WHERE id = ?`,
       [notes ? `\nCancelled: ${notes.trim()}` : '\nCancelled by admin.', id]
-    );
+    ));
 
     await this.logAudit({
       subscriptionId: id,
@@ -1876,7 +1887,7 @@ export class SubscriptionsService {
   }, adminId: number) {
     const subscription = await this.getSubscriptionOrThrow(id);
     const paymentDate = this.normalizeDate(dto.paymentDate);
-    await this.db.execute(
+    await trackSubscriptionChange(this.db, 'id = ?', [id], () => this.db.execute(
       `UPDATE user_subscriptions
        SET payment_status = COALESCE(?, payment_status),
            amount_paid = ?,
@@ -1894,7 +1905,7 @@ export class SubscriptionsService {
         String(dto.receiptUrl || '').trim() || null,
         id,
       ]
-    );
+    ));
 
     await this.logAudit({
       subscriptionId: id,
@@ -1977,15 +1988,16 @@ export class SubscriptionsService {
       await connection.beginTransaction();
 
       if (input.cancelExisting) {
-        await connection.execute(
-          `UPDATE user_subscriptions
-           SET status = CASE
-             WHEN end_date < CURDATE() THEN 'expired'
-             ELSE 'cancelled'
-           END
-           WHERE user_id = ? AND status IN ('active', 'pending')`,
-          [input.userId]
-        );
+        await trackSubscriptionChange(connection, "user_id = ? AND status IN ('active', 'pending')", [input.userId], () =>
+          connection.execute(
+            `UPDATE user_subscriptions
+             SET status = CASE
+               WHEN end_date < CURDATE() THEN 'expired'
+               ELSE 'cancelled'
+             END
+             WHERE user_id = ? AND status IN ('active', 'pending')`,
+            [input.userId]
+          ));
       }
 
       const [result] = await connection.execute<ResultSetHeader>(
@@ -2015,6 +2027,7 @@ export class SubscriptionsService {
           this.isFreePlanPaymentStatus(input.paymentStatus) ? null : (input.accessExpiresAt ?? null),
         ]
       );
+      await countNewSubscription(connection, { plan_id: input.planId, payment_status: input.paymentStatus, status: input.status }); // 10.57
 
       await connection.commit();
       return result.insertId;
@@ -2373,13 +2386,15 @@ export class SubscriptionsService {
       case 'DID_FAIL_TO_RENEW': {
         const grace = this.readGracePeriodExpiry(notification.signedRenewalInfo);
         if (grace) {
-          await this.db.execute(
-            `UPDATE user_subscriptions
-             SET status = 'active', end_date = GREATEST(end_date, ?), access_expires_at = ?
-             WHERE payment_method = 'apple_iap' AND payment_reference = ?
-               AND status IN ('active', 'pending')`,
-            [this.toDateOnly(new Date(grace)), this.epochToSqlTimestamp(grace), transaction.originalTransactionId]
-          );
+          await trackSubscriptionChange(this.db,
+            "payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')",
+            [transaction.originalTransactionId], () => this.db.execute(
+              `UPDATE user_subscriptions
+               SET status = 'active', end_date = GREATEST(end_date, ?), access_expires_at = ?
+               WHERE payment_method = 'apple_iap' AND payment_reference = ?
+                 AND status IN ('active', 'pending')`,
+              [this.toDateOnly(new Date(grace)), this.epochToSqlTimestamp(grace), transaction.originalTransactionId]
+            ));
         }
         break;
       }
@@ -2425,10 +2440,10 @@ export class SubscriptionsService {
     );
 
     if (rows[0]) {
-      await this.db.execute(
+      await trackSubscriptionChange(this.db, 'id = ?', [Number(rows[0].id)], () => this.db.execute(
         "UPDATE user_subscriptions SET status = 'active', end_date = ?, access_expires_at = ? WHERE id = ?",
         [endDate, this.epochToSqlTimestamp(transaction.expiresDate), Number(rows[0].id)]
-      );
+      ));
       return;
     }
 
@@ -2458,12 +2473,14 @@ export class SubscriptionsService {
 
   /** Close out an Apple subscription: expired naturally, or refunded/revoked. */
   private async expireAppleSubscription(originalTransactionId: string, revoked: boolean) {
-    await this.db.execute(
-      `UPDATE user_subscriptions
-       SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = UTC_TIMESTAMP()
-       WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`,
-      [revoked ? 'cancelled' : 'expired', originalTransactionId]
-    );
+    await trackSubscriptionChange(this.db,
+      "payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')",
+      [originalTransactionId], () => this.db.execute(
+        `UPDATE user_subscriptions
+         SET status = ?, end_date = LEAST(end_date, CURDATE()), access_expires_at = UTC_TIMESTAMP()
+         WHERE payment_method = 'apple_iap' AND payment_reference = ? AND status IN ('active', 'pending')`,
+        [revoked ? 'cancelled' : 'expired', originalTransactionId]
+      ));
   }
 
   private epochToSqlTimestamp(value: number | null) {

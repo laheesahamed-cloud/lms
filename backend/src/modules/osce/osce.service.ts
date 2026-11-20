@@ -628,11 +628,11 @@ export class OsceService {
 
   async listCourses() {
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT co.id, co.course_title, COUNT(t.id) AS subject_count
+      // 10.57: the stored subject count (Structure page counts), not a join over every subject.
+      `SELECT co.id, co.course_title, co.subject_count
          FROM courses co
-         LEFT JOIN topics t ON t.course_id = co.id AND t.status = 'active'
         WHERE co.status = 'active'
-        GROUP BY co.id, co.course_title ORDER BY co.id`
+        ORDER BY co.id`
     );
     return rows.map((r) => ({
       id: Number(r.id),

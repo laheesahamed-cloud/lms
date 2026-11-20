@@ -8,6 +8,7 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 import { UpdateSubscriptionFeatureDto } from './dto/update-subscription-feature.dto';
 import { SUBSCRIPTION_FEATURE_CATEGORIES } from './subscription-catalog';
 import { cachedAdminRead } from '../../common/utils/admin-read-cache';
+import { sortByName } from '../../common/utils/general-ci-sort';
 
 type PlanRow = RowDataPacket & {
   id: number;
@@ -378,9 +379,13 @@ export class PlansService {
       params.push(planId);
     }
 
-    sql += ` ORDER BY sort_order ASC, FIELD(status, 'active', 'inactive'), regular_price ASC, id ASC`;
-
+    // 10.57: sorted here, not by the database (a sort pass counts every row twice).
     const [planRows] = await this.db.execute<PlanRow[]>(sql, params);
+    const statusRank = (v: unknown) => ['active', 'inactive'].indexOf(String(v)) + 1;
+    planRows.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)
+      || statusRank(a.status) - statusRank(b.status)
+      || Number(a.regular_price ?? 0) - Number(b.regular_price ?? 0)
+      || Number(a.id) - Number(b.id));
     const features = await this.getFeatures(false);
     const featureMap = await this.getPlanFeatureMap(planRows.map((row) => Number(row.id)));
     const featureById = new Map(features.map((feature) => [feature.id, feature]));
@@ -404,12 +409,11 @@ export class PlansService {
     if (activeOnly) {
       sql += " AND status = 'active'";
     }
-    sql += ' ORDER BY FIELD(category, ?, ?, ?, ?, ?, ?, ?), feature_name ASC';
-
-    const [rows] = await this.db.execute<FeatureRow[]>(
-      sql,
-      [...SUBSCRIPTION_FEATURE_CATEGORIES]
-    );
+    // 10.57: category order, then name — sorted here (no database sort pass).
+    const [rows] = await this.db.execute<FeatureRow[]>(sql);
+    const categoryRank = (v: unknown) => (SUBSCRIPTION_FEATURE_CATEGORIES as readonly string[]).indexOf(String(v)) + 1;
+    sortByName(rows, (r) => String(r.feature_name));
+    rows.sort((a, b) => categoryRank(a.category) - categoryRank(b.category)); // stable: names stay in order
 
     return rows.map((row) => ({
       id: Number(row.id),

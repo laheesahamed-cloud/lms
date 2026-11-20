@@ -221,11 +221,11 @@ export class EcgService {
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `SELECT t.id, t.title, t.description, t.position, t.is_active,
               t.created_at, t.updated_at,
-              (SELECT COUNT(*) FROM ecg_cards c WHERE c.topic_id = t.id) AS card_count
-         FROM ecg_topics t
-        ORDER BY t.position ASC, t.id ASC`,
+              t.card_count -- 10.57: stored, adjusted on card add / delete
+         FROM ecg_topics t`,
     );
-    return rows;
+    // 10.57: sorted here (a database sort pass counts every row twice).
+    return rows.sort((a, b) => Number(a.position) - Number(b.position) || Number(a.id) - Number(b.id));
   }
 
   async getTopic(id: number) {
@@ -273,7 +273,7 @@ export class EcgService {
 
   async deleteTopic(id: number) {
     // cascade delete the topic's cards first
-    await this.db.execute(`DELETE FROM ecg_cards WHERE topic_id = ?`, [id]);
+    await this.db.execute(`DELETE FROM ecg_cards WHERE topic_id = ?`, [id]); // the topic row (and its count) goes too
     await this.db.execute(`DELETE FROM ecg_topics WHERE id = ?`, [id]);
   }
 
@@ -313,6 +313,7 @@ export class EcgService {
       [data.topic_id, data.title, data.image_url ?? null, data.explanation ?? null,
        position, data.is_active === false ? 0 : 1],
     );
+    await this.db.execute('UPDATE ecg_topics SET card_count = card_count + 1 WHERE id = ?', [data.topic_id]); // 10.57
     return { id: result.insertId };
   }
 
@@ -335,6 +336,11 @@ export class EcgService {
   }
 
   async deleteCard(id: number) {
-    await this.db.execute(`DELETE FROM ecg_cards WHERE id = ?`, [id]);
+    const [rows] = await this.db.execute<RowDataPacket[]>('SELECT topic_id FROM ecg_cards WHERE id = ?', [id]);
+    const [res] = await this.db.execute<any>(`DELETE FROM ecg_cards WHERE id = ?`, [id]);
+    if (rows[0] && res.affectedRows > 0) {
+      // 10.57: keep the topic's stored card count right.
+      await this.db.execute('UPDATE ecg_topics SET card_count = GREATEST(card_count, 1) - 1 WHERE id = ?', [rows[0].topic_id]);
+    }
   }
 }

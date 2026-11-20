@@ -30,6 +30,7 @@ const session_cache_1 = require("./session-cache");
 const auth_token_util_1 = require("./auth-token.util");
 const schema_sync_service_1 = require("../schema/schema-sync.service");
 const role_permissions_1 = require("./role-permissions");
+const admin_counters_1 = require("../../common/utils/admin-counters");
 const ALLOWED_AVATAR_KEYS = new Set(['blue-tie', 'teal-coat', 'pink-necklace', 'violet-scarf', 'amber-coat', 'cyan-necklace']);
 const PASSWORD_RESET_TTL_MINUTES = 30;
 const EMAIL_OTP_TTL_MINUTES = 10;
@@ -154,6 +155,7 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const hashedPassword = await bcrypt.hash(registerDto.password, 10);
         const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, email_verified, university_country, university) VALUES (?, ?, ?, ?, ?, 0, ?, ?)', [fullName, email, hashedPassword, 'student', 'active', country, university]);
+        await (0, admin_counters_1.bumpUserCounter)(this.db, 'student', 'active', 1);
         await this.assignDefaultEntryPlan(result.insertId);
         return this.beginEmailVerification({
             id: result.insertId,
@@ -184,6 +186,7 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             const randomPassword = await bcrypt.hash(`google:${profile.sub}:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
             const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)', [fullName, email, randomPassword, 'student', 'active']);
+            await (0, admin_counters_1.bumpUserCounter)(this.db, 'student', 'active', 1);
             await this.assignDefaultEntryPlan(result.insertId);
             user = {
                 id: result.insertId,
@@ -231,6 +234,7 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             const randomPassword = await bcrypt.hash(`apple:${profile.sub}:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
             const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)', [fullName, email, randomPassword, 'student', 'active']);
+            await (0, admin_counters_1.bumpUserCounter)(this.db, 'student', 'active', 1);
             await this.assignDefaultEntryPlan(result.insertId);
             user = {
                 id: result.insertId,
@@ -366,7 +370,7 @@ let AuthService = AuthService_1 = class AuthService {
         };
     }
     async softDeleteUser(userId, reason) {
-        const [rows] = await this.db.execute('SELECT id, email FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [userId]);
+        const [rows] = await this.db.execute('SELECT id, email, role, status FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [userId]);
         const target = rows[0];
         if (!target)
             throw new common_1.NotFoundException('User not found');
@@ -396,9 +400,10 @@ let AuthService = AuthService_1 = class AuthService {
              deleted_at = NOW()
          WHERE id = ?`, [scrambledEmail, lockedPassword, target.id]);
             (0, session_cache_1.forgetUserSessions)(target.id);
-            await connection.execute(`UPDATE user_subscriptions
-         SET status = 'cancelled'
-         WHERE user_id = ? AND status IN ('active', 'pending')`, [target.id]);
+            await (0, admin_counters_1.bumpUserCounter)(connection, target.role, target.status, -1);
+            await (0, admin_counters_1.trackSubscriptionChange)(connection, "user_id = ? AND status IN ('active', 'pending')", [target.id], () => connection.execute(`UPDATE user_subscriptions
+           SET status = 'cancelled'
+           WHERE user_id = ? AND status IN ('active', 'pending')`, [target.id]));
             void reason;
             await connection.commit();
         }
@@ -853,14 +858,14 @@ If you did not try to sign in, you can safely ignore this email.`;
     }
     async findUserFresh(token) {
         if (!(0, access_token_1.looksLikeAccessToken)(token)) {
-            const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+            const [rows] = await this.db.execute(`SELECT id, full_name, email, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at /* 10.57: no password hash */
          FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`, [(0, auth_token_util_1.hashSessionToken)(token)]);
             if (!rows[0])
                 throw new common_1.UnauthorizedException('Session is invalid or has expired');
             return rows[0];
         }
         const claims = (0, token_user_1.userFromAccessToken)(token).__claims;
-        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at /* 10.57: no password hash */
        FROM users WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL LIMIT 1`, [claims.sub, claims.sid]);
         if (!rows[0])
             throw new common_1.UnauthorizedException('Session is invalid or has expired');
@@ -915,7 +920,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         if (remembered) {
             return remembered;
         }
-        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at /* 10.57: no password hash */
        FROM users
        WHERE session_token = ?
          AND session_expires_at > NOW()
@@ -1294,6 +1299,7 @@ ${settings.footer}`;
         ) VALUES (?, ?, NULL, 'Auto-assigned Free plan on signup', 'active', 'free_plan', ?, ?,
           'lessons', '[]', '[]')
       `, [userId, Number(entryPlan.id), toDateOnly(startDate), '9999-12-31']);
+        await (0, admin_counters_1.countNewSubscription)(this.db, { plan_id: entryPlan.id, payment_status: 'free_plan', status: 'active' });
     }
 };
 exports.AuthService = AuthService;

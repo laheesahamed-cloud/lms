@@ -174,10 +174,9 @@ let EcgService = class EcgService {
     async listTopicsAdmin() {
         const [rows] = await this.db.execute(`SELECT t.id, t.title, t.description, t.position, t.is_active,
               t.created_at, t.updated_at,
-              (SELECT COUNT(*) FROM ecg_cards c WHERE c.topic_id = t.id) AS card_count
-         FROM ecg_topics t
-        ORDER BY t.position ASC, t.id ASC`);
-        return rows;
+              t.card_count -- 10.57: stored, adjusted on card add / delete
+         FROM ecg_topics t`);
+        return rows.sort((a, b) => Number(a.position) - Number(b.position) || Number(a.id) - Number(b.id));
     }
     async getTopic(id) {
         const [rows] = await this.db.execute(`SELECT id, title, description, category, position, is_active, created_at, updated_at
@@ -231,6 +230,7 @@ let EcgService = class EcgService {
         const [result] = await this.db.execute(`INSERT INTO ecg_cards (topic_id, title, image_url, explanation, position, is_active)
        VALUES (?, ?, ?, ?, ?, ?)`, [data.topic_id, data.title, data.image_url ?? null, data.explanation ?? null,
             position, data.is_active === false ? 0 : 1]);
+        await this.db.execute('UPDATE ecg_topics SET card_count = card_count + 1 WHERE id = ?', [data.topic_id]);
         return { id: result.insertId };
     }
     async updateCard(id, data) {
@@ -246,7 +246,11 @@ let EcgService = class EcgService {
         }
     }
     async deleteCard(id) {
-        await this.db.execute(`DELETE FROM ecg_cards WHERE id = ?`, [id]);
+        const [rows] = await this.db.execute('SELECT topic_id FROM ecg_cards WHERE id = ?', [id]);
+        const [res] = await this.db.execute(`DELETE FROM ecg_cards WHERE id = ?`, [id]);
+        if (rows[0] && res.affectedRows > 0) {
+            await this.db.execute('UPDATE ecg_topics SET card_count = GREATEST(card_count, 1) - 1 WHERE id = ?', [rows[0].topic_id]);
+        }
     }
 };
 exports.EcgService = EcgService;

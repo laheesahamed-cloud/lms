@@ -20,6 +20,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { loadQuizInfo, loadRecentResults } from '../../common/utils/recent-results';
 import { UpdateUserAccessDto } from './dto/update-user-access.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
+import { bumpUserCounter, countNewSubscription, moveUserCounter, readUserGroups } from '../../common/utils/admin-counters';
 
 type UserRow = RowDataPacket & {
   id: number;
@@ -29,6 +30,7 @@ type UserRow = RowDataPacket & {
   permissions?: string | null;
   status: 'active' | 'inactive';
   created_at?: string | null;
+  deleted_at?: string | Date | null;
 };
 
 type UserManagementActor = {
@@ -141,9 +143,9 @@ export class UsersService {
     this.assertActiveStaff(actor);
     const studentsOnly = !this.canManageStaff(actor);
     const hasDay = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today);
-    const [groups] = await db.query<RowDataPacket[]>(
-      // Deleted (anonymized) accounts are not users any more.
-      'SELECT role, status, COUNT(*) AS n FROM users FORCE INDEX (idx_users_role_status_live) WHERE deleted_at IS NULL GROUP BY role, status');
+    // 10.57: live users by role and status from the stored counters (a few rows),
+    // not a count over every user. Deleted (anonymized) accounts are not counted.
+    const groups = await readUserGroups(db);
     const [todayRows] = await db.query<RowDataPacket[]>(
       `SELECT id, full_name, email, role, deleted_at IS NULL AS live
        FROM users FORCE INDEX (idx_users_created)
@@ -218,6 +220,7 @@ export class UsersService {
     const nextPermissions = nextRole === 'admin' ? null : JSON.stringify(sanitizePermissions(dto.permissions ?? []));
 
     await this.db.execute('UPDATE users SET role = ?, permissions = ? WHERE id = ?', [nextRole, nextPermissions, id]);
+    await moveUserCounter(this.db, user, { role: nextRole, status: user.status }); // 10.57
     await this.logAdminAuditEvent({
       eventType: 'user.access_changed',
       actorId: actor.id,
@@ -341,6 +344,7 @@ export class UsersService {
       'INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
       [createUserDto.fullName.trim(), normalizedEmail, hashedPassword, createUserDto.role, status]
     );
+    await bumpUserCounter(this.db, createUserDto.role, status, 1); // 10.57
 
     const insertId = result.insertId;
 
@@ -479,7 +483,7 @@ export class UsersService {
   async updateStatus(actor: UserManagementActor, id: number, updateUserStatusDto: UpdateUserStatusDto) {
     this.assertActiveStaff(actor);
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, full_name, email, role, status, created_at, deleted_at FROM users WHERE id = ? LIMIT 1',
       [id]
     );
 
@@ -509,6 +513,7 @@ export class UsersService {
       );
       forgetUserSessions(id);
     }
+    if (!user.deleted_at) await moveUserCounter(this.db, user, { role: user.role, status }); // 10.57
     await this.logAdminAuditEvent({
       eventType: 'user.status_changed',
       actorId: actor.id,
@@ -625,6 +630,7 @@ export class UsersService {
       `,
       [userId, Number(entryPlan.id), toDateOnly(startDate), '9999-12-31']
     );
+    await countNewSubscription(this.db, { plan_id: entryPlan.id, payment_status: 'free_plan', status: 'active' }); // 10.57
   }
 
   private assertActiveStaff(actor: UserManagementActor) {

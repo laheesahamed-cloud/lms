@@ -159,8 +159,8 @@ export function LandingPage() {
   return (
     <main className="lpv2 relative isolate overflow-x-clip">
       <PageMeta
-        title="xyndrome, your all in one MBBS partner"
-        description="The first ever study app for Sri Lankan medical students. Everything for your finals and ERPM in one place."
+        title="Your All-in-One MBBS Study Partner | xyndrome"
+        description="Your notes, Q-Bank, flashcards, mock exams and study planner in one app. Built for Sri Lankan medical students preparing for finals and the ERPM."
         path="/"
       />
       <StructuredData id="landing" faqs={FAQ_ITEMS} />

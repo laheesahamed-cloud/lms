@@ -12,6 +12,7 @@ import { streakStateFromDays } from '../xp/streak-sql';
 import { recountCourseQuestionTotals, recountCourseQuizTotals, recountQuestionLinks, recountQuizCounts } from '../../common/utils/quiz-counts';
 import { RECAP_KEYS, optionsOf, recapOf, sqlMissingMaskExpression } from '../../common/utils/question-content';
 import { APPLE_IAP_PRODUCTS, DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
+import { rebuildAdminCountersOn } from '../../common/utils/admin-counters';
 
 /// Non-IAP payment records that keep the payer's email when an account is
 /// deleted. Apple purchases (iap_transactions) are deliberately not here.
@@ -20,7 +21,7 @@ import { APPLE_IAP_PRODUCTS, DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATU
 // CHANGE THIS VALUE whenever a step is added to or changed in
 // ensureCriticalTables(), or the new step will never run on a database that
 // already recorded the old value.
-export const CRITICAL_SCHEMA_VERSION = '2026-11-18.2';
+export const CRITICAL_SCHEMA_VERSION = '2026-11-20.1';
 
 export const PAYER_EMAIL_TABLES = [
   'user_subscriptions',
@@ -1087,6 +1088,35 @@ export class SchemaSyncService implements OnModuleInit {
             WHERE sf.feature_key = 'dynamic_quiz_randomization'`,
         );
         await conn.query(`DELETE FROM subscription_features WHERE feature_key = 'dynamic_quiz_randomization'`);
+      });
+      // OPTIMIZE 10.57: stored admin counters (users by role/status, subscriptions
+      // per plan/payment/status, drugs total) — filled once here, then kept by
+      // each save (common/utils/admin-counters.ts); Fix counts rebuilds them.
+      await step('admin counters table', async () => {
+        await conn.query(
+          `CREATE TABLE IF NOT EXISTS admin_counters (
+             name VARCHAR(80) NOT NULL PRIMARY KEY,
+             value BIGINT NOT NULL DEFAULT 0
+           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+        );
+        const [[has]] = await conn.query<RowDataPacket[]>('SELECT COUNT(*) AS n FROM admin_counters');
+        if (!Number(has?.n)) await rebuildAdminCountersOn(conn);
+      });
+      // OPTIMIZE 10.57: Reports "inactive students" reads the least recently
+      // active students by this index (was a join + sort over every student).
+      await step('summary last-active index', async () => {
+        await this.ensureIndex(conn, 'student_study_summary', 'idx_summary_last_active', 'last_active_day');
+      });
+      // OPTIMIZE 10.57: each ECG topic's card count, stored (adjusted on card
+      // add / delete / move), in place of a count subquery per topic.
+      await step('ecg topic card count', async () => {
+        const [cols] = await conn.execute<RowDataPacket[]>(
+          `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecg_topics' AND COLUMN_NAME = 'card_count'`,
+        );
+        if (!cols.length) {
+          await conn.query('ALTER TABLE ecg_topics ADD COLUMN card_count INT UNSIGNED NOT NULL DEFAULT 0');
+          await conn.query('UPDATE ecg_topics t SET t.card_count = (SELECT COUNT(*) FROM ecg_cards c WHERE c.topic_id = t.id)');
+        }
       });
       if (failed === 0) {
         await step('record critical_schema_version', () => conn.execute(

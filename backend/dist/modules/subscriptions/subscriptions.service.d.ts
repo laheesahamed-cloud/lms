@@ -38,7 +38,7 @@ export declare class SubscriptionsService {
             billingPeriod: string;
             appleProductId: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -87,7 +87,7 @@ export declare class SubscriptionsService {
             featureKey: string;
             description: string;
             category: string;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             createdAt: string | null;
             updatedAt: string | null;
         }[];
@@ -172,9 +172,9 @@ export declare class SubscriptionsService {
         planId: number;
         assignedBy: number | null;
         notes: string;
-        status: "active" | "pending" | "expired" | "cancelled";
-        computedStatus: "active" | "pending" | "expired" | "cancelled";
-        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+        status: "expired" | "active" | "pending" | "cancelled";
+        computedStatus: "expired" | "active" | "pending" | "cancelled";
+        paymentStatus: "manual" | "free_plan" | "paid" | "unpaid";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -283,7 +283,7 @@ export declare class SubscriptionsService {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "cancelled" | "approved" | "rejected";
+        status: "pending" | "approved" | "rejected" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -324,8 +324,8 @@ export declare class SubscriptionsService {
     } | {
         currentSubscription: {
             planName: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
+            status: "expired" | "active" | "pending" | "cancelled";
+            computedStatus: "expired" | "active" | "pending" | "cancelled";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             startDate: string;
@@ -341,9 +341,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "expired" | "active" | "pending" | "cancelled";
+            computedStatus: "expired" | "active" | "pending" | "cancelled";
+            paymentStatus: "manual" | "free_plan" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -392,9 +392,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "expired" | "active" | "pending" | "cancelled";
+            computedStatus: "expired" | "active" | "pending" | "cancelled";
+            paymentStatus: "manual" | "free_plan" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -451,7 +451,7 @@ export declare class SubscriptionsService {
             billingPeriod: string;
             appleProductId: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -487,7 +487,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "pending" | "approved" | "rejected" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -553,11 +553,11 @@ export declare class SubscriptionsService {
             cancelUrl: string;
             notifyUrl: string;
             autoActivatePaidSubscriptions: boolean;
-            appCheckoutMode: "native" | "web";
+            appCheckoutMode: "web" | "native";
             hasAppMerchantSecret: boolean;
             maskedAppMerchantSecret: string;
         };
-        appCheckoutMode: "native" | "web";
+        appCheckoutMode: "web" | "native";
     }>;
     findCoupons(): Promise<{
         id: number;
@@ -567,7 +567,7 @@ export declare class SubscriptionsService {
         discountType: "fixed" | "percent";
         discountValue: number;
         planIds: number[];
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         startsAt: string;
         expiresAt: string;
         maxRedemptions: number | null;
@@ -770,9 +770,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "expired" | "active" | "pending" | "cancelled";
+            computedStatus: "expired" | "active" | "pending" | "cancelled";
+            paymentStatus: "manual" | "free_plan" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -821,9 +821,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "expired" | "active" | "pending" | "cancelled";
+            computedStatus: "expired" | "active" | "pending" | "cancelled";
+            paymentStatus: "manual" | "free_plan" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -880,7 +880,7 @@ export declare class SubscriptionsService {
             billingPeriod: string;
             appleProductId: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -916,7 +916,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "pending" | "approved" | "rejected" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -982,11 +982,11 @@ export declare class SubscriptionsService {
             cancelUrl: string;
             notifyUrl: string;
             autoActivatePaidSubscriptions: boolean;
-            appCheckoutMode: "native" | "web";
+            appCheckoutMode: "web" | "native";
             hasAppMerchantSecret: boolean;
             maskedAppMerchantSecret: string;
         };
-        appCheckoutMode: "native" | "web";
+        appCheckoutMode: "web" | "native";
     }>;
     listAppleTransactions(params?: {
         limit?: number;

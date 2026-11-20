@@ -107,7 +107,9 @@ export function RegisterPage() {
         const params = new URLSearchParams({ email: data.email || registration.email });
         if (fromParam) params.set('from', fromParam);
         setStatus({ loading: false, error: '', success: '' });
-        navigate(`/auth/verify-email?${params.toString()}`, { state: { devCode: data.devCode } });
+        navigate(`/auth/verify-email?${params.toString()}`, {
+          state: { devCode: data.devCode, universityCountry: registration.universityCountry, university: registration.university },
+        });
         return;
       }
       const userName = data?.user?.fullName || registration.fullName || 'your account';

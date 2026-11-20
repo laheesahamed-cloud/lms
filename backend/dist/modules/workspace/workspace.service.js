@@ -28,6 +28,7 @@ const subscription_scope_1 = require("../../common/auth/subscription-scope");
 const lesson_bits_1 = require("../../common/utils/lesson-bits");
 const recent_results_1 = require("../../common/utils/recent-results");
 const planner_doc_1 = require("../../common/utils/planner-doc");
+const admin_counters_1 = require("../../common/utils/admin-counters");
 const MAX_BULK_PLANNER_TASKS = 600;
 const PLANNER_TASK_CATEGORIES = ['general', 'lesson', 'quiz', 'exam', 'review', 'flashcards'];
 const PLANNER_TASK_PRIORITIES = ['low', 'medium', 'high'];
@@ -315,9 +316,6 @@ let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
             const results = allResults.filter((r) => inRange(r.day) && inCourse(r));
             const activityFrom = filters.startDate || filters.endDate ? '' : new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
             const activityResults = activityFrom ? allResults.filter((r) => inCourse(r) && r.day >= activityFrom) : results;
-            const inactiveWhere = ['u.role = \'student\''];
-            const inactiveParams = [];
-            this.appendUserFilter(inactiveWhere, inactiveParams, 'u.id', filters);
             const courseFunnelWhere = ['1=1'];
             const courseFunnelParams = [];
             this.appendCourseFilter(courseFunnelWhere, courseFunnelParams, 'c.id', filters);
@@ -333,31 +331,26 @@ let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
             const paymentStatusParams = [];
             this.appendDateFilter(paymentStatusWhere, paymentStatusParams, 'pt.created_at', filters);
             this.appendUserFilter(paymentStatusWhere, paymentStatusParams, 'pt.user_id', filters);
+            const bitmapStats = this.lessonBitmapStats({ ...filters, courseId: null });
+            bitmapStats.catch(() => undefined);
             const [[users], [attempts], [lessons], hardQuestions, inactiveStudents, activityHeatmap, quizPerformance, courseFunnel, subscriptionStatus, paymentStatus,] = await (0, run_in_batches_1.runInBatches)([
-                () => this.db.execute(`SELECT COUNT(*) total, SUM(role='student') students, SUM(status='inactive') pending FROM users WHERE deleted_at IS NULL`),
+                () => (0, admin_counters_1.readUserGroups)(this.db).then((groups) => [[{
+                            total: groups.reduce((n, g) => n + g.n, 0),
+                            students: groups.filter((g) => g.role === 'student').reduce((n, g) => n + g.n, 0),
+                            pending: groups.filter((g) => g.status === 'inactive').reduce((n, g) => n + g.n, 0),
+                        }], []]),
                 () => Promise.resolve([[{
                             attempts: results.length,
                             avg_score: results.length ? results.reduce((n, r) => n + r.pct, 0) / results.length : 0,
                             passes: results.filter((r) => r.passed).length,
                         }], []]),
-                () => this.lessonBitmapStats(filters)
-                    .then((st) => [[{ total: st.total, completed: st.total }], []]),
+                () => bitmapStats.then((st) => {
+                    const total = filters.courseId ? (st.byCourse.get(filters.courseId)?.completed || 0) : st.total;
+                    return [[{ total, completed: total }], []];
+                }),
                 () => (0, recent_results_1.mostMissedQuestions)(this.db, results, 8)
                     .then((list) => [list.map((q) => ({ id: q.id, question_text: q.text, wrong_count: q.wrongCount })), []]),
-                () => this.db.execute(`
-        -- Each student's latest quiz, study event and lesson progress, worked
-        -- out per table first. Joining all three raw tables at once multiplied
-        -- the rows (attempts x events x lessons for every student) before
-        -- grouping, which made this the heaviest query on the Reports page.
-        SELECT u.id, u.full_name, u.email,
-          slp.last_active_day AS last_activity
-        FROM users u
-        -- 10.44: the summary row's last active day (lessons, exams, cards).
-        LEFT JOIN student_study_summary slp ON slp.user_id = u.id
-        WHERE ${inactiveWhere.join(' AND ')}
-        ORDER BY last_activity IS NULL DESC, last_activity ASC, u.id ASC
-        LIMIT 10
-      `, inactiveParams),
+                () => this.inactiveStudents(filters.userId).then((rows) => [rows, []]),
                 () => {
                     const days = new Map();
                     for (const r of activityResults) {
@@ -395,17 +388,11 @@ let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
                 },
                 () => Promise.all([
                     this.db.execute(`
-          SELECT c.id, c.course_title, COALESCE(lc.total_lessons, 0) AS total_lessons
+          SELECT c.id, c.course_title, c.lesson_count AS total_lessons
           FROM courses c
-          LEFT JOIN (
-            SELECT course_id, COUNT(*) AS total_lessons
-            FROM lessons
-            WHERE status = 'active'
-            GROUP BY course_id
-          ) lc ON lc.course_id = c.id
           WHERE ${courseFunnelWhere.join(' AND ')}
         `, courseFunnelParams),
-                    this.lessonBitmapStats({ ...filters, courseId: null }),
+                    bitmapStats,
                 ]).then(([[courses], st]) => {
                     const rows = courses.map((c) => {
                         const per = st.byCourse.get(Number(c.id));
@@ -423,12 +410,19 @@ let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
                     rows.sort((a, b) => b.students_started - a.students_started || String(a.course_title).localeCompare(String(b.course_title)));
                     return [rows.slice(0, 8), []];
                 }),
-                () => this.db.execute(`
-        SELECT status, COUNT(*) AS count_value
-        FROM user_subscriptions us
-        WHERE ${subscriptionStatusWhere.join(' AND ')}
-        GROUP BY status
-      `, subscriptionStatusParams),
+                () => (subscriptionStatusParams.length
+                    ? this.db.execute(`
+          SELECT status, COUNT(*) AS count_value
+          FROM user_subscriptions us
+          WHERE ${subscriptionStatusWhere.join(' AND ')}
+          GROUP BY status
+        `, subscriptionStatusParams)
+                    : (0, admin_counters_1.readSubscriptionGroups)(this.db).then((groups) => {
+                        const byStatus = new Map();
+                        for (const g of groups)
+                            byStatus.set(g.status, (byStatus.get(g.status) || 0) + g.n);
+                        return [[...byStatus.entries()].map(([status, n]) => ({ status, count_value: n })), []];
+                    })),
                 () => this.db.execute(`
         SELECT status, 'LKR' AS currency, COUNT(*) AS count_value, SUM(amount) AS amount_total
         FROM payment_transactions pt
@@ -860,6 +854,27 @@ let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
             params.push(filters.endDate);
         }
     }
+    async inactiveStudents(userId) {
+        if (userId) {
+            const [rows] = await this.db.query(`SELECT u.id, u.full_name, u.email, s.last_active_day AS last_activity
+         FROM users u LEFT JOIN student_study_summary s ON s.user_id = u.id
+         WHERE u.id = ? AND u.role = 'student' AND u.deleted_at IS NULL`, [userId]);
+            return rows;
+        }
+        const [never] = await this.db.query(`SELECT u.id, u.full_name, u.email, NULL AS last_activity
+       FROM users u FORCE INDEX (PRIMARY)
+       WHERE u.role = 'student' AND u.deleted_at IS NULL
+         AND NOT EXISTS (SELECT 1 FROM student_study_summary s WHERE s.user_id = u.id AND s.last_active_day IS NOT NULL)
+       ORDER BY u.id ASC LIMIT 10`);
+        if (never.length >= 10)
+            return never;
+        const [quiet] = await this.db.query(`SELECT u.id, u.full_name, u.email, s.last_active_day AS last_activity
+       FROM student_study_summary s FORCE INDEX (idx_summary_last_active)
+       INNER JOIN users u ON u.id = s.user_id
+       WHERE s.last_active_day IS NOT NULL AND u.role = 'student' AND u.deleted_at IS NULL
+       ORDER BY s.last_active_day ASC, s.user_id ASC LIMIT ?`, [10 - never.length]);
+        return [...never, ...quiet];
+    }
     async lessonBitmapStats(filters) {
         const params = [];
         let where = 'lessons_done IS NOT NULL';
@@ -868,7 +883,10 @@ let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
             params.push(filters.userId);
         }
         const [students] = await this.db.execute(`SELECT user_id, lessons_done FROM student_study_summary WHERE ${where}`, params);
-        const [lessons] = await this.db.execute(`SELECT id, course_id FROM lessons WHERE status = 'active'`);
+        const finishedIds = [...new Set(students.flatMap((st) => (0, lesson_bits_1.lessonIdsFromBits)(st.lessons_done)))];
+        const [lessons] = finishedIds.length
+            ? await this.db.query(`SELECT id, course_id FROM lessons WHERE id IN (?) AND status = 'active'`, [finishedIds])
+            : [[]];
         const courseOf = new Map(lessons.map((l) => [Number(l.id), Number(l.course_id)]));
         const byCourse = new Map();
         let total = 0;

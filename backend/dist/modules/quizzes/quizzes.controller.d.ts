@@ -41,7 +41,26 @@ export declare class QuizzesController {
         lessonTitle: string;
         paperTitle: string;
     }[]>;
-    summary(search?: string, courseId?: string, topicId?: string, status?: string): Promise<{
+    summary(search?: string, courseId?: string, topicId?: string, status?: string, withFolders?: string): Promise<{
+        rows: {
+            courseId: number;
+            courseTitle: string;
+            isGeneral: boolean;
+            topicId: number | null;
+            subjectName: string;
+            total: number;
+            active: number;
+        }[];
+        courses: {
+            id: number;
+            courseTitle: string;
+        }[];
+        subjects: {
+            id: number;
+            courseId: number;
+            subjectName: string;
+        }[];
+    }> | Promise<{
         courseId: number;
         courseTitle: string;
         isGeneral: boolean;
@@ -100,19 +119,19 @@ export declare class QuizzesController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<void>;
     create(authorization: string | undefined, createQuizDto: CreateQuizDto): Promise<{

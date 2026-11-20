@@ -129,7 +129,7 @@ function Feature({ f, index }) {
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            <span className="mb-4 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]">
+            <span className="lpv2-eyebrow mb-2 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]">
               {f.eyebrow}
             </span>
             <h2 id={`feat-${f.id}`} className="font-display lpv2-feature-h2 text-[#111118]">{f.h2}</h2>
@@ -170,7 +170,7 @@ export function FeatureDeepDives() {
       <div className="lpv2-section bg-[#fafaf7] !pb-0 text-center">
         <div className="lpv2-shell">
           <motion.span
-            className="mb-4 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]"
+            className="lpv2-eyebrow mb-2 inline-block text-[12px] font-bold uppercase tracking-[0.12em] text-[#2563eb]"
             initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
           >
             Everything in one place

@@ -27,6 +27,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
 import { ResendEmailOtpDto } from './dto/resend-email-otp.dto';
 import { effectivePermissions, isStaffRole, UserRole } from './role-permissions';
+import { bumpUserCounter, countNewSubscription, trackSubscriptionChange } from '../../common/utils/admin-counters';
 
 type UserRow = RowDataPacket & {
   id: number;
@@ -267,6 +268,7 @@ export class AuthService {
       'INSERT INTO users (full_name, email, password, role, status, email_verified, university_country, university) VALUES (?, ?, ?, ?, ?, 0, ?, ?)',
       [fullName, email, hashedPassword, 'student', 'active', country, university]
     );
+    await bumpUserCounter(this.db, 'student', 'active', 1); // 10.57
 
     await this.assignDefaultEntryPlan(result.insertId);
 
@@ -318,6 +320,7 @@ export class AuthService {
         'INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)',
         [fullName, email, randomPassword, 'student', 'active']
       );
+      await bumpUserCounter(this.db, 'student', 'active', 1); // 10.57
       await this.assignDefaultEntryPlan(result.insertId);
       user = {
         id: result.insertId,
@@ -386,6 +389,7 @@ export class AuthService {
         'INSERT INTO users (full_name, email, password, role, status, needs_profile_setup) VALUES (?, ?, ?, ?, ?, 1)',
         [fullName, email, randomPassword, 'student', 'active']
       );
+      await bumpUserCounter(this.db, 'student', 'active', 1); // 10.57
       await this.assignDefaultEntryPlan(result.insertId);
       user = {
         id: result.insertId,
@@ -559,7 +563,7 @@ export class AuthService {
    * subscriptions, and keep the payer's address on payment records.
    */
   async softDeleteUser(userId: number, reason: 'self_service' | 'admin') {
-    const [rows] = await this.db.execute<UserRow[]>('SELECT id, email FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [userId]);
+    const [rows] = await this.db.execute<UserRow[]>('SELECT id, email, role, status FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [userId]);
     const target = rows[0];
     if (!target) throw new NotFoundException('User not found');
     // Soft delete: keep the row (and its history) but anonymize personal data and
@@ -611,15 +615,17 @@ export class AuthService {
         [scrambledEmail, lockedPassword, target.id]
       );
       forgetUserSessions(target.id);
+      await bumpUserCounter(connection, target.role, target.status, -1); // 10.57
 
       // Close out their subscriptions. The account cannot sign in again, so
       // leaving rows 'active' only misreports who is subscribed.
-      await connection.execute(
-        `UPDATE user_subscriptions
-         SET status = 'cancelled'
-         WHERE user_id = ? AND status IN ('active', 'pending')`,
-        [target.id]
-      );
+      await trackSubscriptionChange(connection, "user_id = ? AND status IN ('active', 'pending')", [target.id], () =>
+        connection.execute(
+          `UPDATE user_subscriptions
+           SET status = 'cancelled'
+           WHERE user_id = ? AND status IN ('active', 'pending')`,
+          [target.id]
+        ));
 
       // 10.41: no deletion audit row is kept (user decision).
       void reason;
@@ -1234,7 +1240,7 @@ If you did not try to sign in, you can safely ignore this email.`;
   async findUserFresh(token: string) {
     if (!looksLikeAccessToken(token)) {
       const [rows] = await this.db.execute<UserRow[]>(
-        `SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+        `SELECT id, full_name, email, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at /* 10.57: no password hash */
          FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`,
         [hashSessionToken(token)]);
       if (!rows[0]) throw new UnauthorizedException('Session is invalid or has expired');
@@ -1242,7 +1248,7 @@ If you did not try to sign in, you can safely ignore this email.`;
     }
     const claims = userFromAccessToken(token).__claims as AccessClaims;
     const [rows] = await this.db.execute<UserRow[]>(
-      `SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+      `SELECT id, full_name, email, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at /* 10.57: no password hash */
        FROM users WHERE id = ? AND session_token = ? AND session_expires_at > NOW() AND deleted_at IS NULL LIMIT 1`,
       [claims.sub, claims.sid]);
     if (!rows[0]) throw new UnauthorizedException('Session is invalid or has expired');
@@ -1313,7 +1319,7 @@ If you did not try to sign in, you can safely ignore this email.`;
       return remembered;
     }
     const [rows] = await this.db.execute<UserRow[]>(
-      `SELECT id, full_name, email, password, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at
+      `SELECT id, full_name, email, role, permissions, status, avatar_key, needs_profile_setup, session_token, session_expires_at /* 10.57: no password hash */
        FROM users
        WHERE session_token = ?
          AND session_expires_at > NOW()
@@ -1805,5 +1811,6 @@ ${settings.footer}`;
       `,
       [userId, Number(entryPlan.id), toDateOnly(startDate), '9999-12-31']
     );
+    await countNewSubscription(this.db, { plan_id: entryPlan.id, payment_status: 'free_plan', status: 'active' }); // 10.57
   }
 }

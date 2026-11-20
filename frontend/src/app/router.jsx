@@ -31,6 +31,7 @@ const RegisterPage = lazyNamed(() => import('../surfaces/website/auth/RegisterPa
 const ForgotPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ForgotPasswordPage.jsx'), 'ForgotPasswordPage');
 const ResetPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ResetPasswordPage.jsx'), 'ResetPasswordPage');
 const VerifyEmailPage = lazyNamed(() => import('../surfaces/website/auth/VerifyEmailPage.jsx'), 'VerifyEmailPage');
+const WelcomePage = lazyNamed(() => import('../surfaces/app/student/welcome/WelcomePage.jsx'), 'WelcomePage');
 const TermsPage    = lazyNamed(() => import('../surfaces/website/pages/TermsPage.jsx'),                  'TermsPage');
 const PrivacyPolicyPage = lazyNamed(() => import('../surfaces/website/pages/PrivacyPolicyPage.jsx'),     'PrivacyPolicyPage');
 const RefundPolicyPage = lazyNamed(() => import('../surfaces/website/pages/RefundPolicyPage.jsx'),       'RefundPolicyPage');
@@ -814,6 +815,15 @@ const router = createBrowserRouter([
           <PublicOnlyRoute>
             <VerifyEmailPage />
           </PublicOnlyRoute>
+        ),
+      },
+      {
+        // New email sign-up: welcome screen once, after the code (2026-11-20).
+        path: 'welcome',
+        element: withSuspense(
+          <ProtectedRoute role="student" allowPending>
+            <WelcomePage />
+          </ProtectedRoute>
         ),
       },
       {

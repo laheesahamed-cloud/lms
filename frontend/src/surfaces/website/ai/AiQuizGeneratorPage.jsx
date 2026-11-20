@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { generateAiQuiz, generateWhyIncorrectExplanations } from '../../../shared/api/ai.api.js';
 import { getErrorMessage } from '../../../shared/api/client.js';
-import { createQuestion, fetchQuestionsMeta } from '../../../shared/api/questions.api.js';
+import { createQuestion, fetchQuestionsMeta, fetchQuestionSubjectLists } from '../../../shared/api/questions.api.js';
 import { createQuiz } from '../../../shared/api/quizzes.api.js';
 import { generateTheoryRecap } from '../../../shared/api/theoryRecap.api.js';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
@@ -294,9 +294,34 @@ export function AiQuizGeneratorPage({
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState({ loading: false, saving: false, error: '', success: '' });
 
+  // 10.57: subjects' topics and lessons load when a subject is picked (one
+  // indexed read per subject, kept for the visit), not every lesson up front.
+  const loadedSubjects = useRef(new Set());
+
   useEffect(() => {
     loadMeta();
   }, []);
+
+  useEffect(() => {
+    const subjectId = String(form.subjectId || '');
+    if (!subjectId || loadedSubjects.current.has(subjectId)) return;
+    loadedSubjects.current.add(subjectId);
+    fetchQuestionSubjectLists(subjectId)
+      .then((data) => {
+        setMeta((current) => ({
+          ...current,
+          topics: [...current.topics, ...(data.topics || [])],
+          lessons: [...current.lessons, ...(data.lessons || [])],
+        }));
+      })
+      .catch((error) => {
+        loadedSubjects.current.delete(subjectId);
+        setStatus((current) => ({
+          ...current,
+          error: getErrorMessage(error, 'Unable to load topics and lessons for this subject'),
+        }));
+      });
+  }, [form.subjectId]);
 
   useEffect(() => {
     if (!lessonQuiz) return;
@@ -346,13 +371,12 @@ export function AiQuizGeneratorPage({
 
   async function loadMeta() {
     try {
-      const data = await fetchQuestionsMeta();
-      setMeta({
+      const data = await fetchQuestionsMeta({ scope: 'folders' });
+      setMeta((current) => ({
+        ...current,
         courses: data.courses || [],
         subjects: data.subjects || [],
-        topics: data.topics || [],
-        lessons: data.lessons || [],
-      });
+      }));
     } catch (error) {
       setStatus((current) => ({
         ...current,

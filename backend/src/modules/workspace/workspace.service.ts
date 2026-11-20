@@ -13,6 +13,7 @@ import { getScopeRows } from '../../common/auth/subscription-scope';
 import { finishedLessons, lessonIdsFromBits } from '../../common/utils/lesson-bits';
 import { RecentResult, loadQuizInfo, loadRecentResults, mostMissedQuestions } from '../../common/utils/recent-results';
 import { PLAN_ROW_TITLE, PlannerItem, newPlannerIds, readPlanItems } from '../../common/utils/planner-doc';
+import { readSubscriptionGroups, readUserGroups } from '../../common/utils/admin-counters';
 
 /// Ceiling on one generated plan. A plan covering every course is in the low
 /// hundreds of items; this is clear of that and still stops a single request
@@ -448,9 +449,6 @@ export class WorkspaceService {
     const activityFrom = filters.startDate || filters.endDate ? '' : new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
     const activityResults = activityFrom ? allResults.filter((r) => inCourse(r) && r.day >= activityFrom) : results;
 
-    const inactiveWhere = ['u.role = \'student\''];
-    const inactiveParams: any[] = [];
-    this.appendUserFilter(inactiveWhere, inactiveParams, 'u.id', filters);
 
     const courseFunnelWhere = ['1=1'];
     const courseFunnelParams: any[] = [];
@@ -470,6 +468,8 @@ export class WorkspaceService {
     this.appendDateFilter(paymentStatusWhere, paymentStatusParams, 'pt.created_at', filters);
     this.appendUserFilter(paymentStatusWhere, paymentStatusParams, 'pt.user_id', filters);
 
+    const bitmapStats = this.lessonBitmapStats({ ...filters, courseId: null });
+    bitmapStats.catch(() => undefined); // awaited below; avoids an unhandled rejection before the batch reaches it
     const [
       [users],
       [attempts],
@@ -482,7 +482,12 @@ export class WorkspaceService {
       subscriptionStatus,
       paymentStatus,
     ] = await runInBatches([
-      () => this.db.execute<RowDataPacket[]>(`SELECT COUNT(*) total, SUM(role='student') students, SUM(status='inactive') pending FROM users WHERE deleted_at IS NULL`),
+      // 10.57: from the stored counters (live users by role / status), not a count over every user.
+      (): Promise<[RowDataPacket[], unknown]> => readUserGroups(this.db).then((groups) => [[{
+        total: groups.reduce((n, g) => n + g.n, 0),
+        students: groups.filter((g) => g.role === 'student').reduce((n, g) => n + g.n, 0),
+        pending: groups.filter((g) => g.status === 'inactive').reduce((n, g) => n + g.n, 0),
+      } as unknown as RowDataPacket], []]),
       (): Promise<[RowDataPacket[], unknown]> => Promise.resolve([[{
         attempts: results.length,
         avg_score: results.length ? results.reduce((n, r) => n + r.pct, 0) / results.length : 0,
@@ -490,26 +495,19 @@ export class WorkspaceService {
       } as unknown as RowDataPacket], []]),
       // Finished lessons from the students' bitmaps (10.15: no per-lesson rows
       // or dates any more, so the date filter does not apply to lessons).
-      (): Promise<[RowDataPacket[], unknown]> => this.lessonBitmapStats(filters)
-        .then((st) => [[{ total: st.total, completed: st.total } as unknown as RowDataPacket], []]),
+      // 10.57: one bitmap pass (all courses) serves both this total and the course funnel.
+      (): Promise<[RowDataPacket[], unknown]> => bitmapStats.then((st) => {
+        const total = filters.courseId ? (st.byCourse.get(filters.courseId)?.completed || 0) : st.total;
+        return [[{ total, completed: total } as unknown as RowDataPacket], []];
+      }),
       // Most-missed questions: each result's answers checked against the
       // question's options (one read of the answered questions).
       (): Promise<[RowDataPacket[], unknown]> => mostMissedQuestions(this.db, results, 8)
         .then((list) => [list.map((q) => ({ id: q.id, question_text: q.text, wrong_count: q.wrongCount })) as unknown as RowDataPacket[], []]),
-      () => this.db.execute<RowDataPacket[]>(`
-        -- Each student's latest quiz, study event and lesson progress, worked
-        -- out per table first. Joining all three raw tables at once multiplied
-        -- the rows (attempts x events x lessons for every student) before
-        -- grouping, which made this the heaviest query on the Reports page.
-        SELECT u.id, u.full_name, u.email,
-          slp.last_active_day AS last_activity
-        FROM users u
-        -- 10.44: the summary row's last active day (lessons, exams, cards).
-        LEFT JOIN student_study_summary slp ON slp.user_id = u.id
-        WHERE ${inactiveWhere.join(' AND ')}
-        ORDER BY last_activity IS NULL DESC, last_activity ASC, u.id ASC
-        LIMIT 10
-      `, inactiveParams),
+      // 10.57: students never active first (walking user ids, stops at 10), then
+      // the least recently active by the summary's (last_active_day) index.
+      // Deleted accounts are left out. Was a join + sort over every student.
+      (): Promise<[RowDataPacket[], unknown]> => this.inactiveStudents(filters.userId).then((rows) => [rows, []]),
       // Exams per day (10.44: from the recent results; no activity log since 10.28).
       (): Promise<[RowDataPacket[], unknown]> => {
         const days = new Map<string, { students: Set<number>; exams: number }>();
@@ -543,18 +541,13 @@ export class WorkspaceService {
         return Promise.resolve([rows as unknown as RowDataPacket[], []]);
       },
       (): Promise<[RowDataPacket[], unknown]> => Promise.all([
+        // 10.57: lessons per course = the stored count (Structure page rule), not a count of every lesson.
         this.db.execute<RowDataPacket[]>(`
-          SELECT c.id, c.course_title, COALESCE(lc.total_lessons, 0) AS total_lessons
+          SELECT c.id, c.course_title, c.lesson_count AS total_lessons
           FROM courses c
-          LEFT JOIN (
-            SELECT course_id, COUNT(*) AS total_lessons
-            FROM lessons
-            WHERE status = 'active'
-            GROUP BY course_id
-          ) lc ON lc.course_id = c.id
           WHERE ${courseFunnelWhere.join(' AND ')}
         `, courseFunnelParams),
-        this.lessonBitmapStats({ ...filters, courseId: null }),
+        bitmapStats,
       ]).then(([[courses], st]) => {
         // Students started / lessons finished per course from the bitmaps (10.15).
         const rows = courses.map((c: RowDataPacket) => {
@@ -573,12 +566,19 @@ export class WorkspaceService {
         rows.sort((a, b) => b.students_started - a.students_started || String(a.course_title).localeCompare(String(b.course_title)));
         return [rows.slice(0, 8) as unknown as RowDataPacket[], []];
       }),
-      () => this.db.execute<RowDataPacket[]>(`
-        SELECT status, COUNT(*) AS count_value
-        FROM user_subscriptions us
-        WHERE ${subscriptionStatusWhere.join(' AND ')}
-        GROUP BY status
-      `, subscriptionStatusParams),
+      // 10.57: no date / student filter → the stored counters (summed by status).
+      (): Promise<[RowDataPacket[], unknown]> => (subscriptionStatusParams.length
+        ? this.db.execute<RowDataPacket[]>(`
+          SELECT status, COUNT(*) AS count_value
+          FROM user_subscriptions us
+          WHERE ${subscriptionStatusWhere.join(' AND ')}
+          GROUP BY status
+        `, subscriptionStatusParams)
+        : readSubscriptionGroups(this.db).then((groups) => {
+          const byStatus = new Map<string, number>();
+          for (const g of groups) byStatus.set(g.status, (byStatus.get(g.status) || 0) + g.n);
+          return [[...byStatus.entries()].map(([status, n]) => ({ status, count_value: n })) as unknown as RowDataPacket[], []];
+        })),
       () => this.db.execute<RowDataPacket[]>(`
         SELECT status, 'LKR' AS currency, COUNT(*) AS count_value, SUM(amount) AS amount_total
         FROM payment_transactions pt
@@ -1045,6 +1045,32 @@ export class WorkspaceService {
 
 
 
+  /** Reports "inactive students" (10.57): up to 10, never-active first (by id),
+   * then least recently active. Each read stops at the rows it returns. */
+  private async inactiveStudents(userId: number | null): Promise<RowDataPacket[]> {
+    if (userId) {
+      const [rows] = await this.db.query<RowDataPacket[]>(
+        `SELECT u.id, u.full_name, u.email, s.last_active_day AS last_activity
+         FROM users u LEFT JOIN student_study_summary s ON s.user_id = u.id
+         WHERE u.id = ? AND u.role = 'student' AND u.deleted_at IS NULL`, [userId]);
+      return rows;
+    }
+    const [never] = await this.db.query<RowDataPacket[]>(
+      `SELECT u.id, u.full_name, u.email, NULL AS last_activity
+       FROM users u FORCE INDEX (PRIMARY)
+       WHERE u.role = 'student' AND u.deleted_at IS NULL
+         AND NOT EXISTS (SELECT 1 FROM student_study_summary s WHERE s.user_id = u.id AND s.last_active_day IS NOT NULL)
+       ORDER BY u.id ASC LIMIT 10`);
+    if (never.length >= 10) return never;
+    const [quiet] = await this.db.query<RowDataPacket[]>(
+      `SELECT u.id, u.full_name, u.email, s.last_active_day AS last_activity
+       FROM student_study_summary s FORCE INDEX (idx_summary_last_active)
+       INNER JOIN users u ON u.id = s.user_id
+       WHERE s.last_active_day IS NOT NULL AND u.role = 'student' AND u.deleted_at IS NULL
+       ORDER BY s.last_active_day ASC, s.user_id ASC LIMIT ?`, [10 - never.length]);
+    return [...never, ...quiet];
+  }
+
   /**
    * Finished-lesson counts from the students' bitmaps (10.15): total, and per
    * course (students with any finished lesson there, lessons finished). Admin
@@ -1056,7 +1082,11 @@ export class WorkspaceService {
     let where = 'lessons_done IS NOT NULL';
     if (filters.userId) { where += ' AND user_id = ?'; params.push(filters.userId); }
     const [students] = await this.db.execute<RowDataPacket[]>(`SELECT user_id, lessons_done FROM student_study_summary WHERE ${where}`, params);
-    const [lessons] = await this.db.execute<RowDataPacket[]>(`SELECT id, course_id FROM lessons WHERE status = 'active'`);
+    // 10.57: the course of the finished lessons only (by id), not every lesson.
+    const finishedIds = [...new Set(students.flatMap((st) => lessonIdsFromBits(st.lessons_done)))];
+    const [lessons] = finishedIds.length
+      ? await this.db.query<RowDataPacket[]>(`SELECT id, course_id FROM lessons WHERE id IN (?) AND status = 'active'`, [finishedIds])
+      : [[] as RowDataPacket[]];
     const courseOf = new Map(lessons.map((l) => [Number(l.id), Number(l.course_id)]));
     const byCourse = new Map<number, { students: number; completed: number }>();
     let total = 0;

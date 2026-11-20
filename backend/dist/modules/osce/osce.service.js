@@ -355,11 +355,10 @@ let OsceService = OsceService_1 = class OsceService {
         }));
     }
     async listCourses() {
-        const [rows] = await this.db.execute(`SELECT co.id, co.course_title, COUNT(t.id) AS subject_count
+        const [rows] = await this.db.execute(`SELECT co.id, co.course_title, co.subject_count
          FROM courses co
-         LEFT JOIN topics t ON t.course_id = co.id AND t.status = 'active'
         WHERE co.status = 'active'
-        GROUP BY co.id, co.course_title ORDER BY co.id`);
+        ORDER BY co.id`);
         return rows.map((r) => ({
             id: Number(r.id),
             title: String(r.course_title),

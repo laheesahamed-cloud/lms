@@ -27,6 +27,7 @@ import { isMobileAppClient } from '../../common/utils/mobile-client.util';
 import { compactForPhone, scrubPlainTextFieldsForPhone } from './mobile-text-layout';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { finishedLessons } from '../../common/utils/lesson-bits';
+import { rebuildAdminCounters } from '../../common/utils/admin-counters';
 
 type LessonRow = RowDataPacket & {
   id: number;
@@ -1379,10 +1380,15 @@ export class LessonsService {
       if (typeof action.runId !== 'string' || !action.runId) throw new BadRequestException('runId is required');
       if (action.step === 'set') {
         if (!Array.isArray(action.subjectIds)) throw new BadRequestException('subjectIds is required');
-        return await runCountFixSet(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
+        const out = await runCountFixSet(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
+        // 10.57: the last step also rebuilds the admin counters (users, subscriptions, drugs).
+        if (Array.isArray(action.finish)) await rebuildAdminCounters(this.db);
+        return out;
       }
       if (!Array.isArray(action.courses)) throw new BadRequestException('courses is required');
-      return await finishCountFix(this.db, action.runId, action.courses);
+      const finished = await finishCountFix(this.db, action.runId, action.courses);
+      await rebuildAdminCounters(this.db); // 10.57
+      return finished;
     } catch (error) {
       if (error instanceof CountFixBusyError) throw new ConflictException(error.message);
       throw error;
