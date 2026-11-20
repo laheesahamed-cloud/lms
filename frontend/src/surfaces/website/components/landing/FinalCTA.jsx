@@ -63,11 +63,11 @@ export function FinalCTA() {
               />
             </StoreBadge>
           </div>
-          <p className="mt-4 text-[13.5px] font-medium italic text-[#6b7280]">
-            coming soon — in progress. very slowly. but in progress.<br />
-            we start Monday. <span className="font-semibold text-[#111118]">(every Monday.)</span><br />
-            and sometimes we go out and eat the budget money as well.
-          </p>
+          {!APP_STORE_URL || !PLAY_STORE_URL ? (
+            <p className="mt-4 text-[13.5px] font-medium text-[#6b7280]">
+              Coming soon to the App Store and Google Play.
+            </p>
+          ) : null}
 
           {/* Instagram */}
           <a href="https://www.instagram.com/xyndrome.med" target="_blank" rel="noopener noreferrer" className="mt-7 inline-flex items-center gap-2.5 rounded-full bg-white px-5 py-2.5 shadow-[0_4px_18px_-6px_rgba(17,17,24,0.14)] ring-1 ring-black/5 no-underline transition-shadow hover:shadow-[0_6px_24px_-6px_rgba(17,17,24,0.22)]">

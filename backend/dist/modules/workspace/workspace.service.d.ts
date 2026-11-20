@@ -2,6 +2,7 @@ import { NoticesService } from '../notices/notices.service';
 import { Pool } from 'mysql2/promise';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
+import { CourseStructureService } from '../courses/course-structure.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 type AdminReportFilterInput = {
     startDate?: string;
@@ -38,7 +39,8 @@ export declare class WorkspaceService {
     private readonly plansService;
     private readonly pushNotificationsService;
     private readonly notices;
-    constructor(db: Pool, authService: AuthService, plansService: PlansService, pushNotificationsService: PushNotificationsService, notices: NoticesService);
+    private readonly structure;
+    constructor(db: Pool, authService: AuthService, plansService: PlansService, pushNotificationsService: PushNotificationsService, notices: NoticesService, structure: CourseStructureService);
     listAdminAnnouncements(authorization?: string, _after?: number): Promise<{
         items: {
             id: number;

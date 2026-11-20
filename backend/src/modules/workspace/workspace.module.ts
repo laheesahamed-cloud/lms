@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { CoursesModule } from '../courses/courses.module';
 import { PlansModule } from '../plans/plans.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { WorkspaceController } from './workspace.controller';
 import { WorkspaceService } from './workspace.service';
 
 @Module({
-  imports: [AuthModule, PlansModule, PushNotificationsModule],
+  imports: [AuthModule, CoursesModule, PlansModule, PushNotificationsModule],
   controllers: [WorkspaceController],
   providers: [WorkspaceService],
   exports: [WorkspaceService],

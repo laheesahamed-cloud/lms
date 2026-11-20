@@ -29,8 +29,11 @@ function getAttemptType(result) {
   return 'Exam';
 }
 
+// The set's own name (2026-11-20). "Exam attempt #153" showed the set id,
+// which read like the student's 153rd attempt.
 function getResultQuizTitle(result) {
-  return `${getAttemptType(result)} attempt #${result?.attemptId || '-'}`;
+  const title = String(result?.quizTitle || '').trim();
+  return title || `${getAttemptType(result)} attempt`;
 }
 
 function getAttemptSubtitle(result) {
@@ -44,8 +47,9 @@ function getAttemptMarks(result) {
   const correct = Number(result?.correctAnswers || 0);
   const wrong = Number(result?.wrongAnswers || 0);
   const unanswered = Number(result?.unansweredQuestions || 0);
-  const total = correct + wrong + unanswered;
-  return total > 0 ? `${correct}/${total}` : '';
+  // Out of every question in the set, so it agrees with the percentage.
+  const total = Number(result?.totalQuestions) || (correct + wrong + unanswered);
+  return total > 0 ? `${correct}/${total} correct` : '';
 }
 
 function getAttemptReviewStatus(result) {

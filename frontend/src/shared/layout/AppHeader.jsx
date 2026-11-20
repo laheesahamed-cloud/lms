@@ -511,6 +511,19 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
     setHeaderOverride(JSON.parse(pageDescriptorKey));
   }, [pageDescriptorKey, setHeaderOverride]);
 
+  // Browser tab title from the page title (2026-11-20): most app pages have no
+  // PageMeta, so the tab kept the previous page's title (often the homepage's).
+  // A page that set its own title with PageMeta keeps it.
+  useEffect(() => {
+    if (isShellSurface || typeof title !== 'string' || !title.trim()) return undefined;
+    const path = location.pathname;
+    const timer = window.setTimeout(() => {
+      if (window.__lmsPageMetaPath === path) return;
+      document.title = `${title.trim()} | xyndrome`;
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isShellSurface, title, location.pathname]);
+
   const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
   const recentNotifications = useMemo(() => sortLatestNotifications(notifications), [notifications]);
   // Dropdown surfaces unread only — once an item is marked read it drops off here.

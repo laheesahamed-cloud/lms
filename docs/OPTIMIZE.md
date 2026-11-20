@@ -4232,10 +4232,65 @@ Each one also raised `content_version` (431 → 433 across the two saves), so ev
 
 **Targets:** a non-content admin save = the save's own statements only ✅. Content saves are unchanged, and they still raise the version ✅.
 
+### 10.59 Release check: homepage + student website fixes, Study Hub planner rows — ✅ BUILT locally 2026-11-20 (not committed, not deployed)
+
+**Decisions**
+- ✅ User 2026-11-20: "fix all and optimize the rows", after the release check of the homepage and student website (desktop, phone, dark mode).
+- Subscription page: no change. Measured warm it is already 1 · 4 · 5 → 4. The 8 · 169 in the check was a cold read (plans memory 1 h, settings memory 10 min, both per server process, not per student).
+- The `QA lesson 10.28` test lesson exists only in the local database. It was left alone. Check the live database before release.
+
+**Aims**
+- No bug a student sees on the first visit: a readable homepage menu, no blank pages, no broken Profile layout.
+- Each student website page reads ≤ 5 rows when warm (except the first app start).
+
+**Before** (local, student 972, web client). Requests · Statements · Rows examined → returned:
+
+| Page | Before |
+|---|---|
+| Study Hub (full open) | 10 · 7 · 79 → 24 (`/student/planner/agenda` 3 · 74 → 20: 4 primary-key reads per finished lesson for its names) |
+| Subscription (cold) | 1 · 8 · 169 → 168 |
+| Subscription (warm) | 1 · 4 · 5 → 4 |
+| Homepage | 3 · 1 · 61 → 61 (`settings/public` sent on every fresh load, because the popup file check failed) |
+
+**Plan / Changes (built)**
+- **Homepage menu colour.** `shared/foundation.css` had `a { color: inherit }` unlayered, which beat every Tailwind text colour on a link. The menu was dark-on-dark over the hero, the subjects strip and the footer, and "Get Started" lost its white text. The rule now sits in `@layer theme` (the lowest layer). Link colours were compared before and after on the homepage, `/try`, `/terms`, Results and a course page: only links that carry their own colour class changed, and the student pages had no changes.
+- **Homepage bar over light sections.** The bar's colour sampler hit the pinned hero, which stays on top at opacity 0. It now skips faded layers, and takes one more sample 450 ms after scrolling stops (the fade is scrubbed).
+- **Homepage copy.** The "coming soon… eat the budget money" joke was replaced by "Coming soon to the App Store and Google Play." It only shows while the store links in `appLinks.js` are empty.
+- **Blank pages.** The idle pause (after 12 s without input) paused *every* animation, so one-time fade-ins froze at opacity 0. A page that finished loading untouched stayed blank until a tap. Now only endless animations inside the app shells are paused (`performanceProfile.js`, Web Animations API). The blanket CSS rule was removed.
+- **Profile.** The "Dark / Light" pill no longer squeezes to one letter per line. The Email and Role fields use the normal input style (16 px padding).
+- **Flashcards (web).** When there are no lesson decks it shows the "Continue in the app" card with the store badges, instead of empty counters and table headings.
+- **Results.** Rows show the set's name, not "Exam attempt #153" (that was the set id). The score line is "2/20 correct" (correct out of the whole set; the reply now carries `totalQuestions` from the stored ids), not "2/5" (right out of answered). The Study Hub average rounds like Results (18% vs 19% before).
+- **Subscription.** Amounts are shown as "17,490.00" and day counts as "359 days" / "1 day".
+- **Tab title.** App pages without PageMeta now set the tab title from their page header ("Study | xyndrome"). Before, the tab kept the previous page's title.
+- **Scroll reset.** The scroll-to-top on a new page used `behavior: 'auto'`, which follows `<html>`'s smooth scroll, so the jump was cut short and pages opened part-way down. It is now `'instant'`.
+- **Planner rows.** `getPlannerAgenda` takes lesson, course, subject and topic names from the course structure in memory (`CourseStructureService`, 0 rows). Only a finished lesson missing from it (hidden, or no notes) is still read from the database. `WorkspaceModule` imports `CoursesModule`.
+- **Popup check.** Each popup file is tried on its own. A missing static file served as HTML used to throw and skip the API file, which fell back to `settings/public`. On the live site (same origin) the API file now answers. In local dev it is cross-origin and still falls back.
+
+**After** (backend restarted on the new dist; warm):
+
+| Page | Before | After |
+|---|---|---|
+| Study Hub (full open) | 10 · 7 · 79 → 24 | **9 · 6 · 7 → 6** (planner 3 · 74 → 20 → **2 · 2 → 2**, same 1,265-byte reply) |
+| Subscription (warm) | 1 · 4 · 5 → 4 | 1 · 4 · 5 → 4 (unchanged) |
+| Q-Bank, Study, Results, Profile, Flashcards, Notifications | 0 | 0 |
+| Planner · Course page | 1 · 1 · 1 → 1 | 1 · 1 · 1 → 1 |
+
+- Checked in the browser:
+  - homepage menu readable over the hero, the light sections, the dark strip and the footer (desktop 1280);
+  - Study Hub visible while the idle pause is on;
+  - switching from a scrolled Results page to Study lands at the top;
+  - the Profile, Flashcards, Results and Subscription screens.
+
+**Targets:**
+- Study Hub ≤ 10 rows ✅ (7).
+- Every other student web page ≤ 5 rows warm ✅.
+- No homepage or student bug from the release check left open ✅, except checking the live database for the QA lesson.
+
 ## 8. Change log
 
 | Date | Change |
 |---|---|
+| 2026-11-20 | 10.59 built locally: release-check fixes (homepage menu colour = link rule moved to @layer theme, bar over light sections, coming-soon copy; idle pause no longer blanks pages; Profile, Flashcards, Results, Subscription text; tab titles; scroll reset instant); Study Hub 79 → 7 rows (planner names from the structure in memory). |
 | 2026-11-20 | 10.58 built locally: admin user / subscription / settings / report saves no longer raise the catalogue version (status change 10 · 1,849 → 3 · 2; create student 14 · 1,849 → 7 · 2; no phone re-download). Drugs, ECG, OSCE, auscultation and all content routes still raise it. |
 | 2026-11-20 | 10.57 built locally: all 17 admin pages 11,120 → 963 rows examined (Reports 5,143 → 133, Gemini 4,007 → 52, Subscriptions 537 → 188, Dashboard 323 → 42, Drugs 389 → 33); stored admin counters match a full recount; found: every /api/admin save rebuilds the catalogue (≈ 5,500 rows). |
 | 2026-11-20 | 10.57 approved: all 17 admin pages measured cold (78 · 94 · 11,120 → 5,498); Gemini AI form loads lessons per topic (4,007 → ≈ 55), Assessments one request, plus the 9.8 Reports / counters / small fixes; target ≈ 850 rows for the whole sweep. |

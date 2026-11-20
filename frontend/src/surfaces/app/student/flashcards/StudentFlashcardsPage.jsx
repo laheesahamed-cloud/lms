@@ -12,6 +12,7 @@ import { renderClozeFront, renderClozeBack, hasCloze } from './cloze.js';
 import { serverDriver, localDriver } from './drivers.js';
 import { AddCardModal, CardBrowserModal, loadLocalDeckTree, createDeck, deleteDeck } from './management.jsx';
 import { StatsModal } from './StatsModal.jsx';
+import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
 import './flashcards.css';
 
 /* ───────────────────────── helpers ───────────────────────── */
@@ -397,7 +398,14 @@ function DeckListView({ onStart }) {
           </div>
         ) : null}
 
-        {tab === 'lesson' ? (
+        {tab === 'lesson' && !loading && !error && !data.decks.length ? (
+          // Lesson decks live in the app: show only the store message, not
+          // empty counters and table headings above it (2026-11-20).
+          <AppOnlyGate
+            title="Flashcards are in the app"
+            message="Lesson flashcard decks work in the Xyndrome app, with spaced review that remembers what you need to see next. Your own decks work here under My decks."
+          />
+        ) : tab === 'lesson' ? (
           <>
             <div className="xfc-summary">
               <SummaryStat label="New" value={totals.newCount} tone="new" />
@@ -416,8 +424,6 @@ function DeckListView({ onStart }) {
                 <FeedbackNotice tone="error">{error}</FeedbackNotice>
                 <button type="button" className="xfc-primary" onClick={load}>Try again</button>
               </div>
-            ) : !data.decks.length ? (
-              <div className="xfc-empty"><h2>Flashcards are in the app</h2><p>Flashcard decks work in the Xyndrome app, with spaced review that remembers what you need to see next.</p></div>
             ) : (
               <div className="xfc-deck-list">
                 {data.decks.map((node) => (

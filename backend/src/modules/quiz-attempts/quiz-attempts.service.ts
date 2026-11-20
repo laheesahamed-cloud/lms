@@ -438,6 +438,9 @@ export class QuizAttemptsService {
         percentage: Number(e?.pct || 0),
         correctAnswers: correct,
         wrongAnswers: wrong,
+        // 2026-11-20: questions in the attempt, so the website shows
+        // "2/20 correct" instead of right/answered (which read like the score).
+        totalQuestions: Array.isArray(e?.ids) ? e.ids.length : null,
         passStatus: e?.passed ? 'pass' : 'fail',
         submittedAt: e?.at || null,
         reviewedAt: e?.reviewed ? (e?.at || true) : null,

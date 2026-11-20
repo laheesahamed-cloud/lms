@@ -71,6 +71,7 @@ export function PageMeta({
     const imageUrl = PUBLIC_WEBSITE_URL ? absoluteUrl(publicAssetPath(image), `${PUBLIC_WEBSITE_URL}/`) : absoluteUrl(image);
 
     document.title = fullTitle;
+    window.__lmsPageMetaPath = window.location.pathname; // AppHeader then leaves the title alone
     upsertMeta('meta[name="description"]', { name: 'description', content: description });
     upsertMeta('meta[name="robots"]', {
       name: 'robots',

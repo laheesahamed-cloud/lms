@@ -101,8 +101,8 @@ export function ProfilePage() {
               Switch between dark and light mode for your study workspace.
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-xl border border-line-soft bg-surface-2 px-3 py-2">
-            <span className="text-[12px] font-extrabold text-ink-soft">Dark / Light</span>
+          <div className="flex shrink-0 items-center gap-3 rounded-xl border border-line-soft bg-surface-2 px-3 py-2">
+            <span className="whitespace-nowrap text-[12px] font-extrabold text-ink-soft">Dark / Light</span>
             <ThemeToggle />
           </div>
         </section>
@@ -130,12 +130,12 @@ export function ProfilePage() {
 
             <label className="grid gap-2 text-[13px] font-bold text-ink-medium">
               Email address
-              <input className="cursor-not-allowed bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] text-ink-soft" value={user?.email || ''} readOnly aria-readonly="true" />
+              <input className={cx(ui.input, 'cursor-not-allowed !bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] !text-ink-soft')} value={user?.email || ''} readOnly aria-readonly="true" />
             </label>
 
             <label className="grid gap-2 text-[13px] font-bold text-ink-medium">
               Role
-              <input className="cursor-not-allowed bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] text-ink-soft" value={isStaff ? getStaffRoleLabel(user?.role) : 'Medical Student'} readOnly aria-readonly="true" />
+              <input className={cx(ui.input, 'cursor-not-allowed !bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] !text-ink-soft')} value={isStaff ? getStaffRoleLabel(user?.role) : 'Medical Student'} readOnly aria-readonly="true" />
             </label>
 
             <div className="grid gap-3">

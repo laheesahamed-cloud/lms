@@ -23,6 +23,7 @@ const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const plans_service_1 = require("../plans/plans.service");
+const course_structure_service_1 = require("../courses/course-structure.service");
 const push_notifications_service_1 = require("../push-notifications/push-notifications.service");
 const subscription_scope_1 = require("../../common/auth/subscription-scope");
 const lesson_bits_1 = require("../../common/utils/lesson-bits");
@@ -48,12 +49,13 @@ const ADMIN_REPORT_FILTER_COLUMNS = [
     'pt.user_id',
 ];
 let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
-    constructor(db, authService, plansService, pushNotificationsService, notices) {
+    constructor(db, authService, plansService, pushNotificationsService, notices, structure) {
         this.db = db;
         this.authService = authService;
         this.plansService = plansService;
         this.pushNotificationsService = pushNotificationsService;
         this.notices = notices;
+        this.structure = structure;
     }
     async listAdminAnnouncements(authorization, _after) {
         await this.authService.requireAdmin(authorization);
@@ -159,15 +161,43 @@ let WorkspaceService = WorkspaceService_1 = class WorkspaceService {
                 const ids = [...done].sort((a, b) => b - a).slice(0, 36);
                 if (!ids.length)
                     return [[]];
-                const [rows] = await this.db.execute(`SELECT l.id AS lesson_id, 'completed' AS progress_status, 100 AS progress_percent,
+                const snap = await this.structure.get().catch(() => null);
+                const fromMemory = [];
+                let missing = ids;
+                if (snap) {
+                    const lessonById = new Map(snap.lessons.map((l) => [Number(l.id), l]));
+                    const courseById = new Map(snap.courses.map((c) => [Number(c.id), c]));
+                    const subjectById = new Map(snap.subjects.map((x) => [Number(x.id), x]));
+                    const topicById = new Map(snap.topics.map((t) => [Number(t.id), t]));
+                    missing = [];
+                    for (const id of ids) {
+                        const l = lessonById.get(id);
+                        if (!l) {
+                            missing.push(id);
+                            continue;
+                        }
+                        fromMemory.push({
+                            lesson_id: id, progress_status: 'completed', progress_percent: 100,
+                            started_at: null, completed_at: null, updated_at: null,
+                            lesson_title: l.lesson_title,
+                            course_title: courseById.get(Number(l.course_id))?.course_title ?? null,
+                            subject_name: subjectById.get(Number(l.topic_id))?.topic_name ?? null,
+                            topic_name: l.subtopic_id ? topicById.get(Number(l.subtopic_id))?.subtopic_name ?? null : null,
+                        });
+                    }
+                    if (!missing.length)
+                        return [fromMemory];
+                }
+                const [dbRows] = await this.db.execute(`SELECT l.id AS lesson_id, 'completed' AS progress_status, 100 AS progress_percent,
                   NULL AS started_at, NULL AS completed_at, NULL AS updated_at,
                   l.lesson_title, c.course_title, subj.topic_name AS subject_name, sub.subtopic_name AS topic_name
              FROM lessons l
              LEFT JOIN courses c ON c.id = l.course_id
              LEFT JOIN topics subj ON subj.id = l.topic_id
              LEFT JOIN subtopics sub ON sub.id = l.subtopic_id
-            WHERE l.status = 'active' AND l.id IN (${ids.map(() => '?').join(', ')})
-            ORDER BY l.id DESC`, ids);
+            WHERE l.status = 'active' AND l.id IN (${missing.map(() => '?').join(', ')})
+            ORDER BY l.id DESC`, missing);
+                const rows = [...fromMemory, ...dbRows].sort((a, b) => Number(b.lesson_id) - Number(a.lesson_id));
                 return [rows];
             }),
             Promise.resolve([[]]),
@@ -1061,6 +1091,7 @@ exports.WorkspaceService = WorkspaceService = WorkspaceService_1 = __decorate([
     __metadata("design:paramtypes", [Object, auth_service_1.AuthService,
         plans_service_1.PlansService,
         push_notifications_service_1.PushNotificationsService,
-        notices_service_1.NoticesService])
+        notices_service_1.NoticesService,
+        course_structure_service_1.CourseStructureService])
 ], WorkspaceService);
 //# sourceMappingURL=workspace.service.js.map

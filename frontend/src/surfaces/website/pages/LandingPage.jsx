@@ -82,8 +82,19 @@ export function LandingPage() {
       // section's own background shows (not a centered card), and take the first
       // opaque colour walking up the tree.
       const points = [[10, 80], [Math.round(window.innerWidth / 2), 80], [window.innerWidth - 10, 80]];
+      // The pinned hero fades to opacity 0 but stays on top for the rest of
+      // its scroll track: skip faded layers so the light section showing
+      // through is what decides the bar colour (2026-11-20).
+      const isFaded = (node) => {
+        for (let n = node; n && n !== document.documentElement; n = n.parentElement) {
+          if (parseFloat(getComputedStyle(n).opacity) < 0.05) return true;
+        }
+        return false;
+      };
       for (const [x, y] of points) {
-        let el = document.elementFromPoint(x, y);
+        const stack = document.elementsFromPoint ? document.elementsFromPoint(x, y) : [document.elementFromPoint(x, y)];
+        const top = stack.find((node) => node && !isFaded(node));
+        let el = top;
         while (el && el !== document.documentElement) {
           const bg = getComputedStyle(el).backgroundColor;
           if (isOpaque(bg)) return bg;
@@ -114,7 +125,12 @@ export function LandingPage() {
         setTopIsDark((cur) => (cur === dark ? cur : dark));
       }
     };
+    // One more sample after scrolling stops: the hero's fade is scrubbed and
+    // can still be part-way when the last scroll event's sample runs.
+    let settleTimer = 0;
     const schedule = () => {
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => { settleTimer = 0; requestAnimationFrame(run); }, 450);
       if (raf || trailTimer) return;
       const elapsed = nowMs() - lastRun;
       if (elapsed >= SAMPLE_MS) {
@@ -131,6 +147,7 @@ export function LandingPage() {
       window.removeEventListener('resize', schedule);
       if (raf) cancelAnimationFrame(raf);
       if (trailTimer) clearTimeout(trailTimer);
+      if (settleTimer) clearTimeout(settleTimer);
       if (meta && prevTheme) meta.setAttribute('content', prevTheme);
       document.body.style.backgroundColor = prevBodyBg;
       rootEl.style.scrollBehavior = prevScrollBehavior;

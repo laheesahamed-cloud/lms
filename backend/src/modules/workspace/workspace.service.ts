@@ -8,6 +8,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { allowedSqlFragment } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
+import { CourseStructureService } from '../courses/course-structure.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { getScopeRows } from '../../common/auth/subscription-scope';
 import { finishedLessons, lessonIdsFromBits } from '../../common/utils/lesson-bits';
@@ -100,7 +101,8 @@ export class WorkspaceService {
     private readonly authService: AuthService,
     private readonly plansService: PlansService,
     private readonly pushNotificationsService: PushNotificationsService,
-    private readonly notices: NoticesService
+    private readonly notices: NoticesService,
+    private readonly structure: CourseStructureService,
   ) {}
 
   /**
@@ -253,7 +255,34 @@ export class WorkspaceService {
       finishedLessons(this.db, student.id).then(async (done) => {
         const ids = [...done].sort((a, b) => b - a).slice(0, 36);
         if (!ids.length) return [[] as RowDataPacket[]] as const;
-        const [rows] = await this.db.execute<RowDataPacket[]>(
+        // 2026-11-20: names from the course structure in memory (0 rows);
+        // was 4 primary-key reads per lesson (72 rows for 18 lessons). Only a
+        // finished lesson that is not in the structure (no notes, hidden) is
+        // still read from the database.
+        const snap = await this.structure.get().catch(() => null);
+        const fromMemory: RowDataPacket[] = [];
+        let missing = ids;
+        if (snap) {
+          const lessonById = new Map(snap.lessons.map((l) => [Number(l.id), l]));
+          const courseById = new Map(snap.courses.map((c) => [Number(c.id), c]));
+          const subjectById = new Map(snap.subjects.map((x) => [Number(x.id), x]));
+          const topicById = new Map(snap.topics.map((t) => [Number(t.id), t]));
+          missing = [];
+          for (const id of ids) {
+            const l = lessonById.get(id);
+            if (!l) { missing.push(id); continue; }
+            fromMemory.push({
+              lesson_id: id, progress_status: 'completed', progress_percent: 100,
+              started_at: null, completed_at: null, updated_at: null,
+              lesson_title: l.lesson_title,
+              course_title: courseById.get(Number(l.course_id))?.course_title ?? null,
+              subject_name: subjectById.get(Number(l.topic_id))?.topic_name ?? null,
+              topic_name: l.subtopic_id ? topicById.get(Number(l.subtopic_id))?.subtopic_name ?? null : null,
+            } as unknown as RowDataPacket);
+          }
+          if (!missing.length) return [fromMemory] as const;
+        }
+        const [dbRows] = await this.db.execute<RowDataPacket[]>(
           `SELECT l.id AS lesson_id, 'completed' AS progress_status, 100 AS progress_percent,
                   NULL AS started_at, NULL AS completed_at, NULL AS updated_at,
                   l.lesson_title, c.course_title, subj.topic_name AS subject_name, sub.subtopic_name AS topic_name
@@ -261,10 +290,11 @@ export class WorkspaceService {
              LEFT JOIN courses c ON c.id = l.course_id
              LEFT JOIN topics subj ON subj.id = l.topic_id
              LEFT JOIN subtopics sub ON sub.id = l.subtopic_id
-            WHERE l.status = 'active' AND l.id IN (${ids.map(() => '?').join(', ')})
+            WHERE l.status = 'active' AND l.id IN (${missing.map(() => '?').join(', ')})
             ORDER BY l.id DESC`,
-          ids,
+          missing,
         );
+        const rows = [...fromMemory, ...dbRows].sort((a, b) => Number(b.lesson_id) - Number(a.lesson_id));
         return [rows] as const;
       }),
       // 10.22: no quiz suggestions (premium sets are app-only on the website;

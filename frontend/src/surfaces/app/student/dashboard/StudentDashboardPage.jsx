@@ -475,12 +475,13 @@ function computeExamAverage(results) {
   };
   const sorted = [...list].sort((a, b) => (stamp(b) - stamp(a)) || (Number(b?.attemptId || 0) - Number(a?.attemptId || 0)));
   const mean = (xs) => xs.reduce((sum, r) => sum + (Number(r?.percentage) || 0), 0) / xs.length;
-  const average = Math.floor(mean(sorted));
+  // Rounded like the Results page (it used to round down here: 18% vs 19%).
+  const average = Math.round(mean(sorted));
   const rest = sorted.slice(1);
   return {
     attempts: sorted.length,
     average,
-    delta: rest.length ? average - Math.floor(mean(rest)) : null,
+    delta: rest.length ? average - Math.round(mean(rest)) : null,
   };
 }
 

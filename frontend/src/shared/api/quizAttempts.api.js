@@ -295,7 +295,7 @@ async function markSampleExam(quizId, answers) {
     attemptId: Number(quizId), quizId: Number(quizId), quizTitle,
     displayTitleMode: result.displayTitleMode, quizNumber: result.quizNumber, subtopic: item.subtopic || '',
     courseTitle: result.courseTitle, topicDisplay, score: pct, percentage: pct,
-    correctAnswers: correct, wrongAnswers: wrong, passStatus,
+    correctAnswers: correct, wrongAnswers: wrong, totalQuestions: questions.length, passStatus,
     submittedAt: new Date().toISOString(), reviewedAt: null, sample: true,
   });
   return { result, review };

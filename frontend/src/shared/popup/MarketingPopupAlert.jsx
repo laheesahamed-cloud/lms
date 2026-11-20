@@ -180,16 +180,16 @@ export function MarketingPopupAlert({ suppressed = false }) {
       const manifestUrls = [getStaticPopupManifestUrl(), resolvePublicAssetUrl(POPUP_API_MANIFEST_URL)]
         .filter(Boolean);
 
-      try {
-        for (const manifestUrl of manifestUrls) {
-          const nextAlert = await fetchJsonWithTimeout(manifestUrl, POPUP_MANIFEST_TIMEOUT_MS);
-          if (!nextAlert) continue;
-          if (cancelled || !nextAlert || typeof nextAlert !== 'object') return true;
-          applyPopupAlert(nextAlert);
-          return true;
-        }
-      } catch {
-        // The settings API below remains the fallback when the static manifest is unavailable.
+      // Each file on its own (2026-11-20): a missing static file served as the
+      // site's HTML made .json() throw, which skipped the API file and fell
+      // back to the settings request on every fresh load.
+      for (const manifestUrl of manifestUrls) {
+        const nextAlert = await fetchJsonWithTimeout(manifestUrl, POPUP_MANIFEST_TIMEOUT_MS)
+          .catch(() => null); // try the next file; the settings API remains the last fallback
+        if (!nextAlert || typeof nextAlert !== 'object') continue;
+        if (cancelled) return true;
+        applyPopupAlert(nextAlert);
+        return true;
       }
       return false;
     }

@@ -7,6 +7,16 @@ import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
 
+// "17,490.00" with thousands commas (2026-11-20; was "17490.00").
+function money(value) {
+  return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function daysText(count) {
+  const n = Math.max(0, Number(count || 0));
+  return `${n} ${n === 1 ? 'day' : 'days'}`;
+}
+
 function featureMessageForKey(featureKey) {
   if (featureKey === 'aiNotes' || featureKey === 'notesCanvasStudyMode') {
     return 'Lessons study mode is included with selected subscriptions.';
@@ -71,11 +81,11 @@ function formatPlanPrice(plan) {
   if (String(plan?.slug || '').toLowerCase() === 'free' || Number(plan?.effectivePrice || 0) <= 0) {
     return 'Free';
   }
-  return `${plan.currency} ${Number(plan.effectivePrice || 0).toFixed(2)}`;
+  return `${plan.currency} ${money(plan.effectivePrice || 0)}`;
 }
 
 function formatBillingAmount(currency, amount) {
-  return `${currency || 'LKR'} ${Number(amount || 0).toFixed(2)}`;
+  return `${currency || 'LKR'} ${money(amount || 0)}`;
 }
 
 function paymentMethodLabel(method) {
@@ -417,7 +427,7 @@ export function StudentBillingPage() {
           </div>
           {hasOffer ? (
             <span className="text-xs font-semibold text-ink-muted">
-              Regular <span className="line-through">{plan.currency} {Number(plan.regularPrice).toFixed(2)}</span>
+              Regular <span className="line-through">{plan.currency} {money(plan.regularPrice)}</span>
             </span>
           ) : null}
           {isCurrent && !isFreePlan && planEndDate ? <span className="text-xs font-semibold text-ink-muted">Access until {planEndDate}</span> : null}
@@ -561,11 +571,11 @@ export function StudentBillingPage() {
                     <div className="min-w-[190px] text-right max-[640px]:w-full max-[640px]:text-left">
                       <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Paid amount</span>
                       <strong className="mt-1 block text-2xl font-extrabold text-brand-primary">
-                        {current.planCurrency} {Number(current.planEffectivePrice).toFixed(2)}
+                        {current.planCurrency} {money(current.planEffectivePrice)}
                       </strong>
                       {current.planOfferEnabled && current.planOfferPrice !== null ? (
                         <span className="mt-1 block text-xs font-semibold text-ink-muted">
-                          Regular <span className="line-through">{current.planCurrency} {Number(current.planRegularPrice).toFixed(2)}</span>
+                          Regular <span className="line-through">{current.planCurrency} {money(current.planRegularPrice)}</span>
                         </span>
                       ) : null}
                     </div>
@@ -583,7 +593,7 @@ export function StudentBillingPage() {
                       <div>
                         <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Access remaining</span>
                         <strong className="mt-1 block text-lg text-ink-strong">
-                          {current.computedStatus === 'expired' ? 'Expired' : `${currentDaysRemaining} day(s) left`}
+                          {current.computedStatus === 'expired' ? 'Expired' : `${daysText(currentDaysRemaining)} left`}
                         </strong>
                       </div>
                       <span className="text-xs font-bold text-ink-muted">{currentProgressPercent}%</span>
@@ -621,7 +631,7 @@ export function StudentBillingPage() {
                   <div className="max-[520px]:hidden">
                     <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Remaining</span>
                     <strong className="mt-1 block text-sm text-ink-strong">
-                      {current.computedStatus === 'expired' ? 'Expired' : `${Math.max(0, Number(current.daysRemaining || 0))} day(s)`}
+                      {current.computedStatus === 'expired' ? 'Expired' : daysText(current.daysRemaining)}
                     </strong>
                   </div>
                 </div>
@@ -643,7 +653,7 @@ export function StudentBillingPage() {
                 </div>
               ) : !currentIsFreePlan && current.isExpiringSoon ? (
                 <div className="border-t border-amber-500/20 pt-3 text-[13px] font-bold text-amber-700 dark:text-amber-300 max-[520px]:hidden">
-                  Expires in {currentDaysRemaining} day(s). Request renewal early.
+                  Expires in {daysText(currentDaysRemaining)}. Request renewal early.
                 </div>
               ) : null}
 
@@ -757,7 +767,7 @@ export function StudentBillingPage() {
                       <td className={ui.tableCell}>
                         <strong>{subscription.planName}</strong>
                         <div className={ui.tableSubtext}>
-                          {subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}
+                          {subscription.planCurrency} {money(subscription.planEffectivePrice)}
                         </div>
                       </td>
                       <td className={ui.tableCell}>
@@ -781,7 +791,7 @@ export function StudentBillingPage() {
                       <div className="min-w-0">
                         <strong className="block text-[14px] leading-tight text-ink-strong">{subscription.planName}</strong>
                         <span className="mt-1 block text-[12px] font-bold text-ink-muted">
-                          {subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}
+                          {subscription.planCurrency} {money(subscription.planEffectivePrice)}
                         </span>
                       </div>
                       <span className={statusPill(subscription.status)}>{subscription.status}</span>

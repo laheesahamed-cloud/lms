@@ -119,14 +119,37 @@ export function installMotionResourceGuards() {
   syncMotionPauseState();
 
   // User-idle pause (M5): decorative loops stop after IDLE_PAUSE_MS without
-  // input and resume on the next interaction. Only animation-play-state is
-  // affected (see performance.css) so the resuming interaction never glitches.
+  // input and resume on the next interaction. Only ENDLESS animations inside
+  // the app/admin/auth shells are paused (2026-11-20): pausing every animation
+  // froze one-time fade-ins at opacity 0, so a page that finished loading
+  // while the student wasn't touching the screen stayed blank.
   const IDLE_PAUSE_MS = 12000;
   const IDLE_RESET_THROTTLE_MS = 1000;
+  const IDLE_SCOPE = '.student-app-shell, .admin-app-shell, .app-shell, .auth-route-scene';
   let idleTimer = 0;
   let lastIdleReset = 0;
+  let idlePausedAnimations = [];
   const setIdlePaused = (paused) => {
     document.documentElement.toggleAttribute('data-idle-paused', paused);
+    if (paused) {
+      const all = typeof document.getAnimations === 'function' ? document.getAnimations() : [];
+      idlePausedAnimations = all.filter((animation) => {
+        try {
+          const target = animation.effect?.target;
+          return animation.playState === 'running'
+            && animation.effect?.getComputedTiming?.().iterations === Infinity
+            && target?.closest?.(IDLE_SCOPE);
+        } catch { return false; }
+      });
+      for (const animation of idlePausedAnimations) {
+        try { animation.pause(); } catch { /* already gone */ }
+      }
+    } else if (idlePausedAnimations.length) {
+      for (const animation of idlePausedAnimations) {
+        try { animation.play(); } catch { /* already gone */ }
+      }
+      idlePausedAnimations = [];
+    }
   };
   const scheduleIdlePause = () => {
     window.clearTimeout(idleTimer);
@@ -136,7 +159,7 @@ export function installMotionResourceGuards() {
     const now = Date.now();
     if (now - lastIdleReset < IDLE_RESET_THROTTLE_MS) return;
     lastIdleReset = now;
-    setIdlePaused(false);
+    if (document.documentElement.hasAttribute('data-idle-paused')) setIdlePaused(false);
     scheduleIdlePause();
   };
   const IDLE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'];

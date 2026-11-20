@@ -114,7 +114,11 @@ select,
 }
 
 button, input, textarea, select { font: inherit; }
-a { color: inherit; }
+/* Links take their parent's colour, but in the lowest layer (theme, declared
+   first in index.css) so a colour class on the link itself wins. Unlayered,
+   this beat every Tailwind text colour on <a>/<Link> (2026-11-20: the homepage
+   menu was dark text on the dark hero). */
+@layer theme { a { color: inherit; } }
 
 img,
 svg,

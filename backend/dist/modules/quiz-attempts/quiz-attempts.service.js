@@ -281,6 +281,7 @@ let QuizAttemptsService = QuizAttemptsService_1 = class QuizAttemptsService {
                 percentage: Number(e?.pct || 0),
                 correctAnswers: correct,
                 wrongAnswers: wrong,
+                totalQuestions: Array.isArray(e?.ids) ? e.ids.length : null,
                 passStatus: e?.passed ? 'pass' : 'fail',
                 submittedAt: e?.at || null,
                 reviewedAt: e?.reviewed ? (e?.at || true) : null,

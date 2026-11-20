@@ -163,8 +163,12 @@ function scheduleScrollPosition(position, behavior = 'auto') {
   };
 }
 
+// 'instant', not 'auto' (2026-11-20): 'auto' follows the page's CSS
+// scroll-behavior, which is smooth on <html>, so the jump to the top animated,
+// got cut short when the new page rendered and left it part-way down (header
+// half hidden after switching tabs).
 function scheduleScrollToTop() {
-  return scheduleScrollPosition({ top: 0, left: 0 }, 'auto');
+  return scheduleScrollPosition({ top: 0, left: 0 }, 'instant');
 }
 
 // ── Shared scroll helpers, so NativeRouteTransition reads/writes the SAME
@@ -216,7 +220,7 @@ export function RouteScrollRestoration({
     let cancelScheduledScroll = () => {};
 
     if (navigationType === 'POP' && savedPosition && !isNativeRuntime) {
-      cancelScheduledScroll = scheduleScrollPosition(savedPosition, 'auto');
+      cancelScheduledScroll = scheduleScrollPosition(savedPosition, 'instant');
     } else if (!excludedRoute && navigationType !== 'POP') {
       // Run before paint and again after route content mounts. WKWebView can apply
       // the previous scroll position after the first layout pass on heavier pages.
