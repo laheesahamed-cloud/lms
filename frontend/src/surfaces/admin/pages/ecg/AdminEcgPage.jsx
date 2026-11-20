@@ -8,6 +8,7 @@ import {
   adminToggleEcgQuiz, adminDeleteEcgQuiz,
 } from '../../../../shared/api/ecg.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { optimizeImageFile } from '../../../../shared/utils/imageOptimizer.js';
 import './AdminEcgPage.css';
 
@@ -56,15 +57,13 @@ export function AdminEcgPage() {
 
   return (
     <div className="aep-root">
-      <div className="aep-header">
-        <div>
-          <h1 className="aep-title">ECG Library</h1>
-          <p className="aep-sub">
-            {tab === 'topics'
-              ? `${topics.length} topic${topics.length === 1 ? '' : 's'}`
-              : 'Quiz questions'}
-          </p>
-        </div>
+      {/* 2026-11-20: the shared admin top bar (menu button, tab title) — the page had none. */}
+      <AppHeader
+        title="ECG Library"
+        subtitle={tab === 'topics' ? `${topics.length} topic${topics.length === 1 ? '' : 's'}` : 'Quiz questions'}
+      />
+      <div className="aep-header aep-header--actions">
+        <div />
         {tab === 'topics' && (
           <button className="aep-btn aep-btn--primary" onClick={() => setTopicModal({ mode: 'create' })}>
             + Add Topic
@@ -214,6 +213,7 @@ function EcgCardsManager({ topic, onBack }) {
 
   return (
     <div className="aep-root">
+      <AppHeader title="ECG Library" subtitle="Topic" />
       <button className="aep-back" onClick={onBack}>‹ All topics</button>
       <div className="aep-header">
         <div>

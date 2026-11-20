@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CountFixBusyError = exports.FIX_REQUEST_ROW_BUDGET = exports.COUNTED_LESSON = void 0;
+exports.COUNTS_CHECKED_AT_KEY = exports.CountFixBusyError = exports.FIX_REQUEST_ROW_BUDGET = exports.COUNTED_LESSON = void 0;
 exports.isCountedLesson = isCountedLesson;
 exports.bumpCounts = bumpCounts;
 exports.moveLessonCounts = moveLessonCounts;
 exports.recountStructure = recountStructure;
 exports.checkStructureCounts = checkStructureCounts;
+exports.quickCountFix = quickCountFix;
 exports.startCountFix = startCountFix;
 exports.runCountFixSet = runCountFixSet;
 exports.finishCountFix = finishCountFix;
@@ -138,8 +139,9 @@ async function countSet(db, subjectIds) {
     }
     return { fixed, changed, courseLessons, rowsRead };
 }
-async function finishCourses(db, totals) {
-    await db.execute('UPDATE quizzes SET content_stamp = content_stamp + 1');
+async function finishCourses(db, totals, bumpStamps = false) {
+    if (bumpStamps)
+        await db.execute('UPDATE quizzes SET content_stamp = content_stamp + 1');
     const list = totals.filter((t) => Number.isInteger(Number(t.id)) && Number(t.id) > 0).slice(0, 1000);
     const ids = list.map((t) => Number(t.id));
     const fixed = [];
@@ -238,7 +240,107 @@ function endRun() {
     fixRun = null;
     cooldownUntil = Date.now() + cooldownMs();
 }
-async function startCountFix(db, courseId) {
+exports.COUNTS_CHECKED_AT_KEY = 'structure_counts_checked_at';
+async function dbNow(db) {
+    const [[row]] = await db.query("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') AS now");
+    return String(row.now);
+}
+async function saveCheckedAt(db, at) {
+    if (!at)
+        return;
+    await db.execute(`INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`, [exports.COUNTS_CHECKED_AT_KEY, at]);
+}
+async function readCheckedAt(db) {
+    const [[row]] = await db.query('SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1', [exports.COUNTS_CHECKED_AT_KEY]);
+    const v = String(row?.setting_value || '').trim();
+    return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(v) ? v : null;
+}
+async function quickCountFix(db, opts = {}) {
+    if (fixRun && fixRun.expiresAt > Date.now())
+        throw new CountFixBusyError('Fix counts is already running.');
+    const since = await readCheckedAt(db);
+    if (!since)
+        return { needFull: true, reason: 'first-run' };
+    const startedAt = await dbNow(db);
+    fixRun = { id: 'quick', expiresAt: Date.now() + FIX_RUN_IDLE_MS, finishRows: 0, bumpStamps: Boolean(opts.bumpStamps), startedAt };
+    try {
+        let rowsRead = 0;
+        const changedSubjects = new Set();
+        const changedCourses = new Set();
+        const pick = async (sql) => {
+            const [rows] = await db.query(sql, [since]);
+            rowsRead += rows.length;
+            for (const r of rows) {
+                if (r.topic_id != null)
+                    changedSubjects.add(Number(r.topic_id));
+                if (r.course_id != null)
+                    changedCourses.add(Number(r.course_id));
+            }
+        };
+        await pick('SELECT topic_id, course_id FROM lessons FORCE INDEX (idx_lessons_updated_scope) WHERE updated_at >= ?');
+        await pick('SELECT topic_id, NULL AS course_id FROM subtopics FORCE INDEX (idx_subtopics_updated_scope) WHERE updated_at >= ?');
+        await pick('SELECT topic_id, course_id FROM quizzes FORCE INDEX (idx_quizzes_updated_scope) WHERE updated_at >= ?');
+        await pick('SELECT id AS topic_id, course_id FROM topics FORCE INDEX (idx_topics_updated_scope) WHERE updated_at >= ?');
+        const drift = await checkStructureCounts(db);
+        for (const issue of drift)
+            changedCourses.add(issue.id);
+        if (changedCourses.size) {
+            const [subs] = await db.query('SELECT id, course_id, lesson_count, subtopic_count, quiz_total FROM topics WHERE course_id IN (?)', [[...changedCourses]]);
+            rowsRead += subs.length;
+            const driftCourses = new Set(drift.map((d) => d.id));
+            let weight = 0;
+            for (const t of subs) {
+                if (driftCourses.has(Number(t.course_id)))
+                    changedSubjects.add(Number(t.id));
+                if (changedSubjects.has(Number(t.id)))
+                    weight += Number(t.lesson_count || 0) + Number(t.subtopic_count || 0) + Number(t.quiz_total || 0) + 1;
+            }
+            if (weight + rowsRead > exports.FIX_REQUEST_ROW_BUDGET * 2) {
+                fixRun = null;
+                return { needFull: true, reason: 'too-many-changes', changedSubjects: changedSubjects.size };
+            }
+        }
+        const set = await countSet(db, [...changedSubjects]);
+        rowsRead += set.rowsRead;
+        let finish = { fixed: [], changed: [] };
+        const courseIds = new Set([...changedCourses]);
+        if (changedSubjects.size) {
+            const [owners] = await db.query('SELECT DISTINCT course_id FROM topics WHERE id IN (?)', [[...changedSubjects]]);
+            for (const o of owners)
+                courseIds.add(Number(o.course_id));
+        }
+        if (courseIds.size) {
+            const [cs] = await db.query(`SELECT c.id, c.lesson_count, c.subject_count,
+           (SELECT COALESCE(SUM(t.lesson_count), 0) FROM topics t WHERE t.course_id = c.id) AS subject_lessons
+         FROM courses c WHERE c.id IN (?)`, [[...courseIds]]);
+            rowsRead += cs.length;
+            finish = await finishCourses(db, cs.map((c) => ({
+                id: Number(c.id), lessons: Number(c.subject_lessons || 0),
+                expectedLessons: Number(c.lesson_count), expectedSubjects: Number(c.subject_count),
+            })), Boolean(opts.bumpStamps));
+        }
+        else if (opts.bumpStamps) {
+            await db.execute('UPDATE quizzes SET content_stamp = content_stamp + 1');
+        }
+        await saveCheckedAt(db, startedAt);
+        return {
+            needFull: false,
+            done: true,
+            since,
+            subjectsChecked: changedSubjects.size,
+            coursesChecked: courseIds.size,
+            rowsRead,
+            fixed: [...set.fixed, ...finish.fixed],
+            changed: [...set.changed, ...finish.changed],
+        };
+    }
+    finally {
+        if (fixRun?.id === 'quick')
+            fixRun = null;
+    }
+}
+async function startCountFix(db, courseId, opts = {}) {
     if (fixRun && fixRun.expiresAt > Date.now())
         throw new CountFixBusyError('Fix counts is already running.');
     if (cooldownUntil > Date.now()) {
@@ -267,13 +369,15 @@ async function startCountFix(db, courseId) {
     const finishRows = courses.length + subjects.length + courseQuizRows;
     const total = subjects.reduce((t, s) => t + s.weight, 0);
     const { sets, finishFitsLast } = packSets(subjects, planRows, finishRows);
-    fixRun = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), expiresAt: Date.now() + FIX_RUN_IDLE_MS, finishRows };
+    const startedAt = courseId ? null : await dbNow(db);
+    fixRun = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), expiresAt: Date.now() + FIX_RUN_IDLE_MS, finishRows, bumpStamps: Boolean(opts.bumpStamps), startedAt };
     try {
         const first = await countSet(db, sets[0] || []);
         const remaining = sets.slice(1);
         let finish = null;
         if (!remaining.length && planRows + first.rowsRead + finishRows <= exports.FIX_REQUEST_ROW_BUDGET) {
-            finish = await finishCourses(db, courses.map((c) => ({ id: c.id, lessons: first.courseLessons[c.id] || 0, expectedLessons: c.lessonCount, expectedSubjects: c.subjectCount })));
+            finish = await finishCourses(db, courses.map((c) => ({ id: c.id, lessons: first.courseLessons[c.id] || 0, expectedLessons: c.lessonCount, expectedSubjects: c.subjectCount })), fixRun.bumpStamps);
+            await saveCheckedAt(db, fixRun.startedAt);
             endRun();
         }
         return {
@@ -283,6 +387,7 @@ async function startCountFix(db, courseId) {
             remaining,
             finishWithLast: remaining.length > 0 && finishFitsLast,
             done: Boolean(finish),
+            bumpedStamps: Boolean(finish) && Boolean(opts.bumpStamps),
             finish,
         };
     }
@@ -292,23 +397,26 @@ async function startCountFix(db, courseId) {
     }
 }
 async function runCountFixSet(db, runId, subjectIds, finish) {
-    touchRun(runId);
+    const run = touchRun(runId);
     const outcome = await countSet(db, subjectIds);
     if (!finish)
         return { ...outcome, done: false, finish: null };
     try {
         const totals = finish.map((c) => ({ ...c, lessons: Number(c.lessons || 0) + (outcome.courseLessons[Number(c.id)] || 0) }));
-        const result = await finishCourses(db, totals);
-        return { ...outcome, done: true, finish: result };
+        const result = await finishCourses(db, totals, run.bumpStamps);
+        await saveCheckedAt(db, run.startedAt);
+        return { ...outcome, done: true, finish: result, bumpedStamps: run.bumpStamps };
     }
     finally {
         endRun();
     }
 }
 async function finishCountFix(db, runId, totals) {
-    touchRun(runId);
+    const run = touchRun(runId);
     try {
-        return { ...(await finishCourses(db, totals)), done: true };
+        const result = await finishCourses(db, totals, run.bumpStamps);
+        await saveCheckedAt(db, run.startedAt);
+        return { ...result, done: true, bumpedStamps: run.bumpStamps };
     }
     finally {
         endRun();

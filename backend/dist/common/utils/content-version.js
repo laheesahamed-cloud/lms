@@ -66,6 +66,8 @@ function isCatalogueWrite(method, path) {
         return false;
     if (/^\/api\/admin\/(users|subscriptions|settings|reports|question-reports|question-review|dashboard|ai)(\/|$)/.test(path))
         return false;
+    if (/\/structure\/counts(\/|$)/.test(path))
+        return false;
     return CATALOGUE_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix + '/'));
 }
 //# sourceMappingURL=content-version.js.map

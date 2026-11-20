@@ -1,4 +1,6 @@
 .aep-root { max-width: 1080px; margin: 0 auto; padding: 8px 4px 60px; }
+/* 2026-11-20: actions row under the shared top bar (the page title moved into it). */
+.aep-header.aep-header--actions { margin-top: 4px; }
 
 .aep-back {
   display: inline-flex; align-items: center; gap: 4px;

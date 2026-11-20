@@ -21,7 +21,7 @@ import { rebuildAdminCountersOn } from '../../common/utils/admin-counters';
 // CHANGE THIS VALUE whenever a step is added to or changed in
 // ensureCriticalTables(), or the new step will never run on a database that
 // already recorded the old value.
-export const CRITICAL_SCHEMA_VERSION = '2026-11-20.1';
+export const CRITICAL_SCHEMA_VERSION = '2026-11-20.2';
 
 export const PAYER_EMAIL_TABLES = [
   'user_subscriptions',
@@ -1117,6 +1117,14 @@ export class SchemaSyncService implements OnModuleInit {
           await conn.query('ALTER TABLE ecg_topics ADD COLUMN card_count INT UNSIGNED NOT NULL DEFAULT 0');
           await conn.query('UPDATE ecg_topics t SET t.card_count = (SELECT COUNT(*) FROM ecg_cards c WHERE c.topic_id = t.id)');
         }
+      });
+      // OPTIMIZE 10.60: Fix counts' quick mode finds rows changed since the
+      // last check by these updated_at indexes (index only, no row reads).
+      await step('updated_at scope indexes', async () => {
+        await this.ensureIndex(conn, 'lessons', 'idx_lessons_updated_scope', 'updated_at, topic_id, course_id');
+        await this.ensureIndex(conn, 'subtopics', 'idx_subtopics_updated_scope', 'updated_at, topic_id');
+        await this.ensureIndex(conn, 'quizzes', 'idx_quizzes_updated_scope', 'updated_at, topic_id, course_id');
+        await this.ensureIndex(conn, 'topics', 'idx_topics_updated_scope', 'updated_at, course_id');
       });
       if (failed === 0) {
         await step('record critical_schema_version', () => conn.execute(

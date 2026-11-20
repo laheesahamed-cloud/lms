@@ -926,9 +926,21 @@ let LessonsService = LessonsService_1 = class LessonsService {
         try {
             if (action.step === 'check')
                 return { issues: await (0, structure_counts_1.checkStructureCounts)(this.db) };
+            if (action.step === 'quick') {
+                const out = await (0, structure_counts_1.quickCountFix)(this.db, { bumpStamps: action.bumpStamps === true });
+                if (!out.needFull && action.bumpStamps === true)
+                    await (0, content_version_1.bumpContentVersion)(this.db);
+                return out;
+            }
             if (action.step === 'start') {
                 const courseId = Number.isInteger(action.courseId) && Number(action.courseId) > 0 ? Number(action.courseId) : undefined;
-                return await (0, structure_counts_1.startCountFix)(this.db, courseId);
+                const out = await (0, structure_counts_1.startCountFix)(this.db, courseId, { bumpStamps: action.bumpStamps === true });
+                if (out.done) {
+                    await (0, admin_counters_1.rebuildAdminCounters)(this.db);
+                    if (out.bumpedStamps)
+                        await (0, content_version_1.bumpContentVersion)(this.db);
+                }
+                return out;
             }
             if (typeof action.runId !== 'string' || !action.runId)
                 throw new common_1.BadRequestException('runId is required');
@@ -936,14 +948,19 @@ let LessonsService = LessonsService_1 = class LessonsService {
                 if (!Array.isArray(action.subjectIds))
                     throw new common_1.BadRequestException('subjectIds is required');
                 const out = await (0, structure_counts_1.runCountFixSet)(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
-                if (Array.isArray(action.finish))
+                if (Array.isArray(action.finish)) {
                     await (0, admin_counters_1.rebuildAdminCounters)(this.db);
+                    if (out.bumpedStamps)
+                        await (0, content_version_1.bumpContentVersion)(this.db);
+                }
                 return out;
             }
             if (!Array.isArray(action.courses))
                 throw new common_1.BadRequestException('courses is required');
             const finished = await (0, structure_counts_1.finishCountFix)(this.db, action.runId, action.courses);
             await (0, admin_counters_1.rebuildAdminCounters)(this.db);
+            if (finished.bumpedStamps)
+                await (0, content_version_1.bumpContentVersion)(this.db);
             return finished;
         }
         catch (error) {

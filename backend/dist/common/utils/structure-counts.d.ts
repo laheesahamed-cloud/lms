@@ -43,13 +43,53 @@ type FinishTotals = Array<{
     expectedLessons: number;
     expectedSubjects: number;
 }>;
-export declare function startCountFix(db: Executor, courseId?: number): Promise<{
+export declare const COUNTS_CHECKED_AT_KEY = "structure_counts_checked_at";
+export declare function quickCountFix(db: Executor, opts?: {
+    bumpStamps?: boolean;
+}): Promise<{
+    needFull: boolean;
+    reason: "first-run";
+    changedSubjects?: undefined;
+    done?: undefined;
+    since?: undefined;
+    subjectsChecked?: undefined;
+    coursesChecked?: undefined;
+    rowsRead?: undefined;
+    fixed?: undefined;
+    changed?: undefined;
+} | {
+    needFull: boolean;
+    reason: "too-many-changes";
+    changedSubjects: number;
+    done?: undefined;
+    since?: undefined;
+    subjectsChecked?: undefined;
+    coursesChecked?: undefined;
+    rowsRead?: undefined;
+    fixed?: undefined;
+    changed?: undefined;
+} | {
+    needFull: boolean;
+    done: boolean;
+    since: string;
+    subjectsChecked: number;
+    coursesChecked: number;
+    rowsRead: number;
+    fixed: CountIssue[];
+    changed: CountIssue[];
+    reason?: undefined;
+    changedSubjects?: undefined;
+}>;
+export declare function startCountFix(db: Executor, courseId?: number, opts?: {
+    bumpStamps?: boolean;
+}): Promise<{
     runId: string;
     courses: FixCourse[];
     first: SetOutcome;
     remaining: number[][];
     finishWithLast: boolean;
     done: boolean;
+    bumpedStamps: boolean;
     finish: {
         fixed: CountIssue[];
         changed: CountIssue[];
@@ -68,6 +108,7 @@ export declare function runCountFixSet(db: Executor, runId: string, subjectIds: 
         fixed: CountIssue[];
         changed: CountIssue[];
     };
+    bumpedStamps: boolean;
     fixed: CountIssue[];
     changed: CountIssue[];
     courseLessons: Record<number, number>;
@@ -75,6 +116,7 @@ export declare function runCountFixSet(db: Executor, runId: string, subjectIds: 
 }>;
 export declare function finishCountFix(db: Executor, runId: string, totals: FinishTotals): Promise<{
     done: boolean;
+    bumpedStamps: boolean;
     fixed: CountIssue[];
     changed: CountIssue[];
 }>;

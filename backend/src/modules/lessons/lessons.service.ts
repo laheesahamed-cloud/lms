@@ -1,4 +1,4 @@
-import { getContentVersion } from '../../common/utils/content-version';
+import { bumpContentVersion, getContentVersion } from '../../common/utils/content-version';
 import { getScopeRows } from '../../common/auth/subscription-scope';
 import { looksLikeAccessToken } from '../../common/auth/access-token';
 import { userFromAccessToken } from '../../common/auth/token-user';
@@ -14,7 +14,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { getCachedSession } from '../auth/session-cache';
 import { isStructureKind, moveStructureItem, RANK_GAP } from '../../common/utils/structure-order';
-import { bumpCounts, checkStructureCounts, CountFixBusyError, finishCountFix, isCountedLesson, moveLessonCounts, runCountFixSet, startCountFix } from '../../common/utils/structure-counts';
+import { bumpCounts, checkStructureCounts, CountFixBusyError, finishCountFix, isCountedLesson, moveLessonCounts, quickCountFix, runCountFixSet, startCountFix } from '../../common/utils/structure-counts';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import {
@@ -1366,28 +1366,45 @@ export class LessonsService {
    * connection for a few ms per request, under ~1,000 rows examined each. */
   async canvasAdminStructureCounts(
     token: string,
-    action: { step: 'check' } | { step: 'start'; courseId?: number }
+    action: { step: 'check' } | { step: 'quick'; bumpStamps?: boolean } | { step: 'start'; courseId?: number; bumpStamps?: boolean }
       | { step: 'set'; runId: string; subjectIds: number[]; finish?: Array<{ id: number; lessons: number; expectedLessons: number; expectedSubjects: number }> }
       | { step: 'finish'; runId: string; courses: Array<{ id: number; lessons: number; expectedLessons: number; expectedSubjects: number }> },
   ) {
     await this.requireAdminToken(token);
     try {
       if (action.step === 'check') return { issues: await checkStructureCounts(this.db) };
+      // 10.60: the quick fix (default) — only what changed since the last check.
+      // Counts are admin-only, so no content-version raise; only the opt-in
+      // assessment-stamp bump (after an SQL import) raises it, once.
+      if (action.step === 'quick') {
+        const out = await quickCountFix(this.db, { bumpStamps: action.bumpStamps === true });
+        if (!out.needFull && action.bumpStamps === true) await bumpContentVersion(this.db);
+        return out;
+      }
       if (action.step === 'start') {
         const courseId = Number.isInteger(action.courseId) && Number(action.courseId) > 0 ? Number(action.courseId) : undefined;
-        return await startCountFix(this.db, courseId);
+        const out = await startCountFix(this.db, courseId, { bumpStamps: action.bumpStamps === true });
+        if (out.done) {
+          await rebuildAdminCounters(this.db);
+          if (out.bumpedStamps) await bumpContentVersion(this.db);
+        }
+        return out;
       }
       if (typeof action.runId !== 'string' || !action.runId) throw new BadRequestException('runId is required');
       if (action.step === 'set') {
         if (!Array.isArray(action.subjectIds)) throw new BadRequestException('subjectIds is required');
         const out = await runCountFixSet(this.db, action.runId, action.subjectIds, Array.isArray(action.finish) ? action.finish : undefined);
         // 10.57: the last step also rebuilds the admin counters (users, subscriptions, drugs).
-        if (Array.isArray(action.finish)) await rebuildAdminCounters(this.db);
+        if (Array.isArray(action.finish)) {
+          await rebuildAdminCounters(this.db);
+          if ((out as any).bumpedStamps) await bumpContentVersion(this.db);
+        }
         return out;
       }
       if (!Array.isArray(action.courses)) throw new BadRequestException('courses is required');
       const finished = await finishCountFix(this.db, action.runId, action.courses);
       await rebuildAdminCounters(this.db); // 10.57
+      if (finished.bumpedStamps) await bumpContentVersion(this.db);
       return finished;
     } catch (error) {
       if (error instanceof CountFixBusyError) throw new ConflictException(error.message);

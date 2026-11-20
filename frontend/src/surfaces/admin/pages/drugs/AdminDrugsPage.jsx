@@ -303,7 +303,7 @@ export function AdminDrugsPage() {
                 <th className={cx(ui.tableHeadCell, 'w-10')}>
                   <input type="checkbox" aria-label="Select all on this page" checked={allPageSelected} ref={(el) => { if (el) el.indeterminate = !allPageSelected && somePageSelected; }} onChange={togglePage} />
                 </th>
-                <th className={ui.tableHeadCell}>Name</th>
+                <th className={cx(ui.tableHeadCell, 'min-w-[160px]')}>Name</th>
                 <th className={ui.tableHeadCell}>Class</th>
                 <th className={ui.tableHeadCell}>SL brands</th>
                 <th className={ui.tableHeadCell}>Status</th>
@@ -322,7 +322,8 @@ export function AdminDrugsPage() {
                   <td className={cx(ui.tableCell, 'w-10')}>
                     <input type="checkbox" aria-label={`Select ${d.name}`} checked={selected.has(d.id)} onChange={() => toggleOne(d.id)} />
                   </td>
-                  <td className={cx(ui.tableCell, 'font-bold')}>{d.name}</td>
+                  {/* min width + word breaks only between words (names broke mid-word: "Abac / avir"). */}
+                  <td className={cx(ui.tableCell, 'min-w-[160px] font-bold [overflow-wrap:normal] [word-break:normal] [hyphens:manual]')}>{d.name}</td>
                   <td className={cx(ui.tableCell, 'truncate text-ink-soft')}>{d.drug_class || '—'}</td>
                   <td className={cx(ui.tableCell, 'truncate text-xs text-ink-soft')}>{d.sl_brand_names || '—'}</td>
                   <td className={ui.tableCell}>

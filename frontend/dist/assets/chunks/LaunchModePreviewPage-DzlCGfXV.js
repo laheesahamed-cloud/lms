@@ -1,0 +1,1 @@
+import{f as e,i as t,m as n}from"./vendor-react-Bh7NsVyu.js";/* empty css                        */import{f as r}from"./main-CSlh23IX.js";var i=n();function a(){let{mode:n}=e();return n!==`maintenance`&&n!==`coming-soon`?(0,i.jsx)(t,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:n,preview:!0})}export{a as LaunchModePreviewPage};

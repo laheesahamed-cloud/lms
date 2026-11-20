@@ -111,8 +111,11 @@ let SubscriptionsService = SubscriptionsService_1 = class SubscriptionsService {
     async adminDashboardFinance(db, day) {
         const serverToday = this.toDateOnly(new Date());
         const today = day || serverToday;
+        const slimPlans = await this.loadSlimPlans(db);
+        const freePlanIds = [...slimPlans.values()].filter((p) => this.isListedFree('', p)).map((p) => p.id);
+        const PAID = new Set(['manual', 'paid', 'unpaid']);
         const activeCount = (await (0, admin_counters_1.readSubscriptionGroups)(db))
-            .filter((g) => g.status === 'active')
+            .filter((g) => g.status === 'active' && PAID.has(g.paymentStatus) && !freePlanIds.includes(g.planId))
             .reduce((sum, g) => sum + g.n, 0);
         const activeRow = { n: activeCount };
         const [expiringRows] = await db.query(`SELECT us.plan_id, us.payment_status,

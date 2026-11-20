@@ -5,6 +5,7 @@ import {
   adminPublishOsceCase, adminUnpublishOsceCase, adminReorderOsceCases,
 } from '../../../../shared/api/osce.api.js';
 import { API_BASE_URL, getErrorMessage } from '../../../../shared/api/client.js';
+import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { SlotGrid } from './SlotGrid.jsx';
 import { SceneHotspotEditor } from './SceneHotspotEditor.jsx';
 import { CasePreview } from './CasePreview.jsx';
@@ -831,10 +832,10 @@ export function AdminOscePage() {
 
   return (
     <div className="osce-wrap">
+      {/* 2026-11-20: the shared admin top bar (menu button, tab title) — the page had none. */}
+      <AppHeader title="OSCE Clinical" subtitle="Study tools" />
       <header className="osce-head">
         <div>
-          <p className="osce-eyebrow">Study tools</p>
-          <h1>OSCE Clinical</h1>
           <p className="osce-sub">
             Image-first examination stations, filed under your course subjects. The AI
         writes the case; you supply the pictures.

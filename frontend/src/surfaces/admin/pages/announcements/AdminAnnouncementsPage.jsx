@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createAnnouncement, deleteAnnouncement, fetchAdminAnnouncements, updateAnnouncement } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
-import { statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 /**
  * In-app announcements (OPTIMIZE 10 step 4). Each is a centre card (with an
@@ -138,7 +138,7 @@ export function AdminAnnouncementsPage() {
       {message ? <div className={message.startsWith('Unable') ? ui.feedbackError : ui.feedbackSuccess}>{message}</div> : null}
       {warning ? <div className={ui.feedbackError}>{warning}</div> : null}
       <section className={ui.panelCard}>
-        <div className={ui.infoCard}>
+        <div className={cx(ui.infoCard, 'mb-4')}>
           Shown inside the app as a <b>centre card</b> (can have a picture) or a <b>banner</b> at the top of the Study Hub.
           Students see <b>one at a time</b>, highest priority first, once per device. Keep just one active for the best effect
           {liveCount > 1 ? ` (${liveCount} are live now)` : ''}. Phone push and inbox messages are sent from Settings → Notifications.

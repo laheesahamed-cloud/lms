@@ -355,9 +355,15 @@ export class LessonsController {
     return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'check' });
   }
 
+  // 10.60: quick fix (default) — only rows changed since the last check, one request.
+  @Post('canvas/admin/structure/counts/fix/quick')
+  canvasAdminStructureCountsQuick(@Headers('authorization') auth: string, @Body('bumpStamps') bumpStamps?: boolean) {
+    return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'quick', bumpStamps: bumpStamps === true });
+  }
+
   @Post('canvas/admin/structure/counts/fix/start')
-  canvasAdminStructureCountsStart(@Headers('authorization') auth: string, @Body('courseId') courseId?: number) {
-    return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'start', courseId: courseId != null ? Number(courseId) : undefined });
+  canvasAdminStructureCountsStart(@Headers('authorization') auth: string, @Body('courseId') courseId?: number, @Body('bumpStamps') bumpStamps?: boolean) {
+    return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'start', courseId: courseId != null ? Number(courseId) : undefined, bumpStamps: bumpStamps === true });
   }
 
   @Post('canvas/admin/structure/counts/fix/set')

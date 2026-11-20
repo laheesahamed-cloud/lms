@@ -1315,11 +1315,12 @@ export function QuestionsPage() {
             <div className={ui.panelTop}>
               <div>
                 <h2>Question bank</h2>
-                <p>{loading ? 'Loading questions...' : `${questions.length} question(s) loaded from the live course structure hierarchy`}</p>
+                {/* 2026-11-20: these count the page shown (15 at a time), not the whole bank. */}
+                <p>{loading ? 'Loading questions...' : `Showing ${questions.length} question${questions.length === 1 ? '' : 's'} on this page`}</p>
               </div>
               <div className={ui.questionBankActions}>
-                <span className={ui.tablePill}>{questionTypeCounts.sba} SBA</span>
-                <span className={ui.tablePill}>{questionTypeCounts.trueFalse} T/F</span>
+                <span className={ui.tablePill}>{questionTypeCounts.sba} SBA here</span>
+                <span className={ui.tablePill}>{questionTypeCounts.trueFalse} T/F here</span>
                 <button type="button" className={ui.secondaryAction} onClick={handleExportQuestions} disabled={exporting || importing}>
                   {exporting ? 'Exporting...' : 'Export CSV'}
                 </button>

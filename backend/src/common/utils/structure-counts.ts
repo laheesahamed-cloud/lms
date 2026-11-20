@@ -157,7 +157,7 @@ type FixCourse = { id: number; name: string; lessonCount: number; subjectCount: 
 type SetOutcome = { fixed: CountIssue[]; changed: CountIssue[]; courseLessons: Record<number, number>; rowsRead: number };
 type FinishTotals = Array<{ id: number; lessons: number; expectedLessons: number; expectedSubjects: number }>;
 
-let fixRun: { id: string; expiresAt: number; finishRows: number } | null = null;
+let fixRun: { id: string; expiresAt: number; finishRows: number; bumpStamps: boolean; startedAt: string | null } | null = null;
 let cooldownUntil = 0;
 const FIX_RUN_IDLE_MS = 60_000;
 function cooldownMs() {
@@ -217,12 +217,12 @@ async function countSet(db: Executor, subjectIds: number[]): Promise<SetOutcome>
 }
 
 /** One statement: each course with its real subject count and its lessons with no subject; compare-and-set writes. */
-async function finishCourses(db: Executor, totals: FinishTotals) {
-  // 10.27 R1: Fix counts is the step after SQL imports, which skip the saves
-  // that raise quiz stamps — so every quiz gets a new one here (each quiz is
-  // rebuilt once on its next open; this request already raises the content
-  // version, so the Q-Bank list carries the new stamps).
-  await db.execute('UPDATE quizzes SET content_stamp = content_stamp + 1');
+async function finishCourses(db: Executor, totals: FinishTotals, bumpStamps = false) {
+  // 10.27 R1: after an SQL import (which skips the saves that raise quiz
+  // stamps) every quiz gets a new stamp so phones rebuild it once.
+  // 10.60: only when the admin ticks "I changed content with SQL" — it wrote
+  // every assessment row on each Fix counts run.
+  if (bumpStamps) await db.execute('UPDATE quizzes SET content_stamp = content_stamp + 1');
   const list = totals.filter((t) => Number.isInteger(Number(t.id)) && Number(t.id) > 0).slice(0, 1000);
   const ids = list.map((t) => Number(t.id));
   const fixed: CountIssue[] = [];
@@ -323,8 +323,128 @@ function endRun() {
   cooldownUntil = Date.now() + cooldownMs();
 }
 
+/**
+ * 10.60: "checked up to" mark for the quick fix. Saved when a full fix ends
+ * (its start time) and when a quick fix ends; the quick fix then looks only at
+ * rows changed since (every structure table stamps updated_at on insert and
+ * update, SQL imports included).
+ */
+export const COUNTS_CHECKED_AT_KEY = 'structure_counts_checked_at';
+
+async function dbNow(db: Executor): Promise<string> {
+  const [[row]] = await db.query<RowDataPacket[]>("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') AS now");
+  return String(row.now);
+}
+
+async function saveCheckedAt(db: Executor, at: string | null | undefined) {
+  if (!at) return;
+  await db.execute(
+    `INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+    [COUNTS_CHECKED_AT_KEY, at],
+  );
+}
+
+async function readCheckedAt(db: Executor): Promise<string | null> {
+  const [[row]] = await db.query<RowDataPacket[]>(
+    'SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1', [COUNTS_CHECKED_AT_KEY]);
+  const v = String(row?.setting_value || '').trim();
+  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(v) ? v : null;
+}
+
+/**
+ * 10.60 quick fix (the default): one request. Recounts only the subjects
+ * that have a lesson, topic, assessment or the subject row itself changed
+ * since the last check, plus every subject of a course whose own totals no
+ * longer match its subjects (catches a lesson moved between subjects).
+ * Rows deleted directly in SQL leave no trace: the full fix covers those.
+ * Falls back (needFull) when there is no mark yet or the work would not fit
+ * one small request.
+ */
+export async function quickCountFix(db: Executor, opts: { bumpStamps?: boolean } = {}) {
+  if (fixRun && fixRun.expiresAt > Date.now()) throw new CountFixBusyError('Fix counts is already running.');
+  const since = await readCheckedAt(db);
+  if (!since) return { needFull: true, reason: 'first-run' as const };
+  const startedAt = await dbNow(db);
+  fixRun = { id: 'quick', expiresAt: Date.now() + FIX_RUN_IDLE_MS, finishRows: 0, bumpStamps: Boolean(opts.bumpStamps), startedAt };
+  try {
+    let rowsRead = 0;
+    // Changed rows since the mark, by small updated_at indexes (index only).
+    const changedSubjects = new Set<number>();
+    const changedCourses = new Set<number>();
+    const pick = async (sql: string) => {
+      const [rows] = await db.query<RowDataPacket[]>(sql, [since]);
+      rowsRead += rows.length;
+      for (const r of rows) {
+        if (r.topic_id != null) changedSubjects.add(Number(r.topic_id));
+        if (r.course_id != null) changedCourses.add(Number(r.course_id));
+      }
+    };
+    await pick('SELECT topic_id, course_id FROM lessons FORCE INDEX (idx_lessons_updated_scope) WHERE updated_at >= ?');
+    await pick('SELECT topic_id, NULL AS course_id FROM subtopics FORCE INDEX (idx_subtopics_updated_scope) WHERE updated_at >= ?');
+    await pick('SELECT topic_id, course_id FROM quizzes FORCE INDEX (idx_quizzes_updated_scope) WHERE updated_at >= ?');
+    await pick('SELECT id AS topic_id, course_id FROM topics FORCE INDEX (idx_topics_updated_scope) WHERE updated_at >= ?');
+
+    // Courses whose totals no longer match their subjects (courses + topics only).
+    const drift = await checkStructureCounts(db);
+    for (const issue of drift) changedCourses.add(issue.id);
+    if (changedCourses.size) {
+      const [subs] = await db.query<RowDataPacket[]>(
+        'SELECT id, course_id, lesson_count, subtopic_count, quiz_total FROM topics WHERE course_id IN (?)', [[...changedCourses]]);
+      rowsRead += subs.length;
+      // A course with drift: all its subjects. A course with only a changed
+      // row: just that row's subject (already in changedSubjects).
+      const driftCourses = new Set(drift.map((d) => d.id));
+      let weight = 0;
+      for (const t of subs) {
+        if (driftCourses.has(Number(t.course_id))) changedSubjects.add(Number(t.id));
+        if (changedSubjects.has(Number(t.id))) weight += Number(t.lesson_count || 0) + Number(t.subtopic_count || 0) + Number(t.quiz_total || 0) + 1;
+      }
+      if (weight + rowsRead > FIX_REQUEST_ROW_BUDGET * 2) {
+        fixRun = null;
+        return { needFull: true, reason: 'too-many-changes' as const, changedSubjects: changedSubjects.size };
+      }
+    }
+    const set = await countSet(db, [...changedSubjects]);
+    rowsRead += set.rowsRead;
+    // Course totals for every touched course, from the (now fixed) subject rows.
+    let finish = { fixed: [] as CountIssue[], changed: [] as CountIssue[] };
+    const courseIds = new Set<number>([...changedCourses]);
+    if (changedSubjects.size) {
+      const [owners] = await db.query<RowDataPacket[]>('SELECT DISTINCT course_id FROM topics WHERE id IN (?)', [[...changedSubjects]]);
+      for (const o of owners) courseIds.add(Number(o.course_id));
+    }
+    if (courseIds.size) {
+      const [cs] = await db.query<RowDataPacket[]>(
+        `SELECT c.id, c.lesson_count, c.subject_count,
+           (SELECT COALESCE(SUM(t.lesson_count), 0) FROM topics t WHERE t.course_id = c.id) AS subject_lessons
+         FROM courses c WHERE c.id IN (?)`, [[...courseIds]]);
+      rowsRead += cs.length;
+      finish = await finishCourses(db, cs.map((c) => ({
+        id: Number(c.id), lessons: Number(c.subject_lessons || 0),
+        expectedLessons: Number(c.lesson_count), expectedSubjects: Number(c.subject_count),
+      })), Boolean(opts.bumpStamps));
+    } else if (opts.bumpStamps) {
+      await db.execute('UPDATE quizzes SET content_stamp = content_stamp + 1');
+    }
+    await saveCheckedAt(db, startedAt);
+    return {
+      needFull: false,
+      done: true,
+      since,
+      subjectsChecked: changedSubjects.size,
+      coursesChecked: courseIds.size,
+      rowsRead,
+      fixed: [...set.fixed, ...finish.fixed],
+      changed: [...set.changed, ...finish.changed],
+    };
+  } finally {
+    if (fixRun?.id === 'quick') fixRun = null;
+  }
+}
+
 /** Request 1: plan + first set (+ finish too when everything fits in one request). */
-export async function startCountFix(db: Executor, courseId?: number) {
+export async function startCountFix(db: Executor, courseId?: number, opts: { bumpStamps?: boolean } = {}) {
   if (fixRun && fixRun.expiresAt > Date.now()) throw new CountFixBusyError('Fix counts is already running.');
   if (cooldownUntil > Date.now()) {
     throw new CountFixBusyError(`Fix counts ran a moment ago. Try again in ${Math.ceil((cooldownUntil - Date.now()) / 1000)} s.`);
@@ -360,13 +480,16 @@ export async function startCountFix(db: Executor, courseId?: number) {
   // packed biggest first into the first set with room (order inside a set
   // doesn't matter); if they don't all fit, one more request is added.
   const { sets, finishFitsLast } = packSets(subjects, planRows, finishRows);
-  fixRun = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), expiresAt: Date.now() + FIX_RUN_IDLE_MS, finishRows };
+  // A whole-site run marks "checked up to" its start time when it ends (10.60).
+  const startedAt = courseId ? null : await dbNow(db);
+  fixRun = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), expiresAt: Date.now() + FIX_RUN_IDLE_MS, finishRows, bumpStamps: Boolean(opts.bumpStamps), startedAt };
   try {
     const first = await countSet(db, sets[0] || []);
     const remaining = sets.slice(1);
     let finish = null;
     if (!remaining.length && planRows + first.rowsRead + finishRows <= FIX_REQUEST_ROW_BUDGET) {
-      finish = await finishCourses(db, courses.map((c) => ({ id: c.id, lessons: first.courseLessons[c.id] || 0, expectedLessons: c.lessonCount, expectedSubjects: c.subjectCount })));
+      finish = await finishCourses(db, courses.map((c) => ({ id: c.id, lessons: first.courseLessons[c.id] || 0, expectedLessons: c.lessonCount, expectedSubjects: c.subjectCount })), fixRun.bumpStamps);
+      await saveCheckedAt(db, fixRun.startedAt);
       endRun();
     }
     return {
@@ -377,6 +500,7 @@ export async function startCountFix(db: Executor, courseId?: number) {
       // Whether the last remaining set can also do the finish in the same request.
       finishWithLast: remaining.length > 0 && finishFitsLast,
       done: Boolean(finish),
+      bumpedStamps: Boolean(finish) && Boolean(opts.bumpStamps),
       finish,
     };
   } catch (error) {
@@ -387,13 +511,14 @@ export async function startCountFix(db: Executor, courseId?: number) {
 
 /** Requests 2…: one set; with `finish`, the course totals too (this set's lessons are added in). */
 export async function runCountFixSet(db: Executor, runId: string, subjectIds: number[], finish?: FinishTotals) {
-  touchRun(runId);
+  const run = touchRun(runId);
   const outcome = await countSet(db, subjectIds);
   if (!finish) return { ...outcome, done: false, finish: null };
   try {
     const totals = finish.map((c) => ({ ...c, lessons: Number(c.lessons || 0) + (outcome.courseLessons[Number(c.id)] || 0) }));
-    const result = await finishCourses(db, totals);
-    return { ...outcome, done: true, finish: result };
+    const result = await finishCourses(db, totals, run.bumpStamps);
+    await saveCheckedAt(db, run.startedAt);
+    return { ...outcome, done: true, finish: result, bumpedStamps: run.bumpStamps };
   } finally {
     endRun();
   }
@@ -401,9 +526,11 @@ export async function runCountFixSet(db: Executor, runId: string, subjectIds: nu
 
 /** Separate finish, only when the last set had no room for it. */
 export async function finishCountFix(db: Executor, runId: string, totals: FinishTotals) {
-  touchRun(runId);
+  const run = touchRun(runId);
   try {
-    return { ...(await finishCourses(db, totals)), done: true };
+    const result = await finishCourses(db, totals, run.bumpStamps);
+    await saveCheckedAt(db, run.startedAt);
+    return { ...result, done: true, bumpedStamps: run.bumpStamps };
   } finally {
     endRun();
   }

@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createCourse, deleteCourse, fetchCourses, updateCourse } from '../../../../shared/api/courses.api.js';
 import { createTopic, deleteTopic, fetchTopic, fetchTopics, updateTopic } from '../../../../shared/api/topics.api.js';
 import { createSubtopic, deleteSubtopic, fetchSubtopics, updateSubtopic } from '../../../../shared/api/subtopics.api.js';
-import { adminDeleteAiNote, adminFixCountsFinish, adminFixCountsSet, adminFixCountsStart, adminListStructureLessons, adminMoveStructureItem, adminSearch, adminUpdateAiNote } from '../../../../shared/api/aiNotes.api.js';
+import { adminDeleteAiNote, adminFixCountsFinish, adminFixCountsSet, adminFixCountsQuick,
+  adminFixCountsStart, adminListStructureLessons, adminMoveStructureItem, adminSearch, adminUpdateAiNote } from '../../../../shared/api/aiNotes.api.js';
 import { createLesson } from '../../../../shared/api/lessons.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -521,6 +522,8 @@ export function StructurePage() {
   const [sorting, setSorting] = useState(false);
   const [fixingCounts, setFixingCounts] = useState(false);
   const [fixProgress, setFixProgress] = useState(null); // { done, total, fixed }
+  const [fixDialog, setFixDialog] = useState(false); // 10.60: quick / full + SQL tick box
+  const [fixBumpStamps, setFixBumpStamps] = useState(false);
 
   // Which folder you are in lives in the address (?course=&subject=&topic=), so
   // opening a lesson and coming back — or refreshing — lands on the same folder
@@ -1029,12 +1032,59 @@ export function StructurePage() {
   // as an SQL import). Runs in small steps, one request at a time with a short
   // pause, so each request reads under ~1,000 rows and the database never gets
   // a burst. Only the wrong numbers are corrected.
-  async function handleFixCounts() {
+  function handleFixCounts() {
+    setFixBumpStamps(false);
+    setFixDialog(true);
+  }
+
+  function reportFix(issues, changed, extra = '') {
+    const label = { lesson_count: 'lessons', subject_count: 'subjects', subtopic_count: 'topics' };
+    const shown = issues.slice(0, 3).map((i) => `${i.name} ${label[i.field] || i.field} ${i.stored} → ${i.actual}`).join('; ');
+    const note = changed.length ? ` ${changed.length} changed during the fix; run it again to check them.` : '';
+    flashMessage({
+      error: '',
+      success: issues.length
+        ? `Fixed ${issues.length} count${issues.length === 1 ? '' : 's'}: ${shown}${issues.length > 3 ? '…' : ''}.${note}${extra}`
+        : `All counts are correct.${note}${extra}`,
+    });
+  }
+
+  // 10.60: the default. One request, only what changed since the last check;
+  // falls back to the full recount when there is no check yet or too much changed.
+  async function runQuickFix(bumpStamps) {
+    setFixDialog(false);
+    setFixingCounts(true);
+    try {
+      const out = await adminFixCountsQuick(bumpStamps);
+      if (out?.needFull) {
+        setFixingCounts(false);
+        await runFullFix(bumpStamps);
+        return;
+      }
+      const issues = out?.fixed || [];
+      if (issues.length) {
+        subjectsCacheRef.current.clear();
+        await loadCourses();
+        if (selectedCourseId) await loadSubjects(selectedCourseId);
+      }
+      const scope = out?.subjectsChecked
+        ? ` Checked ${out.subjectsChecked} subject${out.subjectsChecked === 1 ? '' : 's'} changed since the last check.`
+        : ' Nothing changed since the last check.';
+      reportFix(issues, out?.changed || [], `${scope}${bumpStamps ? ' Assessments refreshed for phones.' : ''}`);
+    } catch (error) {
+      flashMessage({ error: getErrorMessage(error, 'Unable to fix counts'), success: '' });
+    } finally {
+      setFixingCounts(false);
+    }
+  }
+
+  async function runFullFix(bumpStamps = false) {
+    setFixDialog(false);
     const pause = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
     setFixingCounts(true);
     try {
       // Request 1: plan + first set (and the finish too when it all fits).
-      const plan = await adminFixCountsStart();
+      const plan = await adminFixCountsStart(null, bumpStamps);
       const remaining = Array.isArray(plan?.remaining) ? plan.remaining : [];
       const separateFinish = !plan?.done && !plan?.finishWithLast;
       const total = 1 + remaining.length + (separateFinish ? 1 : 0);
@@ -1081,15 +1131,7 @@ export function StructurePage() {
         await loadCourses();
         if (selectedCourseId) await loadSubjects(selectedCourseId);
       }
-      const label = { lesson_count: 'lessons', subject_count: 'subjects', subtopic_count: 'topics' };
-      const shown = issues.slice(0, 3).map((i) => `${i.name} ${label[i.field] || i.field} ${i.stored} → ${i.actual}`).join('; ');
-      const note = changed.length ? ` ${changed.length} changed during the fix; run it again to check them.` : '';
-      flashMessage({
-        error: '',
-        success: issues.length
-          ? `Fixed ${issues.length} count${issues.length === 1 ? '' : 's'}: ${shown}${issues.length > 3 ? '…' : ''}.${note}`
-          : `All counts are correct.${note}`,
-      });
+      reportFix(issues, changed, ` Full recount.${bumpStamps ? ' Assessments refreshed for phones.' : ''}`);
     } catch (error) {
       flashMessage({ error: getErrorMessage(error, 'Unable to fix counts'), success: '' });
     } finally {
@@ -1329,16 +1371,20 @@ export function StructurePage() {
               <strong>{courses.length}</strong>
               <span>Courses</span>
             </div>
+            {/* 2026-11-20: at the course level these showed 0 (only an opened
+                folder's rows were counted); now the courses' stored totals. */}
             <div className={structureUi.miniStat}>
-              <strong>{subjects.length}</strong>
+              <strong>{activeLevel === 'courses' ? courses.reduce((sum, c) => sum + Number(c.subjectCount ?? c.totalSubjectsCount ?? 0), 0) : subjects.length}</strong>
               <span>Subjects</span>
             </div>
+            {activeLevel === 'courses' ? null : (
+              <div className={structureUi.miniStat}>
+                <strong>{topics.length}</strong>
+                <span>Topics</span>
+              </div>
+            )}
             <div className={structureUi.miniStat}>
-              <strong>{topics.length}</strong>
-              <span>Topics</span>
-            </div>
-            <div className={structureUi.miniStat}>
-              <strong>{lessons.length}</strong>
+              <strong>{activeLevel === 'courses' ? courses.reduce((sum, c) => sum + Number(c.lessonCount || 0), 0).toLocaleString() : lessons.length}</strong>
               <span>Lessons</span>
             </div>
             <div className={structureUi.miniStat}>
@@ -1562,6 +1608,39 @@ export function StructurePage() {
             </>
           ) : null}
         </section>
+
+        <EntityModal
+          open={fixDialog}
+          title="Fix counts"
+          subtitle="Corrects the lesson, topic and assessment numbers on this page after edits made outside the app."
+          onClose={() => setFixDialog(false)}
+        >
+          <div className={cx(ui.stackForm, ui.modalForm, 'grid gap-4 px-6 py-5 max-[640px]:px-4')}>
+            <label className="flex cursor-pointer items-start gap-3 text-[14px] text-ink-strong">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 !min-h-0"
+                checked={fixBumpStamps}
+                onChange={(event) => setFixBumpStamps(event.target.checked)}
+              />
+              <span>
+                <strong className="block">I changed content with SQL</strong>
+                <span className="text-[13px] text-ink-soft">Also refreshes every assessment on students' phones (each one downloads again once). Leave off otherwise.</span>
+              </span>
+            </label>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" className={ui.secondaryAction} onClick={() => runFullFix(fixBumpStamps)}>
+                Full recount
+              </button>
+              <button type="button" className={ui.primaryAction} onClick={() => runQuickFix(fixBumpStamps)}>
+                Quick fix
+              </button>
+            </div>
+            <p className="m-0 text-[12.5px] leading-relaxed text-ink-soft">
+              Quick fix checks only what changed since the last check. Use Full recount after deleting rows directly in the database.
+            </p>
+          </div>
+        </EntityModal>
 
         <EntityModal
           open={modal === 'course'}

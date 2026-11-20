@@ -261,8 +261,12 @@ export declare class LessonsService {
     canvasAdminStructureCounts(token: string, action: {
         step: 'check';
     } | {
+        step: 'quick';
+        bumpStamps?: boolean;
+    } | {
         step: 'start';
         courseId?: number;
+        bumpStamps?: boolean;
     } | {
         step: 'set';
         runId: string;
@@ -283,6 +287,39 @@ export declare class LessonsService {
             expectedSubjects: number;
         }>;
     }): Promise<{
+        needFull: boolean;
+        reason: "first-run";
+        changedSubjects?: undefined;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        reason: "too-many-changes";
+        changedSubjects: number;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        done: boolean;
+        since: string;
+        subjectsChecked: number;
+        coursesChecked: number;
+        rowsRead: number;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        reason?: undefined;
+        changedSubjects?: undefined;
+    } | {
         runId: string;
         courses: {
             id: number;
@@ -299,12 +336,21 @@ export declare class LessonsService {
         remaining: number[][];
         finishWithLast: boolean;
         done: boolean;
+        bumpedStamps: boolean;
         finish: {
             fixed: import("../../common/utils/structure-counts").CountIssue[];
             changed: import("../../common/utils/structure-counts").CountIssue[];
         } | null;
     } | {
         done: boolean;
+        finish: null;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        courseLessons: Record<number, number>;
+        rowsRead: number;
+    } | {
+        done: boolean;
+        bumpedStamps: boolean;
         fixed: import("../../common/utils/structure-counts").CountIssue[];
         changed: import("../../common/utils/structure-counts").CountIssue[];
     } | {

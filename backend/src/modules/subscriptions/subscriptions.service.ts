@@ -256,8 +256,15 @@ export class SubscriptionsService {
     // Only rows whose student still exists, like the Subscriptions list (a
     // hard user delete leaves its subscriptions behind; see OPTIMIZE P9).
     // 10.57: from the stored counters (one row per plan / payment / status).
+    // 2026-11-20: paid / manual subscriptions on a non-free plan only, the
+    // same rule as the Subscriptions page header. It counted every free plan
+    // too (each student gets one), so the Hub said 93 where Subscriptions
+    // said 21.
+    const slimPlans = await this.loadSlimPlans(db as any);
+    const freePlanIds = [...slimPlans.values()].filter((p) => this.isListedFree('', p)).map((p) => p.id);
+    const PAID = new Set(['manual', 'paid', 'unpaid']);
     const activeCount = (await readSubscriptionGroups(db))
-      .filter((g) => g.status === 'active')
+      .filter((g) => g.status === 'active' && PAID.has(g.paymentStatus) && !freePlanIds.includes(g.planId))
       .reduce((sum, g) => sum + g.n, 0);
     const activeRow = { n: activeCount };
     // Days left 1–7 (same reading as the Subscriptions list: end date counted

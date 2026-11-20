@@ -122,19 +122,19 @@ export declare class LessonsController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<void>;
     canvasRegenerateSection(auth: string, id: number, heading: string): Promise<import("./lessons.service").NoteCanvas>;
@@ -167,6 +167,39 @@ export declare class LessonsController {
         hasNote: boolean;
     }[]>;
     canvasAdminStructureCountsCheck(auth: string): Promise<{
+        needFull: boolean;
+        reason: "first-run";
+        changedSubjects?: undefined;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        reason: "too-many-changes";
+        changedSubjects: number;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        done: boolean;
+        since: string;
+        subjectsChecked: number;
+        coursesChecked: number;
+        rowsRead: number;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        reason?: undefined;
+        changedSubjects?: undefined;
+    } | {
         runId: string;
         courses: {
             id: number;
@@ -183,18 +216,60 @@ export declare class LessonsController {
         remaining: number[][];
         finishWithLast: boolean;
         done: boolean;
+        bumpedStamps: boolean;
         finish: {
             fixed: import("../../common/utils/structure-counts").CountIssue[];
             changed: import("../../common/utils/structure-counts").CountIssue[];
         } | null;
     } | {
         done: boolean;
+        finish: null;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        courseLessons: Record<number, number>;
+        rowsRead: number;
+    } | {
+        done: boolean;
+        bumpedStamps: boolean;
         fixed: import("../../common/utils/structure-counts").CountIssue[];
         changed: import("../../common/utils/structure-counts").CountIssue[];
     } | {
         issues: import("../../common/utils/structure-counts").CountIssue[];
     }>;
-    canvasAdminStructureCountsStart(auth: string, courseId?: number): Promise<{
+    canvasAdminStructureCountsQuick(auth: string, bumpStamps?: boolean): Promise<{
+        needFull: boolean;
+        reason: "first-run";
+        changedSubjects?: undefined;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        reason: "too-many-changes";
+        changedSubjects: number;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        done: boolean;
+        since: string;
+        subjectsChecked: number;
+        coursesChecked: number;
+        rowsRead: number;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        reason?: undefined;
+        changedSubjects?: undefined;
+    } | {
         runId: string;
         courses: {
             id: number;
@@ -211,18 +286,130 @@ export declare class LessonsController {
         remaining: number[][];
         finishWithLast: boolean;
         done: boolean;
+        bumpedStamps: boolean;
         finish: {
             fixed: import("../../common/utils/structure-counts").CountIssue[];
             changed: import("../../common/utils/structure-counts").CountIssue[];
         } | null;
     } | {
         done: boolean;
+        finish: null;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        courseLessons: Record<number, number>;
+        rowsRead: number;
+    } | {
+        done: boolean;
+        bumpedStamps: boolean;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+    } | {
+        issues: import("../../common/utils/structure-counts").CountIssue[];
+    }>;
+    canvasAdminStructureCountsStart(auth: string, courseId?: number, bumpStamps?: boolean): Promise<{
+        needFull: boolean;
+        reason: "first-run";
+        changedSubjects?: undefined;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        reason: "too-many-changes";
+        changedSubjects: number;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        done: boolean;
+        since: string;
+        subjectsChecked: number;
+        coursesChecked: number;
+        rowsRead: number;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        reason?: undefined;
+        changedSubjects?: undefined;
+    } | {
+        runId: string;
+        courses: {
+            id: number;
+            name: string;
+            lessonCount: number;
+            subjectCount: number;
+        }[];
+        first: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+            courseLessons: Record<number, number>;
+            rowsRead: number;
+        };
+        remaining: number[][];
+        finishWithLast: boolean;
+        done: boolean;
+        bumpedStamps: boolean;
+        finish: {
+            fixed: import("../../common/utils/structure-counts").CountIssue[];
+            changed: import("../../common/utils/structure-counts").CountIssue[];
+        } | null;
+    } | {
+        done: boolean;
+        finish: null;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        courseLessons: Record<number, number>;
+        rowsRead: number;
+    } | {
+        done: boolean;
+        bumpedStamps: boolean;
         fixed: import("../../common/utils/structure-counts").CountIssue[];
         changed: import("../../common/utils/structure-counts").CountIssue[];
     } | {
         issues: import("../../common/utils/structure-counts").CountIssue[];
     }>;
     canvasAdminStructureCountsSet(auth: string, body: Record<string, unknown>): Promise<{
+        needFull: boolean;
+        reason: "first-run";
+        changedSubjects?: undefined;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        reason: "too-many-changes";
+        changedSubjects: number;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        done: boolean;
+        since: string;
+        subjectsChecked: number;
+        coursesChecked: number;
+        rowsRead: number;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        reason?: undefined;
+        changedSubjects?: undefined;
+    } | {
         runId: string;
         courses: {
             id: number;
@@ -239,18 +426,60 @@ export declare class LessonsController {
         remaining: number[][];
         finishWithLast: boolean;
         done: boolean;
+        bumpedStamps: boolean;
         finish: {
             fixed: import("../../common/utils/structure-counts").CountIssue[];
             changed: import("../../common/utils/structure-counts").CountIssue[];
         } | null;
     } | {
         done: boolean;
+        finish: null;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        courseLessons: Record<number, number>;
+        rowsRead: number;
+    } | {
+        done: boolean;
+        bumpedStamps: boolean;
         fixed: import("../../common/utils/structure-counts").CountIssue[];
         changed: import("../../common/utils/structure-counts").CountIssue[];
     } | {
         issues: import("../../common/utils/structure-counts").CountIssue[];
     }>;
     canvasAdminStructureCountsFinish(auth: string, body: Record<string, unknown>): Promise<{
+        needFull: boolean;
+        reason: "first-run";
+        changedSubjects?: undefined;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        reason: "too-many-changes";
+        changedSubjects: number;
+        done?: undefined;
+        since?: undefined;
+        subjectsChecked?: undefined;
+        coursesChecked?: undefined;
+        rowsRead?: undefined;
+        fixed?: undefined;
+        changed?: undefined;
+    } | {
+        needFull: boolean;
+        done: boolean;
+        since: string;
+        subjectsChecked: number;
+        coursesChecked: number;
+        rowsRead: number;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        reason?: undefined;
+        changedSubjects?: undefined;
+    } | {
         runId: string;
         courses: {
             id: number;
@@ -267,12 +496,21 @@ export declare class LessonsController {
         remaining: number[][];
         finishWithLast: boolean;
         done: boolean;
+        bumpedStamps: boolean;
         finish: {
             fixed: import("../../common/utils/structure-counts").CountIssue[];
             changed: import("../../common/utils/structure-counts").CountIssue[];
         } | null;
     } | {
         done: boolean;
+        finish: null;
+        fixed: import("../../common/utils/structure-counts").CountIssue[];
+        changed: import("../../common/utils/structure-counts").CountIssue[];
+        courseLessons: Record<number, number>;
+        rowsRead: number;
+    } | {
+        done: boolean;
+        bumpedStamps: boolean;
         fixed: import("../../common/utils/structure-counts").CountIssue[];
         changed: import("../../common/utils/structure-counts").CountIssue[];
     } | {
@@ -307,7 +545,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "completed" | "not_started" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -331,7 +569,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "rejected" | "draft" | "approved";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -348,7 +586,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "rejected" | "draft" | "approved";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -375,7 +613,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "rejected" | "draft" | "approved";
+            status: "approved" | "rejected" | "draft";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;
@@ -393,7 +631,7 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "rejected" | "draft" | "approved";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
         generatedBy: "ai" | "manual";
         reviewedBy: number | null;
@@ -433,7 +671,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "completed" | "not_started" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -470,7 +708,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "completed" | "not_started" | "in_progress";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -497,7 +735,7 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "rejected" | "draft" | "approved";
+            status: "approved" | "rejected" | "draft";
             sortOrder: number;
             generatedBy: "ai" | "manual";
             reviewedBy: number | null;

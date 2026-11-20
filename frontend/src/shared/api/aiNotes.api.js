@@ -91,8 +91,14 @@ export const adminMoveStructureItem = ({ kind, id, aboveId = null, belowId = nul
   });
 // Structure page "Fix counts": request 1 = plan + first set; each next request
 // one set, the last one also finishing. One request at a time, with a pause.
-export const adminFixCountsStart = (courseId = null) =>
-  apiClient.post('/admin/ai-notes/structure/counts/fix/start', courseId ? { courseId } : {}).then((r) => r.data);
+// 10.60: quick fix (default) — only rows changed since the last check, one request.
+export const adminFixCountsQuick = (bumpStamps = false) =>
+  apiClient.post('/admin/ai-notes/structure/counts/fix/quick', bumpStamps ? { bumpStamps: true } : {}).then((r) => r.data);
+export const adminFixCountsStart = (courseId = null, bumpStamps = false) =>
+  apiClient.post('/admin/ai-notes/structure/counts/fix/start', {
+    ...(courseId ? { courseId } : {}),
+    ...(bumpStamps ? { bumpStamps: true } : {}),
+  }).then((r) => r.data);
 export const adminFixCountsSet = (runId, subjectIds, finish = null) =>
   apiClient.post('/admin/ai-notes/structure/counts/fix/set', finish ? { runId, subjectIds, finish } : { runId, subjectIds }).then((r) => r.data);
 export const adminFixCountsFinish = (runId, courses) =>

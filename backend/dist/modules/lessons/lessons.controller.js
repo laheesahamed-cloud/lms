@@ -183,8 +183,11 @@ let LessonsController = class LessonsController {
     canvasAdminStructureCountsCheck(auth) {
         return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'check' });
     }
-    canvasAdminStructureCountsStart(auth, courseId) {
-        return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'start', courseId: courseId != null ? Number(courseId) : undefined });
+    canvasAdminStructureCountsQuick(auth, bumpStamps) {
+        return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'quick', bumpStamps: bumpStamps === true });
+    }
+    canvasAdminStructureCountsStart(auth, courseId, bumpStamps) {
+        return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), { step: 'start', courseId: courseId != null ? Number(courseId) : undefined, bumpStamps: bumpStamps === true });
     }
     canvasAdminStructureCountsSet(auth, body) {
         return this.lessonsService.canvasAdminStructureCounts(this.bearerToken(auth), {
@@ -503,11 +506,20 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasAdminStructureCountsCheck", null);
 __decorate([
+    (0, common_1.Post)('canvas/admin/structure/counts/fix/quick'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)('bumpStamps')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Boolean]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminStructureCountsQuick", null);
+__decorate([
     (0, common_1.Post)('canvas/admin/structure/counts/fix/start'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Body)('courseId')),
+    __param(2, (0, common_1.Body)('bumpStamps')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:paramtypes", [String, Number, Boolean]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "canvasAdminStructureCountsStart", null);
 __decorate([

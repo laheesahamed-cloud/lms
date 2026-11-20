@@ -96,5 +96,8 @@ export function isCatalogueWrite(method: string, path: string) {
   // re-download them. Drugs, ECG, OSCE, auscultation, plans and all lesson /
   // question resources still raise it.
   if (/^\/api\/admin\/(users|subscriptions|settings|reports|question-reports|question-review|dashboard|ai)(\/|$)/.test(path)) return false;
+  // 10.60: Fix counts only corrects admin-only counters; it raises the version
+  // itself, once, when the admin asks for the assessment-stamp bump.
+  if (/\/structure\/counts(\/|$)/.test(path)) return false;
   return CATALOGUE_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix + '/'));
 }

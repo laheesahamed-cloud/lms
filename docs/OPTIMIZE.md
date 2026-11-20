@@ -4286,10 +4286,95 @@ Each one also raised `content_version` (431 → 433 across the two saves), so ev
 - Every other student web page ≤ 5 rows warm ✅.
 - No homepage or student bug from the release check left open ✅, except checking the live database for the QA lesson.
 
+### 10.60 Fix counts reads only what changed + admin release-check fixes — ✅ BUILT locally 2026-11-20 (not committed, not deployed)
+
+**Decisions**
+- ✅ User 2026-11-20: "we need to make fix counts another way without loading the whole rows", then "Do both" (the Fix counts plan and the admin release-check fixes).
+- Stored counts are admin-only (students' lesson counts come from the course structure in memory), so Fix counts no longer raises the content version.
+- The assessment-stamp bump (10.27 R1, needed after an SQL import) becomes a tick box, "I changed content with SQL". When ticked it bumps the stamps and raises the version once.
+- Quick fix is the default. Full recount stays for rows deleted directly in SQL, which leave no `updated_at` trace.
+- Not changed: the large Questions select-all checkbox (a deliberate 44 px touch target below 768 px), and the sideways-scrolling Users / Subscriptions tables (by design). The Roles "Custom access" button was measured inside its card, so it is not clipped.
+
+**Aims**
+- Fix counts should read only rows that changed since the last check, and never make phones re-download.
+- No admin page without the menu; admin numbers agree between pages.
+
+**Before** (local; one Fix counts run: Requests · Statements · Rows examined → returned)
+
+| Part | Rows examined |
+|---|---|
+| Counting (subject sets) | ≈ 1,950 |
+| Plan | 51 |
+| Course finish | 590 |
+| Course structure rebuilt **twice** (the version raise on `/api/admin/ai-notes/structure/counts/*`) | 3,692 |
+| Student Q-Bank list rebuilt | ≈ 800 |
+| `UPDATE quizzes SET content_stamp + 1` (every row written) | 659 |
+| Admin counters rebuild | ≈ 880 |
+| **Total** | **4 · 30 · 8,620 → 4,487** |
+
+Admin release check (all 20 admin pages, 699 px and desktop):
+- ECG, Auscultation and OSCE had no top bar: no menu button and a stale tab title.
+- The Hub said "93 active subs" (it counted every free plan and deleted users' rows) while Subscriptions said 21.
+- Drug names broke mid-word in the table.
+- The Structure top chips read "0 Subjects / 0 Topics / 0 Lessons" at the course level.
+- Questions "15 question(s) loaded · 0 SBA · 15 T/F" counted only the current page.
+- The Announcements info box touched the first field.
+
+**Plan / Changes (built)**
+- `content-version.ts`: any `/structure/counts` path is not a catalogue write.
+- `structure-counts.ts`:
+  - `finishCourses(…, bumpStamps)`: the stamp bump is opt-in.
+  - A "checked up to" mark (`system_settings.structure_counts_checked_at`) is saved when a full or quick fix ends.
+  - New `quickCountFix`, one request:
+    - rows changed since the mark, read through 4 new `updated_at` indexes (index only);
+    - the existing course-vs-subject check (courses + topics), which catches a lesson moved between subjects;
+    - a recount of only those subjects, then those courses' totals.
+  - Falls back to the full flow when there is no mark yet or too much changed.
+- `lessons.service.ts` / controller:
+  - new `POST …/structure/counts/fix/quick`;
+  - `start` takes `bumpStamps`;
+  - the version is raised only when the stamps were bumped;
+  - admin counters are rebuilt in the full flow only.
+- Boot step `2026-11-20.2` (`CRITICAL_SCHEMA_VERSION` bumped) adds four indexes:
+  - `idx_lessons_updated_scope (updated_at, topic_id, course_id)`
+  - `idx_subtopics_updated_scope (updated_at, topic_id)`
+  - `idx_quizzes_updated_scope (updated_at, topic_id, course_id)`
+  - `idx_topics_updated_scope (updated_at, course_id)`
+
+  Every structure table already stamps `updated_at` on insert and update, SQL imports included.
+- Structure page:
+  - "Fix counts" opens a small dialog: Quick fix (default), Full recount, and the SQL tick box.
+  - The top chips use the courses' stored totals (47 subjects, 1,480 lessons), and Topics is hidden at that level.
+- Admin fixes:
+  - **ECG / Auscultation / OSCE:** the shared `AppHeader` (menu, tab title).
+  - **Hub "active subs":** paid / manual on non-free plans, the same rule as Subscriptions.
+  - **Drugs:** the Name column is at least 160 px wide and breaks only between words.
+  - **Questions:** the header reads "Showing 15 questions on this page" and "… SBA here".
+  - **Announcements:** a gap under the info box.
+
+**After** (backend restarted on the new dist; same database)
+
+| Fix counts run | Before | After |
+|---|---|---|
+| Full recount (first run, no mark yet) | 4 · 30 · 8,620 | **6 · 14 · 3,468** (no rebuilds, no stamp bump) |
+| Quick fix, nothing changed | — | **1 · 9 · 61** |
+| Quick fix after one lesson hidden by SQL | — | **2 · 17 · 333**: fixed both counts (Obstetrics 90 → 89, course 168 → 167). Undone and fixed back afterwards (90, 168). |
+
+- `content_version` stayed at 436 through all runs.
+- Admin Hub after: 3 · 12 · 52, and "21 active subs" now matches Subscriptions.
+- Checked in the browser: the ECG, Auscultation and OSCE top bars and tab titles; Drugs names; the Structure chips and dialog.
+
+**Targets:**
+- Everyday Fix counts ≤ 100 rows ✅ (61).
+- No phone re-download from Fix counts ✅.
+- Full recount ≤ 4,000 rows ✅ (3,468).
+- Admin pages all have the menu, and the Hub and Subscriptions agree ✅.
+
 ## 8. Change log
 
 | Date | Change |
 |---|---|
+| 2026-11-20 | 10.60 built locally: Fix counts quick mode (only rows changed since the last check: 1 · 9 · 61) and full recount 8,620 → 3,468 (no version raise / rebuilds, stamp bump opt-in); admin release fixes (ECG/Auscultation/OSCE top bar, Hub active subs = paid rule, Drugs names, Structure chips, Questions page counts). |
 | 2026-11-20 | 10.59 built locally: release-check fixes (homepage menu colour = link rule moved to @layer theme, bar over light sections, coming-soon copy; idle pause no longer blanks pages; Profile, Flashcards, Results, Subscription text; tab titles; scroll reset instant); Study Hub 79 → 7 rows (planner names from the structure in memory). |
 | 2026-11-20 | 10.58 built locally: admin user / subscription / settings / report saves no longer raise the catalogue version (status change 10 · 1,849 → 3 · 2; create student 14 · 1,849 → 7 · 2; no phone re-download). Drugs, ECG, OSCE, auscultation and all content routes still raise it. |
 | 2026-11-20 | 10.57 built locally: all 17 admin pages 11,120 → 963 rows examined (Reports 5,143 → 133, Gemini 4,007 → 52, Subscriptions 537 → 188, Dashboard 323 → 42, Drugs 389 → 33); stored admin counters match a full recount; found: every /api/admin save rebuilds the catalogue (≈ 5,500 rows). |

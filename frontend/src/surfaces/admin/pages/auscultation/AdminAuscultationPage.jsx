@@ -9,6 +9,7 @@ import {
   adminToggleAuscQuiz, adminDeleteAuscQuiz,
 } from '../../../../shared/api/auscultation.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { HeartIcon, LungIcon, SpeakerIcon, AlertIcon } from '../../../app/student/auscultation/components/icons.jsx';
 import '../ecg/AdminEcgPage.css';
 import './AdminAuscultationPage.css';
@@ -74,11 +75,10 @@ export function AdminAuscultationPage() {
 
   return (
     <div className="aep-root">
-      <div className="aep-header">
-        <div>
-          <h1 className="aep-title">Auscultation</h1>
-          <p className="aep-sub">Heart &amp; lung sounds</p>
-        </div>
+      {/* 2026-11-20: the shared admin top bar (menu button, tab title) — the page had none. */}
+      <AppHeader title="Auscultation" subtitle="Heart & lung sounds" />
+      <div className="aep-header aep-header--actions">
+        <div />
         {tab === 'topics' && (
           <button className="aep-btn aep-btn--primary" onClick={() => setTopicModal({ mode: 'create' })}>+ Add Topic</button>
         )}
@@ -202,6 +202,7 @@ function AuscCardsManager({ topic, onBack }) {
 
   return (
     <div className="aep-root">
+      <AppHeader title="Auscultation" subtitle="Topic" />
       <button className="aep-back" onClick={onBack}>‹ All topics</button>
       <div className="aep-header">
         <div>
