@@ -786,7 +786,7 @@ export function StudentBillingPage() {
             {!loading && billableHistory.length ? (
               <div className={billingUi.historyMobile}>
                 {billableHistory.map((subscription) => (
-                  <article className="grid gap-3 rounded-xl border border-line-soft bg-surface-card p-3.5 shadow-xs" key={`mobile-history-${subscription.id}`}>
+                  <article className="grid gap-3 rounded-xl !border-transparent bg-surface-card p-3.5 shadow-xs" key={`mobile-history-${subscription.id}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <strong className="block text-[14px] leading-tight text-ink-strong">{subscription.planName}</strong>

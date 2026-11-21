@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppOnlyGate } from '../../../../shared/ui/AppOnlyGate.jsx';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,7 @@ import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { CourseProgressCard } from '../../../../shared/ui/CourseProgressCard.jsx';
 import { getQuizTitleText } from './quizLabels.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
+import './qbank-course.css';
 
 const PLATFORM = detectPlatform();
 
@@ -213,24 +214,6 @@ function getQuizScopeKey(quiz) {
   return 'subject';
 }
 
-const QUIZ_SCOPE_OPTIONS = [
-  {
-    key: 'all',
-    title: 'All',
-  },
-  {
-    key: 'lesson',
-    title: 'Lesson-wise',
-  },
-  {
-    key: 'subject',
-    title: 'Subject-wise',
-  },
-  {
-    key: 'full-course',
-    title: 'Full course-wise',
-  },
-];
 
 function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode = 'practice' }) {
   const isExamPage = pageMode === 'exam';
@@ -327,49 +310,136 @@ function groupQuizzesByTopic(subject) {
   return order.map((key) => ({ label: single ? '' : key, quizzes: byTopic.get(key) }));
 }
 
-const FREE_CHIP = '__free__';
+// ─── Course view (2026-11-20): same layout as the phone app ──────────────────
+// "Subjects | Full course | Lessons" switch with counts → a sideways row of
+// cards (progress ring per subject / paper series, plus "All") → a Continue
+// card for the next unfinished set → the chosen card's sets. Built only from
+// the list the page already holds: no request.
 
-function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, onStartReady, pageMode, scope, onScopeChange }) {
+const SERIES_TAIL = /\s*[-–—:]*\s*\d+\s*$/;
+const capital = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+function plural(text) {
+  const t = String(text || '').trim();
+  const lw = t.toLowerCase();
+  if (!t || lw.endsWith('s')) return t;
+  if (lw.length > 1 && lw.endsWith('y') && !'aeiou'.includes(lw[lw.length - 2])) return `${t.slice(0, -1)}ies`;
+  if (/(ch|sh|x|z)$/.test(lw)) return `${t}es`;
+  return `${t}s`;
+}
+const byPaperNumber = (a, b) => String(a.quizTitle || '').localeCompare(String(b.quizTitle || ''), undefined, { numeric: true, sensitivity: 'base' });
+
+// Study order for full-course series (user, 2026-11-20): assessments, then
+// exam papers, then final revision papers; every other series after, A–Z.
+function seriesRank(name) {
+  const n = name.toLowerCase();
+  if (n.includes('assessment')) return 0;
+  if (n.includes('exam paper')) return 1;
+  if (n.includes('final revision')) return 2;
+  return 3;
+}
+
+/** Full-course sets → series by name without the trailing number ("Medicine exam paper - 4" → "Exam papers"). */
+function buildSeries(quizzes) {
+  const order = [];
+  const names = new Map();
+  const map = new Map();
+  [...quizzes].sort(byPaperNumber).forEach((quiz) => {
+    const base = String(quiz.quizTitle || '').trim().replace(SERIES_TAIL, '').trim() || 'Other';
+    const key = base.toLowerCase();
+    if (!map.has(key)) { order.push(key); names.set(key, base); map.set(key, []); }
+    map.get(key).push(quiz);
+  });
+  // Full name with the course in front (user, 2026-11-21): "Medicine papers",
+  // "Medicine exam papers" — not "Papers".
+  const label = (k) => capital(plural(names.get(k)));
+  return order
+    .map((k) => ({ key: `series:${k}`, label: label(k), quizzes: map.get(k).sort(byPaperNumber) }))
+    .sort((a, b) => seriesRank(a.label) - seriesRank(b.label) || a.label.localeCompare(b.label));
+}
+
+function groupBySubject(quizzes, scope) {
+  const map = new Map();
+  sortQuizzesByHierarchy(quizzes).forEach((quiz) => {
+    const label = scope === 'lesson'
+      ? quiz.subjectName || quiz.topicName || quiz.lessonTitle || 'Lesson practice'
+      : quiz.subjectName || 'General';
+    if (!map.has(label)) map.set(label, []);
+    map.get(label).push(quiz);
+  });
+  return [...map.entries()].map(([label, items]) => ({ key: `${scope}:${label}`, label, quizzes: items }));
+}
+
+const COURSE_SCOPES = [
+  { key: 'subject', label: 'Subjects' },
+  { key: 'full-course', label: 'Full course' },
+  { key: 'lesson', label: 'Lessons' },
+];
+
+function ProgressRing({ done, total, size = 40 }) {
+  const stroke = 4;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const p = total ? done / total : 0;
+  return (
+    <svg className="qbc-ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--qbc-ring-track)" strokeWidth={stroke} />
+      {p > 0 ? <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--qbc-ring-fill)" strokeWidth={stroke}
+        strokeLinecap="round" strokeDasharray={`${c * p} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      /> : null}
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" className="qbc-ring__text">
+        {total ? Math.round(p * 100) : 0}%
+      </text>
+    </svg>
+  );
+}
+
+function QuizCourseView({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, onStartReady, pageMode }) {
   const isExamPage = pageMode === 'exam';
-  const setLabel = isExamPage ? 'Exam Set' : 'Practice Set';
-  const setLabelLower = setLabel.toLowerCase();
-  const groupingLabel = scope === 'lesson' ? 'lesson' : scope === 'full-course' ? 'revision group' : 'subject';
-  const [activeSubject, setActiveSubject] = useState(null);
-  const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
-  // "Free" is a filter inside the course: the same cards, keeping only the free
-  // sets (and dropping any subject left empty).
-  // 10.21: the website lists only sets that open here, so no "Free" chip.
-  const hasFree = false;
-  const freeOnly = activeSubject === FREE_CHIP;
-  const subjects = useMemo(() => {
-    const map = new Map();
-    sortQuizzesByHierarchy(quizzes).forEach((quiz) => {
-      const label = scope === 'lesson'
-        ? quiz.subjectName || quiz.topicName || quiz.lessonTitle || 'Lesson practice'
-        : scope === 'full-course'
-          ? quiz.courseTitle || courseName || 'Full course revision'
-          : quiz.subjectName || (quiz.isGeneral ? 'General / Full Course Revision' : 'General');
-      if (!map.has(label)) map.set(label, []);
-      map.get(label).push(quiz);
-    });
-    return [...map.entries()].map(([label, items]) => ({ label, quizzes: items }));
-  }, [courseName, quizzes, scope]);
-  const visibleSubjects = freeOnly
-    ? subjects
-        .map((subject) => ({ ...subject, quizzes: subject.quizzes.filter((quiz) => quiz.isFree) }))
-        .filter((subject) => subject.quizzes.length)
-    : (activeSubject ? subjects.filter(subject => subject.label === activeSubject) : subjects);
+  const [scope, setScope] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+  const shelfRef = useRef(null);
+
+  const byScope = useMemo(() => {
+    const out = { subject: [], 'full-course': [], lesson: [] };
+    quizzes.forEach((quiz) => out[getQuizScopeKey(quiz)].push(quiz));
+    return out;
+  }, [quizzes]);
+  const available = COURSE_SCOPES.filter((s) => byScope[s.key].length > 0);
+  const current = available.some((s) => s.key === scope) ? scope : (available[0]?.key || 'subject');
+
+  const cards = useMemo(() => (
+    current === 'full-course' ? buildSeries(byScope['full-course']) : groupBySubject(byScope[current], current)
+  ), [byScope, current]);
+
+  const withProgress = cards.map((card) => {
+    const done = card.quizzes.filter(isQuizDone).length;
+    return { ...card, done, total: card.quizzes.length };
+  });
+  // Nothing chosen yet: where the student left off (in progress, else the first not started).
+  const fallback = withProgress.find((c) => c.done > 0 && c.done < c.total)
+    || withProgress.find((c) => c.done === 0)
+    || withProgress[0];
+  const selected = withProgress.find((c) => c.key === selectedKey) || fallback;
+  const next = selected?.quizzes.find((q) => !isQuizDone(q));
 
   useEffect(() => {
-    setCollapsedSubjects(new Set());
-  }, [courseName, activeSubject, scope]);
+    // Keep the chosen card in view in the slider.
+    const node = shelfRef.current?.querySelector('[data-selected="true"]');
+    node?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [selected?.key, current]);
 
-  function toggleSubject(key) {
-    setCollapsedSubjects((current) => {
-      const next = new Set(current);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
+  function changeScope(key) {
+    setScope(key);
+    setSelectedKey(null);
+    setShowAll(false);
+    shelfRef.current?.scrollTo?.({ left: 0, behavior: 'instant' });
+  }
+
+  function choose(key) {
+    setSelectedKey(key);
+    setShowAll(false);
   }
 
   function startQuiz(quiz, title) {
@@ -385,79 +455,107 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
     });
   }
 
+  const allLabel = current === 'full-course' ? 'All series' : current === 'lesson' ? 'All lessons' : 'All subjects';
+
   return (
-    <div className="student-lessons-detail space-y-4">
+    <div className="student-lessons-detail qbc space-y-4">
       <div className="student-lessons-detail-toolbar">
         <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
           <IcoChevronLeft />
           <span>Back</span>
         </button>
-        <div className="student-lessons-detail-course-name">
-          {courseName || 'General'}
-        </div>
-        <label className="sr-only" htmlFor="quiz-scope-filter">View quizzes by</label>
-        <select
-          id="quiz-scope-filter"
-          className={cx(ui.secondaryButton, 'max-w-[150px] !min-h-9 !w-auto rounded-full px-3 pr-8 text-[12px] font-extrabold max-[520px]:!w-auto')}
-          value={scope}
-          onChange={(event) => {
-            setActiveSubject(null);
-            onScopeChange(event.target.value);
-          }}
-        >
-          {QUIZ_SCOPE_OPTIONS.map((option) => (
-            <option key={option.key} value={option.key}>{option.title}</option>
-          ))}
-        </select>
+        <div className="student-lessons-detail-course-name">{courseName || 'General'}</div>
+        <span aria-hidden="true" />
       </div>
 
-      {subjects.length > 1 || hasFree ? (
-        <div className="student-lessons-filter-bar">
-          <button type="button" className={cx('student-lessons-filter-chip', !activeSubject && 'is-active')} onClick={() => setActiveSubject(null)}>
-            All {groupingLabel}s
-          </button>
-          {hasFree ? (
-            <button type="button" className={cx('student-lessons-filter-chip', freeOnly && 'is-active')} onClick={() => setActiveSubject(freeOnly ? null : FREE_CHIP)}>
-              Free
-            </button>
-          ) : null}
-          {subjects.length > 1 ? subjects.map((subject) => (
+      {available.length > 1 ? (
+        <div className="qbc-switch" role="tablist" aria-label="View sets by">
+          {available.map((s) => (
             <button
+              key={s.key}
               type="button"
-              key={subject.label}
-              className={cx('student-lessons-filter-chip', activeSubject === subject.label && 'is-active')}
-              onClick={() => setActiveSubject(activeSubject === subject.label ? null : subject.label)}
+              role="tab"
+              aria-selected={s.key === current}
+              className={cx('qbc-switch__item', s.key === current && 'is-active')}
+              onClick={() => changeScope(s.key)}
             >
-              {subject.label || 'General'}
+              {s.label}<span>{byScope[s.key].length}</span>
             </button>
-          )) : null}
+          ))}
         </div>
       ) : null}
 
-      <div className="student-lessons-category-list">
-        {visibleSubjects.map((subject, subjectIndex) => {
-          const subjectKey = subject.label || `general-${subjectIndex}`;
-          const isCollapsed = collapsedSubjects.has(subjectKey);
-          return (
-            <section className={cx('student-lessons-category', isCollapsed && 'is-collapsed')} key={subjectKey}>
-              <button type="button" className="student-lessons-category__head" onClick={() => toggleSubject(subjectKey)} aria-expanded={!isCollapsed}>
-                <div className="student-lessons-category__title">
-                  <h2>{subject.label || 'General'}</h2>
-                </div>
-                <small>
-                  {subject.quizzes.length} {setLabelLower}{subject.quizzes.length === 1 ? '' : 's'}
-                  <IcoChevron />
-                </small>
-              </button>
+      {withProgress.length ? (
+        <div className="qbc-shelf" ref={shelfRef}>
+          {withProgress.map((card) => (
+            <button
+              key={card.key}
+              type="button"
+              data-selected={card.key === selected?.key}
+              className={cx('qbc-card', card.key === selected?.key && 'is-active', card.done >= card.total && 'is-done')}
+              onClick={() => choose(card.key)}
+            >
+              <ProgressRing done={card.done} total={card.total} />
+              <strong>{card.label}</strong>
+              <small>{card.done}/{card.total} done</small>
+            </button>
+          ))}
+          <button type="button" className={cx('qbc-card qbc-card--all', showAll && 'is-active')} onClick={() => setShowAll((v) => !v)}>
+            <span className="qbc-card__grid" aria-hidden="true"><i /><i /><i /><i /></span>
+            <strong>{allLabel}</strong>
+            <small>{withProgress.length}</small>
+          </button>
+        </div>
+      ) : null}
 
-              <div className="student-lessons-lesson-list-shell" aria-hidden={isCollapsed}>
-                <div className="student-lessons-lesson-list">
-                  {groupQuizzesByTopic(subject).map((topic, topicIndex) => (
+      {showAll ? (
+        <div className="qbc-all">
+          {withProgress.map((card) => (
+            <button key={card.key} type="button" className={cx('qbc-all__item', card.key === selected?.key && 'is-active')} onClick={() => choose(card.key)}>
+              <ProgressRing done={card.done} total={card.total} size={34} />
+              <span><strong>{card.label}</strong><small>{card.done}/{card.total} done</small></span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {selected ? (
+        <>
+          <div className="qbc-continue">
+            <div>
+              <span>{next ? (selected.done ? 'Continue' : 'Start here') : 'All done'}</span>
+              <strong>{next ? getQuizRowLabel(next, selected.quizzes.indexOf(next)) : `${selected.label}: every set finished`}</strong>
+            </div>
+            {next ? (
+              <button type="button" className={ui.primaryAction} onClick={() => startQuiz(next, getQuizRowLabel(next, selected.quizzes.indexOf(next)))}>
+                {selected.done ? 'Continue' : 'Start'}
+              </button>
+            ) : null}
+          </div>
+
+          <section className="student-lessons-category">
+            <div className="student-lessons-category__head qbc-head">
+              <div className="student-lessons-category__title"><h2>{selected.label}</h2></div>
+              <small>{selected.total} {isExamPage ? 'exam' : 'practice'} set{selected.total === 1 ? '' : 's'}</small>
+            </div>
+            <div className="student-lessons-lesson-list-shell">
+              <div className="student-lessons-lesson-list">
+                {current === 'full-course'
+                  ? selected.quizzes.map((quiz, index) => (
+                    <QuizLessonRow
+                      key={quiz.id}
+                      quiz={quiz}
+                      index={index}
+                      bookmarked={bookmarkedIds.has(quiz.id)}
+                      onBookmark={onBookmark}
+                      onStart={() => startQuiz(quiz, getQuizRowLabel(quiz, index))}
+                      pageMode={pageMode}
+                    />
+                  ))
+                  : groupQuizzesByTopic(selected).map((topic, topicIndex) => (
                     <Fragment key={`${topic.label || 'general'}-${topicIndex}`}>
                       {topic.label ? (
-                        <div className="student-lessons-topic-divider">
-                          <span>{topic.label}</span>
-                        </div>
+                        <div className="student-lessons-topic-divider"><span>{topic.label}</span></div>
                       ) : null}
                       {topic.quizzes.map((quiz, index) => (
                         <QuizLessonRow
@@ -472,12 +570,11 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
                       ))}
                     </Fragment>
                   ))}
-                </div>
               </div>
-            </section>
-          );
-        })}
-      </div>
+            </div>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -496,7 +593,6 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   ));
   const [examTypeFilter, setExamTypeFilter] = useState('all');
   const [courseFilter,  setCourseFilter]  = useState('all');
-  const [scopeFilter, setScopeFilter] = useState('all');
   const [accessPromptQuiz, setAccessPromptQuiz] = useState(null);
   const [startPrompt, setStartPrompt] = useState(null);
 
@@ -575,18 +671,15 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
 
   function handleSelectCourse(courseName) {
     setCourseFilter(courseName);
-    setScopeFilter('all');
   }
 
   function handleBackToCourses() {
     setCourseFilter('all');
-    setScopeFilter('all');
   }
 
   function handleExamTypeFilter(type) {
     setExamTypeFilter(type);
     setCourseFilter('all');
-    setScopeFilter('all');
   }
 
   function handleRequestStart(quiz, title) {
@@ -636,13 +729,6 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   const visible = useMemo(
     () => examTypeQuizzes.filter(q => courseFilter === 'all' || (q.courseTitle || 'General') === courseFilter),
     [examTypeQuizzes, courseFilter],
-  );
-  const scopedVisible = useMemo(
-    () => {
-      if (scopeFilter === 'all') return visible;
-      return visible.filter((quiz) => getQuizScopeKey(quiz) === scopeFilter);
-    },
-    [scopeFilter, visible],
   );
 
   return (
@@ -772,38 +858,18 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
               )}
             </>
           )
-        ) : scopedVisible.length === 0 ? (
-          <section>
-            <QuizLessonDetail
-              courseName={courseFilter}
-              quizzes={scopedVisible}
-              onBack={handleBackToCourses}
-              bookmarkedIds={bookmarkedIds}
-              onBookmark={handleBookmark}
-              onAccessNeeded={setAccessPromptQuiz}
-              onStartReady={handleRequestStart}
-              pageMode={pageMode}
-              scope={scopeFilter}
-              onScopeChange={setScopeFilter}
-            />
-            <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
-              <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'No matching exams mascot' : 'No matching practice sets mascot'} />
-              <p className="m-0 text-center">No sets match your filters.</p>
-            </div>
-          </section>
         ) : (
           <section>
-            <QuizLessonDetail
+            <QuizCourseView
+              key={courseFilter}
               courseName={courseFilter}
-              quizzes={scopedVisible}
+              quizzes={visible}
               onBack={handleBackToCourses}
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
               onStartReady={handleRequestStart}
               pageMode={pageMode}
-              scope={scopeFilter}
-              onScopeChange={setScopeFilter}
             />
           </section>
         )}

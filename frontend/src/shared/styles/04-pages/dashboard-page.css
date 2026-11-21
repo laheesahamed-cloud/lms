@@ -1846,7 +1846,8 @@
   text-align: center;
   /* Unified card shell (XYNDROME_DARK_PLAN.md) with a slight wash of the
      tile's own tone, mixed into the surface so it holds in light and dark. */
-  border: 1px solid color-mix(in srgb, var(--metric-tone) 24%, var(--line-soft));
+  /* No outline (2026-11-21): like the other Study Hub cards; the tint alone sets them apart. */
+  border: 0;
   border-radius: var(--ds-card-radius);
   background: color-mix(in srgb, var(--metric-tone) 9%, var(--surface-card));
   box-shadow: var(--ds-card-shadow);
@@ -3368,4 +3369,26 @@
     min-height: 0 !important;
     height: auto !important;
   }
+}
+
+/* 2026-11-21: no grey outline on any Study Hub card (Continue, Course
+   progress, Streak, Plan, Upcoming, Analytics, Question of the day); the
+   shadow and surface colour separate them. Transparent, not 0, so nothing
+   shifts by a pixel. */
+/* :not(#_) lifts it above the theme rules that set var(--line-soft) !important. */
+:root:not(#_) .dashboard-page.study-hub-page :is(.study-card, .study-continue-card) {
+  border-color: transparent !important;
+}
+
+/* 2026-11-21: no grey outline on student cards on any page (like Study Hub).
+   Outer cards only; the thin dividers between rows inside a card, chips,
+   switches and form fields keep theirs. */
+:root:not(#_) .student-app-shell :is(
+  .lms-card, .lms-global-card, .csum-card,
+  .result-chart-card, .student-results-hero, .student-results-history,
+  .student-results-performance-stat, .student-results-attempt-card,
+  .student-study-card-stack, .planner-list-section, .planner-native-stat,
+  .app-gate, .lms-empty-state, .student-lessons-category
+) {
+  border-color: transparent !important;
 }

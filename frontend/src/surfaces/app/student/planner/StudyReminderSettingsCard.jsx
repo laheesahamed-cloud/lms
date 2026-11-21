@@ -220,7 +220,7 @@ export function StudyReminderSettingsCard() {
   if (!support.supported) return null;
 
   return (
-    <section className="grid gap-3 rounded-2xl border border-line-soft bg-surface-card p-4" aria-label="Study reminders">
+    <section className="grid gap-3 rounded-2xl !border-transparent bg-surface-card p-4 shadow-[var(--ds-card-shadow)]" aria-label="Study reminders">
       <div>
         <h2 className="m-0 text-base font-black text-ink-strong">Study reminders</h2>
         <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-ink-soft">

@@ -1,0 +1,133 @@
+/* Q-Bank course view (2026-11-20): the phone app's layout on the website —
+   Subjects / Full course switch, a sideways card slider, a Continue card. */
+.qbc {
+  --qbc-ring-track: color-mix(in srgb, var(--color-primary, #2563eb) 14%, transparent);
+  --qbc-ring-fill: var(--color-primary, #2563eb);
+  --qbc-active: color-mix(in srgb, var(--color-primary, #2563eb) 12%, var(--surface-card, #fff));
+}
+
+/* Switch with counts */
+.qbc-switch {
+  display: flex;
+  gap: 3px;
+  max-width: 480px;
+  width: 100%;
+  margin-inline: auto; /* centred under the course name (2026-11-21) */
+  padding: 3px;
+  border-radius: 14px;
+  background: var(--surface-2, #f1f5f9);
+}
+.qbc-switch__item {
+  flex: 1;
+  min-height: 40px !important;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ink-soft, #475569);
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color .2s ease, color .2s ease;
+}
+.qbc-switch__item span { margin-left: 6px; font-weight: 600; color: var(--ink-muted, #94a3b8); }
+.qbc-switch__item.is-active {
+  background: var(--surface-card, #fff);
+  border-color: var(--line-medium, #cbd5e1);
+  color: var(--ink-strong, #0f172a);
+}
+
+/* Card slider */
+.qbc-shelf {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  /* Centred when the cards fit; starts at the left edge when they scroll. */
+  justify-content: safe center;
+}
+.qbc-card {
+  flex: 0 0 146px;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  min-height: 128px !important;
+  padding: 12px;
+  border: 1px solid transparent; /* outline only on the chosen card (2026-11-21) */
+  border-radius: 18px;
+  background: var(--surface-card, #fff);
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: border-color .2s ease, background-color .2s ease, transform .15s ease;
+}
+.qbc-card:hover { transform: translateY(-1px); }
+.qbc-card strong {
+  font-size: 12.5px;
+  line-height: 1.25;
+  color: var(--ink-strong, #0f172a);
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.qbc-card small { font-size: 11.5px; font-weight: 700; color: var(--ink-soft, #64748b); }
+.qbc-card.is-active { background: var(--qbc-active); border-color: color-mix(in srgb, var(--color-primary, #2563eb) 45%, transparent); }
+.qbc-card.is-done { --qbc-ring-fill: var(--color-success, #16a34a); }
+.qbc-card--all { flex-basis: 110px; }
+.qbc-card__grid { display: grid; grid-template-columns: repeat(2, 14px); gap: 4px; padding: 6px; }
+.qbc-card__grid i { width: 14px; height: 14px; border-radius: 4px; background: var(--qbc-ring-track); }
+
+.qbc-ring__text { font-size: 10px; font-weight: 800; fill: var(--ink-strong, #0f172a); }
+
+/* "All" panel: every card at once */
+.qbc-all {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.qbc-all__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px !important;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--surface-card, #fff);
+  text-align: left;
+  cursor: pointer;
+}
+.qbc-all__item span { display: grid; gap: 2px; min-width: 0; }
+.qbc-all__item strong { font-size: 13px; color: var(--ink-strong, #0f172a); }
+.qbc-all__item small { font-size: 11.5px; color: var(--ink-soft, #64748b); }
+.qbc-all__item.is-active { background: var(--qbc-active); border-color: color-mix(in srgb, var(--color-primary, #2563eb) 45%, transparent); }
+
+/* Continue card */
+.qbc-continue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: var(--surface-card, #fff);
+}
+.qbc-continue > div { display: grid; gap: 3px; min-width: 0; }
+.qbc-continue span { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--color-primary, #2563eb); }
+.qbc-continue strong { font-size: 15px; color: var(--ink-strong, #0f172a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qbc-continue button { flex: none; }
+
+.qbc-head { cursor: default; }
+
+:root[data-theme="dark"] .qbc {
+  --qbc-active: color-mix(in srgb, var(--color-primary, #2563eb) 26%, var(--surface-card, #16181f));
+}
